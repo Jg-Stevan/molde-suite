@@ -36,7 +36,11 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
+  // `scripts/` se excluye del typecheck: son utilidades de calibración que se
+  // ejecutan directamente con Bun (imports con extensión .ts y APIs de DOM
+  // parciales). El gate de CI es `bun run typecheck` (solo src/ + app).
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "scripts"
   ]
 }

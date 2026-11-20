@@ -10,69 +10,33 @@
 // (excepto resolverUrl, que sí puede fallar si el archivo local no existe).
 
 import { useEffect, useState } from 'react';
-import type { MoldeDB, PruebaDB } from '@/lib/studio-store';
 import type { MoldeUniversal } from '@/lib/molde/universal-types';
 import { repoIdb } from '@/lib/repo-idb';
+import type {
+  MoldeDB,
+  MoldeInput,
+  MoldePatch,
+  PruebaDB,
+  PruebaDetalleDB,
+  PruebaInput,
+  PruebaPatch,
+  Repo,
+  Resultado,
+} from '@/lib/repo-types';
 
-export type Resultado<T = undefined> = { ok: true; data: T } | { ok: false; error: string };
-
-export interface MoldeInput {
-  json: MoldeUniversal;
-  nombre?: string;
-  descripcion?: string | null;
-  documento?: string | null;
-}
-
-export interface MoldePatch {
-  json?: MoldeUniversal;
-  nombre?: string;
-  descripcion?: string | null;
-}
-
-export interface PruebaInput {
-  moldeId: string;
-  archivo: string;
-  fuenteUrl?: string | null;
-  resultados: unknown;
-  score: number;
-  requiereRevision: boolean;
-}
-
-export interface PruebaPatch {
-  resultados: unknown;
-  score: number;
-  requiereRevision: boolean;
-}
-
-/** Reporte completo de una corrida (mismo contrato que GET /api/pruebas/:id). */
-export interface PruebaDetalleDB {
-  id: string;
-  moldeId: string;
-  archivo: string;
-  fuente_url: string | null;
-  score: number | null;
-  requiere_revision: boolean;
-  createdAt: string;
-  updated_at: string;
-  resultados: unknown;
-}
-
-export interface Repo {
-  readonly esEstatico: boolean;
-  listarMoldes(): Promise<Resultado<MoldeDB[]>>;
-  crearMolde(input: MoldeInput): Promise<Resultado<{ id: string }>>;
-  actualizarMolde(id: string, patch: MoldePatch): Promise<Resultado<undefined>>;
-  eliminarMolde(id: string): Promise<Resultado<undefined>>;
-  listarPruebas(moldeId?: string): Promise<Resultado<PruebaDB[]>>;
-  obtenerPrueba(id: string): Promise<Resultado<PruebaDetalleDB>>;
-  crearPrueba(input: PruebaInput): Promise<Resultado<{ id: string }>>;
-  actualizarPrueba(id: string, patch: PruebaPatch): Promise<Resultado<undefined>>;
-  eliminarPrueba(id: string): Promise<Resultado<undefined>>;
-  /** Guarda un documento y devuelve su URL persistida (/uploads/x o idb:x). */
-  subirArchivo(file: File | Blob, nombre: string): Promise<Resultado<{ url: string }>>;
-  /** Convierte una URL persistida en algo usable por <img> / fetch (object URL en IDB). */
-  resolverUrl(url: string): Promise<string>;
-}
+// Re-exporta el contrato compartido (rompe el ciclo repo ↔ repo-idb: ambas
+// implementaciones importan los tipos desde repo-types, no entre sí).
+export type {
+  MoldeDB,
+  MoldeInput,
+  MoldePatch,
+  PruebaDB,
+  PruebaDetalleDB,
+  PruebaInput,
+  PruebaPatch,
+  Repo,
+  Resultado,
+} from '@/lib/repo-types';
 
 /** true cuando el bundle fue compilado para hosting estático (GitHub Pages). */
 export const MODO_ESTATICO = process.env.NEXT_PUBLIC_STATIC === '1';

@@ -209,7 +209,13 @@ export default function VerificacionTab() {
     setCargando(true);
     try {
       const r = await repo.obtenerPrueba(id);
-      if (r.ok) setDetalle(r.data);
+      // El servidor guarda los resultados como JSON opaco: se interpretan como
+      // resultados del motor universal v3 (null si vienen corruptos/vacíos).
+      if (r.ok)
+        setDetalle({
+          ...r.data,
+          resultados: (r.data.resultados as PruebaDetalle['resultados']) ?? null,
+        });
     } finally {
       setCargando(false);
     }

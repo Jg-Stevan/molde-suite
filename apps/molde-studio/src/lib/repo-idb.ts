@@ -11,16 +11,17 @@
 // (primera operación), nunca al importar el módulo: el prerender del build
 // estático no toca el navegador.
 
-import type { MoldeDB, PruebaDB } from '@/lib/studio-store';
 import type {
+  MoldeDB,
   MoldeInput,
   MoldePatch,
+  PruebaDB,
   PruebaDetalleDB,
   PruebaInput,
   PruebaPatch,
   Repo,
   Resultado,
-} from '@/lib/repo';
+} from '@/lib/repo-types';
 
 const DB_NOMBRE = 'molde-studio';
 const DB_VERSION = 1;

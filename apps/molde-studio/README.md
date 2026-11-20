@@ -35,9 +35,9 @@ Producción: `bun run build` y luego `bun run start` (servidor standalone de Nex
 
 | Carpeta | Contenido |
 | --- | --- |
-| `src/app` | Páginas y rutas de API (`/api/moldes`, `/api/pruebas`, `/api/upload`, `/api/extract-ai`, …) |
+| `src/app` | Páginas y rutas de API (`/api/moldes`, `/api/pruebas`, `/api/upload`, …) |
 | `src/components` | Componentes de interfaz (editor de moldes, visor de documentos) |
-| `src/lib` | Utilidades y clientes (Prisma, OCR, IA) |
+| `src/lib` | Utilidades y clientes (Prisma, OCR, motor universal) |
 | `scripts/` | Utilidades de calibración de OCR y creación de moldes de prueba |
 | `prisma/` | Esquema de la base de datos |
 | `public/` | Recursos estáticos y documentación del proyecto (`plan-creador-editor-moldes.md`) |
@@ -45,4 +45,4 @@ Producción: `bun run build` y luego `bun run start` (servidor standalone de Nex
 ## Notas
 
 - Los archivos de trabajo (documentos escaneados de prueba y base de datos local) no se incluyen en el repositorio.
-- Los modelos de lenguaje de Tesseract (`eng.traineddata`, `spa.traineddata`) se incluyen en esta carpeta para que el OCR funcione sin descargas adicionales.
+- Los modelos de lenguaje de Tesseract NO se incluyen en el repositorio (42 MB): el OCR los descarga automáticamente desde el CDN de tesseract.js la primera vez que se usa (`createWorker('spa')` en `src/lib/ocr/ocr-client.ts`). Para un despliegue sin red (air-gap) ver `docs/API.md`.

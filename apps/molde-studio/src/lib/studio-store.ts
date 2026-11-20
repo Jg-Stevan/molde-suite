@@ -6,36 +6,14 @@
 import { create } from 'zustand';
 import type { MoldeUniversal } from '@/lib/molde/universal-types';
 import { repo } from '@/lib/repo';
+import type { MoldeDB, PruebaDB } from '@/lib/repo-types';
 import { toast } from '@/hooks/use-toast';
 
+// Re-exporta los tipos de la capa de datos (viven en repo-types para evitar
+// el ciclo repo ↔ repo-idb).
+export type { MoldeDB, PruebaDB } from '@/lib/repo-types';
+
 export type Pestana = 'moldes' | 'editor' | 'verificacion';
-
-export interface MoldeDB {
-  id: string;
-  nombre: string;
-  descripcion: string | null;
-  documento: string | null;
-  json: string;
-  imagenRef: string | null;
-  createdAt: string;
-  updatedAt: string;
-  _count?: { pruebas: number };
-  pruebas?: { score: number | null }[];
-}
-
-export interface PruebaDB {
-  id: string;
-  moldeId: string;
-  archivo: string;
-  score: number | null;
-  requiereRevision: boolean;
-  createdAt: string;
-  /** URL del documento fuente (/uploads/...) si la corrida es re-ejecutable. */
-  fuenteUrl?: string | null;
-  /** Momento de la última ejecución/re-ejecución (detección de versión). */
-  updatedAt?: string;
-  molde?: { nombre: string };
-}
 
 interface StudioState {
   pestana: Pestana;
