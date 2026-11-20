@@ -24,3 +24,9 @@ public/actas/
 # herramientas de agentes locales
 .claude
 .z-ai-config
+
+# PIDs y archivos de runtime
+*.pid
+
+# uploads del servidor (documentos fuente)
+uploads/

@@ -60,3 +60,10 @@ server.log
 *.db
 /download/
 /public/actas/
+# runtime del sandbox (nunca commitear)
+.zscripts/*.pid
+dev.log
+server.log
+
+# documentos subidos por /api/upload (decisión A: disco local)
+/uploads/
