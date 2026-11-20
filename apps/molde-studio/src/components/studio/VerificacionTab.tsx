@@ -47,6 +47,7 @@ import {
   type ResultadoCampoUniversal,
   type ResultadoUniversal,
 } from '@/lib/molde/universal-types';
+import { repo } from '@/lib/repo';
 import { useStudio, type PruebaDB } from '@/lib/studio-store';
 
 interface PruebaDetalle {
@@ -207,8 +208,8 @@ export default function VerificacionTab() {
   const cargar = useCallback(async (id: string) => {
     setCargando(true);
     try {
-      const res = await fetch(`/api/pruebas/${id}`);
-      if (res.ok) setDetalle(await res.json());
+      const r = await repo.obtenerPrueba(id);
+      if (r.ok) setDetalle(r.data);
     } finally {
       setCargando(false);
     }
@@ -349,28 +350,22 @@ export default function VerificacionTab() {
           setProgresoMsg('Guardando archivo fuente...');
           for (let intento = 0; intento < 2 && !fuenteUrl; intento++) {
             try {
-              const fd = new FormData();
-              fd.append('file', f);
-              const subida = await fetch('/api/upload', { method: 'POST', body: fd });
-              if (subida.ok) fuenteUrl = ((await subida.json()) as { url?: string }).url ?? null;
+              const subida = await repo.subirArchivo(f, f.name);
+              if (subida.ok) fuenteUrl = subida.data.url;
             } catch {
               // Reintento: la fuente es lo que habilita la re-ejecución
               // automática con los cambios guardados del molde.
             }
           }
-          const guardar = await fetch('/api/pruebas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              moldeId,
-              archivo: f.name,
-              fuenteUrl,
-              resultados: res,
-              score: res.score,
-              requiereRevision: res.requiere_revision,
-            }),
+          const guardar = await repo.crearPrueba({
+            moldeId,
+            archivo: f.name,
+            fuenteUrl,
+            resultados: res,
+            score: res.score,
+            requiereRevision: res.requiere_revision,
           });
-          if (guardar.ok) ultimoId = ((await guardar.json()) as { id?: string }).id;
+          if (guardar.ok) ultimoId = guardar.data.id;
           toast({
             title: `Corrida completada: ${f.name}`,
             description: !fuenteUrl
@@ -418,7 +413,8 @@ export default function VerificacionTab() {
       });
       try {
         setProgresoMsg('Recuperando archivo fuente guardado...');
-        const fuenteRes = await fetch(corrida.fuente_url);
+        const urlFuente = await repo.resolverUrl(corrida.fuente_url);
+        const fuenteRes = await fetch(urlFuente);
         if (!fuenteRes.ok) throw new Error('No se pudo recuperar el archivo fuente del servidor');
         const blob = await fuenteRes.blob();
         const tipo =
@@ -432,26 +428,22 @@ export default function VerificacionTab() {
 
         // Actualiza la corrida EN SITIO; si ya no existe (p. ej. eliminada en
         // otra pestaña), la vuelve a crear para no perder el resultado.
-        const actualizar = await fetch(`/api/pruebas/${corrida.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resultados: res, score: res.score, requiereRevision: res.requiere_revision }),
+        const actualizar = await repo.actualizarPrueba(corrida.id, {
+          resultados: res,
+          score: res.score,
+          requiereRevision: res.requiere_revision,
         });
         let idFinal = corrida.id;
         if (!actualizar.ok) {
-          const crear = await fetch('/api/pruebas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              moldeId,
-              archivo: corrida.archivo,
-              fuenteUrl: corrida.fuente_url,
-              resultados: res,
-              score: res.score,
-              requiereRevision: res.requiere_revision,
-            }),
+          const crear = await repo.crearPrueba({
+            moldeId,
+            archivo: corrida.archivo,
+            fuenteUrl: corrida.fuente_url,
+            resultados: res,
+            score: res.score,
+            requiereRevision: res.requiere_revision,
           });
-          if (crear.ok) idFinal = ((await crear.json()) as { id?: string }).id ?? corrida.id;
+          if (crear.ok) idFinal = crear.data.id;
         }
         toast({
           title: 'Corrida re-ejecutada con los cambios guardados',
@@ -509,7 +501,7 @@ export default function VerificacionTab() {
   }, [pruebaId, pruebas, seleccionarCorrida]);
 
   async function eliminarCorrida(id: string) {
-    const del = await fetch(`/api/pruebas/${id}`, { method: 'DELETE' });
+    const del = await repo.eliminarPrueba(id);
     if (!del.ok) {
       toast({ title: 'No se pudo eliminar la corrida', variant: 'destructive' });
       return;

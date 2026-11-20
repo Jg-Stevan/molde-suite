@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import type { MoldeUniversal } from '@/lib/molde/universal-types';
+import { repo } from '@/lib/repo';
 import { toast } from '@/hooks/use-toast';
 
 export type Pestana = 'moldes' | 'editor' | 'verificacion';
@@ -84,8 +85,8 @@ export const useStudio = create<StudioState>((set, get) => ({
   cargarMoldes: async () => {
     set({ cargandoMoldes: true });
     try {
-      const res = await fetch('/api/moldes');
-      if (res.ok) set({ moldes: await res.json() });
+      const r = await repo.listarMoldes();
+      if (r.ok) set({ moldes: r.data });
     } finally {
       set({ cargandoMoldes: false });
     }
@@ -109,26 +110,20 @@ export const useStudio = create<StudioState>((set, get) => ({
   guardarMoldeActual: async () => {
     const { moldeId, molde } = get();
     if (!moldeId || !molde) return false;
-    const res = await fetch(`/api/moldes/${moldeId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ json: molde, nombre: molde.nombre }),
-    });
-    if (res.ok) {
+    const r = await repo.actualizarMolde(moldeId, { json: molde, nombre: molde.nombre });
+    if (r.ok) {
       await get().cargarMoldes();
       toast({ title: 'Molde guardado', description: molde.nombre });
       return true;
     }
-    const err = await res.json().catch(() => ({ error: 'Error al guardar' }));
-    toast({ title: 'Error al guardar', description: err.error, variant: 'destructive' });
+    toast({ title: 'Error al guardar', description: r.error, variant: 'destructive' });
     return false;
   },
 
   cargarPruebas: async (moldeId) => {
     const id = moldeId ?? get().moldeId ?? undefined;
-    const url = id ? `/api/pruebas?moldeId=${id}` : '/api/pruebas';
-    const res = await fetch(url);
-    if (res.ok) set({ pruebas: await res.json() });
+    const r = await repo.listarPruebas(id);
+    if (r.ok) set({ pruebas: r.data });
   },
 
   setPruebaId: (id) => set({ pruebaId: id }),
@@ -147,11 +142,13 @@ export const useStudio = create<StudioState>((set, get) => ({
   consumirReejecucion: () => set({ pendienteReejecutar: false }),
 
   eliminarMolde: async (id) => {
-    const res = await fetch(`/api/moldes/${id}`, { method: 'DELETE' });
-    if (res.ok) {
+    const r = await repo.eliminarMolde(id);
+    if (r.ok) {
       if (get().moldeId === id) set({ moldeId: null, molde: null, pruebas: [] });
       await get().cargarMoldes();
       toast({ title: 'Molde eliminado' });
+    } else {
+      toast({ title: 'No se pudo eliminar el molde', description: r.error, variant: 'destructive' });
     }
   },
 }));

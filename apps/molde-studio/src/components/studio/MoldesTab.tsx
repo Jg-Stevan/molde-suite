@@ -51,6 +51,7 @@ import {
   nuevoIdCampo,
   type MoldeUniversal,
 } from '@/lib/molde/universal-types';
+import { repo } from '@/lib/repo';
 import { useStudio, type MoldeDB } from '@/lib/studio-store';
 
 type Filtro = 'todos' | 'activo' | 'preciso' | 'calibrando';
@@ -215,20 +216,15 @@ export default function MoldesTab() {
         idioma: 'spa',
         campos: [],
       };
-      const res = await fetch('/api/moldes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ json: molde }),
-      });
-      if (res.ok) {
+      const r = await repo.crearMolde({ json: molde });
+      if (r.ok) {
         await cargarMoldes();
         setDialogNuevo(false);
         setNombreNuevo('');
         setDocumentoNuevo('');
         toast({ title: 'Molde creado', description: 'Ábrelo en el editor para dibujar sus zonas.' });
       } else {
-        const err = await res.json();
-        toast({ title: 'Error al crear', description: err.error, variant: 'destructive' });
+        toast({ title: 'Error al crear', description: r.error, variant: 'destructive' });
       }
     } finally {
       setCreando(false);
@@ -264,19 +260,14 @@ export default function MoldesTab() {
         });
         return;
       }
-      const res = await fetch('/api/moldes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ json: universal }),
-      });
-      if (res.ok) {
+      const r = await repo.crearMolde({ json: universal });
+      if (r.ok) {
         await cargarMoldes();
         setDialogImportar(false);
         setJsonImport('');
         toast({ title: 'Molde importado', description: universal.nombre });
       } else {
-        const err = await res.json();
-        toast({ title: 'Error al importar', description: err.error, variant: 'destructive' });
+        toast({ title: 'Error al importar', description: r.error, variant: 'destructive' });
       }
     } finally {
       setImportando(false);
@@ -289,12 +280,8 @@ export default function MoldesTab() {
     const molde = JSON.parse(m.json) as MoldeUniversal;
     molde.nombre = `${molde.nombre} (copia)`;
     molde.campos = molde.campos.map((c) => ({ ...c, id: nuevoIdCampo() }));
-    const res = await fetch('/api/moldes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ json: molde }),
-    });
-    if (res.ok) {
+    const r = await repo.crearMolde({ json: molde });
+    if (r.ok) {
       await cargarMoldes();
       toast({ title: 'Molde duplicado' });
     }
@@ -302,18 +289,15 @@ export default function MoldesTab() {
 
   async function renombrar() {
     if (!dialogRenombrar || !dialogRenombrar.nombre.trim()) return;
-    const res = await fetch(`/api/moldes/${dialogRenombrar.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre: dialogRenombrar.nombre.trim() }),
+    const r = await repo.actualizarMolde(dialogRenombrar.id, {
+      nombre: dialogRenombrar.nombre.trim(),
     });
-    if (res.ok) {
+    if (r.ok) {
       await cargarMoldes();
       toast({ title: 'Molde renombrado', description: dialogRenombrar.nombre.trim() });
       setDialogRenombrar(null);
     } else {
-      const err = await res.json().catch(() => ({ error: 'Error al renombrar' }));
-      toast({ title: 'Error al renombrar', description: err.error, variant: 'destructive' });
+      toast({ title: 'Error al renombrar', description: r.error, variant: 'destructive' });
     }
   }
 

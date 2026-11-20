@@ -27,6 +27,7 @@ import {
 import MoldesTab from '@/components/studio/MoldesTab';
 import EditorTab from '@/components/studio/EditorTab';
 import VerificacionTab from '@/components/studio/VerificacionTab';
+import { MODO_ESTATICO } from '@/lib/repo';
 import { useStudio, type Pestana } from '@/lib/studio-store';
 
 export default function Home() {
@@ -269,7 +270,11 @@ export default function Home() {
           }`}
         >
           <span>DocuTemplate Studio v2.4 | Universal Document Vision &amp; CV Pipeline Telemetry</span>
-          <span className="hidden sm:inline">OCR local · Motor de tinta en navegador · Formato universal v3</span>
+          <span className="hidden sm:inline">
+            {MODO_ESTATICO
+              ? 'OCR local en el navegador · Datos guardados en este dispositivo'
+              : 'OCR local · Motor de tinta en navegador · Formato universal v3'}
+          </span>
         </div>
       </footer>
     </div>

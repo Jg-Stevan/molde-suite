@@ -65,6 +65,7 @@ import {
   type RectNorm,
   type TipoCampo,
 } from '@/lib/molde/universal-types';
+import { repo, useUrlResuelta } from '@/lib/repo';
 import { useStudio } from '@/lib/studio-store';
 
 const CLAMP = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
@@ -85,7 +86,8 @@ const NOMBRE_TIPO: Record<TipoCampo, string> = {
 
 async function imagenACanvas(url: string): Promise<HTMLCanvasElement> {
   const img = new Image();
-  img.src = url;
+  // En modo estático la URL puede ser una clave IndexedDB: se resuelve a object URL.
+  img.src = await repo.resolverUrl(url);
   await img.decode();
   const c = document.createElement('canvas');
   c.width = img.naturalWidth;
@@ -159,6 +161,8 @@ export default function EditorTab() {
   }, [molde, pagina]);
 
   const imagenRef = molde?.paginasRef?.find((p) => p.pagina === pagina)?.imagen ?? null;
+  // URL lista para <img> (resuelve claves idb: a object URLs en modo estático).
+  const imagenRefVisual = useUrlResuelta(imagenRef);
   const campoSel = molde?.campos.find((c) => c.id === campoSeleccionadoId) ?? null;
 
   const camposPagina = useMemo(() => {
@@ -391,15 +395,12 @@ export default function EditorTab() {
     if (!f || !molde) return;
     setSubiendo(true);
     try {
-      const fd = new FormData();
-      fd.append('file', f);
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      if (!res.ok) {
-        const err = await res.json();
-        toast({ title: 'Error al subir imagen', description: err.error, variant: 'destructive' });
+      const subida = await repo.subirArchivo(f, f.name);
+      if (!subida.ok) {
+        toast({ title: 'Error al subir imagen', description: subida.error, variant: 'destructive' });
         return;
       }
-      const { url } = await res.json();
+      const url = subida.data.url;
       const otras = (molde.paginasRef ?? []).filter((p) => p.pagina !== pagina);
       setMoldeActual({
         ...molde,
@@ -829,9 +830,9 @@ export default function EditorTab() {
               className="relative select-none self-start shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
               style={{ width: `${zoom}%`, maxWidth: 680 }}
             >
-              {imagenRef ? (
+              {imagenRef && imagenRefVisual ? (
                 <img
-                  src={imagenRef}
+                  src={imagenRefVisual}
                   alt={`Escaneo de referencia página ${pagina}`}
                   className="block w-full bg-white"
                   draggable={false}
