@@ -1,0 +1,302 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ==========================================================================
+   DocuTemplate Studio — Precision Analytical Studio (Stitch design system)
+   Fuentes: Inter (UI) + JetBrains Mono (métricas/datos)
+   ========================================================================== */
+
+@theme inline {
+  /* shadcn/ui tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Tipografía Stitch */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", monospace;
+
+  /* Superficies */
+  --color-surface: var(--st-surface);
+  --color-surface-lowest: var(--st-surface-lowest);
+  --color-surface-low: var(--st-surface-low);
+  --color-surface-container: var(--st-surface-container);
+  --color-surface-high: var(--st-surface-high);
+  --color-surface-highest: var(--st-surface-highest);
+  --color-on-surface: var(--st-on-surface);
+  --color-on-surface-variant: var(--st-on-surface-variant);
+  --color-outline-dim: var(--st-outline);
+  --color-outline-variant: var(--st-outline-variant);
+
+  /* Marca */
+  --color-brand: var(--st-brand-primary);
+  --color-brand-accent: var(--st-brand-accent);
+  --color-brand-active: var(--st-brand-active);
+  --color-brand-surface: var(--st-brand-surface);
+  --color-brand-highlight: var(--st-brand-highlight);
+
+  /* Lienzos */
+  --color-canvas-paper: var(--st-canvas-paper);
+  --color-canvas-slate: var(--st-canvas-slate);
+  --color-surface-dark: var(--st-surface-dark);
+
+  /* Semánticos de visión */
+  --color-success: var(--st-success);
+  --color-success-surface: var(--st-success-surface);
+  --color-success-text: var(--st-success-text);
+  --color-warning: var(--st-warning);
+  --color-warning-surface: var(--st-warning-surface);
+  --color-warning-text: var(--st-warning-text);
+  --color-danger: var(--st-danger);
+  --color-danger-surface: var(--st-danger-surface);
+  --color-danger-text: var(--st-danger-text);
+  --color-signature: var(--st-signature);
+  --color-detection: var(--st-detection);
+  --color-ink-pen: var(--st-ink-pen);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  /* ===== shadcn base (luz) — mapeado a la paleta Stitch ===== */
+  --background: #f8f9ff;
+  --foreground: #0b1c30;
+  --card: #ffffff;
+  --card-foreground: #0b1c30;
+  --popover: #ffffff;
+  --popover-foreground: #0b1c30;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --secondary: #eff4ff;
+  --secondary-foreground: #0b1c30;
+  --muted: #eff4ff;
+  --muted-foreground: #5c647a;
+  --accent: #e0e7ff;
+  --accent-foreground: #312e81;
+  --destructive: #e11d48;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #6366f1;
+  --chart-1: #4f46e5;
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #7c3aed;
+  --chart-5: #0284c7;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0b1c30;
+  --sidebar-primary: #4f46e5;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef2ff;
+  --sidebar-accent-foreground: #0b1c30;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #6366f1;
+
+  /* ===== Tokens Stitch (luz) ===== */
+  --st-surface: #f8f9ff;
+  --st-surface-lowest: #ffffff;
+  --st-surface-low: #eff4ff;
+  --st-surface-container: #e5eeff;
+  --st-surface-high: #dce9ff;
+  --st-surface-highest: #d3e4fe;
+  --st-on-surface: #0b1c30;
+  --st-on-surface-variant: #464555;
+  --st-outline: #777587;
+  --st-outline-variant: #c7c4d8;
+  --st-brand-primary: #3525cd;
+  --st-brand-accent: #6366f1;
+  --st-brand-active: #4338ca;
+  --st-brand-surface: #eef2ff;
+  --st-brand-highlight: #e0e7ff;
+  --st-canvas-paper: #f6f3eb;
+  --st-canvas-slate: #f1f5f9;
+  --st-surface-dark: #020617;
+  --st-success: #10b981;
+  --st-success-surface: #ecfdf5;
+  --st-success-text: #047857;
+  --st-warning: #f59e0b;
+  --st-warning-surface: #fffbeb;
+  --st-warning-text: #78350f;
+  --st-danger: #e11d48;
+  --st-danger-surface: #fff1f2;
+  --st-danger-text: #be123c;
+  --st-signature: #7c3aed;
+  --st-detection: #0284c7;
+  --st-ink-pen: #1d4ed8;
+}
+
+.dark {
+  --background: #020617;
+  --foreground: #f1f5f9;
+  --card: #0f172a;
+  --card-foreground: #f1f5f9;
+  --popover: #0f172a;
+  --popover-foreground: #f1f5f9;
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #1e293b;
+  --accent-foreground: #e0e7ff;
+  --destructive: #f43f5e;
+  --destructive-foreground: #ffffff;
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #818cf8;
+  --chart-1: #818cf8;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #a78bfa;
+  --chart-5: #38bdf8;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-primary: #6366f1;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #e0e7ff;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #818cf8;
+
+  /* ===== Tokens Stitch (oscuro — slate) ===== */
+  --st-surface: #020617;
+  --st-surface-lowest: #0f172a;
+  --st-surface-low: #0f172a;
+  --st-surface-container: #1e293b;
+  --st-surface-high: #1e293b;
+  --st-surface-highest: #334155;
+  --st-on-surface: #f1f5f9;
+  --st-on-surface-variant: #94a3b8;
+  --st-outline: #94a3b8;
+  --st-outline-variant: #334155;
+  --st-brand-primary: #6366f1;
+  --st-brand-accent: #818cf8;
+  --st-brand-active: #4f46e5;
+  --st-brand-surface: #1e1b4b;
+  --st-brand-highlight: #312e81;
+  --st-canvas-paper: #1a1712;
+  --st-canvas-slate: #0f172a;
+  --st-surface-dark: #020617;
+  --st-success: #34d399;
+  --st-success-surface: #064e3b;
+  --st-success-text: #6ee7b7;
+  --st-warning: #fbbf24;
+  --st-warning-surface: #451a03;
+  --st-warning-text: #fcd34d;
+  --st-danger: #fb7185;
+  --st-danger-surface: #4c0519;
+  --st-danger-text: #fda4af;
+  --st-signature: #a78bfa;
+  --st-detection: #38bdf8;
+  --st-ink-pen: #60a5fa;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    @apply bg-surface text-on-surface antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--st-outline-variant) 70%, transparent);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--st-outline) 60%, transparent);
+  }
+}
+
+/* Scrollbar fino para paneles densos */
+.scroll-fino {
+  scrollbar-width: thin;
+  scrollbar-color: var(--st-outline-variant) transparent;
+}
+.scroll-fino::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Línea de escaneo VLM (glow vertical) */
+@keyframes laser-scan {
+  0% {
+    top: -4%;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    top: 104%;
+    opacity: 0;
+  }
+}
+.laser-scan::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(99, 102, 241, 0.65);
+  box-shadow: 0 0 18px 3px rgba(99, 102, 241, 0.65);
+  animation: laser-scan 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Patrón de puntos del lienzo oscuro del editor */
+.dot-grid {
+  background-image: radial-gradient(circle, rgba(148, 163, 184, 0.25) 1px, transparent 1px);
+  background-size: 18px 18px;
+}

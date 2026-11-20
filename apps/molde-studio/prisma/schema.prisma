@@ -1,0 +1,35 @@
+// Prisma schema — Molde Studio (SQLite)
+// Molde: plantilla universal v3 con sus zonas dibujadas.
+// Prueba: corrida del motor sobre un documento real (resultados JSON).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Molde {
+  id          String   @id @default(cuid())
+  nombre      String
+  descripcion String?
+  documento   String?
+  json        String
+  imagenRef   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  pruebas     Prueba[]
+}
+
+model Prueba {
+  id               String   @id @default(cuid())
+  molde            Molde    @relation(fields: [moldeId], references: [id], onDelete: Cascade)
+  moldeId          String
+  archivo          String
+  resultados       String
+  score            Float?
+  requiereRevision Boolean  @default(false)
+  createdAt        DateTime @default(now())
+}

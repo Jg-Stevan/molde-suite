@@ -1,0 +1,179 @@
+"use client";
+
+/**
+ * TopBar — solo en REVISIÓN. MOCK del mantenedor (2026-11-16): [retro ← w-10
+ * h-10] · [píldora de estado: dot ping del color + score font-mono del color
+ * + label blanco uppercase; contenedor con borde del color (rechazada
+ * border-red-500/40 · advertencia bg-amber-950/60 + glow · óptima
+ * border-brand-green/30 + glow verde)] · [botón circular derecho: nube de
+ * transmisión verde (online+transmitida) · roja offline/rechazada · ámbar
+ * pendiente de envío — mapeo §6.4/AC11].
+ * La lógica de datos (palabra real por estado, score real, alternar
+ * conexión) queda INTACTA de D1 — solo re-vestida.
+ */
+import { useE14Store } from "@/lib/e14/store";
+import type { Acta, ActaStatus } from "@/lib/e14/fachada";
+import { StitchArrowLeftIcon, StitchCloudCheckIcon } from "./icons";
+// KIT e14-observabilidad-v1 (agente 2 · C2): badge DEV — chip no intrusivo
+// que recuerda que el modo de diagnóstico está activo. Re-render barato:
+// evento DOM intra-pestaña + storage cross-pestaña (CERO timers — dev/puente).
+import { useModoDev } from "./dev/puente";
+
+/** D1: estilo por estado — palabra + colores del mock vinculante.
+ *  C-26 — dead code fuera: el case «DUPLICADA» se retiró (SOLO lo estampaba
+ *  el runner MASIVA retirado — en el flujo del móvil el status es
+ *  inalcanzable); sin caso la función devuelve undefined y PillEstado no
+ *  pinta píldora. */
+function estiloTopBar(status: ActaStatus, score: number) {
+  switch (status) {
+    case "ENVIADA":
+    case "OPTIMA":
+      // Misma regla del consumidor canónico (ReviewView ENVIADA): ≥8 ÓPTIMA,
+      // <8 ENVIADA CON ADVERTENCIA (envío observado).
+      return {
+        palabra: score >= 8 ? "ÓPTIMA" : "ENVIADA CON ADVERTENCIA",
+        pill: "bg-brand-surface border border-brand-green/30 shadow-[0_0_12px_rgba(0,230,118,0.15)]",
+        dot: "bg-brand-green",
+        ping: true,
+        score: "text-brand-green",
+      };
+    case "ADVERTENCIA":
+      // Mock 4: píldora ámbar con glow (bg amber-950/60).
+      return {
+        palabra: "ADVERTENCIA",
+        pill:
+          "bg-amber-950/60 border border-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.25)]",
+        dot: "bg-amber-400",
+        ping: false,
+        score: "text-amber-400",
+      };
+    case "RECHAZADA":
+      return {
+        palabra: "RECHAZADA",
+        pill: "bg-brand-surface border border-red-500/40 shadow-sm",
+        dot: "bg-red-500",
+        ping: true,
+        score: "text-red-500",
+      };
+    case "EN_REVISION_HUMANA":
+      return {
+        palabra: "REVISIÓN HUMANA",
+        pill:
+          "bg-amber-950/60 border border-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.25)]",
+        dot: "bg-amber-400",
+        ping: false,
+        score: "text-amber-400",
+      };
+    default:
+      // C-26 — «DUPLICADA» inalcanzable en el móvil: sin píldora (no se
+      // fabrica un estilo para un estado que no se produce).
+      return undefined;
+  }
+}
+
+/** Nube de transmisión (§6.4/AC11 — mapeo implementado):
+ *  · VERDE  = online y (ENVIADA u ÓPTIMA a punto de auto-enviarse)
+ *  · ROJA   = offline (cola pendiente) o RECHAZADA (no se transmite)
+ *  · ÁMBAR  = ADVERTENCIA / EN_REVISION_HUMANA online (pendiente de envío) */
+function nubeTransmision(status: ActaStatus, online: boolean) {
+  if (!online || status === "RECHAZADA") {
+    return "bg-red-500/20 border border-red-500/40 text-red-500";
+  }
+  if (status === "ENVIADA" || status === "OPTIMA") {
+    return "bg-brand-greendark border border-brand-green/40 text-brand-green";
+  }
+  return "bg-amber-950/60 border border-amber-500 text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.25)]";
+}
+
+function PillEstado({ acta }: { acta: Acta }) {
+  // C-26 — estiloTopBar devuelve undefined para estados no producidos por el
+  // móvil (DUPLICADA): sin píldora, sin fabricar estilos muertos.
+  const est = estiloTopBar(acta.status, acta.score);
+  if (!est) return null;
+  return (
+    <div
+      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs transition-all ${est.pill}`}
+      role="status"
+    >
+      {est.ping ? (
+        <span className="relative flex h-2 w-2">
+          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${est.dot} opacity-75`} />
+          <span className={`relative inline-flex rounded-full h-2 w-2 ${est.dot}`} />
+        </span>
+      ) : (
+        <span className={`w-2 h-2 rounded-full shrink-0 ${est.dot}`} aria-hidden />
+      )}
+      <span className={`font-mono font-bold text-xs tracking-tight ${est.score}`}>{acta.score.toFixed(1)}/10</span>
+      <span className="text-gray-200 font-semibold uppercase tracking-wider text-[10px]">
+        {est.palabra}
+      </span>
+    </div>
+  );
+}
+
+export function TopBar() {
+  const online = useE14Store((s) => s.online);
+  const alternarConexion = useE14Store((s) => s.alternarConexion);
+  const navegar = useE14Store((s) => s.navegar);
+  const acta = useE14Store((s) => s.actaActual);
+  // KIT e14-observabilidad-v1 (agente 2 · C2): modo dev reactivo.
+  const modoDev = useModoDev();
+
+  const nube = acta ? nubeTransmision(acta.status, online) : null;
+
+  return (
+    <header className="relative z-30 pt-safe shrink-0 bg-brand-black/95 backdrop-blur border-b border-brand-border/60">
+      <div className="max-w-md lg:max-w-2xl mx-auto px-4 pt-4 pb-2.5 flex items-center justify-between gap-2">
+        <button
+          aria-label="Volver al menú de escaneo"
+          type="button"
+          onClick={() => navegar("escanear")}
+          className="w-10 h-10 rounded-full flex items-center justify-center text-brand-green hover:bg-brand-surfacelight tap-action transition-colors"
+        >
+          <StitchArrowLeftIcon />
+        </button>
+        {/* KIT e14-observabilidad-v1 (agente 2 · C2): badge DEV en la esquina
+            del contenido central — jamás intrusivo, solo recuerda el modo. */}
+        <div className="relative min-w-0">
+          {acta ? (
+            <PillEstado acta={acta} />
+          ) : (
+            <h1 className="font-mono font-bold text-[11px] uppercase tracking-wider text-brand-green text-center">
+              REVISIÓN DE DOCUMENTO
+            </h1>
+          )}
+          {modoDev && (
+            <span
+              title="Modo desarrollador activo"
+              className="absolute -top-2 -right-2 pointer-events-none font-mono text-[8px] font-black tracking-widest px-1.5 py-px rounded-md border border-[#10b981]/60 bg-[#090d12] text-[#10b981] shadow-sm"
+            >
+              DEV
+            </span>
+          )}
+        </div>
+        {nube ? (
+          <button
+            type="button"
+            onClick={alternarConexion}
+            aria-pressed={online}
+            aria-label={
+              online
+                ? "En línea — tocar para simular sin conexión"
+                : "Sin conexión — tocar para reconectar"
+            }
+            title={
+              online
+                ? "En línea — los envíos salen al servidor"
+                : "Sin conexión — los envíos se acumulan en cola local"
+            }
+            className={`flex w-10 h-10 items-center justify-center rounded-full border tap-action transition-colors hover:bg-brand-surfacelight focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/60 ${nube}`}
+          >
+            <StitchCloudCheckIcon className="w-4.5 h-4.5" />
+          </button>
+        ) : (
+          <div className="w-10 h-10" aria-hidden />
+        )}
+      </div>
+    </header>
+  );
+}

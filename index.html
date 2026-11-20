@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Molde Suite — Molde Studio + Tamiz</title>
+<style>
+  :root { color-scheme: dark; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(160deg, #0d1117 0%, #161b27 60%, #1a2332 100%);
+    color: #e6edf3;
+    min-height: 100vh;
+    padding: clamp(1.5rem, 6vw, 4rem) clamp(1rem, 4vw, 3rem);
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: clamp(1.5rem, 5vw, 3rem); }
+  .badge {
+    display: inline-block; font-size: clamp(.7rem, 2.5vw, .8rem);
+    letter-spacing: .14em; text-transform: uppercase;
+    color: #7ee787; border: 1px solid rgba(126,231,135,.4);
+    border-radius: 999px; padding: .35rem 1.1rem; margin-bottom: 1.1rem;
+  }
+  h1 { font-size: clamp(2rem, 8vw, 3.2rem); line-height: 1.12; margin-bottom: .8rem; }
+  .lead { color: #9aa7b8; font-size: clamp(.95rem, 3.2vw, 1.1rem); line-height: 1.65; max-width: 640px; margin: 0 auto; }
+  .lead strong { color: #e6edf3; }
+  .flow {
+    display: flex; align-items: stretch; justify-content: center; gap: .6rem;
+    flex-wrap: wrap; margin: 1.6rem auto 2.2rem; max-width: 680px;
+    color: #8fa0b5; font-size: clamp(.8rem, 2.8vw, .92rem);
+  }
+  .flow .node {
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px; padding: .55rem .9rem; white-space: nowrap;
+  }
+  .flow .arr { align-self: center; color: #7ee787; font-weight: 700; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 640px) { .cards { grid-template-columns: 1fr; } }
+  .card {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px;
+    padding: clamp(1.2rem, 4vw, 1.8rem);
+  }
+  .card h2 { font-size: clamp(1.15rem, 4.5vw, 1.5rem); margin-bottom: .6rem; }
+  .card .tag { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: #79c0ff; margin-bottom: .8rem; display: block; }
+  .card.tamiz .tag { color: #7ee787; }
+  .card p { color: #9aa7b8; font-size: clamp(.88rem, 2.9vw, .98rem); line-height: 1.6; margin-bottom: 1rem; }
+  .card a {
+    color: #79c0ff; text-decoration: none; font-weight: 600;
+    font-size: clamp(.85rem, 2.8vw, .95rem);
+  }
+  .card a:hover { text-decoration: underline; }
+  .states { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .3rem; }
+  .states span {
+    font-size: .72rem; padding: .25rem .6rem; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.15); color: #c9d5e3;
+  }
+  .states .ok { color: #7ee787; border-color: rgba(126,231,135,.4); }
+  .states .warn { color: #ffb454; border-color: rgba(255,180,80,.4); }
+  .states .bad { color: #ff7b72; border-color: rgba(255,123,114,.4); }
+  footer {
+    text-align: center; color: #6e7c90; font-size: clamp(.78rem, 2.6vw, .85rem);
+    margin-top: 2.2rem; line-height: 1.6;
+  }
+  code { background: rgba(255,255,255,.1); border-radius: 5px; padding: .1rem .4rem; font-size: .9em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge">Suite open source</span>
+    <h1>Molde Suite</h1>
+    <p class="lead">Digitalización documental guiada por moldes: <strong>Molde Studio</strong> crea el molde <code>.json</code> de cada tipo de documento y <strong>Tamiz</strong>, el digitalizador automático, solo deja pasar los que encajan.</p>
+    <div class="flow">
+      <span class="node">Molde Studio<br><small>editor + calibración OCR</small></span>
+      <span class="arr">─ molde .json ▶</span>
+      <span class="node">Tamiz<br><small>escaneo → verificación → acepta/rechaza</small></span>
+    </div>
+  </header>
+
+  <section class="cards">
+    <div class="card">
+      <span class="tag">Editor de moldes</span>
+      <h2>Molde Studio</h2>
+      <p>Diseño visual de moldes sobre documentos escaneados, calibración asistida por OCR y generación de documentos. Next.js 16 + Prisma + SQLite. App completa, lista para ejecutar en local o servidor.</p>
+      <a href="https://github.com/Jg-Stevan/molde-studio">Ver repositorio →</a>
+    </div>
+    <div class="card tamiz">
+      <span class="tag">Digitalizador automático</span>
+      <h2>Tamiz</h2>
+      <p>Escaneo inmersivo (cámara / archivo / simulación), pipeline real de visión + OCR y verificación documental contra el molde. La capa UI y los contratos del bridge, publicados para revisión.</p>
+      <div class="states">
+        <span class="ok">ÓPTIMA</span>
+        <span class="warn">ADVERTENCIA</span>
+        <span class="bad">RECHAZADA</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Molde Suite · <a style="color:#79c0ff;text-decoration:none" href="https://github.com/Jg-Stevan/molde-suite">github.com/Jg-Stevan/molde-suite</a>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,259 @@
+"use client";
+
+/**
+ * Shell único (D3): TopBar (solo REVISIÓN) + vista activa por estado (zustand)
+ * + BottomNav. Transiciones 150 ms.
+ * STITCH REDESIGN (SPEC-e14-redesign-stitch §4/D2): el sistema de
+ * notificaciones flotantes queda ELIMINADO — FloatingBanner ya NO se monta
+ * (archivo borrado) y `notificar` desaparece del store. El feedback vive
+ * SIEMPRE en la UI persistente de estado (píldora/nube/bloque ENVIADO/
+ * franja del visor/feedback en botón).
+ *
+ * SHELL RESPONSIVO (Task 2-a — remodelado Z.ai):
+ *  · lg+ (≥1024px): SideNav fija a la izquierda (240px) + columna de
+ *    contenido; BottomNav se oculta y las CTAs de REVISIÓN (ReviewCtas)
+ *    viven al fondo de la columna en desktop.
+ *  · <lg: comportamiento móvil original (BottomNav + CTAs encima).
+ *  · Atajos de teclado (desktop): 1/2/3 cambian de vista (escanear/actas/
+ *    resumen) · «?»/«h» abre la guía. Se desactivan mientras haya un dialog
+ *    abierto (editores, visor de foto, ayuda) o el foco esté en un input.
+ */
+import { useEffect } from "react";
+// Ola 5 §5.1 (R3+F12) — code-splitting de vistas: las 4 vistas PESADAS (las
+// que arrastran OCR/pipeline/PDF) salen del bundle inicial con next/dynamic.
+// S-5 verificado: este archivo ES "use client" (línea 1), así que
+// `dynamic(..., { ssr: false })` es válido aquí (en un Server Component sería
+// error). ScanView queda EAGER a propósito: es la vista inicial del flujo
+// (cargarla con un import diferido retrasaría el primer paint útil).
+// Los props/firmas de cada vista NO cambian: dynamic los transmite tal cual.
+import dynamic from "next/dynamic";
+import { useE14Store } from "@/lib/e14/store";
+import { TopBar } from "@/components/e14/TopBar";
+// SOLO PREVIEW (entrega): acceso al .zip con los cambios aplicados al repo.
+// Pieza ajena a la app — se puede eliminar sin afectar nada.
+import { DownloadIcon } from "@/components/e14/icons";
+import { BottomNav } from "@/components/e14/BottomNav";
+import { SideNav } from "@/components/e14/SideNav";
+import { ScanView } from "@/components/e14/screens/ScanView"; // vista inicial — EAGER
+const AnalyzingView = dynamic(
+  () => import("@/components/e14/screens/AnalyzingView").then((m) => m.AnalyzingView),
+  { ssr: false }
+);
+// ReviewCtas viaja en el MISMO módulo que ReviewView: ambos dynamic apuntan al
+// mismo chunk (el módulo se evalúa una sola vez y el bundler lo deduplica).
+const ReviewView = dynamic(
+  () => import("@/components/e14/screens/ReviewView").then((m) => m.ReviewView),
+  { ssr: false }
+);
+const ReviewCtas = dynamic(
+  () => import("@/components/e14/screens/ReviewView").then((m) => m.ReviewCtas),
+  { ssr: false }
+);
+const ActasView = dynamic(
+  () => import("@/components/e14/screens/ActasView").then((m) => m.ActasView),
+  { ssr: false }
+);
+const ResumenView = dynamic(
+  () => import("@/components/e14/screens/ResumenView").then((m) => m.ResumenView),
+  { ssr: false }
+);
+// F-PWA (kit H6): registro del Service Worker + banner E-04 «Nueva versión
+// lista» — montaje único, no renderiza nada. La instalación la ofrece el
+// banner OFICIAL de Chrome (sin píldora propia).
+import { PwaRegister } from "@/components/e14/PwaRegister";
+// Task 4: guía de uso (onboarding 1.ª visita + «?»/«h» + SideNav).
+import { AyudaOverlay, abrirAyuda } from "@/components/e14/AyudaOverlay";
+// KIT e14-observabilidad-v1 (A1-C7): bootstrap del rastreo — captura de
+// errores + ErrorBoundary + breadcrumbs + uso + salud (modo dev) +
+// transporte (stub → agente 3) + refresco de flags. TODO idempotente y
+// silencioso (§2.4): la app se comporta IDÉNTICA con esto en marcha.
+import { ErrorBoundaryObs, instalarCaptura } from "@/lib/e14/obs/captura";
+import { iniciarBreadcrumbs } from "@jg-stevan/scanner-core/obs-base/breadcrumbs";
+import { iniciarUso } from "@/lib/e14/obs/uso";
+import { iniciarMuestreoSalud } from "@/lib/e14/obs/dispositivo";
+import { iniciarDetectorHang } from "@/lib/e14/obs/hang"; // ANEXO Agente C (Pieza 2) — sensor de congelones
+import { iniciarSensorHangEnCurso } from "@/lib/e14/obs/heartbeat.client"; // KIT e14-obs-hang-atribucion-v1 (§C.7) — heartbeat + WAL (idempotente, silencioso, kill-switch hangEnCurso)
+import { iniciarTransporte } from "@/lib/e14/obs/transporte";
+// KIT e14-remediacion-movil-v1 (D3 — #13 · P2): LCP/CLS observables —
+// consume la publicación del script de <head> (o instala observers propios
+// con buffered:true si el script no corrió) y publica el evento obs perf
+// "obs:lcp-cls" al buffer + window.__e14LcpCls. Idempotente y silencioso.
+import { instalarObserverLcpCls } from "@/lib/e14/obs/lcp-cls";
+// KIT e14-puente-supervision-v1 (§7): auto-push de actas ENVIADAS hacia el
+// panel de supervisión (hub Workers) — idempotente, silencioso, con cola
+// propia; jamás rompe el bootstrap (misma regla §2.4 del rastreo).
+import { iniciarPuenteSupervision } from "@/lib/e14/puente/enganche";
+import { refrescarFlags } from "@/lib/e14/flags";
+// KIT e14-rastreo-tiempos-v1: bootstrap del rastreo de tiempos (idempotente,
+// silencioso) — retoma la sesión activa si quedó de una recarga. La sesión
+// se activa/detiene desde el modo desarrollador (PanelDev §9).
+import { iniciarRastreo } from "@/lib/e14/rastreo/motor";
+
+export default function Page() {
+  const vista = useE14Store((s) => s.vista);
+  const navegar = useE14Store((s) => s.navegar);
+  // Destello de captura en el SHELL: sobrevive al cambio a ANALIZANDO (antes
+  // vivía en ScanView y la navegación lo cortaba, así que se retrasaba 260 ms).
+  const destelloKey = useE14Store((s) => s.destelloKey);
+
+  // KIT L6: arranque de la jornada persistida — UNA vez por carga (la
+  // acción es idempotente: guarda de doble montaje incluida). Sin registro
+  // persistido la app arranca fresca exactamente como hoy.
+  const arrancarJornada = useE14Store((s) => s.arrancarJornada);
+  useEffect(() => {
+    void arrancarJornada();
+  }, [arrancarJornada]);
+
+  // KIT e14-observabilidad-v1 (A1-C7): bootstrap del rastreo — UNA vez por
+  // carga, TODAS las piezas idempotentes. El muestreo de salud NO crea
+  // timer si el modo dev está OFF (cero costo); el transporte es no-op sin
+  // endpoint (D1). Nada de esto renderiza ni toca la UI.
+  useEffect(() => {
+    try {
+      instalarCaptura();
+      iniciarBreadcrumbs();
+      iniciarUso();
+      iniciarMuestreoSalud();
+      iniciarDetectorHang(); // ANEXO Agente C — longtask + drift (idempotente, silencioso)
+      iniciarSensorHangEnCurso(); // KIT e14-obs-hang-atribucion-v1 (§C.7) — drena el WAL + heartbeat del hang-en-curso (idempotente, silencioso, kill-switch hangEnCurso)
+      iniciarTransporte();
+      instalarObserverLcpCls(); // KIT e14-remediacion-movil-v1 (D3 — #13): LCP/CLS — publicar la medición al buffer (idempotente, silencioso)
+      iniciarPuenteSupervision(); // KIT e14-puente-supervision-v1 (§7) — auto-push al panel de supervisión (idempotente, silencioso)
+      void refrescarFlags();
+      iniciarRastreo(); // KIT e14-rastreo-tiempos-v1 — idempotente y silencioso
+    } catch {
+      /* el rastreo jamás rompe la app (§2.4) */
+    }
+  }, []);
+
+  // KIT e14-esquinas-suaves-v1 (T-R): tick del SIM VIVO en el SHELL — corre en
+  // TODAS las vistas (el mantenedor mira RESUMEN y el puesto se llena a la vista).
+  // Antes vivía en ACTAS (se pausaba al navegar). Misma cadencia 5 s, mismo
+  // guard: OFF o guion completo → sin ticks (AC-SIM1). D6 intocable: solo lee.
+  const modoSimulacion = useE14Store((s) => s.modoSimulacion);
+  const simCompleta = useE14Store((s) => s.simCompleta);
+  const avanzarSimulacion = useE14Store((s) => s.avanzarSimulacion);
+  useEffect(() => {
+    if (!modoSimulacion || simCompleta) return;
+    const t = window.setInterval(avanzarSimulacion, 5000);
+    return () => window.clearInterval(t);
+  }, [modoSimulacion, simCompleta, avanzarSimulacion]);
+
+  // Task 4: atajos de teclado (desktop-friendly). Guard: nada de atajos
+  // mientras un dialog esté abierto (editores/visor/ayuda) o el foco esté
+  // escribiendo en un input/textarea.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" ||
+          t.isContentEditable)
+      )
+        return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (e.key === "1") navegar("escanear");
+      else if (e.key === "2") navegar("actas");
+      else if (e.key === "3") navegar("resumen");
+      else if (e.key === "?" || e.key === "h" || e.key === "H") abrirAyuda();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navegar]);
+
+  return (
+    <ErrorBoundaryObs>
+      {/* KIT e14-observabilidad-v1 (A1-C7): ErrorBoundaryObs envuelve el
+          shell COMPLETO — un error de render → evento en el buffer + UI de
+          fallo sobria con Recargar (nada de pantalla blanca muda). */}
+      {/* D38 (F5): shell candado a h-dvh (NO min-h) — la cadena de alturas
+          de REVISIÓN queda DEFINITA (main flex-1 → tarjeta flex-1 → img
+          h-full) y la barra de controles vive SIEMPRE pegada a los CTAs/
+          BottomNav, sin importar la orientación del documento. Cada vista
+          gestiona su propio scroll (Actas/Resumen ya son overflow-y-auto;
+          ScanView cabe por diseño). Task 2-a: en lg+ el shell se vuelve
+          horizontal — SideNav + columna. */}
+      <div className="h-dvh bg-[#090d12] text-slate-100 flex font-sans overflow-hidden">
+        {/* Navegación de escritorio (lg+) — en móvil la da BottomNav */}
+        <SideNav />
+
+        <div className="flex-1 min-w-0 flex flex-col relative">
+          {vista === "revision" && <TopBar />}
+
+          <main className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
+            <div
+              key={vista}
+              className="flex-1 min-h-0 flex flex-col animate-view-enter"
+            >
+              {vista === "escanear" && <ScanView />}
+              {vista === "analizando" && <AnalyzingView />}
+              {vista === "revision" && <ReviewView />}
+              {vista === "actas" && <ActasView />}
+              {vista === "resumen" && <ResumenView />}
+            </div>
+          </main>
+
+          {/* SOLO PREVIEW (entrega): píldora discreta en el borde izquierdo
+              del visor, únicamente en ESCANEAR (bajo las franjas de avisos
+              z-40 y la galería de simulación z-50, así no tapa nada). */}
+          {vista === "escanear" && (
+            <a
+              href="/cambios-digielect14.zip"
+              download
+              title="Descargar cambios (.zip)"
+              aria-label="Descargar cambios (.zip)"
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-slate-800 bg-[#10161f]/90 text-slate-400 backdrop-blur-md transition hover:text-brand-green focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
+            >
+              <DownloadIcon className="w-4.5 h-4.5" />
+            </a>
+          )}
+
+          {/* Navegación móvil (<lg). Las CTAs de REVISIÓN viajan dentro del
+            BottomNav (encima de la barra), como siempre.
+            MOCK 2026-11-16 (escaneo libre y limpio): la vista ESCANEAR es una
+            pantalla inmersiva — SIN barra inferior (HISTORIAL/círculo/
+            PLANTILLAS ocultas); la salida es el botón VOLVER del visor.
+            REVISIÓN/HISTORIAL/PLANTILLAS conservan la barra. */}
+          {vista !== "analizando" && vista !== "escanear" && (
+            <div className="lg:hidden shrink-0">
+              <BottomNav
+                mode={vista === "actas" || vista === "resumen" ? "app" : "dark"}
+              >
+                {vista === "revision" && <ReviewCtas />}
+              </BottomNav>
+            </div>
+          )}
+
+          {/* CTAs de REVISIÓN en escritorio: al fondo de la columna (no hay
+            barra inferior en lg+). Misma pieza (ReviewCtas), sin duplicar
+            estado — es presentacional pura. */}
+          {vista === "revision" && (
+            <div className="hidden lg:flex shrink-0 justify-center px-6 pb-4">
+              <div className="w-full max-w-2xl xl:max-w-3xl">
+                <ReviewCtas />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Destello blanco de captura (320 ms, spec §7) — en el shell para que
+            el paso a ANALIZANDO no lo corte. */}
+        {destelloKey > 0 && (
+          <div
+            key={destelloKey}
+            className="animate-capture-flash pointer-events-none fixed inset-0 z-[999] bg-white"
+            aria-hidden
+          />
+        )}
+        {/* F-PWA (H6): SW offline + instalación — SIEMPRE montado (todas las
+          vistas) porque el registro vive en el shell, no en una pantalla. */}
+        <PwaRegister />
+        {/* Task 4: guía de uso — montada única, se abre en 1.ª visita. */}
+        <AyudaOverlay />
+      </div>
+    </ErrorBoundaryObs>
+  );
+}

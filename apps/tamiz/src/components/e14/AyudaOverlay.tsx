@@ -1,0 +1,338 @@
+"use client";
+
+/**
+ * AyudaOverlay — guía de uso de la app (onboarding + referencia).
+ * Task 4 (shell): se abre SOLO en la primera visita (localStorage) y
+ * bajo demanda desde SideNav («CÓMO FUNCIONA»), el botón «?» del HUD de
+ * ESCANEAR y la tecla «?» del teclado. Estado propio en un mini-store
+ * zustand LOCAL a este módulo (cero cambios al store de negocio —
+ * `useE14Store` queda intacto).
+ */
+import { useEffect, useRef } from "react";
+import { create } from "zustand";
+// KIT a11y-diálogos-v1 (plan 4.2.2 — U5): focus-trap del diálogo (Tab cíclico,
+// Escape cierra, foco inicial a [data-autofocus], retorno del foco al cerrar).
+import { useDialogFocus } from "./hooks/useDialogFocus";
+import {
+  StitchCameraIcon,
+  StitchSpinIcon,
+  StitchEyeIcon,
+  StitchCloudCheckIcon,
+} from "./icons";
+
+/** Mini-store UI-local del overlay — exportado para disparos externos. */
+const useAyudaStore = create<{
+  abierta: boolean;
+  abrir: () => void;
+  cerrar: () => void;
+}>((set) => ({
+  abierta: false,
+  abrir: () => set({ abierta: true }),
+  cerrar: () => set({ abierta: false }),
+}));
+
+/** Disparo sin hook — externo (SideNav/ScanView/teclado).
+ *  SPRINT-B (B3): cerrarAyuda BORRADA (desviación documentada) — el kit
+ *  pedía de-export «si no tiene consumidores»; el grep confirma que no
+ *  tiene NI internos (el overlay usa el action `cerrar` del store en
+ *  L117) → código muerto, se elimina (protocolo 3B del overnight:
+ *  «export muerto» ≠ «código muerto»; aquí es muerto del todo). */
+export const abrirAyuda = () => useAyudaStore.getState().abrir();
+
+const LS_KEY = "e14-ayuda-vista";
+
+const PASOS = [
+  {
+    Icon: StitchCameraIcon,
+    titulo: "1 · ESCANEA",
+    detalle:
+      "Apunta la cámara al documento llenando el encuadre. También puedes subir la foto desde la galería (JPG, PNG, WEBP, HEIC).",
+  },
+  {
+    Icon: StitchSpinIcon,
+    titulo: "2 · ANALIZA",
+    detalle:
+      "La app detecta los bordes del documento, lo endereza y lee la cabecera y el contenido con OCR.",
+  },
+  {
+    Icon: StitchEyeIcon,
+    titulo: "3 · REVISA",
+    detalle:
+      "Comprueba el resultado: calidad del escaneo, verificación documental y texto leído.",
+  },
+  {
+    Icon: StitchCloudCheckIcon,
+    titulo: "4 · ENVÍA",
+    // C-12 (Vía B — copys honestos): ADVERTENCIA no tiene CTA de envío
+    // manual (el botón se retiró con el gate-v2): lo real es repetir la foto
+    // (o revisión humana tras varios intentos).
+    detalle:
+      "Los documentos óptimos se envían solos; en los demás te pedimos repetir la foto (o revisión humana tras varios intentos). Sin conexión, se acumulan en cola.",
+  },
+];
+
+/** 0.6.1 (plan de remediación, §9.2 fase 2) — mínimo legal: qué se envía,
+ *  a dónde y cuánto se retiene. Lenguaje de operador, no jurídico. El
+ *  documento fuente es SECURITY.md (rol de responsable, política de
+ *  retención de 30 días, esquema de auth del receptor). */
+const PRIVACIDAD: [string, string][] = [
+  [
+    "QUÉ SE ENVÍA",
+    "La FOTO del documento ya procesado (enderezado y legible) y los datos de cabecera que lee la plantilla (ubicación, número y tipo de formulario).",
+  ],
+  [
+    "A DÓNDE VA",
+    "Al hub del proyecto para que el equipo de supervisión lo reciba. Nada va a servicios de terceros; el envío va firmado con la clave de tu jornada.",
+  ],
+  [
+    "CUÁNTO SE RETIENE",
+    "30 días, o antes si el receptor confirma la recepción. Después se borra automáticamente.",
+  ],
+  [
+    "QUÉ NO SALE DE TU CELULAR",
+    "Nombres, cédulas, contenido de la zona de datos ni texto del OCR: la app no lee ni envía los números.",
+  ],
+];
+
+const NIVELES = [
+  {
+    chip: "ÓPTIMA",
+    rango: "score ≥ 8.0",
+    color: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10",
+    accion: "Se envía automáticamente.",
+  },
+  {
+    chip: "ADVERTENCIA",
+    rango: "6.5 – 7.9",
+    color: "text-amber-300 border-amber-500/40 bg-amber-500/10",
+    // C-12 (Vía B): lo que HACE la app hoy — sin promesa de CTA retirado.
+    accion: "No se envía sola: toca REPETIR FOTO; tras varios intentos, revisión humana.",
+  },
+  {
+    chip: "RECHAZADA",
+    rango: "score < 6.5",
+    color: "text-red-300 border-red-500/40 bg-red-500/10",
+    accion: "Hay que repetir la foto (varios intentos → revisión humana).",
+  },
+];
+
+const GLOSARIO: [string, string][] = [
+  [
+    "DOCUMENTO",
+    "Documento físico que se digitaliza, verifica y envía desde la app.",
+  ],
+  [
+    "PÁGINAS",
+    "Un documento puede tener varias páginas por tipo; el flujo las recorre en orden (P1, P2).",
+  ],
+  [
+    "Score (0–10)",
+    "Calidad de la digitalización: nitidez, contraste y legibilidad del OCR. Define el desenlace del documento.",
+  ],
+  [
+    // C-12 (Vía B — copys honestos): el producto NO marca duplicadas en el
+    // flujo normal. Lo real: repetir un hueco reemplaza la captura anterior
+    // (RESCANEO ⚠ en RESUMEN) y la cola de envío no manda dos veces la misma
+    // acta (huella SHA-256 del sobre en el outbox del puente).
+    "Dedup",
+    "No hay marca de «duplicada» en el flujo normal: repetir un hueco reemplaza la captura anterior (⚠ en RESUMEN) y la cola de envío no manda dos veces la misma captura (huella por hash).",
+  ],
+];
+
+const TIPS = [
+  "Luz uniforme sin sombras duras (evita el contraluz y el reflejo del flash).",
+  "Documento apoyado plano: arrugas y curvas distorsionan el texto para el OCR.",
+  "Llena el encuadre con el documento completo, sin cortar bordes.",
+  "Si sale RECHAZADA dos veces, prueba desde SUBIR con una foto de la galería.",
+];
+
+export function AyudaOverlay() {
+  const abierta = useAyudaStore((s) => s.abierta);
+  const cerrar = useAyudaStore((s) => s.cerrar);
+  // KIT a11y-diálogos-v1: nodo del diálogo role="dialog" para el trap.
+  const dialogoRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogoRef, abierta, cerrar);
+
+  // Primera visita: abre solo una vez (el flag se sella al cerrar).
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(LS_KEY)) {
+        useAyudaStore.getState().abrir();
+      }
+    } catch {
+      /* sin localStorage (modo privado): simplemente no auto-abre */
+    }
+  }, []);
+
+  // Escape cierra. (El hook useDialogFocus también maneja Escape dentro del
+  // diálogo; este listener window cubre el foco suelto en body tras un click
+  // — cerrar() es idempotente, doble llamada inofensiva.)
+  useEffect(() => {
+    if (!abierta) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") cerrar();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [abierta, cerrar]);
+
+  if (!abierta) return null;
+
+  const cerrarYRecordar = () => {
+    try {
+      localStorage.setItem(LS_KEY, "1");
+    } catch {
+      /* modo privado: la próxima visita la volverá a mostrar — aceptable */
+    }
+    cerrar();
+  };
+
+  return (
+    <div
+      ref={dialogoRef}
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Cómo funciona el Digitalizador de Documentos"
+      onClick={cerrarYRecordar}
+    >
+      <div
+        className="w-full max-w-lg max-h-[88dvh] overflow-y-auto thin-scroll bg-[#10161f] border border-slate-700/80 rounded-3xl shadow-[0_24px_80px_rgba(0,0,0,0.6)] animate-view-enter"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Cabecera */}
+        <div className="sticky top-0 z-10 bg-[#10161f]/95 backdrop-blur px-6 pt-6 pb-4 border-b border-slate-800/80">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
+            Guía rápida
+          </p>
+          <h2 className="text-xl font-extrabold text-white mt-1">
+            ¿Cómo funciona el Digitalizador?
+          </h2>
+          <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
+            Convierte las fotos de tus documentos en registros digitales
+            verificados: escanea, la app los lee con OCR y envía el
+            resultado.
+          </p>
+        </div>
+
+        <div className="px-6 py-5 flex flex-col gap-6">
+          {/* Flujo */}
+          <section aria-label="Flujo de trabajo" className="flex flex-col gap-3">
+            {PASOS.map(({ Icon, titulo, detalle }) => (
+              <div key={titulo} className="flex items-start gap-3.5">
+                <span className="shrink-0 w-10 h-10 rounded-xl bg-[#0b1117] border border-slate-800 flex items-center justify-center text-emerald-400">
+                  <Icon className="w-5 h-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-white">
+                    {titulo}
+                  </p>
+                  <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
+                    {detalle}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </section>
+
+          {/* Niveles de calidad */}
+          <section aria-label="Niveles de calidad">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">
+              Niveles de calidad (score)
+            </p>
+            <div className="flex flex-col gap-2">
+              {NIVELES.map((n) => (
+                <div
+                  key={n.chip}
+                  className="flex items-center gap-3 rounded-xl border px-3.5 py-2.5 bg-[#0b1117]"
+                >
+                  <span
+                    className={`shrink-0 font-mono text-[10px] font-extrabold uppercase tracking-wider rounded-md px-2 py-1 border ${n.color}`}
+                  >
+                    {n.chip}
+                  </span>
+                  <span className="font-mono text-[10px] text-slate-400 tabular-nums w-[74px] shrink-0">
+                    {n.rango}
+                  </span>
+                  <span className="text-[12px] text-slate-400 leading-snug">
+                    {n.accion}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* 0.6.1 — privacidad y retención (mínimo legal, §9.2 fase 2) */}
+          <section aria-label="Privacidad y retención" className="rounded-2xl border border-sky-500/20 bg-sky-500/5 px-4 py-3.5">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-sky-300 mb-2.5">
+              Privacidad y retención
+            </p>
+            <dl className="flex flex-col gap-2.5">
+              {PRIVACIDAD.map(([term, def]) => (
+                <div key={term} className="flex flex-col gap-0.5">
+                  <dt className="font-mono text-[11px] font-bold text-slate-200">
+                    {term}
+                  </dt>
+                  <dd className="text-[12.5px] text-slate-400 leading-relaxed">
+                    {def}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          {/* Glossario */}
+          <section aria-label="Glosario">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">
+              Términos clave
+            </p>
+            <dl className="flex flex-col gap-2.5">
+              {GLOSARIO.map(([term, def]) => (
+                <div key={term} className="flex flex-col gap-0.5">
+                  <dt className="font-mono text-[11px] font-bold text-slate-200">
+                    {term}
+                  </dt>
+                  <dd className="text-[12.5px] text-slate-400 leading-relaxed">
+                    {def}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          {/* Tips */}
+          <section aria-label="Consejos de foto" className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3.5">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-2">
+              Tips para un escaneo óptimo
+            </p>
+            <ul className="flex flex-col gap-1.5">
+              {TIPS.map((t) => (
+                <li key={t} className="flex gap-2 text-[12.5px] text-slate-300 leading-relaxed">
+                  <span className="text-emerald-400 font-mono shrink-0" aria-hidden>
+                    ▸
+                  </span>
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+
+        {/* CTA */}
+        <div className="sticky bottom-0 bg-[#10161f]/95 backdrop-blur px-6 py-4 border-t border-slate-800/80">
+          <button
+            type="button"
+            onClick={cerrarYRecordar}
+            data-autofocus
+            className="w-full min-h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-black font-mono font-extrabold text-sm uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+          >
+            Entendido — empezar
+          </button>
+          <p className="text-center text-[10px] text-slate-400 mt-2 font-mono">
+            Vuelve a abrirla con «?» — CÓMO FUNCIONA (menú lateral)
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

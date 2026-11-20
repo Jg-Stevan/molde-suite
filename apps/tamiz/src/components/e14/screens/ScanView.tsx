@@ -1,0 +1,1291 @@
+"use client";
+
+/**
+ * ESCANEAR (§7.1) — CYBER-NEÓN PANTALLA CÁMARA (SPEC-e14-cyber-neon-
+ * captura Rev. 1): visor full-bleed #030504 limpio fuera de CÁMARA, pill de
+ * modos con chip blanco data-driven (IA/cuadrícula/AUTO), HUD ámbar + ⋮,
+ * fila de estado, chips de calidad y fila de disparo con
+ * obturador-documento. La LÓGICA de cámara (fallbacks, disparo por
+ * plataforma, linterna, ZSL, gate) queda INTACTA — solo capa visual.
+ * CÁMARA FUNCIONAL (SPEC-e14-camara-funcional Rev. 1 — ronda de
+ * FUNCIONALIDAD, estética neón conservada al píxel): botón ámbar = captura
+ * automática (§B), menú ⋮ (§C), flash honesto (§D), aviso de cámara con
+ * reintento y fin del rebote silencioso (§E), fila de estado centrada sin
+ * «ISO: 1600» (§A). La lógica intocable (disparo por plataforma, cascada,
+ * sondas, gate, ZSL) queda byte a byte.
+ * SIMULACIÓN POR IMÁGENES (KIT e14-simulacion-imagenes-v1): el icono de
+ * simulación arriba a la derecha abre la galería «Imágenes simuladas» — las
+ * fotos de prueba del repo (completa, color, rotada, inclinada, con sombras y
+ * recortada por arriba o por abajo) con título, descripción y desenlace
+ * esperado. Elegir una tarjeta dispara store.simularImagen(id) → pipeline real
+ * con esa imagen y su score inyectado; el gate sigue decidiendo. Los antiguos
+ * chips ÓPTIMA/MEDIO/BAJA se retiraron (ocupaban demasiado espacio en cámara).
+ * Historial previo: marco con corner brackets, retícula central, botón
+ * disparo, ghost IMPORTAR y PANEL DE SIMULACIÓN para forzar el resultado.
+ * FASE LÓGICA L2 (§7): chips de FUENTE (SIMULACIÓN · CÁMARA · IMPORTAR);
+ * IMPORTAR IMAGEN real (input file → setArchivoPendiente → análisis);
+ * warmUp del worker OpenCV al montar (§9).
+ *
+ * FASE LÓGICA L3 (§7 rev.3 — interfaz de escaneo del lab COPIADA de
+ * apps/scanner-lab/src/components/scanner/CameraView.tsx y re-vestida con la
+ * estética Precision Monitor, con CERO dependencias nuevas: solo las que ya
+ * tiene e14 + funciones puras del core):
+ *  · <video> en el marco existente + CameraFrameLoop del core (detección en
+ *    vivo OpenCV, score compuesto, k-de-n, isDeviceStable).
+ *  · HUD "CALIDAD 82%" + "ACTA DETECTADA / NO DETECTADA" (font-data).
+ *  · Pill "BUSCANDO ACTA…" superior centrada (lab L1737-1753) mientras
+ *    corners === null.
+ *  · Quad overlay SVG en vivo (lab L1693-1711) en ok-tint con mapeo
+ *    object-cover exacto (mapPoint).
+ *  · Pill "IA · AUTO / IA · MANUAL" (lab L1553-1566) con punto pulsante verde.
+ *  · Toggle AUTO — default OFF (D22 del spec → D24 aquí): el gate del CORE
+ *    dispara onTrigger (k-de-n, cooldown 1500 ms, re-arme, quietud); el
+ *    componente solo filtra if (!autoArmado || procesando) (lab L1380-1385).
+ *  · Flash F-FLASH v3 (lab L486-555 + L1404-1416): applyConstraints +
+ *    verificación getSettings().torch + flashRef con reintentos.
+ *  · ZSL best-shot ring (lab L779-805 + L1395-1400): el disparo manual NO
+ *    usa el frame del instante del tap — ganador por lapVar de 80-450 ms
+ *    ANTES del disparo; ring liberado al desmontar.
+ *  · Ruta iOS (lab L902-925): con ImageCapture → captureSmart (foto
+ *    full-res del sensor); iOS/Safari sin ImageCapture → cámara NATIVA vía
+ *    <input capture="environment">; último recurso → grab del video vivo
+ *    (frameActual del bridge).
+ *  · Destello blanco ~120 ms al capturar (lab L569, flashKey).
+ *  · onNoDetectTimeout → toast "NO DETECTO EL ACTA · ACÉRCALA AL ENCUADRE".
+ *  · Permiso denegado / sin HTTPS / sin getUserMedia → toast warn + vuelta
+ *    automática a SIMULACIÓN (spec §7).
+ *
+ * FIDELIDAD AL LAB (fix/e14-fidelidad-lab — SPEC-auditoria-copias.md):
+ *  · F-LENS v4 COMPLETO (H1): sondas secuenciales cerrando cada cámara +
+ *    chooseMainProbe (autofocus real → mayor resolución) + fix zoom +
+ *    telemetría window.__cameraChoice — la cascada facingMode quedó como red
+ *    de seguridad (lab L116-223 + L1095-1207).
+ *  · F-SENSOR-PROFILER (H2): perfilado del track + takePhotoBlob con capa 1
+ *    (photoSettings al ISP) y capa 2 (clampBlobToSafeCap) + capa 3 (decode
+ *    único + downscaleImage por GAMA) en el punto de entrada del pipeline —
+ *    CÁMARA, IMPORTAR y cámara nativa iOS reciben el tope ANTES del bridge.
+ *  · captureSmart §5.4 (H3): snapA ANTES del disparo; TORCH_HINT verbatim
+ *    (H4); accept .heic/.heif + guard F-IMPORT/HEIC (H5).
+ * Fuera de alcance (spec): "Revisar N" + contador multi-página (1 acta = 1
+ * captura). En SIMULACIÓN/IMPORTAR la vista queda EXACTAMENTE como en L2.
+ */
+import { useCallback, useEffect, useRef, useState } from "react";
+import { warmUpScannerWorker } from "@/lib/e14/fachada";
+import { SHUTTER_SCORE } from "@/lib/e14/core/quality";
+// F-SENSOR-PROFILER (PASO 2): tipo del perfil del sensor — el ref es
+// propietario de ScanView (lo llena useSesionCamara vía profileActiveSensor;
+// lo lee useDestello vía archivoDentroDeTope).
+import type { SensorProfile } from "@/lib/e14/core/sensor-profiler";
+import { useE14Store } from "@/lib/e14/store";
+// KIT errores-operador-v1 (plan 3.1): TEXTO_MOTIVO pinta el aviso del store
+// en la franja del visor (bloque de error persistente, 4.3.1).
+import { TEXTO_MOTIVO } from "@/lib/e14/errores";
+import { rapidOcrPrecalentar } from "@/lib/e14/ocr/rapidocr";
+// KIT e14-remediacion-movil-v1 (A2 — P0 #5): Wake Lock del escaneo.
+import { useWakeLock } from "@/lib/e14/core/wake-lock";
+// KIT e14-ocr-tessbest-v1 (GO-B): pre-warm de TESSERACT BEST junto al del
+// motor RapidOCR — la descarga vendida (~19 MB, 1.ª vez) arranca al abrir
+// el visor y el SW la cachea ⇒ la 1.ª captura ya compite con assets
+// calientes. Solo con la cascada ON (kill-switch del mantenedor).
+import { tessPrecalentar } from "@/lib/e14/ocr/tesseract";
+import { leerFlags } from "@/lib/e14/flags";
+// KIT e14-simulacion-imagenes-v1: galería «Imágenes simuladas» (icono de
+// simulación del header) — catálogo compartido con el bridge en
+// lib/e14/simulacion-imagenes.
+import { GaleriaSimulacion } from "../GaleriaSimulacion";
+import type { ImagenSimuladaId } from "@/lib/e14/simulacion-imagenes";
+import {
+  CameraNavIcon,
+  FolderImportIcon,
+  SparklesIcon,
+  StitchBoltIcon,
+  StitchChevronLeftIcon,
+  StitchGridIcon,
+  StitchImportIcon,
+  StitchShutterDocIcon,
+  GaugeIcon,
+} from "../icons";
+// Task 4: botón «?» del HUD — abre la guía de uso (AyudaOverlay).
+import { abrirAyuda } from "../AyudaOverlay";
+// SPRINT-B (B1, refactor/ui-hooks-v1): hooks dedicados extraídos de este
+// archivo (MOVIMIENTO PURO — mismos cuerpos, mismos refs, mismo orden de
+// efectos; los imports de lib quedan EXACTAMENTE iguales, solo consumidos).
+import { liberarCanvas, useAnilloBestShot } from "../hooks/useAnilloBestShot";
+import { useLinterna } from "../hooks/useLinterna";
+import { useDestello } from "../hooks/useDestello";
+import { useSelectorFuente } from "../hooks/useSelectorFuente";
+import { esIOS, useSesionCamara, type CamEstado, type LiveUi } from "../hooks/useSesionCamara";
+
+/** Cooldown anti doble-disparo (lab §5.2 — CAPTURE_COOLDOWN_MS del core). */
+const COOLDOWN_MS = 1500;
+
+export function ScanView() {
+  const dispararEscaneo = useE14Store((s) => s.dispararEscaneo);
+  const destellar = useE14Store((s) => s.destellar);
+  const fuente = useE14Store((s) => s.fuente);
+  const setFuente = useE14Store((s) => s.setFuente);
+  // KIT e14-simulacion-imagenes-v1: la galería abre desde el icono de
+  // simulación (header) y desde el aviso de cámara; elegir una tarjeta
+  // dispara simularImagen (mismo camino de dispararEscaneo).
+  const simularImagen = useE14Store((s) => s.simularImagen);
+  const [galeriaSim, setGaleriaSim] = useState(false);
+  const setArchivoPendiente = useE14Store((s) => s.setArchivoPendiente);
+  const setFramePendiente = useE14Store((s) => s.setFramePendiente);
+  // G3 (upgrade silencioso): re-proceso full-res del acta en revisión.
+  const mejorarFotoActa = useE14Store((s) => s.mejorarFotoActa);
+  // KIT errores-operador-v1 (plan 3.1/4.3.1): aviso PERSISTENTE del store —
+  // el catch de dispararEscaneo y la reanudación de cámara fallida lo montan.
+  // NOTA de nombres: el estado LOCAL `avisoVisor` (abajo) es la franja
+  // informativa con timer; el del store es el de ERROR persistente.
+  const avisoOperador = useE14Store((s) => s.avisoVisor);
+  const descartarAvisoVisor = useE14Store((s) => s.descartarAvisoVisor);
+  // KIT e14-remediacion-movil-v1 (A4 — P0 #21): el store desarma la
+  // auto-captura cuando la sesión del motor OCR cayó (familia bad_alloc) —
+  // el bucle condenado de ~6 s muere aquí. La bandera es PERSISTENTE (H3):
+  // sobrevive al remontaje y el re-arme D9 de la cámara la respeta; solo el
+  // toggle del operador o una recarga la reactivan.
+  const autoCapturaDesarmada = useE14Store((s) => s.autoCapturaDesarmada);
+  const inputRef = useRef<HTMLInputElement>(null);
+  /** HQ-iOS: cámara NATIVA del sistema (el click del shutter es el gesto). */
+  const inputCamaraRef = useRef<HTMLInputElement>(null);
+
+  // ── Cámara (refs y estado — patrón del lab L383-458) ──
+  // SPRINT-B (B1): ScanView es el ORQUESTADOR — los refs/estates que
+  // comparten varios dominios viven aquí y se INYECTAN a los hooks
+  // dedicados (misma identidad, cero duplicación).
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const visorRef = useRef<HTMLDivElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const procesandoRef = useRef(false);
+  const cooldownRef = useRef(0);
+  // D9 (SPEC-e14-guard-borde Rev. 2): captura automática ARMADA por defecto —
+  // REVISA el default OFF de D22/D24 por mandato del mantenedor («cuando se habra
+  // la camara siempre este activado la captura automatica»). El estado nace
+  // armado Y cada APERTURA de cámara RE-ARMA (setAutoArmado(true) en el
+  // arranque exitoso del stream — el estado persiste entre aperturas, hay
+  // que forzarlo). El operador conserva el toggle: desarmar EN VIVO se
+  // respeta dentro de la MISMA apertura (no se re-arma solo — AC14-AC16).
+  const [autoArmado, setAutoArmado] = useState(
+    () => !useE14Store.getState().autoCapturaDesarmada,
+  );
+  const autoRef = useRef(false);
+  // Estado de la cámara — propietario: ScanView (lo escribe el arranque de
+  // useSesionCamara; lo leen useLinterna, la captura, el disparo y el JSX).
+  const [camEstado, setCamEstado] = useState<CamEstado>("iniciando");
+  // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L433-L440
+  /** F-SENSOR-PROFILER (PASO 2): perfil del sensor de FOTO del track vivo
+   *  (resolución nativa vía getPhotoCapabilities + tope seguro 4032/3200 px
+   *  según la gama medida). null = aún sin sondear. Lo LLENA
+   *  useSesionCamara (profileActiveSensor) y lo LEE useDestello
+   *  (archivoDentroDeTope) — identidad única compartida por inyección. */
+  const sensorProfileRef = useRef<SensorProfile | null>(null);
+  // STITCH REDESIGN (SPEC-e14-redesign-stitch §3.1.4): los avisos que antes
+  // eran toasts flotantes viven como FRANJA DENTRO del visor (sin
+  // notificaciones — §4/D2). tono crit = borde/texto rojo; warn = ámbar.
+  const [avisoVisor, setAvisoVisor] = useState<
+    null | { texto: string; tono: "crit" | "warn" }
+  >(null);
+  const avisoTimerRef = useRef(0);
+  /** Muestra la franja del visor con auto-desaparición (ms). */
+  const mostrarAviso = useCallback(
+    (texto: string, tono: "crit" | "warn", ms = 4000) => {
+      window.clearTimeout(avisoTimerRef.current);
+      setAvisoVisor({ texto, tono });
+      avisoTimerRef.current = window.setTimeout(() => setAvisoVisor(null), ms);
+    },
+    [],
+  );
+  // §3.1.1 (mock 1): botón de cuadrícula de la píldora IA — overlay
+  // visual de retícula sobre el visor (toggle decorativo, como el mock).
+  const [gridOn, setGridOn] = useState(false);
+  // SPRINT-B (B3, kit): el menú §6.3 del SPEC se ABANDONA — el segmented
+  // CÁMARA/SIM/SUBIR siempre-visible es la UI vigente (runtime 3A.5: 0
+  // dialogs, 0 scale-0.97). Estados modoMenuAbierto/modoMenuMontado + su
+  // efecto Escape + comentarios huérfanos BORRADOS (regresión #3 del
+  // audit 4f9c871; sin anclas QA — grep scripts/ = solo un comentario).
+  const [live, setLive] = useState<LiveUi>({ corners: null, score: null });
+  const [procesando, setProcesando] = useState(false);
+  const [videoDims, setVideoDims] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const [boxSize, setBoxSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+
+  /** Ref fresca del captureSmart para los listeners del loop (lab L887-888).
+   *  Se declara ANTES de los hooks (la consume useSesionCamara) y se asigna
+   *  tras definir capturarInteligente — misma mecánica que el original
+   *  (asignación por render, lectura por evento). */
+  const capturarRef = useRef<() => Promise<void>>(async () => {});
+
+  // Espejo del autoArmado para listeners del loop sin re-render (lab
+  // L456-458). Los espejos de linterna (flashRef/torchOnRef) viven en
+  // useLinterna — propietario de ese estado.
+  autoRef.current = autoArmado;
+
+  // KIT e14-remediacion-movil-v1 (A4 — P0 #21): el store desarma la
+  // auto-captura cuando la sesión del motor OCR cayó (familia bad_alloc) —
+  // el bucle condenado de ~6 s muere aquí, sin re-arme hasta que el
+  // operador la reactive o recargue (H3: el re-arme D9 ya respeta la
+  // bandera persistente; ya no basta con apagarla en este render).
+  useEffect(() => {
+    if (!autoCapturaDesarmada) return;
+    setAutoArmado(false);
+    mostrarAviso(
+      "MEMORIA DEL MOTOR AGOTADA — CAPTURA AUTOMÁTICA APAGADA. REINTENTA CUANDO RECARGUES.",
+      "warn",
+      6000,
+    );
+  }, [autoCapturaDesarmada, mostrarAviso]);
+
+  // KIT e14-remediacion-movil-v1 (A2 — P0 #5): Wake Lock durante SCANEAR —
+  // un escaneo de 120 s no debe apagarse la pantalla sola (reproduce el
+  // P0 #4 sin que nadie toque una llamada). Re-adquisición al volver de
+  // segundo plano vive dentro del hook; sin API → no-op silencioso.
+  useWakeLock(true);
+
+  // §9: precarga OpenCV.js del worker sin bloquear la UI.
+  useEffect(() => {
+    warmUpScannerWorker();
+    // KIT e14-prowarm-ocr-v1 (T2b): pre-warm del OCR diferido 2 s (app recién
+    // abierta — no competir con la carga). Idempotente: si el precalentamiento
+    // ya corrió, rapidOcrPrecalentar() resuelve al instante (flag de módulo).
+    const t = window.setTimeout(() => {
+      void rapidOcrPrecalentar().then(() => {
+        // KIT e14-ocr-tessbest-v1 (GO-B): pre-warm de TESSERACT BEST SOLO
+        // cuando el motor CRÍTICO del pipeline ya está caliente — su
+        // descarga vendida (~19 MB) no debe competir por el enlace con los
+        // modelos del 1.er escaneo (evidencia sim-lowend v6: la descarga
+        // concurrente agotaba el t0 compartido del sondeo de orientación ⇒
+        // warp cortaba la cabecera ⇒ RECHAZADA). Idempotente + silencioso;
+        // con la cascada OFF (kill-switch) jamás se menciona Tess.
+        if (leerFlags().ocrCascada) tessPrecalentar();
+      });
+    }, 2000);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  /* ── SPRINT-B (B1): hooks dedicados — MOVIMIENTO PURO ────────────────
+   *  Orden de llamada = orden de registro de efectos, EXACTO al original
+   *  (salvo el efecto Escape del menú §6.3, eliminado en B3):
+   *  anillo (sin efectos) → linterna (sin efectos) → destello (sin
+   *  efectos) → selector (sin efectos) → sesión de cámara (ARRANQUE →
+   *  re-asignar → playing → loop). El §9 conserva su posición original
+   *  (antes del bloque de sesión); el ResizeObserver se declara tras
+   *  capturarInteligente, como en el original (RO antes del loop). */
+
+  // Anillo Best-Shot ZSL (lab L1512-1574): feed ~5 Hz + ganador pre-tap.
+  const { alimentarAnillo, liberarAnillo, instantanea, tomarZsl } = useAnilloBestShot({ videoRef });
+  // Linterna F-FLASH v3 (lab L473-520): preferencia + verdad al pulsar.
+  const {
+    flashRef,
+    torchOnRef,
+    torchOn,
+    torchDisponible,
+    aplicarLinternaGuardada,
+    alternarLinterna,
+    setTorchDisponible,
+  } = useLinterna({ streamRef, camEstado, mostrarAviso });
+  // Destello + flujo de captura al store (dispatch L574-589 + G3 upgrade).
+  const {
+    canvasABlob,
+    archivoDentroDeTope,
+    despacharArchivo,
+    mejorarSilenciosa,
+  } = useDestello({
+    sensorProfileRef,
+    procesandoRef,
+    setProcesando,
+    setArchivoPendiente,
+    dispararEscaneo,
+    mostrarAviso,
+    mejorarFotoActa,
+  });
+  // Selector de fuente §E + handlers de archivo (IMPORTAR + iOS nativa).
+  const {
+    reintentoCamara,
+    setReintentoCamara,
+    alElegirArchivo,
+    alElegirFotoCamara,
+  } = useSelectorFuente({
+    procesandoRef,
+    mostrarAviso,
+    archivoDentroDeTope,
+    setArchivoPendiente,
+    setFuente,
+    dispararEscaneo,
+    despacharArchivo,
+  });
+  // Sesión de cámara: arranque F-LENS v4 + cierre, re-asignar, playing y
+  // frame loop real (deps [fuente, reintentoCamara] / [camaraViva] intactas).
+  const {
+    avisoCamara,
+    setAvisoCamara,
+    puedeTomarFotoRef,
+    takePhotoBrokenRef,
+    tomarFoto,
+    loopRef,
+    camaraViva,
+  } = useSesionCamara({
+    videoRef,
+    streamRef,
+    camEstado,
+    setCamEstado,
+    reintentoCamara,
+    autoRef,
+    setAutoArmado,
+    procesandoRef,
+    cooldownRef,
+    capturarRef,
+    setLive,
+    mostrarAviso,
+    setFramePendiente,
+    flashRef,
+    torchOnRef,
+    aplicarLinternaGuardada,
+    setTorchDisponible,
+    sensorProfileRef,
+    alimentarAnillo,
+    liberarAnillo,
+  });
+
+  const modoCamara = fuente === "CAMARA";
+  const buscando = camaraViva && live.corners === null;
+  const scoreAlto = (live.score ?? 0) > SHUTTER_SCORE;
+  const scorePct = live.score !== null ? Math.round(live.score * 100) : null;
+
+  // MOCK 2026-11-16 (escaneo libre y limpio): en MODO CÁMARA el visor es la
+  // pantalla inmersiva del mock — píldora IA centrada, sin selector de modo,
+  // sin nav inferior (oculta en el shell). Aplica también con la cámara
+  // caída (mismo header limpio; el aviso ofrece SIMULACIÓN); en
+  // SIMULACIÓN/ARCHIVO el header clásico regresa (selector a la derecha).
+  const escaneoLibre = modoCamara;
+
+  // Botón VOLVER del visor (mock: chevron «‹» circular arriba a la
+  // izquierda): regresa a la última vista APP visitada (HISTORIAL o
+  // PLANTILLAS). Arranque fresco o historial contaminado con
+  // analizando/revision → cae SIEMPRE a «actas» (destino útil garantizado).
+  const vistaPrevia = useE14Store((s) => s.vistaPrevia);
+  const navegar = useE14Store((s) => s.navegar);
+  const volverAlApp = useCallback(() => {
+    navegar(vistaPrevia === "actas" || vistaPrevia === "resumen" ? vistaPrevia : "actas");
+  }, [vistaPrevia, navegar]);
+
+  /** KIT e14-simulacion-imagenes-v1: abrir la galería de imágenes simuladas
+   *  (icono del header y aviso de cámara). Con una captura en vuelo no se
+   *  abre: el disparo de la simulación se ignoraría (guard del store). */
+  const abrirGaleriaSim = () => {
+    if (procesando) return;
+    setFuente("SIMULACION");
+    setGaleriaSim(true);
+  };
+
+  /** Elegir una tarjeta cierra la galería y dispara la simulación real con la
+   *  imagen y el score inyectado del catálogo (el gate decide el desenlace). */
+  const elegirSimulada = (id: ImagenSimuladaId) => {
+    setGaleriaSim(false);
+    setFuente("SIMULACION");
+    simularImagen(id);
+  };
+
+  /** KIT errores-operador-v1 (plan 3.1.3): botón «Reintentar» de la franja de
+   *  error. El reintento depende del motivo: cámara → re-abre la sesión
+   *  (mismo camino del §E); lo demás → re-dispara dispararEscaneo. En ambos
+   *  casos el aviso se descarta (una nueva acción limpia la franja; el
+   *  propio dispararEscaneo también la limpia al arrancar). */
+  const reintentarDesdeAviso = useCallback(() => {
+    const aviso = useE14Store.getState().avisoVisor;
+    descartarAvisoVisor();
+    if (!aviso) return;
+    if (aviso.motivo === "CAMARA_NO_DISPONIBLE") {
+      // Mismo camino del botón «Reintentar cámara» del overlay §E.
+      setAvisoCamara(null);
+      setCamEstado("iniciando");
+      setReintentoCamara((n) => n + 1);
+      return;
+    }
+    void dispararEscaneo();
+  }, [descartarAvisoVisor, setAvisoCamara, setReintentoCamara, dispararEscaneo]);
+
+  /** Captura inteligente (lab captureSmart L785-885, adaptada a e14: el
+   *  resultado entra al pipeline del bridge como File):
+   *  1. ZSL pre-tap (ganador del ring, anti tap-shock).
+   *  2. Foto full-res del sensor (takePhoto) si hay ImageCapture → gana
+   *     SIEMPRE (F-RES-PRIORITY: la resolución es intocable).
+   *  3. Sin foto → burst {zsl, snapA, snap} por lapVar → encode del ganador.
+   *  4. Sin NADA → grab del video vivo vía frameActual del bridge. */
+  const capturarInteligente = useCallback(async (): Promise<void> => {
+    if (procesandoRef.current) return;
+    if (cooldownRef.current > Date.now()) return;
+    loopRef.current?.notifyCaptured();
+    cooldownRef.current = Date.now() + COOLDOWN_MS;
+    procesandoRef.current = true;
+    setProcesando(true);
+
+    const zsl = tomarZsl();
+    // §5.4 — frame A ANTES de la foto: si takePhoto cuelga y cae (8 s),
+    // ya queda un candidato válido medido del momento real del tap.
+    // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L843-L845
+    // (remediación H3 — snapA existe antes del disparo; el burst de respaldo
+    //  queda [zsl, snapA, snapB] con snapA del instante correcto).
+    const snapA = instantanea();
+    // G3/G5 (lab L1770): canPhoto = gate de plataforma (CAN_TAKEPHOTO, ya en
+    // el ref) Y lista negra temporal NO activa — un sensor con el takePhoto
+    // colgado no vuelve a pagar los 8 s en cada disparo.
+    const puedeFotoAhora = puedeTomarFotoRef.current && !takePhotoBrokenRef.current;
+    const fotoBlob = puedeFotoAhora
+      ? await tomarFoto((upgrade) => void mejorarSilenciosa(upgrade))
+      : null;
+    if (fotoBlob) {
+      // La foto full-sensor gana: suelta los frames de respaldo (R-14).
+      if (zsl) liberarCanvas(zsl.canvas);
+      if (snapA) liberarCanvas(snapA.canvas);
+      // Capa 3 H2: decode único + tope por GAMA antes del bridge (el blob ya
+      // viene ≤tope de las capas 1-2 — aquí es verificación barata, como el
+      // dispatch L574-589 del lab).
+      void despacharArchivo(fotoBlob, false);
+      return;
+    }
+    if (puedeFotoAhora && camEstado === "viva") {
+      // takePhoto colgó (> 8 s) o no existe → aviso honesto del fallback
+      // (franja del visor — redesign-stitch §3.1.4).
+      mostrarAviso(
+        "CAPTURA A RESOLUCIÓN DEL VISOR — la foto del sensor no respondió; se analiza el mejor fotograma reciente.",
+        "warn",
+        5000,
+      );
+    }
+    const snapB = instantanea();
+    const candidatos = [zsl, snapA, snapB].filter(
+      (f): f is { canvas: HTMLCanvasElement; lapVar: number } => f !== null,
+    );
+    if (candidatos.length === 0) {
+      // Último recurso (lab B8 → e14): grab del video vivo por el bridge
+      // (frameActual → canvas a resolución del stream).
+      const video = videoRef.current;
+      if (video && video.readyState >= 2 && video.videoWidth) {
+        destellar();
+        procesandoRef.current = false;
+        setProcesando(false);
+        void dispararEscaneo();
+      } else {
+        procesandoRef.current = false;
+        setProcesando(false);
+        mostrarAviso("NO SE PUDO CAPTURAR — inténtalo de nuevo.", "crit");
+      }
+      return;
+    }
+    const ganador = candidatos.reduce((a, b) => (b.lapVar > a.lapVar ? b : a));
+    const blob = await canvasABlob(ganador.canvas);
+    for (const c of candidatos) {
+      // FIX (auditoría 2-b #8): TODOS los canvases se liberan (antes el
+      // ganador quedaba vivo esperando al GC — inconsistente con la
+      // disciplina iOS del propio módulo, error #22 del lab).
+      liberarCanvas(c.canvas);
+    }
+    if (blob) {
+      // Capa 3 H2: el frame ganador también pasa por el tope (decode único,
+      // verificación barata — frames de preview, muy por debajo del tope).
+      void despacharArchivo(blob, false);
+    } else {
+      procesandoRef.current = false;
+      setProcesando(false);
+      mostrarAviso("NO SE PUDO CAPTURAR — inténtalo de nuevo.", "crit");
+    }
+  }, [
+    tomarZsl,
+    tomarFoto,
+    instantanea,
+    canvasABlob,
+    despacharArchivo,
+    dispararEscaneo,
+    camEstado,
+    mostrarAviso,
+    mejorarSilenciosa,
+    // SPRINT-B (B1): refs/setters estables devueltos por hooks dedicados —
+    // identidad invariable (Object.is igual en cada render), añadirlos a deps
+    // NO cambia la frecuencia de re-creación del callback (idéntico original).
+    loopRef,
+    puedeTomarFotoRef,
+    takePhotoBrokenRef,
+    destellar,
+  ]);
+
+  /** Ref fresca del captureSmart para los listeners del loop (lab L887-888). */
+  capturarRef.current = capturarInteligente;
+
+  /** Tamaño del visor (ResizeObserver — mapeo object-cover del overlay). */
+  useEffect(() => {
+    const el = visorRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (r) setBoxSize({ w: r.width, h: r.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  /** §B (SPEC-camara-funcional): botón ámbar = CAPTURA AUTOMÁTICA (paridad
+   *  con el lab CameraView L2350-2382): en CÁMARA alterna el MISMO autoArmado
+   *  del botón inferior «Auto» (quedan sincronizados — mismo useState);
+   *  en SIMULACIÓN/IMPORTAR el tap NO se queda mudo: avisa que la función
+   *  vive con la cámara viva. */
+  const alternarAutoHUD = useCallback(() => {
+    if (!modoCamara) {
+      mostrarAviso(
+        "CAPTURA AUTOMÁTICA EN CÁMARA — funciona con la cámara viva. Cambia de modo con el botón amarillo.",
+        "warn",
+        4500,
+      );
+      return;
+    }
+    // H3: el toggle es la interacción del operador que reactiva el
+    // armado automático tras un desarme A4 (si no, quedaría apagado hasta
+    // recargar pese a que él lo enciende en pantalla).
+    useE14Store.getState().setAutoCapturaDesarmada(false);
+    setAutoArmado((v) => !v);
+  }, [modoCamara, mostrarAviso]);
+
+  /* ── Disparo por plataforma (lab onShutter L902-925) ──────────────── */
+
+  const alDisparar = useCallback(() => {
+    if (fuente !== "CAMARA") {
+      // SIM/ARCHIVO: disparo directo (L2 intacto; el guard del store avisa).
+      void dispararEscaneo();
+      return;
+    }
+    const video = videoRef.current;
+    const streamVivo = camEstado === "viva" && !!video && video.readyState >= 2;
+    if (streamVivo) {
+      if (puedeTomarFotoRef.current || !esIOS()) {
+        // Chrome/Android → takePhoto full-res; desktop sin ImageCapture →
+        // best frame ZSL del ring (el fallback interno de captureSmart).
+        void capturarInteligente();
+      } else {
+        // HQ-iOS: el click del shutter ES el gesto de usuario que iOS exige
+        // → cámara NATIVA del sistema (input capture=environment).
+        inputCamaraRef.current?.click();
+      }
+      return;
+    }
+    inputCamaraRef.current?.click(); // cámara iniciando → picker
+  }, [fuente, camEstado, dispararEscaneo, capturarInteligente, puedeTomarFotoRef]);
+
+  /* ── Overlay: quad REAL con mapeo object-cover (lab L1493-1515) ────── */
+
+  const alCargarMetaVideo = useCallback(() => {
+    const v = videoRef.current;
+    if (v?.videoWidth) setVideoDims({ w: v.videoWidth, h: v.videoHeight });
+  }, []);
+
+  /** Mapea fracciones del FRAME → % del visor visible (object-cover). */
+  const mapearPunto = useCallback(
+    (p: { x: number; y: number }) => {
+      if (!boxSize.w || !videoDims.w) return { x: p.x * 100, y: p.y * 100 };
+      const escala = Math.max(boxSize.w / videoDims.w, boxSize.h / videoDims.h);
+      const dw = videoDims.w * escala;
+      const dh = videoDims.h * escala;
+      const ox = (boxSize.w - dw) / 2;
+      const oy = (boxSize.h - dh) / 2;
+      return {
+        x: ((ox + p.x * dw) / boxSize.w) * 100,
+        y: ((oy + p.y * dh) / boxSize.h) * 100,
+      };
+    },
+    [boxSize, videoDims],
+  );
+
+  const puntosQuad = live.corners
+    ?.map((p) => {
+      const m = mapearPunto(p);
+      return `${m.x.toFixed(2)} ${m.y.toFixed(2)}`;
+    })
+    .join(" L ");
+
+
+  // §6.8 (mock 1): obturador Ø72 — aro blanco 3.5px + shutter-glow + interior
+  // bg-brand-panel border-green/40 + documento 32px. MISMO disparo por
+  // plataforma (~alDisparar), intocado.
+  const obturador = (
+    <button
+      type="button"
+      id="shutter-capture-btn"
+      aria-label="Capturar fotografía del documento"
+      onClick={alDisparar}
+      disabled={procesando}
+      className={`obturador-scanner relative w-[74px] h-[74px] rounded-full p-1 bg-transparent border-2 border-white/80 flex items-center justify-center active:scale-90 transition-all duration-100 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:border-[#10b981] focus:outline-none focus:border-[#10b981] cursor-pointer ${
+        procesando ? "opacity-50 cursor-not-allowed" : ""
+      }`}
+    >
+      <div className="w-full h-full rounded-full bg-[#10161f] border border-[#10b981]/50 flex items-center justify-center text-white active:bg-[#10b981]/20 transition-colors shadow-inner">
+        <StitchShutterDocIcon className="w-8 h-8 text-[#10b981]" />
+      </div>
+    </button>
+  );
+
+  return (
+    <div className="relative flex-1 min-h-0 flex flex-col bg-brand-viewfinder pt-safe">
+      {/* Inputs ocultos: IMPORTAR (galería) + cámara nativa iOS (capture).
+          accept con .heic/.heif (lab L1536, remediación H5): en Android/Chrome
+          los HEIC llegan con MIME vacío o raro y «image/*» a secas los deja
+          FUERA del picker — sin el accept, la conversión F-HEIC del core
+          jamás se ejercita. La cámara nativa iOS también entrega HEIC. */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,.heic,.heif"
+        className="hidden"
+        aria-label="Importar imagen"
+        onChange={alElegirArchivo}
+      />
+      <input
+        ref={inputCamaraRef}
+        type="file"
+        accept="image/*,.heic,.heif"
+        capture="environment"
+        className="hidden"
+        aria-label="Tomar foto con la cámara del sistema"
+        onChange={alElegirFotoCamara}
+      />
+
+      {/* §3.1.2 VISOR (mock 1): fondo #050706 limpio (G1: sin LÁSER — el
+          anillo de análisis de AnalyzingView es OTRA pantalla y conserva su
+          animación). La cámara real sigue siendo el <video>/stream actual.
+          En modo CÁMARA se conservan TODOS los overlays funcionales,
+          re-vestidos a brand-green. */}
+      <div className="flex-1 min-h-0 flex">
+        <div
+          ref={visorRef}
+          className="relative flex-1 bg-brand-viewfinder flex items-center justify-center overflow-hidden"
+        >
+          {/* FIX del mantenedor (14-oct): la vista previa va LIMPIA — sin capas
+              decorativas sobre el video. Las tres del mock 1 (haze radial
+              mix-blend-screen + gradiente negro 80/40/90 + scanlines)
+              oscurecían y "filtraban" la imagen real de la cámara, que es
+              justo lo que el operador necesita ver nítido para encuadrar.
+              G1 (KIT camara-visor-v1): el LÁSER de escaneo también sale
+              (puro adorno — pointer-events-none — pedido expreso del mantenedor:
+              «quitar la línea verde de la cámara»). Se conserva SOLO la
+              retícula opcional (no altera la imagen). */}
+          {/* Retícula visual (§3.1.1: botón de cuadrícula de la píldora IA) */}
+          {gridOn && (
+            <div
+              className="absolute inset-0 z-[12] pointer-events-none bg-[linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[length:33.33%_33.33%]"
+              aria-hidden
+            />
+          )}
+
+          {/* Header con segmented selector [ CÁMARA | SIMULACIÓN | IMPORTAR ] + controles */}
+          {/* Task 2-b: en lg+ el HUD gana respiro (padding/píldoras mayores) y
+              la fila se acota a max-w-2xl centrada — segment control
+              profesional, no dos islas a los bordes del visor. */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex flex-col gap-2 p-3 lg:gap-3 lg:px-5 lg:pt-4">
+            <div className="relative flex h-11 items-center w-full lg:max-w-2xl lg:mx-auto">
+              {/* MOCK 2026-11-16 (escaneo libre y limpio): botón VOLVER circular
+                  con chevron «‹» arriba a la izquierda — el escáner es una
+                  pantalla inmersiva (sin nav inferior en el shell). */}
+              <button
+                type="button"
+                onClick={volverAlApp}
+                aria-label="Volver a la vista anterior"
+                title="Volver"
+                className="pointer-events-auto absolute left-0 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white/85 backdrop-blur-md shadow-md transition hover:bg-black/75 hover:text-white active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
+              >
+                <StitchChevronLeftIcon className="w-5 h-5" />
+              </button>
+
+              {/* Píldora IA: AUTO + Grid — CENTRADA en modo cámara (mock
+                  escaneo libre); en SIMULACIÓN/ARCHIVO queda junto al botón
+                  volver y el selector de modo ocupa la derecha. */}
+              <div
+                className={`pointer-events-auto absolute top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-[#10161f]/90 border border-slate-800 rounded-full px-2.5 py-1 lg:px-3.5 lg:py-1.5 backdrop-blur-md shadow-md transition-[left] ${
+                  escaneoLibre ? "left-1/2 -translate-x-1/2" : "left-11 lg:left-[52px]"
+                }`}
+              >
+                <span className="inline-flex items-center justify-center bg-white text-slate-900 text-[10px] font-black rounded px-1.5 py-0.5 leading-none select-none">
+                  IA
+                </span>
+                <button
+                  type="button"
+                  aria-label="Alternar cuadrícula"
+                  aria-pressed={gridOn}
+                  onClick={() => setGridOn((v) => !v)}
+                  className={`min-h-11 min-w-11 p-1 lg:p-1.5 rounded-full transition flex items-center justify-center gap-1.5 ${
+                    gridOn ? "text-[#10b981] bg-[#10b981]/15" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <StitchGridIcon className="w-4 h-4" />
+                  {/* Task 2-b (crítica VLM): etiqueta visible en lg+ — el icono
+                      solo deja de ser adivinanza; en móvil queda el aria-label. */}
+                  <span className="hidden lg:inline text-[10px] font-bold tracking-wide">
+                    CUADRÍCULA
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Captura automática"
+                  aria-pressed={modoCamara ? autoArmado : undefined}
+                  title={
+                    modoCamara
+                      ? "Captura automática (dispara sola con el documento quieto y nítido)"
+                      : "Captura automática (disponible en modo cámara)"
+                  }
+                  onClick={alternarAutoHUD}
+                  className={`inline-flex items-center gap-1.5 text-[11px] lg:text-xs font-bold tracking-wide px-2 lg:px-3 py-0.5 lg:py-1 rounded-full select-none transition ${
+                    autoArmado && modoCamara ? "bg-[#10b981]/15 text-[#10b981]" : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      autoArmado && modoCamara ? "bg-[#10b981] animate-ping" : "bg-slate-500"
+                    }`}
+                    aria-hidden
+                  />
+                  AUTO
+                </button>
+                {/* Task 4: «?» — guía de uso a un toque (crítica VLM: nada
+                    que adivinar). Siempre visible; etiqueta AYUDA solo en lg. */}
+                <button
+                  type="button"
+                  onClick={abrirAyuda}
+                  aria-label="Cómo funciona — abrir la guía de uso"
+                  title="Cómo funciona (tecla ?)"
+                  className="ml-0.5 min-h-11 min-w-11 p-1 lg:p-1.5 rounded-full text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition flex items-center justify-center gap-1.5"
+                >
+                  <span
+                    aria-hidden
+                    className="font-mono font-extrabold text-[13px] leading-none"
+                  >
+                    ?
+                  </span>
+                  <span className="hidden lg:inline text-[10px] font-bold tracking-wide">
+                    AYUDA
+                  </span>
+                </button>
+              </div>
+
+              {/* Selector de modo rápido segmented: [CÁMARA | SIMULACIÓN].
+                  KIT e14-simulacion-imagenes-v1: el antiguo «SUBIR» se
+                  reemplazó por el icono SIMULACIÓN — abre la galería de
+                  imágenes simuladas. Importar foto real sigue en el dock.
+                  MOCK escaneo libre: OCULTO en modo cámara (la pantalla
+                  inmersiva del mock no lo muestra — con cámara fallida el
+                  aviso ofrece SIMULACIÓN; en SIM/ARCHIVO reaparece aquí
+                  para regresar a CÁMARA). */}
+              {!escaneoLibre && (
+                <div className="pointer-events-auto absolute right-0 top-1/2 -translate-y-1/2 flex items-center p-0.5 lg:p-1 bg-[#10161f]/90 border border-slate-800 rounded-full backdrop-blur-md shadow-md">
+                <button
+                  type="button"
+                  onClick={() => setFuente("CAMARA")}
+                  className={`flex items-center gap-1 px-2.5 lg:px-3.5 py-1 lg:py-1.5 rounded-full text-[11px] lg:text-xs font-semibold transition-all ${
+                    fuente === "CAMARA"
+                      ? "bg-[#10b981] text-[#090d12] font-bold shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <CameraNavIcon className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">CÁMARA</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={abrirGaleriaSim}
+                  disabled={procesando}
+                  aria-haspopup="dialog"
+                  aria-expanded={galeriaSim}
+                  aria-label="Abrir la galería de imágenes simuladas"
+                  title="Simulación — probar con imágenes simuladas del proyecto"
+                  className={`flex items-center gap-1 px-2.5 lg:px-3.5 py-1 lg:py-1.5 rounded-full text-[11px] lg:text-xs font-semibold transition-all disabled:opacity-50 ${
+                    fuente === "SIMULACION" || galeriaSim
+                      ? "bg-[#10b981] text-[#090d12] font-bold shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <SparklesIcon className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">SIMULACIÓN</span>
+                </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {modoCamara ? (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                disablePictureInPicture
+                onLoadedMetadata={alCargarMetaVideo}
+                aria-label="Vista previa de la cámara"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+
+              {/* Estado: iniciando cámara */}
+              {camEstado === "iniciando" && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/60">
+                  <span className="h-6 w-6 rounded-full border-2 border-brand-green/30 border-t-brand-green animate-spin" aria-hidden />
+                  <span className="text-[10px] font-bold tracking-[0.2em] text-white/60 uppercase">
+                    INICIANDO CÁMARA…
+                  </span>
+                </div>
+              )}
+
+              {/* Aviso de cámara con opciones claras y botón destacado para simulación.
+                  Task 2-b (crítica VLM #1): copy humano y accionable — título en
+                  primera persona + pasos numerados; en sm+ se centra como
+                  tarjeta y en lg gana ancho/aire (no pegado al borde). */}
+              {avisoCamara && camEstado !== "viva" && (
+                <div className="absolute inset-x-4 top-[72px] z-40 rounded-2xl border border-amber-500/40 bg-[#10161f]/95 backdrop-blur-xl p-5 sm:mx-auto sm:max-w-md lg:top-20 lg:max-w-lg shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                    <p className="text-xs font-bold text-amber-400 font-mono uppercase tracking-wider">
+                      {avisoCamara === "denied" ? "No podemos acceder a tu cámara" : "Se perdió la señal de la cámara"}
+                    </p>
+                  </div>
+                  {avisoCamara === "denied" ? (
+                    <ol className="list-decimal pl-4 text-xs leading-relaxed text-slate-300 font-sans marker:text-amber-400/80 marker:font-mono">
+                      <li>
+                        Revisa el permiso de la cámara en el navegador (icono de
+                        candado o de cámara junto a la barra de direcciones) y
+                        permite el acceso.
+                      </li>
+                      <li>O prueba con una imagen simulada del proyecto.</li>
+                      <li>O sube una foto del documento desde tu galería o tu disco.</li>
+                    </ol>
+                  ) : (
+                    <p className="text-xs leading-relaxed text-slate-300 font-sans">
+                      La cámara se detuvo u otra aplicación se quedó con ella.
+                      Ciérrala y presiona «Reintentar», o sube una foto del documento.
+                    </p>
+                  )}
+                  <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                    {/* KIT e14-sin-relleno-v1: la vía de SIMULACIÓN solo se
+                        ofrece con «SIM» (ACTAS) o modo desarrollador — el
+                        flujo público degrada a cámara/subir. */}
+                    {/* KIT e14-simulacion-imagenes-v1: abre la galería de
+                        imágenes simuladas en vez de cambiar en silencio la
+                        fuente (el operador elige la condición a probar). */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAvisoCamara(null);
+                        abrirGaleriaSim();
+                      }}
+                      className="h-10 rounded-xl px-4 text-xs font-bold text-[#090d12] bg-[#10b981] hover:bg-[#059669] transition shadow-md shadow-[#10b981]/20 flex items-center justify-center gap-1.5"
+                    >
+                      <SparklesIcon className="w-4 h-4" />
+                      PROBAR CON SIMULACIÓN
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAvisoCamara(null);
+                        setCamEstado("iniciando");
+                        setReintentoCamara((n) => n + 1);
+                      }}
+                      className="h-10 rounded-xl px-3 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 transition flex items-center justify-center"
+                    >
+                      Reintentar cámara
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAvisoCamara(null);
+                        inputRef.current?.click();
+                      }}
+                      className="h-10 rounded-xl px-3 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 transition flex items-center justify-center gap-1"
+                    >
+                      <FolderImportIcon className="w-3.5 h-3.5" />
+                      Subir foto del documento
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Quad en vivo (lab L1693-1711) — SVG sobre el video,
+                  brand-green, transición CSS ~150 ms. */}
+              {camaraViva && puntosQuad && (
+                <div
+                  className="absolute inset-0 pointer-events-none z-20 transition-opacity duration-150"
+                  aria-hidden
+                >
+                  <svg
+                    className="absolute inset-0 h-full w-full"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                  >
+                    <path
+                      d={`M 0 0 L 100 0 L 100 100 L 0 100 Z M ${puntosQuad} Z`}
+                      fill="rgba(0,0,0,0.32)"
+                      fillRule="evenodd"
+                    />
+                    <path
+                      d={`M ${puntosQuad} Z`}
+                      fill="none"
+                      stroke="var(--color-brand-green)"
+                      strokeWidth={2}
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </svg>
+                  {live.corners?.map((p, i) => {
+                    const m = mapearPunto(p);
+                    return (
+                      <span
+                        key={i}
+                        className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_0_1.5px_rgba(0,230,118,0.9),0_1px_4px_rgba(0,0,0,0.5)]"
+                        style={{ left: `${m.x}%`, top: `${m.y}%` }}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Pill "BUSCANDO ACTA…" (lab L1737-1753): superior centrada
+                  mientras corners === null. */}
+              {buscando && !procesando && (
+                <div className="pointer-events-none absolute inset-x-0 top-[72px] z-30 flex justify-center px-6">
+                  <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3.5 py-1.5 backdrop-blur-sm">
+                    <span
+                      className="h-3.5 w-3.5 rounded-full border-2 border-brand-green border-t-transparent animate-spin"
+                      aria-hidden
+                    />
+                    <p className="text-[11px] font-bold tracking-[0.08em] text-white/85">
+                      BUSCANDO DOCUMENTO…
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* HUD (§7 rev.3): medidor de captura EN VIVO (G7 del kit
+                  camara-visor-v1) + estado de detección. */}
+              {camaraViva && !procesando && (
+                <>
+                  {scorePct !== null && (
+                    <div
+                      className="pointer-events-none absolute bottom-[118px] left-3 z-20"
+                      role="status"
+                      aria-label={`Calidad de encuadre ${scorePct} por ciento`}
+                    >
+                      <div className="flex h-8 items-center gap-2.5 rounded-full bg-black/55 px-3 shadow-[0_4px_14px_rgba(0,0,0,0.35)] backdrop-blur-md">
+                        <GaugeIcon
+                          className={`h-3.5 w-3.5 ${
+                            scorePct > SHUTTER_SCORE * 100 ? "text-[#34c759]" : "text-white/80"
+                          }`}
+                        />
+                        <div className="h-1 w-14 overflow-hidden rounded-full bg-white/20">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ease-out ${
+                              scorePct > SHUTTER_SCORE * 100
+                                ? "bg-gradient-to-r from-[#30d158] to-[#34c759]"
+                                : scorePct > 55
+                                  ? "bg-gradient-to-r from-[#007aff] to-[#4da2ff]"
+                                  : "bg-white/50"
+                            }`}
+                            style={{ width: `${Math.min(100, Math.max(4, scorePct))}%` }}
+                          />
+                        </div>
+                        <span
+                          className={`min-w-7 text-right text-[11px] font-semibold tabular-nums ${
+                            scorePct > SHUTTER_SCORE * 100 ? "text-[#34c759]" : "text-white/85"
+                          }`}
+                        >
+                          {scorePct}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {/* MOCK escaneo libre: píldora de detección con punto de
+                      estado — rojo «NO DETECTADO», verde «DOCUMENTO
+                      DETECTADO» (antes solo texto). */}
+                  <div className="pointer-events-none absolute bottom-[118px] right-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/55 px-2.5 py-1.5 backdrop-blur-sm">
+                    <span
+                      aria-hidden
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        live.corners ? "bg-[#34c759]" : "bg-rose-400"
+                      }`}
+                    />
+                    <span
+                      className={`text-[10px] font-bold tracking-[0.12em] font-mono ${
+                        live.corners ? "text-brand-green" : "text-white/60"
+                      }`}
+                    >
+                      {live.corners ? "DOCUMENTO DETECTADO" : "NO DETECTADO"}
+                    </span>
+                  </div>
+                </>
+              )}
+
+              {/* Overlay "armado" */}
+              {camaraViva && autoArmado && scoreAlto && !procesando && (
+                <div className="pointer-events-none absolute inset-x-0 top-[42%] z-30 flex justify-center px-6">
+                  <div className="flex items-center gap-2.5 rounded-full bg-black/75 border border-white/10 px-4 py-2.5 shadow-[0_4px_12px_rgba(0,0,0,0.3)] backdrop-blur-sm">
+                    <span className="h-2 w-2 rounded-full bg-brand-green" aria-hidden />
+                    <p className="text-[13px] font-bold text-white">
+                      MANTÉN INMÓVIL EL DOCUMENTO…
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Procesando captura */}
+              {procesando && (
+                <div
+                  className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-[3px]"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span
+                    className="h-10 w-10 rounded-full border-[3px] border-white/15 border-t-brand-green animate-spin"
+                    aria-hidden
+                  />
+                  <p className="text-[13px] font-bold text-white">CAPTURANDO…</p>
+                  <p className="text-[10px] font-bold tracking-[0.2em] text-white/55 uppercase font-mono">
+                    CAPTURA RECIBIDA · PASANDO A ANÁLISIS
+                  </p>
+                </div>
+              )}
+
+            </>
+          ) : (
+            /* SIMULACIÓN/ARCHIVO: Visor con marco táctico E-14. Task 2-b: en
+               lg+ el marco gana tamaño (max-w/max-h mayores) — los brackets
+               tácticos son spans posicionados al contenedor y escalan solos. */
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 pb-32 text-center select-none">
+              <div className="relative w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[360px] h-[58vh] max-h-[420px] lg:max-h-[520px] rounded-2xl border-2 border-dashed border-[#10b981]/30 bg-[#10b981]/[0.03] flex flex-col items-center justify-between p-5 backdrop-blur-[2px] shadow-[0_0_40px_rgba(16,185,129,0.05)]">
+                {/* Esquinas tácticas */}
+                <span className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-[#10b981]" />
+                <span className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-[#10b981]" />
+                <span className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-[#10b981]" />
+                <span className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-[#10b981]" />
+
+                <div className="w-full flex items-center justify-between text-[10px] font-mono font-bold tracking-widest text-[#10b981] uppercase">
+                  <span>DOCUMENTO</span>
+                  <span>{fuente}</span>
+                </div>
+
+                <div className="flex flex-col items-center gap-2.5 my-auto px-2">
+                  <div className="w-14 h-14 rounded-2xl bg-[#10161f] border border-slate-800 flex items-center justify-center text-[#10b981] shadow-lg">
+                    {fuente === "SIMULACION" ? (
+                      <SparklesIcon className="w-7 h-7" />
+                    ) : (
+                      <FolderImportIcon className="w-7 h-7" />
+                    )}
+                  </div>
+                  <h3 className="text-sm font-bold text-white tracking-wide uppercase">
+                    {fuente === "SIMULACION" ? "SIMULADOR DE DOCUMENTOS" : "IMPORTAR ARCHIVO"}
+                  </h3>
+                  {/* D-36 (plan 2026-11-12) — banner de DEMOSTRACIÓN NO
+                      descartable (D89-sup es el ADR origen; aquí el móvil lo
+                      replica en su modo SIM): visible sin cookie ni
+                      localStorage para cerrarlo — jamás se presenta como
+                      captura real. */}
+                  {fuente === "SIMULACION" && (
+                    <p
+                      role="status"
+                      className="w-full max-w-[220px] lg:max-w-[280px] rounded-lg border border-amber-500/50 bg-amber-500/10 px-2.5 py-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-amber-400"
+                    >
+                      Modo demostración — fixtures sintéticas; no usar con
+                      documentos reales
+                    </p>
+                  )}
+                  <p className="text-[11px] font-mono text-slate-400 leading-relaxed max-w-[220px] lg:max-w-[280px]">
+                    {fuente === "SIMULACION"
+                      ? "Abra el icono de simulación y elija una imagen de prueba (normal, rotada, inclinada, con sombras o recortada)."
+                      : "Seleccione un archivo de imagen o fotografía del documento."}
+                  </p>
+                  {fuente === "SIMULACION" && (
+                    <button
+                      type="button"
+                      onClick={abrirGaleriaSim}
+                      className="mt-2 px-4 py-2 rounded-xl bg-[#10b981] hover:bg-[#059669] text-[#090d12] text-xs font-bold uppercase tracking-wider transition shadow-md shadow-[#10b981]/20 cursor-pointer"
+                    >
+                      Ver imágenes simuladas
+                    </button>
+                  )}
+                  {fuente === "ARCHIVO" && (
+                    <button
+                      type="button"
+                      onClick={() => inputRef.current?.click()}
+                      className="mt-2 px-4 py-2 rounded-xl bg-[#10b981] hover:bg-[#059669] text-[#090d12] text-xs font-bold uppercase tracking-wider transition shadow-md shadow-[#10b981]/20 cursor-pointer"
+                    >
+                      Elegir imagen
+                    </button>
+                  )}
+                </div>
+
+                <div className="w-full py-1 border-t border-slate-800/80 flex items-center justify-center">
+                  <span className="text-[9px] font-mono text-slate-400 tracking-wider uppercase">
+                    DIGITALIZADOR DE DOCUMENTOS
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* §3.1.4 FRANJA DE AVISOS del visor. Task 2-b: en lg se aleja del
+              borde y baja un poco (el HUD es más alto en lg). */}
+          {avisoVisor && !procesando && (
+            <div
+              className={`absolute inset-x-4 top-[72px] z-40 rounded-xl bg-[#10161f]/95 border px-3.5 py-2.5 font-mono text-xs shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md lg:inset-x-6 lg:top-20 ${
+                avisoVisor.tono === "crit"
+                  ? "border-red-500/40 text-red-400"
+                  : "border-amber-500/40 text-amber-400"
+              }`}
+              role="status"
+              aria-live="polite"
+            >
+              {avisoVisor.texto}
+            </div>
+          )}
+
+          {/* KIT errores-operador-v1 (plan 3.1.3 + 4.3.1): FRANJA DE ERROR del
+              store — persiste hasta que el operador reintenta o descarta (los
+              avisos de error NO se autodestruyen; solo los informativos de
+              arriba mueren con su timer). Va al FONDO del visor para no pisar
+              ni el overlay §E ni la píldora informativa ni el HUD. */}
+          {avisoOperador && (
+            <div
+              className={`absolute inset-x-4 bottom-[124px] z-40 rounded-xl bg-[#10161f]/95 border px-3.5 py-2.5 font-mono text-xs shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md lg:inset-x-6 ${
+                avisoOperador.tipo === "error"
+                  ? "border-red-500/40 text-red-400"
+                  : "border-amber-500/40 text-amber-400"
+              }`}
+              role={avisoOperador.tipo === "error" ? "alert" : "status"}
+              aria-live="polite"
+            >
+              <div className="flex items-center gap-3">
+                <p className="flex-1 leading-relaxed font-sans">
+                  {TEXTO_MOTIVO[avisoOperador.motivo]}
+                </p>
+                <div className="flex items-center gap-2 shrink-0">
+                  {avisoOperador.accion === "reintentar" && (
+                    <button
+                      type="button"
+                      onClick={reintentarDesdeAviso}
+                      className={`min-h-11 rounded-lg px-3 text-[11px] font-bold uppercase tracking-wider border transition ${
+                        avisoOperador.tipo === "error"
+                          ? "bg-red-500/15 border-red-500/40 text-red-300 hover:bg-red-500/25"
+                          : "bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
+                      }`}
+                    >
+                      Reintentar
+                    </button>
+                  )}
+                  {/* KIT e14-remediacion-movil-v1 (A4): estado explícito
+                      MEMORIA AGOTADA — única salida honesta tras el reinicio
+                      + 1 reintento del motor (A4.2). */}
+                  {avisoOperador.accion === "recargar" && (
+                    <button
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="min-h-11 rounded-lg px-3 text-[11px] font-bold uppercase tracking-wider border bg-red-500/15 border-red-500/40 text-red-300 hover:bg-red-500/25 transition"
+                    >
+                      Recargar
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={descartarAvisoVisor}
+                    aria-label="Descartar el aviso"
+                    title="Descartar"
+                    className="min-h-11 min-w-11 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition flex items-center justify-center text-lg leading-none"
+                  >
+                    <span aria-hidden>✕</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Dock FLOTANTE sobre la cámara (antes era una franja opaca que
+          restaba ~128 px al visor; en un iPhone útil de 553 px la previa
+          quedaba en ~350 px). Ahora el video llega hasta el fondo y los
+          controles se apoyan en un degradado, como en la cámara del sistema.
+          La fila de contexto (CÁMARA/IMPORTAR · TEST SCORES) se retiró: el
+          modo ya lo indica el selector superior y sólo robaba alto. */}
+      <footer className="absolute inset-x-0 bottom-0 z-20 px-4 lg:px-6 pt-6 pb-[max(env(safe-area-inset-bottom),10px)] flex flex-col items-center bg-gradient-to-t from-[#090d12] via-[#090d12]/85 to-transparent">
+
+        {/* §6/Rev.4 Fila de disparo: [Importar | obturador | Flash] —
+            EXACTAMENTE la fila de Rev. 4. Ola 4.3.2 (U6) — DOCK UNIFICADO:
+            antes había UN dock por modo (copia idéntica fuera de CÁMARA) con
+            un Flash que no actuaba. Ahora UN solo dock: fuera de cámara el
+            Flash queda aria-disabled="true" (focusable, con title/aria-label
+            que explican el motivo) y SIN acción — cero docks duplicados.
+            F-FLASH v3 en CÁMARA: SIEMPRE activo (la verdad se descubre al
+            pulsar); sin stream → franja con el motivo. */}
+        <div className="w-full flex items-center justify-between max-w-sm lg:max-w-md px-2 mb-1" data-purpose="shutter-action-dock">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            aria-label="Importar imagen"
+            className="group flex flex-col items-center justify-center gap-1 text-center w-16 active:opacity-70 transition-all focus:outline-none"
+          >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white/90 group-hover:text-brand-green transition-colors">
+              <StitchImportIcon className="w-6 h-6" />
+            </div>
+            <span className="text-[11px] font-medium text-white/80 tracking-tight">
+              Importar
+            </span>
+          </button>
+
+          {obturador}
+
+          {/* FLASH — con cámara: linterna real (F-FLASH v3). Fuera de cámara:
+              aria-disabled + explicación accesible, SIN acción (el tap no se
+              queda mudo: el title/aria-label dice por qué no aplica). */}
+          <button
+            type="button"
+            aria-pressed={modoCamara ? torchOn : undefined}
+            aria-disabled={modoCamara ? undefined : true}
+            aria-label={
+              modoCamara
+                ? torchOn
+                  ? "Apagar la linterna"
+                  : torchDisponible
+                    ? "Encender la linterna"
+                    : "Linterna — toca para ver el motivo"
+                : "Linterna (flash): solo disponible con la cámara viva — cambia a modo CÁMARA"
+            }
+            title={
+              modoCamara
+                ? undefined
+                : "La linterna se controla con la cámara viva. Cambia de modo con el botón amarillo."
+            }
+            onClick={modoCamara ? () => void alternarLinterna() : undefined}
+            className={`group flex flex-col items-center justify-center gap-1 text-center w-16 transition-all focus:outline-none ${
+              modoCamara ? "active:opacity-70" : "opacity-50 cursor-default"
+            }`}
+          >
+            <div
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                torchOn
+                  ? "text-yellow-400"
+                  : modoCamara
+                    ? "text-white/90 group-hover:text-brand-green"
+                    : "text-white/50"
+              }`}
+            >
+              <StitchBoltIcon className="w-6 h-6" />
+            </div>
+            <span
+              className={`text-[11px] font-medium tracking-tight ${
+                torchOn ? "text-yellow-400" : modoCamara ? "text-white/80" : "text-white/50"
+              }`}
+            >
+              Flash
+            </span>
+          </button>
+        </div>
+      </footer>
+
+      {/* KIT e14-simulacion-imagenes-v1: galería de imágenes simuladas sobre
+          el visor (z-50, cubre también el dock). */}
+      <GaleriaSimulacion
+        abierta={galeriaSim}
+        onCerrar={() => setGaleriaSim(false)}
+        onElegir={elegirSimulada}
+      />
+    </div>
+  );
+}

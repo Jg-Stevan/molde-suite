@@ -1,0 +1,26 @@
+# dependencias y builds
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# entornos y logs
+.env
+.env.*
+*.log
+.DS_Store
+*.pem
+
+# datos locales y materiales de trabajo (no se publican)
+upload/
+db/
+*.db
+download/
+skills/
+public/actas/
+
+# herramientas de agentes locales
+.claude
+.z-ai-config

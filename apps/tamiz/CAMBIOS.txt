@@ -1,0 +1,45 @@
+CAMBIOS DIGIELECT14 — entrega acumulada
+========================================
+
+1) NAV INFERIOR SEGÚN MOCK (commit e4648af)
+   Barra inferior móvil idéntica al mock: HISTORIAL (reloj) izquierda,
+   círculo verde con glifo de escaneo al centro, PLANTILLAS (cuadrícula
+   sólida 2x2) derecha. Data-driven desde el store Zustand.
+
+2) UNIVERSALIZACIÓN ACTA/E-14 -> DOCUMENTO (commit 96b8fba)
+   Toda la terminología de actas E-14/elecciones reemplazada por
+   "documento" en textos visibles: nav, pantallas, checklist,
+   plantillas, avisos, metadata/title. Solo textos UI — los
+   identificadores internos quedaron intactos.
+
+3) MOCK 2026-11-16: VERIFICACIÓN DOCUMENTAL + HISTORIAL DE ESCANEOS +
+   PLANTILLAS (commit dab5ada)
+   Flujo de revisión con verificación documental (Campos Obligatorios/
+   Opcionales), vista HISTORIAL DE ESCANEOS con filtros (TODOS/ÓPTIMAS/
+   ADVERTENCIA/RECHAZADAS) y vista PLANTILLAS (molde .json, plantilla
+   base integrada).
+
+4) ESCANEO LIBRE Y LIMPIO (mock 2026-11-16 — commit 0d1139e)
+   · El visor en modo cámara es una pantalla INMERSIVA: la barra de
+     navegación inferior (HISTORIAL/círculo/PLANTILLAS) se OCULTA en
+     ESCANEAR (page.tsx). REVISIÓN/HISTORIAL/PLANTILLAS la conservan.
+   · Botón VOLVER circular con chevron «‹» arriba a la izquierda del
+     visor (StitchChevronLeftIcon nuevo): regresa a la última vista app
+     visitada (HISTORIAL o PLANTILLAS) vía store.vistaPrevia — nuevo
+     campo en el slice navegación (guard: re-navegar a la misma vista
+     no borra el historial; arranque fresco cae a HISTORIAL).
+   · Píldora IA [IA|cuadrícula|AUTO|?] CENTRADA arriba, como el mock
+     (en SIMULACIÓN/ARCHIVO vuelve a la izquierda y reaparece el
+     selector [CÁMARA|SIMULACIÓN] a la derecha).
+   · Selector de modo OCULTO en modo cámara (pantalla limpia del mock);
+     el aviso de cámara ofrece SIMULACIÓN cuando la cámara falla.
+   · Píldora de detección con punto de estado: rojo «NO DETECTADO» /
+     verde «DOCUMENTO DETECTADO» (antes solo texto).
+   · Dock Importar/obturador/Flash intacto. Desktop (SideNav) intacto.
+
+ARCHIVOS TOCADOS EN LA ENTREGA 4 (5):
+   apps/digielect14/src/app/page.tsx
+   apps/digielect14/src/components/e14/icons.tsx
+   apps/digielect14/src/components/e14/screens/ScanView.tsx
+   apps/digielect14/src/lib/e14/store/navegacion.ts
+   apps/digielect14/src/lib/e14/store/tipos.ts

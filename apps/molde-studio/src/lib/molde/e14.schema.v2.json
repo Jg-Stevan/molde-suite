@@ -1,0 +1,528 @@
+{
+  "tipo": "acta_e14",
+  "version": "2.0.0",
+  "descripcion": "Acta de Escrutinio de los Jurados de Votacion (E-14) - Registraduria Nacional del Estado Civil. Variantes soportadas: TRANSMISION y CONSUL/EMBAJADOR (voto en el exterior).",
+  "hereda_de": "e14.schema.json (1.0.0)",
+  "mejoras_vs_v1": [
+    "B1 - Regex de cabecera tolerantes: '\\W{0,2}' en vez de ':?' (el OCR real introduce ';', ',', '::'). Recupera CONSULADO y MESA, hoy perdidos.",
+    "B2 - Binarizacion con eliminacion de lineas impresas (morfologia H/V + filtro de componentes largos-delgados dentro de cada zona) antes de medir tinta: elimina FPs de bordes de tabla, barras negras y bordes combados por la foto.",
+    "B3 - Recuento SI/NO diferencial: ventanas IGUALES centradas en las palabras SI y NO; delta = tinta(NO)-tinta(SI). Las etiquetas impresas se cancelan y la X manuscrita solo aparece en una ventana (comparar densidades sobre zonas de distinto tamano falla: el bbox OCR del NO tachado se infla con la X).",
+    "B4 - Anclas a nivel de PALABRA (fuzzy) para firmas/C.C.: busca la palabra JURADO + digito tolerando OCR ruidoso (TIRMA/FIRYAA) y corrige el bug de columna del ancla de linea.",
+    "Rejilla 2x2: si la etiqueta de un jurado no se OCR-iza, la fila se infiere de la otra fila (paso 0.068) y la columna por paridad del numero de jurado.",
+    "Zonas de filas de votos reubicadas: cada celda se ancla en su PROPIA linea impresa (URNA, INCINERADOS, BLANCO, NULOS...) con cadena de anclas de respaldo y paso de fila 0.031, en vez de offsets fijos desde NIVELACION.",
+    "Celda VOTACION de candidatos: banda x absoluta [0.70-0.96] (v1 la desplazaba cuando la linea del nombre traia ruido a la izquierda), banda y relativa al nombre.",
+    "Constancias: zona = interior del recuadro (entre CONSTANCIAS y RECUENTO), excluye borde y barra del titulo.",
+    "Umbrales calibrados con binarizacion sin lineas: vacio ≈ 0.005-0.025, diligenciado ≈ 0.03-0.15 -> umbral 0.03 (celdas de votos), 0.02 (firmas), 0.05 (C.C.).",
+    "Celdas de digitos (candidatos y filas de votos): medida por COMPONENTES CONEXOS (>= 3 componentes de area >= 150 px) en vez de solo densidad: los digitos finos sueltan densidad ~0.015-0.03 en celdas grandes y se confunden con ruido; el numero de trazos grandes los separa (celda vacia: 0-1 componentes).",
+    "Identificacion por cadena: codigo de barras (pyzbar/ZXing) -> OCR -> RE-OCR de la palabra del ID amplificada x4 con whitelist de digitos. Consenso global por mayoria/medoide con tolerancia de edicion <= 1: la raiz del consenso quedo correcta en las 3 actas de prueba (en El Cairo, los 2 votos exactos de p2 corrigieron el error de 1 digito del OCR de p1; una raiz erronea pero consistente entre paginas, el caso 993->992 del app v1, queda cubierta por estas dos fuentes independientes adicionales).",
+    "Pagina: el marcador 'Pag X de Y' deja de ser obligatorio en pagina 1 (el OCR lo destruye); el numero de pagina se infiere por palabras clave y por el digito 13 del ID.",
+    "Nueva validacion obligatorios_presentes: un campo obligatorio que quede no_encontrado marca el documento como incompleto (v1 lo dejaba pasar como completo)."
+  ],
+  "motor": {
+    "binarizacion": "sin_lineas",
+    "kernel_linea_frac": 0.083,
+    "paso_fila": 0.031,
+    "paso_rejilla_firmas": 0.068,
+    "umbral_tinta_default": 0.03,
+    "filtro_linea_zona": {
+      "descripcion": "Dentro de cada zona se descartan componentes conexos largos y delgados (bordes impresos combados por la foto que sobreviven a la morfologia)",
+      "fraccion_ancho": 0.5,
+      "grosor_max": 6
+    },
+    "medida_componentes": {
+      "descripcion": "Para celdas de digitos manuscritos: una celda cuenta diligenciada si tiene >= min_comps componentes de area >= area_min, o si la densidad supera dens_alta (digitos gruesos conectados)",
+      "area_min": 150,
+      "min_comps": 3,
+      "dens_alta": 0.05
+    },
+    "zonas": {
+      "descripcion": "Todas las zonas en coordenadas normalizadas (0-1). Tipos soportados:",
+      "fila": "columna_x0, columna_x1, y0_rel, y1_rel: banda horizontal de la fila del ancla (y relativa a etiqueta.y0 + filas_abajo*paso_fila)",
+      "banda": "x0, x1 absolutos; y0_rel, y1_rel relativos a etiqueta.y0",
+      "casilla_firma": "columnas izq/der por paridad del jurado; banda y relativa a la etiqueta FIRMA JURADO n (y1 de la etiqueta para firma, y0+dy para C.C.)",
+      "fija": "ultimo recurso, coordenadas absolutas del escaneo de referencia"
+    }
+  },
+  "clasificacion": {
+    "anclas": [
+      "ACTA DE ESCRUTINIO",
+      "JURADOS DE VOTACION"
+    ],
+    "min_anclas": 2,
+    "regex": "E\\s*-?\\s*6?14"
+  },
+  "paginas": {
+    "requeridas": 2,
+    "marcador": "PAG\\s*:?\\s*(\\d+)\\s*DE\\s*(\\d+)",
+    "marcador_obligatorio": false,
+    "inferencia": {
+      "pagina_1": [
+        "NIVELACION",
+        "CANDIDATO",
+        "VOTACION",
+        "URNA",
+        "INCINERADOS",
+        "CEPEDA",
+        "ESPRIELLA",
+        "BLANCO",
+        "SUMA"
+      ],
+      "pagina_2": [
+        "CONSTANCIAS",
+        "RECUENTO",
+        "SOLICITADO",
+        "REPRESENTACION",
+        "FIRMA"
+      ]
+    }
+  },
+  "identificacion": {
+    "descripcion": "Numero impreso bajo el codigo de barras (15 digitos) y codigo QR. Estructura: raiz 12 digitos + digito de pagina (pos. 13) + sufijo 2 digitos.",
+    "estrategia_cadena": [
+      "codigo_barras",
+      "ocr",
+      "ocr_relectura"
+    ],
+    "relectura": {
+      "descripcion": "Re-OCR de la palabra del ID recortada, amplificada x4 y con whitelist de digitos; aporta un voto independiente que resuelve errores de 1 digito",
+      "factor_escala": 4,
+      "psm": 7
+    },
+    "patron": "\\b7\\d{14}\\b",
+    "fallback": "\\b\\d{15}\\b",
+    "raiz": {
+      "inicio": 0,
+      "fin": 12
+    },
+    "digito_pagina": 12,
+    "consenso": {
+      "tolerancia_edicion": 1,
+      "politica": "mayoria_exacta_luego_medoide",
+      "en_discrepancia": "bandera_revision"
+    }
+  },
+  "campos": [
+    {
+      "nombre": "consulado_codigo",
+      "etiqueta": "Código consulado",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "regex",
+      "patron": "CONSULADO\\s*\\W{0,2}\\s*(\\d{1,3})",
+      "grupo": 1,
+      "obligatorio": true,
+      "mejora": "B1"
+    },
+    {
+      "nombre": "pais_codigo",
+      "etiqueta": "Código país",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "regex",
+      "patron": "PA[IÍ1|L]S\\s*\\W{0,2}\\s*(\\d{1,3})",
+      "grupo": 1,
+      "obligatorio": true,
+      "mejora": "B1"
+    },
+    {
+      "nombre": "pais_nombre",
+      "etiqueta": "País",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "regex",
+      "patron": "PA[IÍ1|L]S\\s*\\W{0,2}\\s*\\d{1,3}\\s*-\\s*([A-ZÁÉÍÓÚÑ ]+)",
+      "grupo": 1,
+      "obligatorio": false,
+      "mejora": "B1"
+    },
+    {
+      "nombre": "zona_codigo",
+      "etiqueta": "Zona",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "regex",
+      "patron": "ZONA\\s*\\W{0,2}\\s*(\\d{1,3})",
+      "grupo": 1,
+      "obligatorio": true,
+      "mejora": "B1"
+    },
+    {
+      "nombre": "puesto_codigo",
+      "etiqueta": "Puesto",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "regex",
+      "patron": "PUESTO\\s*\\W{0,2}\\s*(\\d{1,3})",
+      "grupo": 1,
+      "obligatorio": true,
+      "mejora": "B1"
+    },
+    {
+      "nombre": "mesa_codigo",
+      "etiqueta": "Mesa",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "regex",
+      "patron": "MESA\\s*\\W{0,2}\\s*(\\d{1,3})",
+      "grupo": 1,
+      "obligatorio": true,
+      "mejora": "B1"
+    },
+    {
+      "nombre": "lugar",
+      "etiqueta": "Lugar",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "regex",
+      "patron": "LUGAR\\s*\\W{0,2}\\s*(.+)",
+      "grupo": 1,
+      "obligatorio": false,
+      "mejora": "B1"
+    },
+    {
+      "nombre": "total_votantes_e11",
+      "etiqueta": "Total votantes (E-11)",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "anclas": [
+        { "patron": "TOTAL\\s+VOTANTES", "filas_abajo": 0 },
+        { "patron": "TOTAL\\s+VOTOS\\s+EN\\s+LA\\s+URNA", "filas_abajo": -1 },
+        { "patron": "INCINERADOS", "filas_abajo": -2 },
+        { "patron": "NIVELA\\w*", "filas_abajo": 1 }
+      ],
+      "zona": { "tipo": "fila", "columna_x0": 0.62, "columna_x1": 0.97, "y0_rel": -0.004, "y1_rel": 0.026 },
+      "zona_fija": { "x0": 0.62, "y0": 0.245, "x1": 0.97, "y1": 0.295 },
+      "umbral_tinta": 0.03,
+      "obligatorio": false,
+      "nota": "Manuscrito: solo se detecta diligenciamiento, no se lee el valor"
+    },
+    {
+      "nombre": "total_votos_urna",
+      "etiqueta": "Total votos en la urna",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "anclas": [
+        { "patron": "TOTAL\\s+VOTOS\\s+EN\\s+LA\\s+URNA", "filas_abajo": 0 },
+        { "patron": "TOTAL\\s+VOTANTES", "filas_abajo": 1 },
+        { "patron": "INCINERADOS", "filas_abajo": -1 },
+        { "patron": "NIVELA\\w*", "filas_abajo": 2 }
+      ],
+      "zona": { "tipo": "fila", "columna_x0": 0.62, "columna_x1": 0.97, "y0_rel": -0.004, "y1_rel": 0.026 },
+      "zona_fija": { "x0": 0.62, "y0": 0.285, "x1": 0.97, "y1": 0.33 },
+      "umbral_tinta": 0.03,
+      "obligatorio": false
+    },
+    {
+      "nombre": "total_votos_incinerados",
+      "etiqueta": "Total votos incinerados",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "anclas": [
+        { "patron": "INCINERADOS", "filas_abajo": 0 },
+        { "patron": "TOTAL\\s+VOTOS\\s+EN\\s+LA\\s+URNA", "filas_abajo": 1 },
+        { "patron": "TOTAL\\s+VOTANTES", "filas_abajo": 2 },
+        { "patron": "NIVELA\\w*", "filas_abajo": 3 }
+      ],
+      "zona": { "tipo": "fila", "columna_x0": 0.62, "columna_x1": 0.97, "y0_rel": -0.004, "y1_rel": 0.026 },
+      "zona_fija": { "x0": 0.62, "y0": 0.325, "x1": 0.97, "y1": 0.375 },
+      "umbral_tinta": 0.03,
+      "obligatorio": false,
+      "mejora": "v1 la anclaba en NIVELACION con offset fijo: caia sobre bordes de tabla (FP). Ahora se ancla en su propia linea."
+    },
+    {
+      "nombre": "votos_candidato_1",
+      "etiqueta": "Votos candidato 1",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "medida": "componentes",
+      "anclas": [
+        { "patron": "CEPEDA", "filas_abajo": 0 }
+      ],
+      "zona": { "tipo": "banda", "x0": 0.70, "x1": 0.96, "y0_rel": -0.090, "y1_rel": -0.008 },
+      "zona_fija": { "x0": 0.70, "y0": 0.42, "x1": 0.96, "y1": 0.50 },
+      "umbral_tinta": 0.03,
+      "obligatorio": false,
+      "mejora": "banda x absoluta: v1 usaba dx relativo a la linea del nombre y el ruido OCR la desplazaba"
+    },
+    {
+      "nombre": "votos_candidato_2",
+      "etiqueta": "Votos candidato 2",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "medida": "componentes",
+      "anclas": [
+        { "patron": "ABELARDO", "filas_abajo": 0 }
+      ],
+      "zona": { "tipo": "banda", "x0": 0.70, "x1": 0.96, "y0_rel": -0.090, "y1_rel": -0.008 },
+      "zona_fija": { "x0": 0.70, "y0": 0.585, "x1": 0.96, "y1": 0.665 },
+      "umbral_tinta": 0.03,
+      "obligatorio": false
+    },
+    {
+      "nombre": "votos_en_blanco",
+      "etiqueta": "Votos en blanco",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "anclas": [
+        { "patron": "VOTOS\\s+EN\\s+BLANCO", "filas_abajo": 0 },
+        { "patron": "VOTOS\\s+NULOS", "filas_abajo": -1 },
+        { "patron": "VOTOS\\s+NO\\s+MARCADOS", "filas_abajo": -2 },
+        { "patron": "SUMA\\s+TOTAL", "filas_abajo": -3 }
+      ],
+      "zona": { "tipo": "fila", "columna_x0": 0.62, "columna_x1": 0.97, "y0_rel": -0.004, "y1_rel": 0.026 },
+      "zona_fija": { "x0": 0.62, "y0": 0.712, "x1": 0.97, "y1": 0.745 },
+      "umbral_tinta": 0.03,
+      "obligatorio": false
+    },
+    {
+      "nombre": "votos_nulos",
+      "etiqueta": "Votos nulos",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "anclas": [
+        { "patron": "VOTOS\\s+NULOS", "filas_abajo": 0 },
+        { "patron": "VOTOS\\s+EN\\s+BLANCO", "filas_abajo": 1 },
+        { "patron": "VOTOS\\s+NO\\s+MARCADOS", "filas_abajo": -1 },
+        { "patron": "SUMA\\s+TOTAL", "filas_abajo": -2 }
+      ],
+      "zona": { "tipo": "fila", "columna_x0": 0.62, "columna_x1": 0.97, "y0_rel": -0.004, "y1_rel": 0.026 },
+      "zona_fija": { "x0": 0.62, "y0": 0.745, "x1": 0.97, "y1": 0.775 },
+      "umbral_tinta": 0.03,
+      "obligatorio": false
+    },
+    {
+      "nombre": "votos_no_marcados",
+      "etiqueta": "Votos no marcados",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "anclas": [
+        { "patron": "VOTOS\\s+NO\\s+MARCADOS", "filas_abajo": 0 },
+        { "patron": "VOTOS\\s+NULOS", "filas_abajo": 1 },
+        { "patron": "VOTOS\\s+EN\\s+BLANCO", "filas_abajo": 2 },
+        { "patron": "SUMA\\s+TOTAL", "filas_abajo": -1 }
+      ],
+      "zona": { "tipo": "fila", "columna_x0": 0.62, "columna_x1": 0.97, "y0_rel": -0.004, "y1_rel": 0.026 },
+      "zona_fija": { "x0": 0.62, "y0": 0.775, "x1": 0.97, "y1": 0.805 },
+      "umbral_tinta": 0.03,
+      "obligatorio": false
+    },
+    {
+      "nombre": "suma_total",
+      "etiqueta": "Suma total",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "anclas": [
+        { "patron": "SUMA\\s+TOTAL", "filas_abajo": 0 },
+        { "patron": "VOTOS\\s+NO\\s+MARCADOS", "filas_abajo": 1 },
+        { "patron": "VOTOS\\s+NULOS", "filas_abajo": 2 },
+        { "patron": "VOTOS\\s+EN\\s+BLANCO", "filas_abajo": 3 }
+      ],
+      "zona": { "tipo": "fila", "columna_x0": 0.62, "columna_x1": 0.97, "y0_rel": -0.004, "y1_rel": 0.026 },
+      "zona_fija": { "x0": 0.62, "y0": 0.805, "x1": 0.97, "y1": 0.85 },
+      "umbral_tinta": 0.03,
+      "obligatorio": false,
+      "nota": "No se valida suma numérica: los valores son manuscritos y no se leen"
+    },
+    {
+      "nombre": "constancias_presente",
+      "etiqueta": "Constancias de jurados",
+      "pagina": 2,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "anclas": [
+        { "patron": "RECUENTO", "filas_abajo": 0 }
+      ],
+      "zona": { "tipo": "banda", "x0": 0.05, "x1": 0.95, "y0_rel": -0.40, "y1_rel": -0.012 },
+      "zona_fija": { "x0": 0.05, "y0": 0.26, "x1": 0.95, "y1": 0.64 },
+      "umbral_tinta": 0.02,
+      "obligatorio": false,
+      "mejora": "v1 incluia el borde y la barra del titulo del recuadro (FP). Ahora solo el interior."
+    },
+    {
+      "nombre": "recuento_si",
+      "etiqueta": "Recuento: SÍ",
+      "pagina": 2,
+      "tipo": "presencia",
+      "estrategia": "recuento_si_no",
+      "lado": "SI",
+      "anclas": [
+        { "patron": "RECUENTO", "filas_abajo": 0 }
+      ],
+      "umbral_tinta": 0.08,
+      "obligatorio": false,
+      "mejora": "B3-diferencial: ventanas IGUALES (0.055x0.018) centradas en las palabras SI y NO; delta = tinta(NO)-tinta(SI) >= 0.08. Las etiquetas impresas se cancelan y la X manuscrita solo esta en una ventana"
+    },
+    {
+      "nombre": "recuento_no",
+      "etiqueta": "Recuento: NO",
+      "pagina": 2,
+      "tipo": "presencia",
+      "estrategia": "recuento_si_no",
+      "lado": "NO",
+      "anclas": [
+        { "patron": "RECUENTO", "filas_abajo": 0 }
+      ],
+      "umbral_tinta": 0.08,
+      "obligatorio": false,
+      "mejora": "B3-diferencial: si el OCR no lee NO (esta tachado), el centro de su ventana se deriva del final de la linea; delta = tinta(NO)-tinta(SI) sobre ventanas de tamano identico"
+    },
+    {
+      "nombre": "firma_jurado_1",
+      "etiqueta": "Firma jurado 1",
+      "pagina": 2,
+      "tipo": "firma",
+      "estrategia": "ancla_zona",
+      "ancla_nivel": "palabra",
+      "ancla_palabra": "JURADO",
+      "jurado_num": 1,
+      "zona": { "tipo": "casilla_firma", "col_izq": [0.04, 0.46], "col_der": [0.52, 0.96], "desde": "etiqueta_y1", "dy0": 0.0, "dy1": 0.036 },
+      "zona_fija": { "x0": 0.03, "y0": 0.85, "x1": 0.48, "y1": 0.9 },
+      "umbral_tinta": 0.02,
+      "obligatorio": true,
+      "mejora": "B4 + rejilla 2x2: la fila se infiere de la otra fila si la etiqueta no se OCR-iza; la columna sale del numero de jurado"
+    },
+    {
+      "nombre": "firma_jurado_2",
+      "etiqueta": "Firma jurado 2",
+      "pagina": 2,
+      "tipo": "firma",
+      "estrategia": "ancla_zona",
+      "ancla_nivel": "palabra",
+      "ancla_palabra": "JURADO",
+      "jurado_num": 2,
+      "zona": { "tipo": "casilla_firma", "col_izq": [0.04, 0.46], "col_der": [0.52, 0.96], "desde": "etiqueta_y1", "dy0": 0.0, "dy1": 0.036 },
+      "zona_fija": { "x0": 0.52, "y0": 0.85, "x1": 0.96, "y1": 0.9 },
+      "umbral_tinta": 0.02,
+      "obligatorio": true,
+      "mejora": "B4 corrige el bug de columna: v1 derivaba jurado 2 desde el x0 de la LINEA compartida (columna del jurado 1)"
+    },
+    {
+      "nombre": "firma_jurado_3",
+      "etiqueta": "Firma jurado 3",
+      "pagina": 2,
+      "tipo": "firma",
+      "estrategia": "ancla_zona",
+      "ancla_nivel": "palabra",
+      "ancla_palabra": "JURADO",
+      "jurado_num": 3,
+      "zona": { "tipo": "casilla_firma", "col_izq": [0.04, 0.46], "col_der": [0.52, 0.96], "desde": "etiqueta_y1", "dy0": 0.0, "dy1": 0.036 },
+      "zona_fija": { "x0": 0.03, "y0": 0.915, "x1": 0.48, "y1": 0.965 },
+      "umbral_tinta": 0.02,
+      "obligatorio": true
+    },
+    {
+      "nombre": "firma_jurado_4",
+      "etiqueta": "Firma jurado 4",
+      "pagina": 2,
+      "tipo": "firma",
+      "estrategia": "ancla_zona",
+      "ancla_nivel": "palabra",
+      "ancla_palabra": "JURADO",
+      "jurado_num": 4,
+      "zona": { "tipo": "casilla_firma", "col_izq": [0.04, 0.46], "col_der": [0.52, 0.96], "desde": "etiqueta_y1", "dy0": 0.0, "dy1": 0.036 },
+      "zona_fija": { "x0": 0.52, "y0": 0.915, "x1": 0.96, "y1": 0.965 },
+      "umbral_tinta": 0.02,
+      "obligatorio": false
+    },
+    {
+      "nombre": "cc_jurado_1",
+      "etiqueta": "C.C. jurado 1",
+      "pagina": 2,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "ancla_nivel": "palabra",
+      "ancla_palabra": "JURADO",
+      "jurado_num": 1,
+      "zona": { "tipo": "casilla_firma", "col_izq": [0.04, 0.46], "col_der": [0.52, 0.96], "desde": "etiqueta_y0", "dy0": 0.04, "dy1": 0.064 },
+      "zona_fija": { "x0": 0.04, "y0": 0.888, "x1": 0.46, "y1": 0.912 },
+      "umbral_tinta": 0.05,
+      "obligatorio": false,
+      "nota": "Presencia de cédula escrita, no se lee el número"
+    },
+    {
+      "nombre": "cc_jurado_2",
+      "etiqueta": "C.C. jurado 2",
+      "pagina": 2,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "ancla_nivel": "palabra",
+      "ancla_palabra": "JURADO",
+      "jurado_num": 2,
+      "zona": { "tipo": "casilla_firma", "col_izq": [0.04, 0.46], "col_der": [0.52, 0.96], "desde": "etiqueta_y0", "dy0": 0.04, "dy1": 0.064 },
+      "zona_fija": { "x0": 0.52, "y0": 0.888, "x1": 0.96, "y1": 0.912 },
+      "umbral_tinta": 0.05,
+      "obligatorio": false
+    },
+    {
+      "nombre": "cc_jurado_3",
+      "etiqueta": "C.C. jurado 3",
+      "pagina": 2,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "ancla_nivel": "palabra",
+      "ancla_palabra": "JURADO",
+      "jurado_num": 3,
+      "zona": { "tipo": "casilla_firma", "col_izq": [0.04, 0.46], "col_der": [0.52, 0.96], "desde": "etiqueta_y0", "dy0": 0.04, "dy1": 0.064 },
+      "zona_fija": { "x0": 0.04, "y0": 0.953, "x1": 0.46, "y1": 0.977 },
+      "umbral_tinta": 0.05,
+      "obligatorio": false
+    },
+    {
+      "nombre": "cc_jurado_4",
+      "etiqueta": "C.C. jurado 4",
+      "pagina": 2,
+      "tipo": "presencia",
+      "estrategia": "ancla_zona",
+      "ancla_nivel": "palabra",
+      "ancla_palabra": "JURADO",
+      "jurado_num": 4,
+      "zona": { "tipo": "casilla_firma", "col_izq": [0.04, 0.46], "col_der": [0.52, 0.96], "desde": "etiqueta_y0", "dy0": 0.04, "dy1": 0.064 },
+      "zona_fija": { "x0": 0.52, "y0": 0.953, "x1": 0.96, "y1": 0.977 },
+      "umbral_tinta": 0.05,
+      "obligatorio": false
+    }
+  ],
+  "validaciones": [
+    {
+      "regla": "paginas_completas",
+      "descripcion": "El acta requiere sus 2 páginas (marcador o inferencia por palabras clave + dígito del ID)"
+    },
+    {
+      "regla": "misma_raiz",
+      "param": { "tolerancia_edicion": 1 },
+      "descripcion": "Las páginas comparten la raíz del documento (12 primeros dígitos); se tolera 1 error de edición de OCR y se marca revisión"
+    },
+    {
+      "regla": "orden_paginas",
+      "descripcion": "Las páginas están en orden (1 y 2 de 2)"
+    },
+    {
+      "regla": "clasificacion_e14",
+      "descripcion": "Ambas páginas corresponden a un E-14 (>= 2 anclas o regex)"
+    },
+    {
+      "regla": "firmas_minimas",
+      "param": 2,
+      "descripcion": "Al menos 2 jurados firmaron el acta"
+    },
+    {
+      "regla": "obligatorios_presentes",
+      "descripcion": "Todo campo obligatorio=true fue encontrado; si queda no_encontrado el documento no sale completo"
+    }
+  ],
+  "limitaciones": [
+    "Los valores manuscritos (votos, cédulas) NO se leen: solo se detecta si están diligenciados",
+    "No se puede validar la suma numérica de votos sin reconocimiento de manuscritos (HTR/ICR)",
+    "La presencia de firma no valida autenticidad, solo detección de tinta",
+    "El ID por OCR en fotos con flash puede contener 1 error de dígito: el consenso entre páginas lo detecta y marca revisión"
+  ]
+}
