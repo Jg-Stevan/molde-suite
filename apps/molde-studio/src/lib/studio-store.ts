@@ -29,6 +29,10 @@ export interface PruebaDB {
   score: number | null;
   requiereRevision: boolean;
   createdAt: string;
+  /** URL del documento fuente (/uploads/...) si la corrida es re-ejecutable. */
+  fuenteUrl?: string | null;
+  /** Momento de la última ejecución/re-ejecución (detección de versión). */
+  updatedAt?: string;
   molde?: { nombre: string };
 }
 
@@ -41,6 +45,13 @@ interface StudioState {
   pruebas: PruebaDB[];
   pruebaId: string | null;
   campoSeleccionadoId: string | null;
+  /**
+   * Bandera one-shot: "Probar Plantilla" la activa tras navegar a Verificación
+   * para que la corrida visible se RE-EJECUTE automáticamente con el molde
+   * recién guardado (sin volver a subir el archivo). VerificacionTab la
+   * consume al cargar la corrida y la apaga.
+   */
+  pendienteReejecutar: boolean;
 
   setPestana: (p: Pestana) => void;
   cargarMoldes: () => Promise<void>;
@@ -52,6 +63,8 @@ interface StudioState {
   setCampoSeleccionado: (id: string | null) => void;
   irAEditorCampo: (campoId: string) => void;
   irAVerificacion: (pruebaId: string) => void;
+  solicitarReejecucion: () => void;
+  consumirReejecucion: () => void;
   eliminarMolde: (id: string) => Promise<void>;
 }
 
@@ -64,6 +77,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   pruebas: [],
   pruebaId: null,
   campoSeleccionadoId: null,
+  pendienteReejecutar: false,
 
   setPestana: (p) => set({ pestana: p }),
 
@@ -127,6 +141,10 @@ export const useStudio = create<StudioState>((set, get) => ({
   irAVerificacion: (pruebaId) => {
     set({ pestana: 'verificacion', pruebaId });
   },
+
+  solicitarReejecucion: () => set({ pendienteReejecutar: true }),
+
+  consumirReejecucion: () => set({ pendienteReejecutar: false }),
 
   eliminarMolde: async (id) => {
     const res = await fetch(`/api/moldes/${id}`, { method: 'DELETE' });

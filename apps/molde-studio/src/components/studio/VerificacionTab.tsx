@@ -26,6 +26,7 @@ import {
   Pencil,
   PenOff,
   Plus,
+  RefreshCw,
   ShieldAlert,
   Shuffle,
   Terminal,
@@ -46,15 +47,19 @@ import {
   type ResultadoCampoUniversal,
   type ResultadoUniversal,
 } from '@/lib/molde/universal-types';
-import { useStudio } from '@/lib/studio-store';
+import { useStudio, type PruebaDB } from '@/lib/studio-store';
 
 interface PruebaDetalle {
   id: string;
   moldeId: string;
   archivo: string;
+  /** Documento fuente persistido (/uploads/...): habilita la re-ejecución automática. */
+  fuente_url: string | null;
   score: number | null;
   requiere_revision: boolean;
   createdAt: string;
+  /** Momento de la última ejecución/re-ejecución (detección de versión). */
+  updated_at: string;
   resultados: ResultadoUniversal | null;
 }
 
@@ -141,7 +146,19 @@ function detalleObligatorio(o: { def: CampoUniversal; res: ResultadoCampoUnivers
 }
 
 export default function VerificacionTab() {
-  const { moldeId, molde, pruebas, pruebaId, setPruebaId, setPestana, cargarPruebas } = useStudio();
+  const {
+    moldeId,
+    molde,
+    moldes,
+    pruebas,
+    pruebaId,
+    setPruebaId,
+    setPestana,
+    cargarPruebas,
+    guardarMoldeActual,
+    pendienteReejecutar,
+    consumirReejecucion,
+  } = useStudio();
   const { toast } = useToast();
   const [detalle, setDetalle] = useState<PruebaDetalle | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -150,7 +167,42 @@ export default function VerificacionTab() {
   const [modalReporte, setModalReporte] = useState(false);
   const [procesando, setProcesando] = useState(false);
   const [progresoMsg, setProgresoMsg] = useState<string | null>(null);
+  const [guardandoBanner, setGuardandoBanner] = useState(false);
   const inputArchivoRef = useRef<HTMLInputElement>(null);
+  /** Corrida en re-ejecución (guarda anti doble-disparo entre efectos/handlers). */
+  const reejecutandoRef = useRef<string | null>(null);
+
+  // ---- Corridas desactualizadas vs versión guardada del molde ----
+  // Cada corrida guardada es una INSTANTÁNEA: se evaluó con la versión del
+  // molde vigente en el momento de correrse y sus rects quedaron guardados en
+  // `resultados`. Si después se movió una zona en el editor y se guardó, las
+  // corridas viejas NO se recalculan — el cambio solo aparece en corridas
+  // nuevas. Fix: detectarlo (corrida.createdAt < molde.updatedAt) y avisarlo
+  // en la UI, que era la causa del bug "muevo la zona, guardo, pruebo y no
+  // aparece el cambio de lugar".
+  const moldeDB = moldes.find((m) => m.id === moldeId) ?? null;
+  const tMolde = moldeDB ? new Date(moldeDB.updatedAt).getTime() : 0;
+  const esCorridaDesactualizada = useCallback(
+    // Compara contra el momento de la ÚLTIMA ejecución (updated_at), no contra
+    // la creación: una corrida re-ejecutada vuelve a estar al día aunque se
+    // haya creado con una versión anterior del molde.
+    (ejecutadaEn: string | undefined) =>
+      tMolde > 0 && Boolean(ejecutadaEn) && new Date(ejecutadaEn as string).getTime() < tMolde,
+    [tMolde],
+  );
+  const corridaActualDesactualizada = detalle
+    ? esCorridaDesactualizada(detalle.updated_at ?? detalle.createdAt)
+    : false;
+  const moldeSucio = Boolean(molde && moldeDB && JSON.stringify(molde) !== moldeDB.json);
+
+  const guardarDesdeBanner = async () => {
+    setGuardandoBanner(true);
+    try {
+      await guardarMoldeActual();
+    } finally {
+      setGuardandoBanner(false);
+    }
+  };
 
   const cargar = useCallback(async (id: string) => {
     setCargando(true);
@@ -166,10 +218,6 @@ export default function VerificacionTab() {
     if (pruebaId) cargar(pruebaId);
     else setDetalle(null);
   }, [pruebaId, cargar]);
-
-  useEffect(() => {
-    if (!pruebaId && pruebas.length > 0) setPruebaId(pruebas[0].id);
-  }, [pruebaId, pruebas, setPruebaId]);
 
   useEffect(() => {
     setPaginaIdx(0);
@@ -295,12 +343,28 @@ export default function VerificacionTab() {
         try {
           const doc = await renderDocumento(f);
           const res = await evaluarDocumentoUniversal(doc.canvases, molde, f.name, (msg) => setProgresoMsg(msg));
+          // Persiste el documento fuente en el servidor para que esta corrida
+          // sea re-ejecutable desde "Probar Plantilla" sin volver a subirlo.
+          let fuenteUrl: string | null = null;
+          setProgresoMsg('Guardando archivo fuente...');
+          for (let intento = 0; intento < 2 && !fuenteUrl; intento++) {
+            try {
+              const fd = new FormData();
+              fd.append('file', f);
+              const subida = await fetch('/api/upload', { method: 'POST', body: fd });
+              if (subida.ok) fuenteUrl = ((await subida.json()) as { url?: string }).url ?? null;
+            } catch {
+              // Reintento: la fuente es lo que habilita la re-ejecución
+              // automática con los cambios guardados del molde.
+            }
+          }
           const guardar = await fetch('/api/pruebas', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               moldeId,
               archivo: f.name,
+              fuenteUrl,
               resultados: res,
               score: res.score,
               requiereRevision: res.requiere_revision,
@@ -309,7 +373,9 @@ export default function VerificacionTab() {
           if (guardar.ok) ultimoId = ((await guardar.json()) as { id?: string }).id;
           toast({
             title: `Corrida completada: ${f.name}`,
-            description: `Score ${res.score}% · ${res.ok_count}/${res.total} campos OK`,
+            description: !fuenteUrl
+              ? `Score ${res.score}% · ${res.ok_count}/${res.total} campos OK — ATENCIÓN: sin archivo fuente, esta corrida NO podrá re-ejecutarse automáticamente.`
+              : `Score ${res.score}% · ${res.ok_count}/${res.total} campos OK`,
           });
         } catch (e) {
           toast({ title: `Error procesando ${f.name}`, description: (e as Error).message, variant: 'destructive' });
@@ -328,6 +394,119 @@ export default function VerificacionTab() {
     if (e.target.files?.length) void correrArchivos(e.target.files);
     e.target.value = '';
   };
+
+  // Re-ejecuta una corrida EXISTENTE contra el molde actual SIN pedir archivos:
+  // descarga el documento fuente persistido en el servidor, corre el mismo
+  // pipeline (render → OCR → motor universal) y ACTUALIZA la corrida en sitio
+  // (PUT): misma posición en la lista, resultados y score refrescados.
+  const reejecutarCorrida = useCallback(
+    async (corrida: { id: string; archivo: string; fuente_url?: string | null }) => {
+      if (!molde || !moldeId || procesando) return;
+      if (reejecutandoRef.current) return; // ya hay una re-ejecución en curso
+      if (!corrida.fuente_url) {
+        toast({
+          title: 'Esta corrida no tiene archivo fuente guardado',
+          description: 'Súbela una última vez con el botón + y desde entonces se re-ejecutará automáticamente.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      reejecutandoRef.current = corrida.id;
+      setProcesando(true);
+      setOcrProgress((m) => {
+        if (m.status.includes('recognizing')) setProgresoMsg(`OCR ${Math.round(m.progress * 100)}%`);
+      });
+      try {
+        setProgresoMsg('Recuperando archivo fuente guardado...');
+        const fuenteRes = await fetch(corrida.fuente_url);
+        if (!fuenteRes.ok) throw new Error('No se pudo recuperar el archivo fuente del servidor');
+        const blob = await fuenteRes.blob();
+        const tipo =
+          blob.type ||
+          (corrida.fuente_url.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+        const f = new File([blob], corrida.archivo, { type: tipo });
+
+        setProgresoMsg(`Renderizando ${f.name}...`);
+        const doc = await renderDocumento(f);
+        const res = await evaluarDocumentoUniversal(doc.canvases, molde, f.name, (msg) => setProgresoMsg(msg));
+
+        // Actualiza la corrida EN SITIO; si ya no existe (p. ej. eliminada en
+        // otra pestaña), la vuelve a crear para no perder el resultado.
+        const actualizar = await fetch(`/api/pruebas/${corrida.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resultados: res, score: res.score, requiereRevision: res.requiere_revision }),
+        });
+        let idFinal = corrida.id;
+        if (!actualizar.ok) {
+          const crear = await fetch('/api/pruebas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              moldeId,
+              archivo: corrida.archivo,
+              fuenteUrl: corrida.fuente_url,
+              resultados: res,
+              score: res.score,
+              requiereRevision: res.requiere_revision,
+            }),
+          });
+          if (crear.ok) idFinal = ((await crear.json()) as { id?: string }).id ?? corrida.id;
+        }
+        toast({
+          title: 'Corrida re-ejecutada con los cambios guardados',
+          description: `${corrida.archivo} · Score ${res.score}% · ${res.ok_count}/${res.total} campos OK`,
+        });
+        await cargarPruebas(moldeId);
+        setPruebaId(idFinal);
+        await cargar(idFinal);
+      } catch (e) {
+        toast({ title: 'Error re-ejecutando la corrida', description: (e as Error).message, variant: 'destructive' });
+      } finally {
+        reejecutandoRef.current = null;
+        setOcrProgress(null);
+        setProcesando(false);
+        setProgresoMsg(null);
+      }
+    },
+    [molde, moldeId, procesando, toast, cargarPruebas, setPruebaId, cargar],
+  );
+
+  // "Probar Plantilla" (Editor) pidió re-ejecución automática: cuando la
+  // corrida seleccionada termine de cargar, se re-ejecuta EN SITIO con el
+  // molde recién guardado — sin volver a subir ningún archivo.
+  useEffect(() => {
+    if (!pendienteReejecutar || cargando) return;
+    if (!detalle) return; // espera la carga de la corrida seleccionada
+    consumirReejecucion();
+    void reejecutarCorrida(detalle);
+  }, [pendienteReejecutar, detalle, cargando, consumirReejecucion, reejecutarCorrida]);
+
+  // Selección de corrida en la barra "Comparar Molde": además de mostrar sus
+  // resultados, si quedó DESACTUALIZADA (se ejecutó antes del último guardado
+  // del molde) y es re-ejecutable (fuente guardada), la re-ejecuta
+  // automáticamente con el molde vigente — sin pulsar nada más ni crear
+  // corridas nuevas. Las corridas al día NO se re-ejecutan (ya reflejan la
+  // versión guardada actual).
+  const seleccionarCorrida = useCallback(
+    (p: PruebaDB) => {
+      setPruebaId(p.id);
+      if (
+        !procesando &&
+        p.fuenteUrl &&
+        esCorridaDesactualizada(p.updatedAt ?? p.createdAt)
+      ) {
+        void reejecutarCorrida({ id: p.id, archivo: p.archivo, fuente_url: p.fuenteUrl });
+      }
+    },
+    [esCorridaDesactualizada, procesando, reejecutarCorrida, setPruebaId],
+  );
+
+  // Primera entrada a Verificación sin corrida seleccionada: misma lógica que
+  // el cambio de número (si la primera quedó desactualizada, se re-ejecuta).
+  useEffect(() => {
+    if (!pruebaId && pruebas.length > 0) seleccionarCorrida(pruebas[0]);
+  }, [pruebaId, pruebas, seleccionarCorrida]);
 
   async function eliminarCorrida(id: string) {
     const del = await fetch(`/api/pruebas/${id}`, { method: 'DELETE' });
@@ -426,6 +605,7 @@ export default function VerificacionTab() {
                 </button>
                 {pruebas.map((p, i) => {
                   const activo = pruebaId ? p.id === pruebaId : i === 0;
+                  const desactualizada = esCorridaDesactualizada(p.updatedAt ?? p.createdAt);
                   return (
                     <span
                       key={p.id}
@@ -437,13 +617,24 @@ export default function VerificacionTab() {
                     >
                       <button
                         type="button"
-                        title={`${p.archivo} · ${p.score ?? '—'}%`}
+                        title={`${p.archivo} · ${p.score ?? '—'}%${desactualizada
+                          ? ` · DESACTUALIZADA (última ejecución antes del último cambio del molde — ${new Date(
+                              p.updatedAt ?? p.createdAt,
+                            ).toLocaleString()})`
+                          : ''}`}
                         aria-pressed={activo}
-                        aria-label={`Corrida ${i + 1}: ${p.archivo}`}
-                        onClick={() => setPruebaId(p.id)}
-                        className="h-7 px-2 font-mono text-[11px] font-bold transition-all"
+                        aria-label={`Corrida ${i + 1}: ${p.archivo}${desactualizada ? ' — desactualizada' : ''}`}
+                        onClick={() => seleccionarCorrida(p)}
+                        className="relative h-7 px-2 font-mono text-[11px] font-bold transition-all"
                       >
                         {i + 1}
+                        {desactualizada ? (
+                          <span
+                            className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-amber-500"
+                            title="Corrida desactualizada"
+                            aria-hidden
+                          />
+                        ) : null}
                       </button>
                       <button
                         type="button"
@@ -486,6 +677,50 @@ export default function VerificacionTab() {
               </div>
             ) : null}
           </div>
+
+          {/* Aviso de versión: corrida desactualizada o molde con cambios sin guardar */}
+          {moldeId && (corridaActualDesactualizada || moldeSucio) ? (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-amber-500/40 bg-amber-500/10 px-4 py-1.5 dark:border-amber-500/30 dark:bg-amber-500/10">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+              <p className="min-w-0 flex-1 font-mono text-[10px] font-semibold leading-snug text-amber-800 dark:text-amber-300">
+                {corridaActualDesactualizada ? (
+                  <>
+                    Corrida desactualizada — se ejecutó antes del último guardado del molde
+                    {moldeDB ? ` (${new Date(moldeDB.updatedAt).toLocaleString()})` : ''}.{' '}
+                    {detalle?.fuente_url
+                      ? 'Re-ejecútala para ver los cambios de zonas sin volver a subir el archivo.'
+                      : 'No tiene archivo fuente guardado: vuelve a subirla con el botón + y desde entonces se re-ejecutará automáticamente al seleccionarla.'}
+                  </>
+                ) : (
+                  <>
+                    El molde tiene cambios sin guardar en el Editor — las corridas nuevas usarán esa versión.
+                  </>
+                )}
+              </p>
+              {corridaActualDesactualizada ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={procesando || !detalle}
+                  onClick={() => detalle && void reejecutarCorrida(detalle)}
+                  className="h-6 gap-1 rounded-md border border-amber-600/50 bg-amber-500/15 px-2 font-mono text-[10px] font-bold text-amber-800 shadow-none hover:bg-amber-500/25 dark:border-amber-500/50 dark:text-amber-300"
+                >
+                  <RefreshCw className="h-3 w-3" aria-hidden /> Re-ejecutar con cambios guardados
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={guardandoBanner || procesando}
+                  onClick={guardarDesdeBanner}
+                  className="h-6 gap-1 rounded-md border border-amber-600/50 bg-amber-500/15 px-2 font-mono text-[10px] font-bold text-amber-800 shadow-none hover:bg-amber-500/25 dark:border-amber-500/50 dark:text-amber-300"
+                >
+                  {guardandoBanner ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
+                  Guardar molde
+                </Button>
+              )}
+            </div>
+          ) : null}
 
           {/* Viewport forense */}
           <div className="relative flex items-center justify-center overflow-hidden bg-surface-highest/60 p-3 dark:bg-slate-950">

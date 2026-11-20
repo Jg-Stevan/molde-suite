@@ -175,12 +175,13 @@ export default function Home() {
                     página, dibuja las zonas y alinea las anclas con OCR.
                   </li>
                   <li>
-                    <strong className="text-on-surface">Pruebas:</strong> suelta fotos o PDFs reales; cada
-                    archivo genera una corrida guardada en el historial.
+                    <strong className="text-on-surface">Verificación:</strong> añade fotos o PDFs reales con el
+                    botón + de "Comparar Molde"; cada archivo genera una corrida guardada. Re-ejecutar (Probar
+                    Plantilla o cambiar de corrida desactualizada) corre con los cambios guardados del molde.
                   </li>
                   <li>
-                    <strong className="text-on-surface">Verificación:</strong> overlay forense, recortes por
-                    campo y reporte JSON para el agente.
+                    <strong className="text-on-surface">Reporte:</strong> overlay forense, recortes por campo y
+                    reporte JSON para el agente.
                   </li>
                 </ol>
                 <p className="rounded-lg bg-brand-surface p-3 font-mono text-[11px] text-brand-active dark:text-indigo-300">

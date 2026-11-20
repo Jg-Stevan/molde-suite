@@ -21,14 +21,16 @@ async function getWorker(): Promise<TesseractWorker> {
   if (!workerPromise) {
     workerPromise = (async () => {
       const { createWorker, PSM } = await import('tesseract.js');
-      // El motor de referencia usa lang='spa+eng' y psm 4
-      const worker = await createWorker('spa+eng', 1, {
+      // Benchmark de motores (scripts/benchmark-motores-anclas.ts): 'spa' OEM 1
+      // (LSTM) es ~25% más rápido y descarga ~3x menos datos que 'spa+eng' con
+      // el MISMO recall de anclas. Mejor para celulares.
+      const worker = await createWorker('spa', 1, {
         logger: (m: { status: string; progress: number }) => {
           if (progressCb) progressCb(m);
         },
       });
       await worker.setParameters({
-        tessedit_pageseg_mode: PSM.SINGLE_COLUMN, // psm 4, igual que el motor de referencia
+        tessedit_pageseg_mode: PSM.SINGLE_COLUMN, // psm 4: columna única, ideal para el acta
         preserve_interword_spaces: '1',
       });
       return worker;

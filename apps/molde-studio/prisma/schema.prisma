@@ -28,8 +28,15 @@ model Prueba {
   molde            Molde    @relation(fields: [moldeId], references: [id], onDelete: Cascade)
   moldeId          String
   archivo          String
+  // Archivo fuente persistido en el servidor (/uploads/...) para poder
+  // RE-EJECUTAR la corrida contra una nueva versión del molde sin volver
+  // a subir la foto/PDF ("Probar Plantilla" lo usa automáticamente).
+  fuenteUrl        String?
   resultados       String
   score            Float?
   requiereRevision Boolean  @default(false)
   createdAt        DateTime @default(now())
+  // Momento de la última re-ejecución (NO el de creación): la detección de
+  // "corrida desactualizada" compara esto contra molde.updatedAt.
+  updatedAt        DateTime @default(now()) @updatedAt
 }

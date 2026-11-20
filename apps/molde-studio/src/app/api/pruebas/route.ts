@@ -10,6 +10,9 @@ export async function GET(req: NextRequest) {
     take: 100,
     select: {
       id: true, moldeId: true, archivo: true, score: true, requiereRevision: true, createdAt: true,
+      // fuenteUrl: para saber desde el cliente si la corrida es re-ejecutable
+      // sin volver a subir el archivo; updatedAt: para el aviso de versión.
+      fuenteUrl: true, updatedAt: true,
       molde: { select: { nombre: true } },
     },
   });
@@ -29,6 +32,8 @@ export async function POST(req: NextRequest) {
       data: {
         moldeId: body.moldeId,
         archivo: String(body.archivo),
+        // URL del documento fuente (/uploads/...) si el cliente la subió.
+        fuenteUrl: typeof body.fuenteUrl === 'string' && body.fuenteUrl ? body.fuenteUrl : null,
         resultados: typeof body.resultados === 'string' ? body.resultados : JSON.stringify(body.resultados),
         score: typeof body.score === 'number' ? body.score : null,
         requiereRevision: Boolean(body.requiereRevision),

@@ -45,22 +45,45 @@ interface Rel {
   xAbs: boolean;
 }
 
-/** Convierte una zona v2 (fila/banda/casilla_firma) en offsets relativos al ancla. */
+/** Convierte una zona v2 (fila/banda/casilla_firma) en offsets relativos al ancla.
+ *
+ * FIX: la unión `Zona` tiene un miembro catch-all (`{ tipo: string; [k: string]:
+ * unknown }`) que impide que TS estreche en el `switch`, y en runtime un JSON v2
+ * malformado producía coordenadas NaN silenciosamente. Ahora se valida cada
+ * campo en runtime y se cae a `null` (el llamador usa la zona por defecto /
+ * zona_fija) si la zona no cumple el esquema v2.
+ */
+function num(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
 function zonaARelativa(zona: Zona, juradoNum?: number): Rel | null {
   switch (zona.tipo) {
-    case 'fila':
-      return {
-        dx: zona.columna_x0,
-        dy: zona.y0_rel,
-        w: zona.columna_x1 - zona.columna_x0,
-        h: zona.y1_rel - zona.y0_rel,
-        xAbs: true,
-      };
-    case 'banda':
-      return { dx: zona.x0, dy: zona.y0_rel, w: zona.x1 - zona.x0, h: zona.y1_rel - zona.y0_rel, xAbs: true };
+    case 'fila': {
+      const cx0 = num(zona.columna_x0);
+      const cx1 = num(zona.columna_x1);
+      const y0 = num(zona.y0_rel);
+      const y1 = num(zona.y1_rel);
+      if (cx0 === null || cx1 === null || y0 === null || y1 === null) return null;
+      return { dx: cx0, dy: y0, w: cx1 - cx0, h: y1 - y0, xAbs: true };
+    }
+    case 'banda': {
+      const x0 = num(zona.x0);
+      const x1 = num(zona.x1);
+      const y0 = num(zona.y0_rel);
+      const y1 = num(zona.y1_rel);
+      if (x0 === null || x1 === null || y0 === null || y1 === null) return null;
+      return { dx: x0, dy: y0, w: x1 - x0, h: y1 - y0, xAbs: true };
+    }
     case 'casilla_firma': {
-      const [a, b] = juradoNum !== undefined && juradoNum % 2 === 0 ? zona.col_der : zona.col_izq;
-      return { dx: a, dy: zona.dy0, w: b - a, h: zona.dy1 - zona.dy0, xAbs: true };
+      const cols = juradoNum !== undefined && juradoNum % 2 === 0 ? zona.col_der : zona.col_izq;
+      if (!Array.isArray(cols) || cols.length !== 2) return null;
+      const a = num(cols[0]);
+      const b = num(cols[1]);
+      const dy0 = num(zona.dy0);
+      const dy1 = num(zona.dy1);
+      if (a === null || b === null || dy0 === null || dy1 === null) return null;
+      return { dx: a, dy: dy0, w: b - a, h: dy1 - dy0, xAbs: true };
     }
     default:
       return null;

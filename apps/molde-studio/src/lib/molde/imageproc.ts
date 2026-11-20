@@ -390,8 +390,19 @@ export function canvasRealce(src: HTMLCanvasElement, escala = 3): HTMLCanvasElem
     px[p + 3] = 255;
   }
   const out = document.createElement('canvas');
-  out.width = Math.min(4000, Math.round(src.width * escala));
-  out.height = Math.min(4000, Math.round(src.height * escala));
+  // FIX: preservar el aspecto al clampear a 4000 px. Antes ancho y alto se
+  // limitaban por separado y un recorte alto (p.ej. 900x1181 a escala 4) quedaba
+  // distorsionado (4000 clamp solo en un eje), rompiendo el OCR del realce.
+  const maxSide = 4000;
+  let w = Math.round(src.width * escala);
+  let h = Math.round(src.height * escala);
+  if (w > maxSide || h > maxSide) {
+    const k = Math.min(maxSide / w, maxSide / h);
+    w = Math.max(1, Math.round(w * k));
+    h = Math.max(1, Math.round(h * k));
+  }
+  out.width = w;
+  out.height = h;
   const octx = out.getContext('2d', { willReadFrequently: true })!;
   const tmp = document.createElement('canvas');
   tmp.width = gray.width;

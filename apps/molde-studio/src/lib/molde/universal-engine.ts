@@ -68,7 +68,17 @@ export interface HitAncla {
   score: number;
 }
 
-/** Busca un texto (fuzzy) en las líneas OCR. Prioriza cercanía a rect esperado. */
+/**
+ * Busca un texto (fuzzy) en las líneas OCR. Prioriza cercanía a rect esperado.
+ *
+ * Robustez para FOTOS rotadas (celulares): en fotos con leve inclinación el OCR
+ * agrupa las palabras de una misma línea en orden invertido o revuelto
+ * ("NULOS VOTOS", "ESPRIELLA DE LA ABELARDO"). Además del match en orden
+ * estricto, se intenta un fallback anagrama-invariante (palabras ordenadas
+ * alfabéticamente) con una pequeña penalización de score, de modo que la ancla
+ * se encuentra igualmente y el rect sigue siendo correcto (el bbox cubre
+ * exactamente las mismas palabras).
+ */
 export function buscarAncla(
   texto: string,
   lineas: LineaOcr[],
@@ -80,17 +90,29 @@ export function buscarAncla(
   if (!objetivo) return null;
   const objetivoPals = objetivo.split(' ');
   const tol = Math.max(1, Math.floor(objetivo.length * 0.35));
+  // Objetivo orden-invariante: mismas palabras sin importar el orden (para fotos rotadas).
+  const objetivoOrdenado = normTxt([...objetivoPals].sort((a, b) => a.localeCompare(b)).join(' '));
   let mejor: HitAncla | null = null;
   for (const l of lineas) {
     const palabras = l.palabras;
     const n = palabras.length;
     for (let i = 0; i < n; i++) {
       for (let j = i; j < Math.min(n, i + objetivoPals.length + 1); j++) {
-        const frase = normTxt(palabras.slice(i, j + 1).map((p) => p.texto).join(' '));
+        const ventana = palabras.slice(i, j + 1);
+        const frase = normTxt(ventana.map((p) => p.texto).join(' '));
+        const fraseOrdenada = normTxt(ventana.map((p) => p.texto).sort((a, b) => a.localeCompare(b)).join(' '));
         if (!frase) continue;
+        let score = -1;
         const d = editDistance(objetivo, frase);
-        if (d > tol) continue;
-        let score = 1 - d / objetivo.length;
+        if (d <= tol) score = 1 - d / objetivo.length;
+        if (fraseOrdenada && score < 0.95) {
+          const dOrd = editDistance(objetivoOrdenado, fraseOrdenada);
+          if (dOrd <= tol) {
+            // Penalización leve: el match en orden correcto siempre gana si existe.
+            score = Math.max(score, (1 - dOrd / objetivo.length) * 0.95);
+          }
+        }
+        if (score < 0) continue;
         if (rectEsperado) {
           const cx = (palabras[i].bbox[0] + palabras[j].bbox[2]) / 2 / canvasW;
           const cy = (palabras[i].bbox[1] + palabras[j].bbox[3]) / 2 / canvasH;
@@ -122,6 +144,14 @@ export interface RectResuelto {
   score?: number;
 }
 
+/**
+ * Score mínimo para aceptar un hit de ancla. Por debajo, el match casi seguro
+ * corresponde a OTRA etiqueta del documento (p.ej. "FIRMA JURADO 4" difusa contra
+ * la etiqueta impresa del jurado 2) y conviene caer al rect de referencia del
+ * molde, que siempre apunta a la zona correcta.
+ */
+const ANCLA_SCORE_MIN = 0.72;
+
 /** Resuelve el rectángulo final de un campo sobre una página OCR-izada. */
 export function resolverRectCampo(
   campo: CampoUniversal,
@@ -143,12 +173,12 @@ export function resolverRectCampo(
   });
 
   const hit = buscarAncla(ancla.texto, lineas, canvasW, canvasH, ancla.rect);
-  if (hit) {
+  if (hit && hit.score >= ANCLA_SCORE_MIN) {
     return { rect: aplicarOffset(hit.rect), fuente: 'ancla', ancla_encontrada: true, score: hit.score };
   }
   if (campo.ancla_respaldo) {
     const hit2 = buscarAncla(campo.ancla_respaldo, lineas, canvasW, canvasH, ancla.rect);
-    if (hit2) {
+    if (hit2 && hit2.score >= ANCLA_SCORE_MIN) {
       return { rect: aplicarOffset(hit2.rect), fuente: 'respaldo', ancla_encontrada: true, score: hit2.score };
     }
   }
@@ -300,21 +330,39 @@ async function evaluarCampo(
       return true;
     }
   };
-  if (campo.realce && (!valorFinal || !cumplePatron(valorFinal))) {
-    // Reintento con realce (grises + contraste percentil + ampliación 3x) y,
-    // si sigue fallando, con binarización Otsu y psm 8 — misma ruta que la
-    // relectura del ID del acta. Se acepta la primera lectura que cumpla.
-    const realzado = canvasRealce(rec.crop, 3);
-    const variantes: Array<{ c: HTMLCanvasElement; psm: '7' | '8' }> = [
+  if (
+    campo.realce &&
+    (!valorFinal || !cumplePatron(valorFinal) || confFinal < 0.5)
+  ) {
+    // Reintento con realce (grises + contraste percentil + ampliación 4x) y,
+    // si sigue fallando, con binarización Otsu y psm 8/13 — misma ruta que la
+    // relectura del ID del acta. También se reintenta cuando la primera lectura
+    // tiene confianza muy baja (fotos borrosas: acepta basura que cumpla el
+    // patrón). El primer intento es gris plano amplificado (sin estiramiento:
+    // el estiramiento puede sobre-amplificar la textura del papel y romper el
+    // OCR). Se acepta la primera lectura que cumpla con más confianza.
+    const grayBase = canvasGrayscale(rec.crop);
+    const gray4 = document.createElement('canvas');
+    gray4.width = Math.min(4000, grayBase.width * 4);
+    gray4.height = Math.min(4000, Math.max(1, Math.round((grayBase.height * gray4.width) / grayBase.width)));
+    const g4ctx = gray4.getContext('2d', { willReadFrequently: true })!;
+    g4ctx.imageSmoothingEnabled = true;
+    g4ctx.imageSmoothingQuality = 'high';
+    g4ctx.drawImage(grayBase, 0, 0, gray4.width, gray4.height);
+    const realzado = canvasRealce(rec.crop, 4);
+    const variantes: Array<{ c: HTMLCanvasElement; psm: '6' | '7' | '8' | '13' }> = [
+      { c: gray4, psm: '7' },
       { c: realzado, psm: '7' },
       { c: canvasOtsu(realzado), psm: '7' },
       { c: realzado, psm: '8' },
+      { c: realzado, psm: '13' },
+      { c: canvasOtsu(realzado), psm: '13' },
     ];
     for (const v of variantes) {
       const re = await ocrTextoUnico(v.c, { whitelist: campo.whitelist, psm: v.psm });
       const limpioRe = re.texto.replace(/\s+/g, ' ').trim();
       if (!limpioRe) continue;
-      if (cumplePatron(limpioRe)) {
+      if (cumplePatron(limpioRe) && (!valorFinal || re.conf > confFinal)) {
         valorFinal = limpioRe;
         confFinal = re.conf;
         base.banderas.push('realce_retry');
@@ -332,6 +380,7 @@ async function evaluarCampo(
   if (!valorFinal) return base;
   base.valor = valorFinal;
   base.conf = confFinal;
+  if (confFinal < 0.5) base.banderas.push('conf_baja');
   if (!cumplePatron(valorFinal)) {
     base.banderas.push('patron_no_cumple');
     return base;
@@ -431,14 +480,14 @@ export async function alinearAnclas(
     if (c.estrategia !== 'ancla_relativa' || !c.ancla?.texto) return c;
     if (pagina !== undefined && c.pagina !== pagina) return c;
     const hit = buscarAncla(c.ancla.texto, lines, canvas.width, canvas.height, c.ancla.rect);
-    if (hit) {
+    if (hit && hit.score >= ANCLA_SCORE_MIN) {
       encontradas++;
       detalles[c.id] = 'ancla';
       return { ...c, ancla: { ...c.ancla, rect: hit.rect } };
     }
     if (c.ancla_respaldo) {
       const hit2 = buscarAncla(c.ancla_respaldo, lines, canvas.width, canvas.height, c.ancla.rect);
-      if (hit2) {
+      if (hit2 && hit2.score >= ANCLA_SCORE_MIN) {
         encontradas++;
         detalles[c.id] = 'respaldo';
         return { ...c, ancla: { ...c.ancla, rect: hit2.rect } };

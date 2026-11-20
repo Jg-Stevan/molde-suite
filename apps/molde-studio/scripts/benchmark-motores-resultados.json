@@ -1,0 +1,330 @@
+{
+  "A spa+eng oem1 psm4 (actual app)": {
+    "tiempoMsTotal": 11760.336323000003,
+    "tiempoMsPag": 1960,
+    "confMedia": 81.5,
+    "anclasEsperadas": 63,
+    "anclasEncontradas": 57,
+    "recall": 0.9047619047619048,
+    "scoreMedio": 0.9736062082704552,
+    "porDoc": {
+      "plantilla-p1": {
+        "found": 15,
+        "total": 15,
+        "ms": 2729.911667
+      },
+      "plantilla-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1954.0354030000003
+      },
+      "transmision-p1": {
+        "found": 14,
+        "total": 15,
+        "ms": 1668.78928
+      },
+      "transmision-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1419.5046110000012
+      },
+      "cairo-p1": {
+        "found": 10,
+        "total": 15,
+        "ms": 1875.0415160000011
+      },
+      "cairo-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 2113.0538460000007
+      }
+    }
+  },
+  "B spa oem1 psm4": {
+    "tiempoMsTotal": 8838.306760999996,
+    "tiempoMsPag": 1473,
+    "confMedia": 79.5,
+    "anclasEsperadas": 63,
+    "anclasEncontradas": 57,
+    "recall": 0.9047619047619048,
+    "scoreMedio": 0.9695050462745564,
+    "porDoc": {
+      "plantilla-p1": {
+        "found": 15,
+        "total": 15,
+        "ms": 2293.874115999999
+      },
+      "plantilla-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1372.0691909999987
+      },
+      "transmision-p1": {
+        "found": 14,
+        "total": 15,
+        "ms": 1329.0768910000006
+      },
+      "transmision-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1034.5051639999983
+      },
+      "cairo-p1": {
+        "found": 10,
+        "total": 15,
+        "ms": 1426.119294
+      },
+      "cairo-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1382.6621049999994
+      }
+    }
+  },
+  "C eng oem1 psm4": {
+    "tiempoMsTotal": 9067.871987000006,
+    "tiempoMsPag": 1511,
+    "confMedia": 75.66666666666667,
+    "anclasEsperadas": 63,
+    "anclasEncontradas": 57,
+    "recall": 0.9047619047619048,
+    "scoreMedio": 0.9736062082704552,
+    "porDoc": {
+      "plantilla-p1": {
+        "found": 15,
+        "total": 15,
+        "ms": 2430.4934440000034
+      },
+      "plantilla-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1434.8652110000003
+      },
+      "transmision-p1": {
+        "found": 14,
+        "total": 15,
+        "ms": 1290.6597919999986
+      },
+      "transmision-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1079.6810360000018
+      },
+      "cairo-p1": {
+        "found": 10,
+        "total": 15,
+        "ms": 1440.6036789999998
+      },
+      "cairo-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1391.568825000002
+      }
+    }
+  },
+  "D spa+eng oem1 psm3": {
+    "tiempoMsTotal": 11733.330115999997,
+    "tiempoMsPag": 1956,
+    "confMedia": 82,
+    "anclasEsperadas": 63,
+    "anclasEncontradas": 58,
+    "recall": 0.9206349206349206,
+    "scoreMedio": 0.9698841190517766,
+    "porDoc": {
+      "plantilla-p1": {
+        "found": 15,
+        "total": 15,
+        "ms": 2581.693831999997
+      },
+      "plantilla-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1922.5481539999964
+      },
+      "transmision-p1": {
+        "found": 14,
+        "total": 15,
+        "ms": 1664.3494510000019
+      },
+      "transmision-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1387.9873189999998
+      },
+      "cairo-p1": {
+        "found": 11,
+        "total": 15,
+        "ms": 2075.910501999999
+      },
+      "cairo-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 2100.840858000003
+      }
+    }
+  },
+  "E spa+eng oem1 psm6": {
+    "tiempoMsTotal": 12359.834926999996,
+    "tiempoMsPag": 2060,
+    "confMedia": 71.66666666666667,
+    "anclasEsperadas": 63,
+    "anclasEncontradas": 46,
+    "recall": 0.7301587301587301,
+    "scoreMedio": 0.9596470026137548,
+    "porDoc": {
+      "plantilla-p1": {
+        "found": 10,
+        "total": 15,
+        "ms": 1973.7908959999986
+      },
+      "plantilla-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1797.6132940000025
+      },
+      "transmision-p1": {
+        "found": 10,
+        "total": 15,
+        "ms": 1745.5620410000047
+      },
+      "transmision-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1651.5182589999968
+      },
+      "cairo-p1": {
+        "found": 8,
+        "total": 15,
+        "ms": 3165.2574229999955
+      },
+      "cairo-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 2026.0930139999982
+      }
+    }
+  },
+  "F spa+eng oem0 legacy": {
+    "tiempoMsTotal": 34703.512419000006,
+    "tiempoMsPag": 5784,
+    "confMedia": 79.16666666666667,
+    "anclasEsperadas": 63,
+    "anclasEncontradas": 57,
+    "recall": 0.9047619047619048,
+    "scoreMedio": 0.950851388719297,
+    "porDoc": {
+      "plantilla-p1": {
+        "found": 15,
+        "total": 15,
+        "ms": 5323.782681999997
+      },
+      "plantilla-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 6788.077148000004
+      },
+      "transmision-p1": {
+        "found": 14,
+        "total": 15,
+        "ms": 4508.267849999989
+      },
+      "transmision-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 3870.409015000012
+      },
+      "cairo-p1": {
+        "found": 11,
+        "total": 15,
+        "ms": 5934.6567360000045
+      },
+      "cairo-p2": {
+        "found": 5,
+        "total": 6,
+        "ms": 8278.318987999999
+      }
+    }
+  },
+  "G spa+eng oem1 psm4 otsu": {
+    "tiempoMsTotal": 11331.811278999987,
+    "tiempoMsPag": 1889,
+    "confMedia": 81.66666666666667,
+    "anclasEsperadas": 63,
+    "anclasEncontradas": 57,
+    "recall": 0.9047619047619048,
+    "scoreMedio": 0.9720113119387167,
+    "porDoc": {
+      "plantilla-p1": {
+        "found": 15,
+        "total": 15,
+        "ms": 2612.3040889999975
+      },
+      "plantilla-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1911.7497770000045
+      },
+      "transmision-p1": {
+        "found": 14,
+        "total": 15,
+        "ms": 1674.8507039999968
+      },
+      "transmision-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1422.8789149999939
+      },
+      "cairo-p1": {
+        "found": 10,
+        "total": 15,
+        "ms": 1744.2156720000057
+      },
+      "cairo-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1965.8121219999884
+      }
+    }
+  },
+  "H spa+eng oem1 psm4 1200px": {
+    "tiempoMsTotal": 12442.108645999993,
+    "tiempoMsPag": 2074,
+    "confMedia": 83.33333333333333,
+    "anclasEsperadas": 63,
+    "anclasEncontradas": 58,
+    "recall": 0.9206349206349206,
+    "scoreMedio": 0.9608213229497413,
+    "porDoc": {
+      "plantilla-p1": {
+        "found": 15,
+        "total": 15,
+        "ms": 2829.306559000004
+      },
+      "plantilla-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 1778.6971760000015
+      },
+      "transmision-p1": {
+        "found": 14,
+        "total": 15,
+        "ms": 1561.1979069999943
+      },
+      "transmision-p2": {
+        "found": 5,
+        "total": 6,
+        "ms": 1336.9096329999884
+      },
+      "cairo-p1": {
+        "found": 12,
+        "total": 15,
+        "ms": 2486.1905489999917
+      },
+      "cairo-p2": {
+        "found": 6,
+        "total": 6,
+        "ms": 2449.806822000013
+      }
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "I spa oem1 psm3": {
+    "msPag": 1507,
+    "recall": 0.9206349206349206,
+    "fallidas": {
+      "transmision-p1": [
+        "TOTAL VOTANTES FORMULARIO E11"
+      ],
+      "cairo-p1": [
+        "ABELARDO DE LA ESPRIELLA",
+        "VOTOS NULOS",
+        "VOTOS NO MARCADOS",
+        "SUMA TOTAL"
+      ]
+    }
+  },
+  "J spa oem1 psm4 1200px": {
+    "msPag": 1632,
+    "recall": 0.9206349206349206,
+    "fallidas": {
+      "transmision-p1": [
+        "TOTAL VOTANTES FORMULARIO E11"
+      ],
+      "transmision-p2": [
+        "HUBO RECUENTO"
+      ],
+      "cairo-p1": [
+        "ABELARDO DE LA ESPRIELLA",
+        "VOTOS NULOS",
+        "VOTOS NO MARCADOS"
+      ]
+    }
+  },
+  "K spa oem1 psm3 1200px": {
+    "msPag": 1575,
+    "recall": 0.8412698412698413,
+    "fallidas": {
+      "transmision-p1": [
+        "TOTAL VOTANTES FORMULARIO E11"
+      ],
+      "transmision-p2": [
+        "HUBO RECUENTO",
+        "FIRMA JURADO 1",
+        "FIRMA JURADO 2",
+        "FIRMA JURADO 3",
+        "FIRMA JURADO 4"
+      ],
+      "cairo-p1": [
+        "ABELARDO DE LA ESPRIELLA",
+        "VOTOS NULOS",
+        "VOTOS NO MARCADOS",
+        "SUMA TOTAL"
+      ]
+    }
+  }
+}

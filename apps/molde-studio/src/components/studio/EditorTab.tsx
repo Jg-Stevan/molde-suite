@@ -16,6 +16,7 @@ import {
   EyeOff,
   FileUp,
   GripVertical,
+  Link2,
   Loader2,
   Maximize2,
   Minus,
@@ -93,6 +94,22 @@ async function imagenACanvas(url: string): Promise<HTMLCanvasElement> {
   return c;
 }
 
+// FIX (rendimiento): caché de canvases decodificados por URL. Antes, el recorte
+// del panel derecho re-decodificaba la imagen de referencia COMPLETA en cada
+// render (al arrastrar una zona se disparaban decenas de decodificaciones de
+// ~1000x3028 px -> tirones visibles). Las URLs de /uploads son UUID únicos e
+// inmutables, así que cachear por URL es seguro.
+const canvasCache = new Map<string, Promise<HTMLCanvasElement>>();
+function canvasDe(url: string): Promise<HTMLCanvasElement> {
+  let p = canvasCache.get(url);
+  if (!p) {
+    p = imagenACanvas(url);
+    canvasCache.set(url, p);
+    p.catch(() => canvasCache.delete(url));
+  }
+  return p;
+}
+
 export default function EditorTab() {
   const {
     moldes,
@@ -105,6 +122,7 @@ export default function EditorTab() {
     setPruebaId,
     campoSeleccionadoId,
     setCampoSeleccionado,
+    solicitarReejecucion,
   } = useStudio();
   const { toast } = useToast();
   const [busqueda, setBusqueda] = useState('');
@@ -113,6 +131,7 @@ export default function EditorTab() {
   const [alineando, setAlineando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [probando, setProbando] = useState(false);
   const [jsonAplicar, setJsonAplicar] = useState('');
   const [zoom, setZoom] = useState(78);
   const [verAnclas, setVerAnclas] = useState(true);
@@ -121,6 +140,7 @@ export default function EditorTab() {
   const [ocultos, setOcultos] = useState<Set<string>>(new Set());
   const [coordenadas, setCoordenadas] = useState<{ x: number; y: number } | null>(null);
   const [cropPreview, setCropPreview] = useState<string | null>(null);
+  const [cropDims, setCropDims] = useState<{ w: number; h: number } | null>(null);
   const contenedorRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ campoId: string; modo: 'mover' | 'redimensionar'; x0: number; y0: number; zona0: RectNorm } | null>(null);
   const inputImagenRef = useRef<HTMLInputElement>(null);
@@ -163,18 +183,45 @@ export default function EditorTab() {
   }, [camposPagina]);
 
   // ---- Recorte 300 DPI del campo activo ----
+  // FIX: para campos `ancla_relativa`, zona.x/y es un OFFSET desde el ancla (no
+  // coordenada absoluta de página). Hay que resolver el rect final igual que lo
+  // hace el lienzo (rectEditor): ancla.rect + offset (o x_absoluto). Antes se
+  // usaba `zona` en crudo, por lo que el recorte del panel derecho salía
+  // desplazado (apuntaba a otra región de la página) para TODOS los campos con
+  // ancla — el bug reportado de "el recorte no muestra el recorte correctamente".
+  // FIX 2: el campo activo puede pertenecer a OTRA página (se seleccionó en la
+  // pág. 1 y se cambió a la 2). Recortar la imagen visible con coordenadas de
+  // otra página producía un recorte sin sentido (área vacía equivocada). Ahora
+  // solo se recorta si campoSel.pagina === pagina; si no, se limpia y la UI
+  // avisa en lugar de mostrar un recorte engañoso.
   const recortarPreview = useCallback(async () => {
-    if (!campoSel || !imagenRef || !campoSel.zona) {
+    if (!campoSel || !imagenRef || !campoSel.zona || campoSel.pagina !== pagina) {
       setCropPreview(null);
+      setCropDims(null);
+      return;
+    }
+    const rect = rectEditor(campoSel);
+    if (!rect) {
+      setCropPreview(null);
+      setCropDims(null);
       return;
     }
     try {
-      const base = await imagenACanvas(imagenRef);
-      const { x, y, w, h } = campoSel.zona;
-      const sx = CLAMP(x) * base.width;
-      const sy = CLAMP(y) * base.height;
-      const sw = Math.max(4, w * base.width);
-      const sh = Math.max(4, h * base.height);
+      const base = await canvasDe(imagenRef);
+      // Recorte acotado a los límites del canvas de referencia.
+      const x0 = Math.max(0, Math.min(rect.x, 1)) * base.width;
+      const y0 = Math.max(0, Math.min(rect.y, 1)) * base.height;
+      const x1 = Math.max(0, Math.min(rect.x + rect.w, 1)) * base.width;
+      const y1 = Math.max(0, Math.min(rect.y + rect.h, 1)) * base.height;
+      const sx = x0;
+      const sy = y0;
+      const sw = Math.max(2, x1 - x0);
+      const sh = Math.max(2, y1 - y0);
+      if (sw < 2 || sh < 2) {
+        setCropPreview(null);
+        setCropDims(null);
+        return;
+      }
       const escala = Math.min(3, Math.max(1, 300 / (base.width / 8.5))); // aprox 300 DPI de referencia
       const c = document.createElement('canvas');
       c.width = Math.round(sw * escala);
@@ -183,14 +230,38 @@ export default function EditorTab() {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(base, sx, sy, sw, sh, 0, 0, c.width, c.height);
       setCropPreview(c.toDataURL('image/png'));
+      // FIX: dimensiones REALES del recorte generado (antes se mostraba un
+      // cálculo fijo sobre 2480x3508 que no coincidía con el recorte real).
+      setCropDims({ w: c.width, h: c.height });
     } catch {
       setCropPreview(null);
+      setCropDims(null);
     }
-  }, [campoSel, imagenRef]);
+  }, [campoSel, imagenRef, pagina]);
 
   useEffect(() => {
     recortarPreview();
   }, [recortarPreview]);
+
+  // FIX: el pointerup puede ocurrir FUERA del viewport (soltar el mouse sobre
+  // otro panel, dedo que sale del área táctil, pointercancel del sistema) y
+  // entonces el drag queda "pegado": el siguiente movimiento del mouse seguía
+  // arrastrando la zona sin querer. Un listener global limpia el estado del
+  // arrastre en cuanto el pointer termina o se cancela. (Antes del early
+  // return de "sin molde": los hooks deben correr en todo render.)
+  useEffect(() => {
+    const limpiar = () => {
+      dragState.current = null;
+    };
+    window.addEventListener('pointerup', limpiar);
+    window.addEventListener('pointercancel', limpiar);
+    window.addEventListener('blur', limpiar);
+    return () => {
+      window.removeEventListener('pointerup', limpiar);
+      window.removeEventListener('pointercancel', limpiar);
+      window.removeEventListener('blur', limpiar);
+    };
+  }, []);
 
   if (!molde || !moldeId) {
     return (
@@ -266,7 +337,15 @@ export default function EditorTab() {
     e.stopPropagation();
     dragState.current = { campoId: campo.id, modo, x0: e.clientX, y0: e.clientY, zona0: { ...campo.zona } };
     setCampoSeleccionado(campo.id);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // FIX: setPointerCapture lanza NotFoundError si el pointer ya no está
+    // activo (eventos sintéticos, dedo levantado en táctil antes del capture,
+    // o el nodo re-renderizado entre el down y el capture). Sin captura el
+    // arrastre igual funciona dentro del viewport, así que solo se ignora.
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* sin captura: el drag continúa vía los handlers del viewport */
+    }
   }
 
   function onPointerMoveZona(e: React.PointerEvent) {
@@ -341,7 +420,7 @@ export default function EditorTab() {
     }
     setAlineando(true);
     try {
-      const canvas = await imagenACanvas(imagenRef);
+      const canvas = await canvasDe(imagenRef);
       const res = await alinearAnclas(molde, canvas, pagina);
       setMoldeActual(res.molde);
       const faltantes = Object.entries(res.detalles).filter(([, v]) => v === 'no').length;
@@ -388,9 +467,12 @@ export default function EditorTab() {
   }
 
   const jsonVivo = JSON.stringify(molde, null, 2);
+  const campoSelOtraPagina = Boolean(campoSel && campoSel.pagina !== pagina);
   const dimsPx =
-    campoSel && imagenRef
-      ? `${Math.round(campoSel.zona.w * 2480)} × ${Math.round(campoSel.zona.h * 3508)} px · 300 DPI`
+    campoSel && imagenRef && !campoSelOtraPagina
+      ? cropDims
+        ? `${cropDims.w} × ${cropDims.h} px · 300 DPI`
+        : 'Sube un escaneo para ver el recorte'
       : 'Sube un escaneo para ver el recorte';
 
   return (
@@ -426,17 +508,33 @@ export default function EditorTab() {
           </div>
           <Button
             type="button"
+            disabled={probando}
             onClick={async () => {
-              // Refresca las corridas del molde abierto y abre el verificador
-              // con la plantilla que se está editando (sus corridas más recientes).
-              await cargarPruebas();
-              setPruebaId(null);
-              setPestana('verificacion');
+              // "Probar Plantilla" ahora RE-EJECUTA automáticamente: si hay
+              // cambios sin guardar los guarda AHORA, toma la corrida más
+              // reciente con archivo fuente persistido y le dispara una
+              // re-ejecución en Verificación contra esta versión del molde —
+              // sin pedir volver a subir ninguna foto/PDF.
+              setProbando(true);
+              try {
+                if (sucio) await guardarMoldeActual();
+                await cargarPruebas();
+                const reejecutable = useStudio.getState().pruebas.find((p) => Boolean(p.fuenteUrl));
+                setPruebaId(reejecutable?.id ?? null);
+                setPestana('verificacion');
+                if (reejecutable) solicitarReejecucion();
+              } finally {
+                setProbando(false);
+              }
             }}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 shadow-2xs hover:bg-slate-700/80"
             variant="outline"
           >
-            <Play className="h-4 w-4 text-indigo-400" aria-hidden />
+            {probando ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Play className="h-4 w-4 text-indigo-400" aria-hidden />
+            )}
             Probar Plantilla
           </Button>
           <Button
@@ -475,6 +573,10 @@ export default function EditorTab() {
         <span className="hidden items-center gap-1.5 border-l border-slate-700 pl-4 text-amber-400 md:flex">
           <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500 ring-2 ring-amber-400/40" aria-hidden />
           <span>Punto Ancla OCR</span>
+        </span>
+        <span className="hidden items-center gap-1.5 text-amber-400/80 md:flex">
+          <span className="h-0 w-4 shrink-0 border-t border-dashed border-amber-500/70" aria-hidden />
+          <span>Enlace ancla → zona</span>
         </span>
       </div>
 
@@ -763,19 +865,77 @@ export default function EditorTab() {
                 />
               ) : null}
 
-              {/* Puntos ancla OCR */}
+              {/* Puntos ancla OCR — el del campo activo se agranda para revelar
+                  cuál es su ancla y de dónde nace el enlace. */}
               {verAnclas &&
                 imagenRef &&
                 camposPagina.map((c) =>
                   c.ancla?.rect ? (
                     <span
                       key={`ancla-${c.id}`}
-                      className="pointer-events-none absolute z-[5] flex h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-amber-500 ring-2 ring-amber-400/50"
+                      className={`pointer-events-none absolute z-[5] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-amber-500 ring-2 ring-amber-400/50 ${
+                        c.id === campoSeleccionadoId ? 'h-3.5 w-3.5 ring-4 ring-amber-300/70' : 'h-2.5 w-2.5'
+                      }`}
                       style={{ left: `${c.ancla.rect.x * 100}%`, top: `${c.ancla.rect.y * 100}%` }}
                       title={`Ancla: ${c.ancla.texto || c.id}`}
                     />
                   ) : null,
                 )}
+
+              {/* Enlace diminuto ancla → zona: línea punteada que revela cómo se
+                  enlazan el punto ancla (origen) y la esquina de su zona (offset).
+                  Activa = ámbar brillante + icono de eslabón en el punto medio. */}
+              {verAnclas && imagenRef ? (
+                <svg
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 z-[4] h-full w-full"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                >
+                  {camposPagina.map((c) => {
+                    const ar = c.ancla?.rect;
+                    if (!ar || ocultos.has(c.id)) return null;
+                    const rect = rectEditor(c);
+                    if (!rect) return null;
+                    const activo = c.id === campoSeleccionadoId;
+                    return (
+                      <line
+                        key={`enlace-${c.id}`}
+                        x1={ar.x * 100}
+                        y1={ar.y * 100}
+                        x2={rect.x * 100}
+                        y2={rect.y * 100}
+                        stroke={activo ? '#fbbf24' : 'rgba(245,158,11,0.9)'}
+                        strokeWidth={activo ? 2.2 : 1.5}
+                        strokeDasharray="4 3"
+                        strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    );
+                  })}
+                </svg>
+              ) : null}
+
+              {/* Icono de eslabón en el punto medio del enlace ACTIVO */}
+              {verAnclas && imagenRef && campoSel && campoSel.ancla?.rect ? (
+                (() => {
+                  const ar = campoSel.ancla?.rect;
+                  const rect = rectEditor(campoSel);
+                  if (!ar || !rect || ocultos.has(campoSel.id)) return null;
+                  return (
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute z-[6] flex h-4 w-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-amber-500 text-slate-950 shadow"
+                      style={{
+                        left: `${(ar.x + (rect.x - ar.x) / 2) * 100}%`,
+                        top: `${(ar.y + (rect.y - ar.y) / 2) * 100}%`,
+                      }}
+                    >
+                      <Link2 className="h-2.5 w-2.5" />
+                    </span>
+                  );
+                })()
+              ) : null}
 
               {/* Zonas del molde */}
               {imagenRef &&
@@ -898,7 +1058,11 @@ export default function EditorTab() {
                       <span className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[9px] text-slate-300">{dimsPx}</span>
                     </div>
                     <div className="flex h-28 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-canvas-paper p-1.5 dark:bg-[#1a1712]">
-                      {cropPreview ? (
+                      {campoSelOtraPagina ? (
+                        <span className="max-w-full px-2 text-center font-mono text-[10px] leading-4 text-slate-500">
+                          Campo de la página {campoSel.pagina} — cambia a esa página para ver su recorte.
+                        </span>
+                      ) : cropPreview ? (
                         <img src={cropPreview} alt={`Recorte de ${campoSel.etiqueta}`} className="max-h-full max-w-full object-contain" />
                       ) : (
                         <span className="font-mono text-[10px] text-slate-500">sin recorte disponible</span>
