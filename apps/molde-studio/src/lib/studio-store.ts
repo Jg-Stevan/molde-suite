@@ -4,7 +4,7 @@
 // historial de pruebas y navegación entre pestañas.
 
 import { create } from 'zustand';
-import type { MoldeUniversal } from '@/lib/molde/universal-types';
+import { MOLDE_UNIVERSAL_VERSION, type MoldeUniversal } from '@/lib/molde/universal-types';
 import { repo } from '@/lib/repo';
 import type { MoldeDB, PruebaDB } from '@/lib/repo-types';
 import { toast } from '@/hooks/use-toast';
@@ -65,6 +65,15 @@ export const useStudio = create<StudioState>((set, get) => ({
     try {
       const r = await repo.listarMoldes();
       if (r.ok) set({ moldes: r.data });
+      else {
+        // N-8: un fallo de red/backend nunca se muestra como «Aún no hay
+        // moldes» (mentira): se avisa y se conserva lo ya cargado.
+        toast({
+          title: 'No se pudo cargar la biblioteca',
+          description: `${r.error}. Se muestra lo que ya estaba cargado.`,
+          variant: 'destructive',
+        });
+      }
     } finally {
       set({ cargandoMoldes: false });
     }
@@ -78,6 +87,23 @@ export const useStudio = create<StudioState>((set, get) => ({
       parsed = JSON.parse(m.json) as MoldeUniversal;
     } catch {
       parsed = null;
+    }
+    if (!parsed) {
+      // N-8: JSON corrupto guardado → aviso explícito, no un editor vacío.
+      toast({
+        title: 'Molde ilegible',
+        description: `El JSON guardado de «${m.nombre}» está corrupto. Elimínalo o reemplázalo.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    // Backlog P2 (6.4): un molde de una versión futura puede traer campos que
+    // este motor ignora — se avisa en vez de degradar en silencio.
+    if (parsed.version && parsed.version > MOLDE_UNIVERSAL_VERSION) {
+      toast({
+        title: 'Molde de una versión más nueva',
+        description: `El molde es v${parsed.version} y el motor entiende v${MOLDE_UNIVERSAL_VERSION}: las características nuevas se ignoran.`,
+      });
     }
     set({ moldeId: id, molde: parsed, campoSeleccionadoId: null, pruebaId: null });
     get().cargarPruebas(id);
@@ -102,6 +128,10 @@ export const useStudio = create<StudioState>((set, get) => ({
     const id = moldeId ?? get().moldeId ?? undefined;
     const r = await repo.listarPruebas(id);
     if (r.ok) set({ pruebas: r.data });
+    else {
+      // N-8: el historial también avisa sus fallos.
+      toast({ title: 'No se pudo cargar el historial', description: r.error, variant: 'destructive' });
+    }
   },
 
   setPruebaId: (id) => set({ pruebaId: id }),

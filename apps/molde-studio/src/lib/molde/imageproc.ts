@@ -100,7 +100,15 @@ export function adaptiveThresholdInv(
   return { w, h, data: out };
 }
 
-/** Erosion+dilatacion 1D (kernel k) sobre una direccion, con replicacion de bordes. */
+/** Erosión+dilatación 1D (kernel k) sobre una dirección, con replicación de
+ * bordes — ventana CENTRADA [j-r, j+r], igual que cv2 (N-12).
+ *
+ * FIX (Fase 5.2): antes la ventana efectiva era [j-r, j] (media ventana, ≈k/2
+ * elementos), así que la apertura borraba trazos horizontales de longitud entre
+ * k/2 y k — una raya de subrayado manuscrita en SUMA TOTAL desaparecía antes
+ * de medir tinta. Con la ventana completa la semántica es la de OpenCV: la
+ * apertura elimina solo estructuras de extensión horizontal ≥ k (líneas
+ * impresas de verdad) y conserva los trazos más cortos. */
 function opening1D(bin: BinImage, k: number, dir: 'h' | 'v'): Uint8Array {
   const { w, h, data } = bin;
   const out = new Uint8Array(w * h);
@@ -109,32 +117,39 @@ function opening1D(bin: BinImage, k: number, dir: 'h' | 'v'): Uint8Array {
   const r = (k - 1) >> 1;
   const idx = dir === 'h' ? (i: number, j: number) => i * w + j : (i: number, j: number) => j * w + i;
   const deque = new Int32Array(n + 1);
-  const eroded = new Uint8Array(n);
+  const eros = new Uint8Array(n); // erosión con ventana completa
+  const dil = new Uint8Array(n); // dilatación (sobre la erosión) con ventana completa
   for (let i = 0; i < lines; i++) {
-    // erosion: min sobre ventana de tamaño k (replicada)
+    // ---- erosión: min sobre [max(0,j-r), min(n-1,j+r)] ----
+    // Deque monótono con lookahead: al procesar j, la ventana ya contiene
+    // los índices [max(0,j-r), min(n-1,j+r)] (los bordes se truncan, que en
+    // erosión/dilatación equivale a la replicación de cv2.BORDER_REPLICATE).
     let head = 0;
     let tail = 0;
-    for (let j = 0; j < n; j++) {
+    const pushEros = (j: number) => {
       const v = data[idx(i, j)];
       while (tail > head && data[idx(i, deque[tail - 1])] >= v) tail--;
       deque[tail++] = j;
-      const j0 = j - r;
-      const jmin = Math.max(0, j0);
-      while (deque[head] < jmin) head++;
-      eroded[j] = data[idx(i, deque[head])];
+    };
+    for (let x = 0; x <= Math.min(r, n - 1); x++) pushEros(x); // prefill j=0
+    for (let j = 0; j < n; j++) {
+      if (j > 0 && j + r <= n - 1) pushEros(j + r);
+      while (deque[head] < j - r) head++;
+      eros[j] = data[idx(i, deque[head])];
     }
-    // dilatacion: max sobre la misma ventana de la erosionada
+    // ---- dilatación: max sobre la misma ventana de la erosión ----
     head = 0;
     tail = 0;
-    const dil = new Uint8Array(n);
-    for (let j = 0; j < n; j++) {
-      const v = eroded[j];
-      while (tail > head && eroded[deque[tail - 1]] <= v) tail--;
+    const pushDil = (j: number) => {
+      const v = eros[j];
+      while (tail > head && eros[deque[tail - 1]] <= v) tail--;
       deque[tail++] = j;
-      const j0 = j - r;
-      const jmin = Math.max(0, j0);
-      while (deque[head] < jmin) head++;
-      dil[j] = eroded[deque[head]];
+    };
+    for (let x = 0; x <= Math.min(r, n - 1); x++) pushDil(x);
+    for (let j = 0; j < n; j++) {
+      if (j > 0 && j + r <= n - 1) pushDil(j + r);
+      while (deque[head] < j - r) head++;
+      dil[j] = eros[deque[head]];
     }
     if (dir === 'h') out.set(dil, i * w);
     else for (let j = 0; j < n; j++) out[j * w + i] = dil[j];

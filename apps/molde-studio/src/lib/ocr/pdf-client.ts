@@ -22,7 +22,11 @@ function drawScaled(
   source: HTMLCanvasElement,
   targetWidth: number,
 ): HTMLCanvasElement {
-  const scale = Math.min(1, targetWidth / source.width);
+  // Matiz 2 (Fase 2.6): escalar SIEMPRE al ancho objetivo — antes el
+  // Math.min(1, …) nunca agrandaba imágenes < 1000 px (fotos de gama baja
+  // llegaban aún más pequeñas) y la corrida se evaluaba en una resolución
+  // distinta a la de calibración (1000 px).
+  const scale = targetWidth / source.width;
   const w = Math.max(1, Math.round(source.width * scale));
   const h = Math.max(1, Math.round(source.height * scale));
   const c = document.createElement('canvas');
@@ -33,6 +37,13 @@ function drawScaled(
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(source, 0, 0, w, h);
   return c;
+}
+
+/** Escala un canvas arbitrario al ancho de calibración del motor (1000 px).
+ * El editor usa el MISMO render sobre el que se calibró/verificó (Matiz 2). */
+export function escalarCanvas(source: HTMLCanvasElement, targetWidth = TARGET_WIDTH): HTMLCanvasElement {
+  if (source.width === targetWidth) return source;
+  return drawScaled(source, targetWidth);
 }
 
 export async function renderDocumento(file: File): Promise<RenderizadoDocumento> {

@@ -8,6 +8,9 @@
 //   la zona se posiciona como offset (dx, dy) desde la esquina superior
 //   izquierda del ancla encontrado. `ancla.rect` guarda la posición esperada
 //   en el escaneo de referencia (para dibujar y para el fallback).
+// - `validaciones` (opcional): igualdades aritméticas de cierre entre campos
+//   (p. ej. la suma total == suma de componentes). Si una validación falla,
+//   los campos implicados quedan en `requiere_revision` (Fase 2.2 del plan).
 
 export interface RectNorm {
   x: number;
@@ -24,6 +27,12 @@ export interface AnclaUniversal {
   texto: string;
   /** Posición esperada del ancla en el escaneo de referencia (opcional pero recomendada). */
   rect?: RectNorm;
+  /**
+   * Posición donde se encontró el ANCLA DE RESPALDO al alinear (N-2): se
+   * guarda aparte y NUNCA sobrescribe `rect` (la referencia del primario),
+   * para no sesgar las corridas futuras con la posición de un respaldo.
+   */
+  rectRespaldo?: RectNorm;
 }
 
 export interface CampoUniversal {
@@ -49,8 +58,19 @@ export interface CampoUniversal {
   x_absoluto?: boolean;
   /** Umbral de densidad de tinta para presencia/firma/checkbox (0-1). */
   umbral: number;
-  /** Regex opcional que debe cumplir el texto leído. */
+  /**
+   * Regex opcional que debe cumplir el texto leído. Se evalúa ANCLADO: el
+   * motor lo envuelve con ^(?:...)$ si el patrón no trae sus propios anclajes
+   * (G-8: "ZONA: 05" ya no pasa contra \d{2}). Para capturar un subgrupo usa
+   * `limpiar_valor`.
+   */
   patron?: string;
+  /**
+   * Regex de extracción opcional (solo tipo texto): si el OCR devuelve basura
+   * con etiqueta pegada ("ZONA: 05"), se extrae el primer grupo de captura
+   * ("(\d{2})" -> "05") ANTES de validar contra `patron`.
+   */
+  limpiar_valor?: string;
   /** Whitelist de caracteres para el OCR del recorte (solo tipo texto). Ej: '0123456789'. */
   whitelist?: string;
   /**
@@ -59,8 +79,39 @@ export interface CampoUniversal {
    * Recomendado en manuscritos y fotos de baja calidad.
    */
   realce?: boolean;
+  /**
+   * Campo MANUSCRITO (HTR): Tesseract no es motor de escritura a mano, así que
+   * la lectura nunca se considera definitiva — si el campo es obligatorio
+   * SIEMPRE queda en revisión humana (opción C de la Fase 2.5: honestidad por
+   * encima de invención). En opcionales solo marca la bandera `htr_manual`.
+   */
+  htr?: boolean;
+  /**
+   * Presentación (G-7): el valor de este campo se resalta en la lista de
+   * Datos Variables. Sustituye a la heurística /total|pagar|valor|…/ de facturas.
+   */
+  destacado?: boolean;
   obligatorio: boolean;
   nota?: string;
+}
+
+/** Validación aritmética de cierre (Fase 2.2). */
+export interface ValidacionMolde {
+  id: string;
+  regla: 'igualdad';
+  /**
+   * Igualdad de sumas entre IDs de campos y números, p. ej.:
+   *   "suma_total == votos_candidato_1 + votos_candidato_2 + votos_blanco + 1"
+   * Parser seguro (IDs + '+' + '==' + números), NO un evaluador JS genérico.
+   * Un campo de tinta (presencia/firma/checkbox) cuenta como 1 si hay trazo y
+   * 0 si no; un campo de texto se convierte a número (se normalizan espacios
+   * y separadores de miles). Si algún operando no se pudo leer, la validación
+   * queda "no evaluable" y la corrida requiere revisión.
+   */
+  expresion: string;
+  /** Tolerancia absoluta de la igualdad (por defecto 0). */
+  tolerancia?: number;
+  descripcion?: string;
 }
 
 export interface MoldeUniversal {
@@ -74,12 +125,15 @@ export interface MoldeUniversal {
   /** Imagen de referencia por página (escaneo limpio sobre el que se dibuja el molde). */
   paginasRef?: { pagina: number; imagen: string }[];
   campos: CampoUniversal[];
+  /** Validaciones aritméticas de cierre entre campos (Fase 2.2). */
+  validaciones?: ValidacionMolde[];
   /**
-   * Metadatos de presentación de la tarjeta en la Biblioteca (diseño Stitch).
-   * Si existen, sobresalen sobre los stats calculados de las pruebas reales.
+   * Metadatos de PRESENTACIÓN de la tarjeta en la Biblioteca (diseño Stitch).
+   * G-1: `precision` fue eliminado — el score mostrado es SIEMPRE el calculado
+   * de la última corrida real; `precision_declarada` es solo informativa.
    */
   meta?: {
-    precision?: number;
+    precision_declarada?: number;
     docs?: number;
     unidadDocs?: string;
     estado?: 'activo' | 'validando' | 'ninguno';
@@ -122,27 +176,46 @@ export interface ResultadoCampoUniversal {
   etiqueta: string;
   tipo: TipoCampo;
   pagina: number;
-  estado: 'ok' | 'no_encontrado';
+  /**
+   * ok: leído y dentro de reglas. no_encontrado: sin lectura válida.
+   * requiere_revision: lectura dudosa (umbral al borde, confianza baja en
+   * obligatorio, HTR manuscrito o validación aritmética fallida) — el valor
+   * se muestra pero un humano debe confirmarlo.
+   */
+  estado: 'ok' | 'no_encontrado' | 'requiere_revision';
   /** Texto leído (tipo texto) o booleano de diligenciamiento (presencia/firma/checkbox). */
   valor: string | boolean | null;
   /** Densidad de tinta medida en la zona. */
   ratio?: number | null;
-  /** Confianza 0-1. */
-  conf: number;
+  /** Confianza 0-1 (null = el OCR no reportó confianza: "sin confianza reportada"). */
+  conf: number | null;
   /** Rectángulo resuelto final (normalizado) — para el overlay. */
   rect: RectNorm | null;
   /** Captura JPEG (dataURL) de la zona resuelta. */
   crop?: string | null;
+  /** Dimensiones reales en px del crop generado (G-6: nunca hardcodear DPI). */
+  crop_dims?: [number, number] | null;
   fuente?: 'ancla' | 'respaldo' | 'referencia' | 'fija' | null;
   banderas: string[];
 }
 
 export interface ResultadoPaginaUniversal {
   pagina: number;
-  ocr_conf: number;
+  /** Confianza global del OCR de la página (null = sin confianza reportada). */
+  ocr_conf: number | null;
   /** Vista previa JPEG (dataURL) de la página para el overlay de verificación. */
   preview?: string;
   campos: ResultadoCampoUniversal[];
+}
+
+export interface ResultadoValidacion {
+  id: string;
+  expresion: string;
+  /** true = igualdad satisfecha. null = no evaluable (campo sin lectura). */
+  ok: boolean | null;
+  detalle: string;
+  /** Campos implicados en la expresión. */
+  campos: string[];
 }
 
 export interface ResultadoUniversal {
@@ -150,15 +223,41 @@ export interface ResultadoUniversal {
   paginas: ResultadoPaginaUniversal[];
   total: number;
   ok_count: number;
-  /** Score global 0-100. */
+  /**
+   * Score global 0-100 = campos en estado 'ok' / total (G-2: 'requiere_revision'
+   * NO cuenta como ok). Conceptos separados: `pct_diligenciado` (campos de
+   * tinta con trazo / total de tinta) y `pct_lectura` (campos de texto con
+   * valor válido / total de texto). Documentado en docs/FORMATO-MOLDE.md.
+   */
   score: number;
+  pct_diligenciado: number | null;
+  pct_lectura: number | null;
   obligatorios_faltantes: string[];
+  validaciones: ResultadoValidacion[];
   requiere_revision: boolean;
   tiempos: { render_ms: number; ocr_ms: number; motor_ms: number };
 }
 
-// ---- Validación mínima de estructura ----
+// ---- Validación de estructura (N-4: endurecida) ----
 
+function esRectValido(z: unknown): z is RectNorm {
+  if (typeof z !== 'object' || z === null) return false;
+  const r = z as Record<string, unknown>;
+  return (
+    typeof r.x === 'number' && Number.isFinite(r.x) &&
+    typeof r.y === 'number' && Number.isFinite(r.y) &&
+    typeof r.w === 'number' && Number.isFinite(r.w) &&
+    typeof r.h === 'number' && Number.isFinite(r.h)
+  );
+}
+
+/**
+ * Validación de estructura de un molde universal. Endurecida (N-4): además de
+ * la forma, valida por campo que `zona` sea un rect finito, `umbral` un número
+ * finito en [0,1], `pagina >= 1` y — en estrategia `ancla_relativa` — que
+ * `ancla.texto` no esté vacío. Un molde malformado se rechaza aquí (API 400 /
+ * editor) en vez de tumbar la corrida con IndexSizeError en runtime.
+ */
 export function esMoldeUniversal(obj: unknown): obj is MoldeUniversal {
   if (typeof obj !== 'object' || obj === null) return false;
   const m = obj as Record<string, unknown>;
@@ -166,19 +265,69 @@ export function esMoldeUniversal(obj: unknown): obj is MoldeUniversal {
   if (typeof m.nombre !== 'string' || !Array.isArray(m.campos)) return false;
   return m.campos.every((c) => {
     const f = c as Record<string, unknown>;
-    return (
-      typeof f.id === 'string' &&
-      typeof f.etiqueta === 'string' &&
-      typeof f.pagina === 'number' &&
-      typeof f.tipo === 'string' &&
-      typeof f.estrategia === 'string' &&
-      typeof f.zona === 'object' &&
-      f.zona !== null
-    );
+    if (
+      typeof f.id !== 'string' ||
+      typeof f.etiqueta !== 'string' ||
+      typeof f.pagina !== 'number' ||
+      !Number.isInteger(f.pagina) ||
+      f.pagina < 1 ||
+      typeof f.tipo !== 'string' ||
+      typeof f.estrategia !== 'string'
+    ) {
+      return false;
+    }
+    if (!esRectValido(f.zona)) return false;
+    if (typeof f.umbral !== 'number' || !Number.isFinite(f.umbral) || f.umbral < 0 || f.umbral > 1) {
+      return false;
+    }
+    if (f.estrategia === 'ancla_relativa') {
+      const ancla = f.ancla as Record<string, unknown> | undefined;
+      if (!ancla || typeof ancla.texto !== 'string' || !ancla.texto.trim()) return false;
+      if (ancla.rect !== undefined && !esRectValido(ancla.rect)) return false;
+    }
+    if (f.obligatorio !== undefined && typeof f.obligatorio !== 'boolean') return false;
+    return true;
   });
+}
+
+/**
+ * Motivos legibles por los que un molde NO pasa `esMoldeUniversal` (para el
+ * toast/400 con detalle, G-9: aplicarJson y la API los muestran al usuario).
+ */
+export function erroresMolde(obj: unknown): string[] {
+  const errores: string[] = [];
+  if (typeof obj !== 'object' || obj === null) return ['El JSON no es un objeto'];
+  const m = obj as Record<string, unknown>;
+  if (m.tipo !== 'universal') errores.push('tipo debe ser "universal"');
+  if (typeof m.nombre !== 'string' || !m.nombre) errores.push('falta nombre');
+  if (!Array.isArray(m.campos)) {
+    errores.push('falta el arreglo campos');
+    return errores;
+  }
+  m.campos.forEach((c, i) => {
+    const f = c as Record<string, unknown>;
+    const donde = `campo #${i + 1}${typeof f.id === 'string' ? ` (${f.id})` : ''}`;
+    if (!esRectValido(f.zona)) errores.push(`${donde}: zona inválida (x/y/w/h finitos)`);
+    if (typeof f.umbral !== 'number' || !Number.isFinite(f.umbral) || f.umbral < 0 || f.umbral > 1) {
+      errores.push(`${donde}: umbral debe ser un número en [0,1]`);
+    }
+    if (typeof f.pagina !== 'number' || !Number.isInteger(f.pagina) || f.pagina < 1) {
+      errores.push(`${donde}: pagina debe ser entero >= 1`);
+    }
+    if (f.estrategia === 'ancla_relativa') {
+      const ancla = f.ancla as Record<string, unknown> | undefined;
+      if (!ancla || typeof ancla.texto !== 'string' || !ancla.texto.trim()) {
+        errores.push(`${donde}: estrategia ancla_relativa exige ancla.texto no vacío`);
+      }
+    }
+  });
+  return errores;
 }
 
 /** ID corto y legible para nuevos campos: 'campo_ab12cd'. */
 export function nuevoIdCampo(): string {
   return `campo_${Math.random().toString(36).slice(2, 8)}`;
 }
+
+/** Umbral único de score "Preciso/Aprobado" (N-6: antes 80 / ≥98 / >98 según la vista). */
+export const UMBRAL_APROBADO = 98;

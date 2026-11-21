@@ -40,9 +40,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { setOcrProgress } from '@/lib/ocr/ocr-client';
-import { renderDocumento } from '@/lib/ocr/pdf-client';
+import { renderArchivos, renderDocumento } from '@/lib/ocr/pdf-client';
 import { evaluarDocumentoUniversal } from '@/lib/molde/universal-engine';
 import {
+  UMBRAL_APROBADO,
   type CampoUniversal,
   type ResultadoCampoUniversal,
   type ResultadoUniversal,
@@ -73,8 +74,22 @@ const COLOR_VEREDICTO: Record<Veredicto, string> = {
   ausente: '#e11d48',
 };
 
+/** G-15: comparación de instantáneas persistidas (registro del molde vs
+ * registro de la corrida) — nada de reloj del navegador. Función pura de
+ * módulo (F5.3: sin useCallback manual que el compiler no puede preservar). */
+function corridaDesactualizada(tMolde: number, ejecutadaEn: string | null | undefined): boolean {
+  if (tMolde <= 0 || !ejecutadaEn) return false;
+  const t = new Date(ejecutadaEn).getTime();
+  return Number.isFinite(t) && t < tMolde;
+}
+
 function veredictoDe(c: ResultadoCampoUniversal): Veredicto {
-  if (c.estado !== 'ok') return 'ausente';
+  // G-5: criterio ÚNICO en todas las vistas — ok_count del motor = estado 'ok'.
+  // 'requiere_revision' (umbral al borde, conf baja en obligatorio, HTR o
+  // validación aritmética fallida) se muestra como Tenue: hay lectura pero
+  // un humano debe confirmarla.
+  if (c.estado === 'no_encontrado') return 'ausente';
+  if (c.estado === 'requiere_revision') return 'tenue';
   if (c.banderas.includes('umbral_al_borde') || c.banderas.includes('zona_vacia')) return 'tenue';
   return 'ok';
 }
@@ -87,9 +102,11 @@ function detalleObligatorio(o: { def: CampoUniversal; res: ResultadoCampoUnivers
   const v: Veredicto = res ? veredictoDe(res) : 'ausente';
   const umbralPct = Math.round(o.def.umbral * 1000) / 10;
   const ratioPct = typeof res?.ratio === 'number' ? res.ratio * 100 : null;
-  const confPct = Math.round((res?.conf ?? 0) * 100);
+  // G-3/N-9: la confianza puede ser null (el OCR no reportó) — se muestra
+  // "sin confianza" en vez de un número inventado.
+  const confTxt = typeof res?.conf === 'number' ? `${Math.round(res.conf * 100)}%` : 'sin confianza';
 
-  if (estado !== 'ok') {
+  if (estado === 'no_encontrado') {
     return {
       Icono: XCircle,
       iconoCls: 'text-danger',
@@ -98,13 +115,31 @@ function detalleObligatorio(o: { def: CampoUniversal; res: ResultadoCampoUnivers
       badgeCls: 'bg-danger/15 text-danger-text',
     };
   }
+  if (estado === 'requiere_revision') {
+    const motivo = res?.banderas.includes('validacion_fallida')
+      ? 'Cierre aritmético no cuadra'
+      : res?.banderas.includes('htr_manual')
+        ? 'Manuscrito — confirmar lectura'
+        : res?.banderas.includes('conf_baja') || res?.banderas.includes('sin_confianza_ocr')
+          ? `Confianza insuficiente (${confTxt})`
+          : tipo === 'texto'
+            ? `Lectura dudosa (${confTxt})`
+            : `Densidad ${ratioPct !== null ? ratioPct.toFixed(1) : '—'}% ≈ Umbral ${umbralPct.toFixed(1)}%`;
+    return {
+      Icono: AlertTriangle,
+      iconoCls: 'text-warning',
+      sub: `Obligatorio · ${motivo}`,
+      badge: 'REVISAR',
+      badgeCls: 'bg-warning/15 text-warning-text',
+    };
+  }
   if (v === 'tenue') {
     return {
       Icono: AlertTriangle,
       iconoCls: 'text-warning',
       sub:
         tipo === 'texto'
-          ? `Obligatorio · Confianza al borde (${confPct}%)`
+          ? `Obligatorio · Confianza al borde (${confTxt})`
           : `Obligatorio · Densidad ${ratioPct !== null ? ratioPct.toFixed(1) : '—'}% ≈ Umbral ${umbralPct.toFixed(1)}%`,
       badge: 'AL BORDE',
       badgeCls: 'bg-warning/15 text-warning-text',
@@ -115,8 +150,8 @@ function detalleObligatorio(o: { def: CampoUniversal; res: ResultadoCampoUnivers
       return {
         Icono: CheckCircle2,
         iconoCls: 'text-success',
-        sub: `Obligatorio · GT Coincidente ${confPct}%`,
-        badge: 'MATCH EXACTO',
+        sub: `Obligatorio · Lectura «${typeof res?.valor === 'string' ? res.valor : '—'}» (${confTxt})`,
+        badge: 'LEÍDO OK',
         badgeCls: 'bg-success-surface text-success-text',
       };
     case 'firma':
@@ -131,7 +166,7 @@ function detalleObligatorio(o: { def: CampoUniversal; res: ResultadoCampoUnivers
       return {
         Icono: CheckCircle2,
         iconoCls: 'text-success',
-        sub: `Obligatorio · Casilla Marcada (${confPct}%)`,
+        sub: `Obligatorio · Casilla Marcada (${confTxt})`,
         badge: 'OMR OK',
         badgeCls: 'bg-success-surface text-success-text',
       };
@@ -139,7 +174,7 @@ function detalleObligatorio(o: { def: CampoUniversal; res: ResultadoCampoUnivers
       return {
         Icono: CheckCircle2,
         iconoCls: 'text-success',
-        sub: `Obligatorio · Presencia Confirmada (${confPct}%)`,
+        sub: `Obligatorio · Presencia Confirmada (${confTxt})`,
         badge: 'PRESENTE',
         badgeCls: 'bg-success-surface text-success-text',
       };
@@ -161,9 +196,20 @@ export default function VerificacionTab() {
     consumirReejecucion,
   } = useStudio();
   const { toast } = useToast();
-  const [detalle, setDetalle] = useState<PruebaDetalle | null>(null);
+  const [detalleCargado, setDetalleCargado] = useState<PruebaDetalle | null>(null);
   const [cargando, setCargando] = useState(false);
-  const [paginaIdx, setPaginaIdx] = useState(0);
+  // F5.3: selección derivada — sin corrida elegida se muestra la primera
+  // (antes lo fijaba un efecto con setPruebaId síncrono). Además, el reset de
+  // página al cambiar de corrida usa el patrón "ajustar estado durante el render".
+  const pruebaIdEfectiva = pruebaId ?? (pruebas.length > 0 ? pruebas[0].id : null);
+  const detalle = pruebaIdEfectiva ? detalleCargado : null;
+  const [paginacion, setPaginacion] = useState<{ p: string; i: number }>({ p: '', i: 0 });
+  const paginaIdx = paginacion.p === (pruebaIdEfectiva ?? '') ? paginacion.i : 0;
+  const setPaginaIdx = useCallback(
+    (idx: number | ((i: number) => number)) =>
+      setPaginacion({ p: pruebaIdEfectiva ?? '', i: typeof idx === 'function' ? idx(paginaIdx) : idx }),
+    [pruebaIdEfectiva, paginaIdx],
+  );
   const [vista, setVista] = useState<SeccionVista>('todos');
   const [modalReporte, setModalReporte] = useState(false);
   const [procesando, setProcesando] = useState(false);
@@ -183,14 +229,8 @@ export default function VerificacionTab() {
   // aparece el cambio de lugar".
   const moldeDB = moldes.find((m) => m.id === moldeId) ?? null;
   const tMolde = moldeDB ? new Date(moldeDB.updatedAt).getTime() : 0;
-  const esCorridaDesactualizada = useCallback(
-    // Compara contra el momento de la ÚLTIMA ejecución (updated_at), no contra
-    // la creación: una corrida re-ejecutada vuelve a estar al día aunque se
-    // haya creado con una versión anterior del molde.
-    (ejecutadaEn: string | undefined) =>
-      tMolde > 0 && Boolean(ejecutadaEn) && new Date(ejecutadaEn as string).getTime() < tMolde,
-    [tMolde],
-  );
+  const esCorridaDesactualizada = (ejecutadaEn: string | null | undefined) =>
+    corridaDesactualizada(tMolde, ejecutadaEn);
   const corridaActualDesactualizada = detalle
     ? esCorridaDesactualizada(detalle.updated_at ?? detalle.createdAt)
     : false;
@@ -206,13 +246,15 @@ export default function VerificacionTab() {
   };
 
   const cargar = useCallback(async (id: string) => {
+    // F5.3: primera espera — ningún setState síncrono para quien llame cargar().
+    await Promise.resolve();
     setCargando(true);
     try {
       const r = await repo.obtenerPrueba(id);
       // El servidor guarda los resultados como JSON opaco: se interpretan como
       // resultados del motor universal v3 (null si vienen corruptos/vacíos).
       if (r.ok)
-        setDetalle({
+        setDetalleCargado({
           ...r.data,
           resultados: (r.data.resultados as PruebaDetalle['resultados']) ?? null,
         });
@@ -222,13 +264,9 @@ export default function VerificacionTab() {
   }, []);
 
   useEffect(() => {
-    if (pruebaId) cargar(pruebaId);
-    else setDetalle(null);
-  }, [pruebaId, cargar]);
-
-  useEffect(() => {
-    setPaginaIdx(0);
-  }, [pruebaId]);
+    // F5.3: carga en callback (.then) — nunca setState síncrono en el efecto.
+    if (pruebaIdEfectiva) void Promise.resolve().then(() => cargar(pruebaIdEfectiva));
+  }, [pruebaIdEfectiva, cargar]);
 
   // Cierra el modal de reporte con Escape
   useEffect(() => {
@@ -247,18 +285,31 @@ export default function VerificacionTab() {
   );
 
   const campos = useMemo(() => (res ? res.paginas.flatMap((p) => p.campos) : []), [res]);
-  const okCount = campos.filter((c) => veredictoDe(c) === 'ok').length;
-  const tenueCount = campos.filter((c) => veredictoDe(c) === 'tenue').length;
-  const ausenteCount = campos.filter((c) => veredictoDe(c) === 'ausente').length;
+  // G-5: mismos criterios que el motor — GT OK = estado 'ok' (= ok_count).
+  const okCount = campos.filter((c) => c.estado === 'ok').length;
+  const tenueCount = campos.filter((c) => c.estado === 'requiere_revision' || (c.estado === 'ok' && (c.banderas.includes('umbral_al_borde') || c.banderas.includes('zona_vacia')))).length;
+  const ausenteCount = campos.filter((c) => c.estado === 'no_encontrado').length;
   const datosVariables = campos.filter((c) => c.tipo === 'texto' && typeof c.valor === 'string' && c.valor.trim());
   const anclas = campos.filter((c) => c.rect && c.fuente);
   const recortes = campos.filter((c) => c.crop);
 
-  // Umbrales por campo (definidos en el molde) para las tarjetas forenses
+  // Umbrales por campo (definidos en el molde) para las tarjetas forenses.
+  // N-11: si la definición del campo no está disponible (molde cambió, corrida
+  // vieja) se muestra «—» en vez de inventar un 0.12.
   const umbrales = useMemo(() => {
     const map = new Map<string, number>();
     (molde?.campos ?? []).forEach((c) => map.set(c.id, c.umbral));
     return map;
+  }, [molde]);
+
+  // G-7: campos que el molde marca como destacados (sustituye la heurística
+  // /total|pagar|valor|iva|precio/ de facturas).
+  const destacados = useMemo(() => {
+    const set = new Set<string>();
+    (molde?.campos ?? []).forEach((c) => {
+      if (c.destacado) set.add(c.id);
+    });
+    return set;
   }, [molde]);
 
   // Campos obligatorios del molde + su resultado en esta corrida
@@ -277,14 +328,20 @@ export default function VerificacionTab() {
 
   const scoreVal = detalle?.score ?? 0;
   const veredictoGlobal = useMemo(() => {
-    if (scoreVal >= 80) {
+    // N-6: umbral único compartido con la Biblioteca (antes 80 aquí vs ≥98/>98
+    // allí). Además, una corrida que requiere revisión (obligatorios faltantes,
+    // validación aritmética fallida, HTR pendiente) JAMÁS es «Aprobado».
+    if (detalle?.requiere_revision) {
+      return { icono: AlertTriangle, texto: 'Revisión · Verificación Pendiente', cls: 'bg-warning-surface text-warning-text' };
+    }
+    if (scoreVal >= UMBRAL_APROBADO) {
       return { icono: CheckCircle2, texto: 'Aprobado · Listo Producción', cls: 'bg-success-surface text-success-text' };
     }
     if (scoreVal >= 50) {
       return { icono: AlertTriangle, texto: 'Revisión · Ajustes Menores', cls: 'bg-warning-surface text-warning-text' };
     }
     return { icono: XCircle, texto: 'Rechazado · Requiere Calibración', cls: 'bg-danger-surface text-danger-text' };
-  }, [scoreVal]);
+  }, [scoreVal, detalle?.requiere_revision]);
 
   // Chip de veredicto global: mixto para el panel de métricas, mayúsculas para las tarjetas
   const IconoVeredicto = veredictoGlobal.icono;
@@ -315,7 +372,7 @@ export default function VerificacionTab() {
         estado: c.estado,
         valor: c.valor,
         ratio: c.ratio ?? null,
-        conf: Math.round(c.conf * 100) / 100,
+        conf: typeof c.conf === 'number' ? Math.round(c.conf * 100) / 100 : null,
         rect: c.rect,
         fuente: c.fuente ?? null,
         banderas: c.banderas,
@@ -337,49 +394,106 @@ export default function VerificacionTab() {
 
   // Pipeline directo desde Verificación: render → OCR → motor → guardar corrida.
   const correrArchivos = async (files: FileList | File[]) => {
-    const archivos = Array.from(files);
+    let archivos = Array.from(files);
     if (!archivos.length || !molde || !moldeId) return;
+    // Fase 3.2: nada de silencio — los tipos que el navegador no puede decodificar
+    // se avisan explícitamente (HEIC de iPhone según navegador, formatos raros).
+    const ACEPTADOS = /^image\/(png|jpe?g|webp|heic|heif)$|^application\/pdf$/;
+    const rechazados = archivos.filter(
+      (f) => !(ACEPTADOS.test(f.type) || f.name.toLowerCase().endsWith('.pdf') || f.type === ''),
+    );
+    if (rechazados.length) {
+      toast({
+        title: `Archivo(s) ignorado(s) por tipo`,
+        description: `${rechazados.map((f) => f.name).join(', ')} — usa PNG, JPEG, WebP, PDF o HEIC (si tu navegador lo soporta).`,
+        variant: 'destructive',
+      });
+    }
+    archivos = archivos.filter((f) => !rechazados.includes(f));
+    if (!archivos.length) return;
+    const hayHeic = archivos.some((f) => /image\/hei[cf]/.test(f.type));
+    if (hayHeic) {
+      toast({
+        title: 'Foto HEIC detectada',
+        description: 'Safari la procesa nativamente; en Chrome/Firefox conviértela a JPEG si la corrida falla al renderizar.',
+      });
+    }
     setProcesando(true);
     let ultimoId: string | undefined;
     setOcrProgress((m) => {
       if (m.status.includes('recognizing')) setProgresoMsg(`OCR ${Math.round(m.progress * 100)}%`);
     });
     try {
-      for (const f of archivos) {
-        setProgresoMsg(`Renderizando ${f.name}...`);
+      // Fase 3.1 (N-3): varias imágenes + molde multi-página → UNA sola corrida
+      // con todas las páginas (renderArchivos ya existía pero tenía 0 usos).
+      // Orden asumido: por nombre de archivo (pág. 1 antes que pág. 2).
+      const moldeMultipagina = molde.campos.some((c) => c.pagina >= 2);
+      const soloImagenes = archivos.every((f) => !f.type.includes('pdf') && !f.name.toLowerCase().endsWith('.pdf'));
+      if (archivos.length >= 2 && soloImagenes && moldeMultipagina) {
+        const ordenados = [...archivos].sort((a, b) => a.name.localeCompare(b.name, 'es', { numeric: true }));
+        setProgresoMsg(`Renderizando ${ordenados.length} páginas (${ordenados.map((f) => f.name).join(' → ')})...`);
         try {
-          const doc = await renderDocumento(f);
-          const res = await evaluarDocumentoUniversal(doc.canvases, molde, f.name, (msg) => setProgresoMsg(msg));
-          // Persiste el documento fuente en el servidor para que esta corrida
-          // sea re-ejecutable desde "Probar Plantilla" sin volver a subirlo.
-          let fuenteUrl: string | null = null;
-          setProgresoMsg('Guardando archivo fuente...');
-          for (let intento = 0; intento < 2 && !fuenteUrl; intento++) {
-            try {
-              const subida = await repo.subirArchivo(f, f.name);
-              if (subida.ok) fuenteUrl = subida.data.url;
-            } catch {
-              // Reintento: la fuente es lo que habilita la re-ejecución
-              // automática con los cambios guardados del molde.
-            }
-          }
+          const doc = await renderArchivos(ordenados);
+          const nombreCorrida = `${ordenados[0].name} (+${ordenados.length - 1})`;
+          const res = await evaluarDocumentoUniversal(doc.canvases, molde, nombreCorrida, (msg) => setProgresoMsg(msg));
+          const fuente = await subirFuente(ordenados[0]);
           const guardar = await repo.crearPrueba({
             moldeId,
-            archivo: f.name,
-            fuenteUrl,
+            archivo: nombreCorrida,
+            fuenteUrl: fuente,
             resultados: res,
             score: res.score,
             requiereRevision: res.requiere_revision,
           });
           if (guardar.ok) ultimoId = guardar.data.id;
+          const faltantes = res.paginas.flatMap((p) => p.campos).filter((c) => c.banderas.includes('pagina_faltante')).length;
           toast({
-            title: `Corrida completada: ${f.name}`,
-            description: !fuenteUrl
-              ? `Score ${res.score}% · ${res.ok_count}/${res.total} campos OK — ATENCIÓN: sin archivo fuente, esta corrida NO podrá re-ejecutarse automáticamente.`
-              : `Score ${res.score}% · ${res.ok_count}/${res.total} campos OK`,
+            title: `Corrida multi-página completada: ${nombreCorrida}`,
+            description: `Score ${res.score}% · ${res.ok_count}/${res.total} campos OK${faltantes ? ` · ATENCIÓN: ${faltantes} campos de páginas no subidas` : ''}`,
           });
         } catch (e) {
-          toast({ title: `Error procesando ${f.name}`, description: (e as Error).message, variant: 'destructive' });
+          toast({ title: 'Error en la corrida multi-página', description: (e as Error).message, variant: 'destructive' });
+        }
+      } else {
+        if (archivos.length >= 2 && moldeMultipagina) {
+          toast({
+            title: 'Cada archivo se corre por separado',
+            description: 'Hay un PDF en la selección: un PDF ya trae sus páginas propias.',
+          });
+        }
+        if (archivos.length === 1 && moldeMultipagina && !archivos[0].type.includes('pdf') && !archivos[0].name.toLowerCase().endsWith('.pdf')) {
+          // Fase 3.1: 1 foto + molde de 2 páginas → el documento parece incompleto.
+          toast({
+            title: 'El documento parece incompleto',
+            description: 'Este molde define campos en la página 2: sube también esa foto (juntas) para una corrida completa.',
+          });
+        }
+        for (const f of archivos) {
+          setProgresoMsg(`Renderizando ${f.name}...`);
+          try {
+            const doc = await renderDocumento(f);
+            const res = await evaluarDocumentoUniversal(doc.canvases, molde, f.name, (msg) => setProgresoMsg(msg));
+            // Persiste el documento fuente en el servidor para que esta corrida
+            // sea re-ejecutable desde "Probar Plantilla" sin volver a subirlo.
+            const fuenteUrl = await subirFuente(f);
+            const guardar = await repo.crearPrueba({
+              moldeId,
+              archivo: f.name,
+              fuenteUrl,
+              resultados: res,
+              score: res.score,
+              requiereRevision: res.requiere_revision,
+            });
+            if (guardar.ok) ultimoId = guardar.data.id;
+            toast({
+              title: `Corrida completada: ${f.name}`,
+              description: !fuenteUrl
+                ? `Score ${res.score}% · ${res.ok_count}/${res.total} campos OK — ATENCIÓN: sin archivo fuente, esta corrida NO podrá re-ejecutarse automáticamente.`
+                : `Score ${res.score}% · ${res.ok_count}/${res.total} campos OK`,
+            });
+          } catch (e) {
+            toast({ title: `Error procesando ${f.name}`, description: (e as Error).message, variant: 'destructive' });
+          }
         }
       }
     } finally {
@@ -389,6 +503,21 @@ export default function VerificacionTab() {
       await cargarPruebas(moldeId);
       if (ultimoId) setPruebaId(ultimoId);
     }
+  };
+
+  /** Sube el documento fuente con reintento (habilita la re-ejecución). */
+  const subirFuente = async (f: File): Promise<string | null> => {
+    setProgresoMsg('Guardando archivo fuente...');
+    for (let intento = 0; intento < 2; intento++) {
+      try {
+        const subida = await repo.subirArchivo(f, f.name);
+        if (subida.ok) return subida.data.url;
+      } catch {
+        // Reintento: la fuente es lo que habilita la re-ejecución
+        // automática con los cambios guardados del molde.
+      }
+    }
+    return null;
   };
 
   const onArchivosInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -476,8 +605,11 @@ export default function VerificacionTab() {
   useEffect(() => {
     if (!pendienteReejecutar || cargando) return;
     if (!detalle) return; // espera la carga de la corrida seleccionada
-    consumirReejecucion();
-    void reejecutarCorrida(detalle);
+    // F5.3: el flag one-shot se consume en callback (.then), no síncrono.
+    void Promise.resolve().then(() => {
+      consumirReejecucion();
+      void reejecutarCorrida(detalle);
+    });
   }, [pendienteReejecutar, detalle, cargando, consumirReejecucion, reejecutarCorrida]);
 
   // Selección de corrida en la barra "Comparar Molde": además de mostrar sus
@@ -486,25 +618,19 @@ export default function VerificacionTab() {
   // automáticamente con el molde vigente — sin pulsar nada más ni crear
   // corridas nuevas. Las corridas al día NO se re-ejecutan (ya reflejan la
   // versión guardada actual).
-  const seleccionarCorrida = useCallback(
-    (p: PruebaDB) => {
-      setPruebaId(p.id);
-      if (
-        !procesando &&
-        p.fuenteUrl &&
-        esCorridaDesactualizada(p.updatedAt ?? p.createdAt)
-      ) {
-        void reejecutarCorrida({ id: p.id, archivo: p.archivo, fuente_url: p.fuenteUrl });
-      }
-    },
-    [esCorridaDesactualizada, procesando, reejecutarCorrida, setPruebaId],
-  );
-
-  // Primera entrada a Verificación sin corrida seleccionada: misma lógica que
-  // el cambio de número (si la primera quedó desactualizada, se re-ejecuta).
-  useEffect(() => {
-    if (!pruebaId && pruebas.length > 0) seleccionarCorrida(pruebas[0]);
-  }, [pruebaId, pruebas, seleccionarCorrida]);
+  // F5.3: función plana (el compiler no puede preservar el useCallback con
+  // setters de zustand dentro). La primera corrida ya no necesita efecto: la
+  // selección derivada (pruebaIdEfectiva) la muestra automáticamente.
+  function seleccionarCorrida(p: PruebaDB) {
+    setPruebaId(p.id);
+    if (
+      !procesando &&
+      p.fuenteUrl &&
+      corridaDesactualizada(tMolde, p.updatedAt ?? p.createdAt)
+    ) {
+      void reejecutarCorrida({ id: p.id, archivo: p.archivo, fuente_url: p.fuenteUrl });
+    }
+  }
 
   async function eliminarCorrida(id: string) {
     const del = await repo.eliminarPrueba(id);
@@ -925,6 +1051,91 @@ export default function VerificacionTab() {
                     Regla {obligCumplidos}/{obligTotal} {reglaSatisfecha ? 'Satisfecha' : 'Pendiente'}
                   </span>
                 </div>
+
+                {/* G-2: métricas separadas — el score global mezcla conceptos;
+                    diligenciado (tinta) y lectura (texto válido) se reportan aparte. */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border border-surface-container bg-surface-container-low p-2 dark:border-slate-800 dark:bg-slate-800/40">
+                    <p className="font-mono text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Diligenciado (tinta)</p>
+                    <p className="font-mono text-sm font-bold text-on-surface">
+                      {res.pct_diligenciado !== null && res.pct_diligenciado !== undefined ? `${res.pct_diligenciado}%` : '—'}
+                    </p>
+                    <p className="font-mono text-[9px] text-on-surface-variant">campos de tinta con trazo / total</p>
+                  </div>
+                  <div className="rounded-lg border border-surface-container bg-surface-container-low p-2 dark:border-slate-800 dark:bg-slate-800/40">
+                    <p className="font-mono text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Lectura (texto válido)</p>
+                    <p className="font-mono text-sm font-bold text-on-surface">
+                      {res.pct_lectura !== null && res.pct_lectura !== undefined ? `${res.pct_lectura}%` : '—'}
+                    </p>
+                    <p className="font-mono text-[9px] text-on-surface-variant">campos de texto leídos OK / total</p>
+                  </div>
+                </div>
+
+                {/* Fase 2.2: validaciones aritméticas de cierre */}
+                {res.validaciones && res.validaciones.length > 0 ? (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <ListChecks className="h-3.5 w-3.5 text-brand" aria-hidden />
+                      <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-on-surface">
+                        Validaciones de Cierre ({res.validaciones.filter((v) => v.ok === true).length}/{res.validaciones.length})
+                      </span>
+                    </div>
+                    {res.validaciones.map((v) => (
+                      <div
+                        key={v.id}
+                        className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 ${
+                          v.ok === true
+                            ? 'border-surface-container bg-surface-container-low dark:border-slate-800 dark:bg-slate-800/40'
+                            : v.ok === false
+                              ? 'border-danger/30 bg-danger-surface/60 dark:border-danger/40 dark:bg-danger-surface/20'
+                              : 'border-warning/30 bg-warning-surface/60 dark:border-warning/40 dark:bg-warning-surface/20'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-mono text-[10px] font-bold text-on-surface">{v.expresion}</p>
+                          <p className="truncate font-mono text-[9px] text-on-surface-variant">{v.detalle}</p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[9px] font-bold ${
+                            v.ok === true
+                              ? 'bg-success-surface text-success-text'
+                              : v.ok === false
+                                ? 'bg-danger/15 text-danger-text'
+                                : 'bg-warning/15 text-warning-text'
+                          }`}
+                        >
+                          {v.ok === true ? 'CIERRA' : v.ok === false ? 'NO CIERRA' : 'NO EVALUABLE'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {/* Fase 3.1/3.3: avisos de documento incompleto o página equivocada */}
+                {campos.some((c) => c.banderas.includes('pagina_faltante')) ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning-surface/60 px-3 py-2 dark:border-warning/40 dark:bg-warning-surface/20">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning-text" aria-hidden />
+                    <p className="text-xs text-on-surface">
+                      El documento parece <span className="font-semibold">incompleto</span>: hay campos de páginas que no se subieron.
+                    </p>
+                  </div>
+                ) : null}
+                {campos.some((c) => c.banderas.includes('posible_pagina_equivocada')) ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning-surface/60 px-3 py-2 dark:border-warning/40 dark:bg-warning-surface/20">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning-text" aria-hidden />
+                    <p className="text-xs text-on-surface">
+                      <span className="font-semibold">Posible página equivocada</span>: una página no coincidió con ninguna ancla de su número de página.
+                    </p>
+                  </div>
+                ) : null}
+                {campos.some((c) => c.banderas.includes('rotacion_180_corregida')) ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-brand/40 bg-brand-surface/60 px-3 py-2 dark:border-brand/40 dark:bg-slate-800/60">
+                    <RefreshCw className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden />
+                    <p className="text-xs text-on-surface">
+                      Una página venía <span className="font-semibold">rotada 180°</span> y se evaluó volteada automáticamente.
+                    </p>
+                  </div>
+                ) : null}
               </>
             ) : (
               <p className="py-3 text-center text-xs text-on-surface-variant">
@@ -968,7 +1179,9 @@ export default function VerificacionTab() {
                           </p>
                         ) : (
                           datosVariables.map((c) => {
-                            const destacado = /total|pagar|valor|iva|precio/i.test(c.etiqueta);
+                            // G-7: el resaltado lo decide el molde (campo
+                            // `destacado`), no una heurística de facturas.
+                            const destacado = destacados.has(c.id);
                             return (
                               <div
                                 key={`${c.pagina}-${c.id}`}
@@ -1045,7 +1258,7 @@ export default function VerificacionTab() {
                         <TarjetaRecorte
                           key={`${c.pagina}-${c.id}`}
                           campo={c}
-                          umbral={umbrales.get(c.id) ?? 0.12}
+                          umbral={umbrales.get(c.id) ?? null}
                           chipVeredicto={chipVeredicto(true)}
                         />
                       ))}
@@ -1102,7 +1315,7 @@ export default function VerificacionTab() {
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 bg-surface-container px-4 py-2.5 dark:bg-slate-800">
               <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
-                Compatible con e14.schema.v2.json
+                Formato resultados v3 (motor universal)
               </span>
               <div className="flex items-center gap-2">
                 <Button
@@ -1130,7 +1343,7 @@ export default function VerificacionTab() {
         ref={inputArchivoRef}
         type="file"
         multiple
-        accept="image/png,image/jpeg,image/webp,application/pdf"
+        accept="image/png,image/jpeg,image/webp,image/heic,image/heif,application/pdf"
         className="hidden"
         onChange={onArchivosInput}
         aria-hidden
@@ -1146,7 +1359,8 @@ function TarjetaRecorte({
   chipVeredicto,
 }: {
   campo: ResultadoCampoUniversal;
-  umbral: number;
+  /** N-11: null = definición del campo no disponible en esta corrida (molde cambió). */
+  umbral: number | null;
   chipVeredicto: ReactNode;
 }) {
   const v = veredictoDe(campo);
@@ -1155,8 +1369,12 @@ function TarjetaRecorte({
   const esTexto = campo.tipo === 'texto';
   const esFirma = campo.tipo === 'firma';
   const ratioPct = typeof campo.ratio === 'number' ? campo.ratio * 100 : null;
-  const confPct = Math.round(campo.conf * 100);
-  const umbralPct = Math.round(umbral * 1000) / 10;
+  // G-3/N-9: conf null = el OCR no reportó confianza; jamás se inventa un número.
+  const confTxt = typeof campo.conf === 'number' ? `${Math.round(campo.conf * 100)}%` : 'sin conf.';
+  const umbralPct = umbral !== null ? Math.round(umbral * 1000) / 10 : null;
+  // G-6: dimensiones REALES del crop de la corrida (antes 2480×3508 @300DPI
+  // hardcodeado, falso para fotos de 785×2526 px).
+  const dimsTxt = campo.crop_dims ? `${campo.crop_dims[0]}×${campo.crop_dims[1]}px` : '—';
   const trazo =
     esTexto && typeof campo.valor === 'string'
       ? `${campo.valor.length} Caracteres`
@@ -1225,8 +1443,7 @@ function TarjetaRecorte({
           />
         )}
         <span className="absolute bottom-1 right-1.5 rounded bg-slate-900/85 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-200">
-          {Math.round((campo.rect?.w ?? 0) * 2480)}×{Math.round((campo.rect?.h ?? 0) * 3508)}px @{' '}
-          {esTexto ? '300 DPI' : 'Crop Forense'}
+          {dimsTxt} · {esTexto ? 'Recorte OCR' : 'Crop Forense'}
         </span>
       </div>
 
@@ -1243,7 +1460,13 @@ function TarjetaRecorte({
           <strong className={ausente ? 'text-danger-text' : 'text-success-text'}>
             {ratioPct !== null ? `${ratioPct.toFixed(1)}%` : '—'}
           </strong>{' '}
-          <span className="text-on-surface-variant">({ausente ? 'Requerido' : 'Umbral'} {umbralPct.toFixed(1)}%)</span>
+          <span className="text-on-surface-variant">
+            {umbralPct !== null ? (
+              <>({ausente ? 'Requerido' : 'Umbral'} {umbralPct.toFixed(1)}%)</>
+            ) : (
+              <abbr title="La definición del campo no está disponible en esta corrida (el molde cambió o es una corrida vieja)">umbral n/d</abbr>
+            )}
+          </span>
         </div>
         <div>
           <span className={ausente ? 'text-danger-text' : 'text-outline-dim'}>Trazo Continuo: </span>
@@ -1266,13 +1489,13 @@ function TarjetaRecorte({
           ) : esTexto ? (
             <>
               <span className="font-bold text-success-text">
-                Lectura HTR: &apos;{typeof campo.valor === 'string' ? campo.valor : '—'}&apos; ({confPct}%)
+                Lectura HTR: &apos;{typeof campo.valor === 'string' ? campo.valor : '—'}&apos; ({confTxt})
               </span>
-              <span className="text-on-surface-variant">Consistencia: OK</span>
+              <span className="text-on-surface-variant">{campo.estado === 'requiere_revision' ? 'Revisión pendiente' : 'Consistencia: OK'}</span>
             </>
           ) : (
             <>
-              <span className="font-bold text-success-text">Presencia de Trazo: {confPct}%</span>
+              <span className="font-bold text-success-text">Presencia de Trazo: {confTxt}</span>
               {v !== 'ok' ? <span className="text-warning-text">Umbral al borde</span> : null}
             </>
           )}
@@ -1281,14 +1504,20 @@ function TarjetaRecorte({
           <div
             className={`h-full rounded-full ${ausente ? 'bg-danger' : v === 'tenue' ? 'bg-warning' : 'bg-success'}`}
             style={{
-              width: `${ausente ? Math.max(2, Math.round((campo.ratio ?? 0) * 100)) : Math.max(confPct, 4)}%`,
+              width: `${
+                ausente
+                  ? Math.max(2, Math.round((campo.ratio ?? 0) * 100))
+                  : Math.max(typeof campo.conf === 'number' ? Math.round(campo.conf * 100) : 4, 4)
+              }%`,
             }}
           />
-          <div
-            className="absolute inset-y-0 w-0.5 bg-slate-900 dark:bg-slate-200"
-            style={{ left: `${umbralPct}%` }}
-            title={`Umbral mínimo ${umbralPct.toFixed(1)}%`}
-          />
+          {umbralPct !== null ? (
+            <div
+              className="absolute inset-y-0 w-0.5 bg-slate-900 dark:bg-slate-200"
+              style={{ left: `${umbralPct}%` }}
+              title={`Umbral mínimo ${umbralPct.toFixed(1)}%`}
+            />
+          ) : null}
         </div>
       </div>
     </article>

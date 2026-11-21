@@ -47,6 +47,7 @@ import { useToast } from '@/hooks/use-toast';
 import { importarMoldeE14, pareceMoldeE14 } from '@/lib/molde/importar-e14';
 import {
   MOLDE_UNIVERSAL_VERSION,
+  UMBRAL_APROBADO,
   esMoldeUniversal,
   nuevoIdCampo,
   type MoldeUniversal,
@@ -100,13 +101,14 @@ function statsDe(m: MoldeDB): StatsMolde {
   } catch {
     molde = null;
   }
-  // Meta de presentación (diseño Stitch) sobresale sobre los stats reales.
+  // Meta de presentación (diseño Stitch) — G-1: `precision_declarada` es solo
+  // informativa; el número de la tarjeta es SIEMPRE el score calculado de la
+  // última corrida real (antes meta.precision lo sobrescribía con un 82 falso).
   const meta = molde?.meta;
-  const precisionCalculada = m.pruebas?.[0]?.score ?? null;
-  const precision = meta?.precision ?? precisionCalculada;
+  const precision = m.pruebas?.[0]?.score ?? null;
   const docs = meta?.docs ?? m._count?.pruebas ?? 0;
   const estadoCalculado: StatsMolde['estado'] =
-    precision !== null && precision >= 98 ? 'Activo' : precision !== null ? 'Validando' : 'En Calibración';
+    precision !== null && precision >= UMBRAL_APROBADO ? 'Activo' : precision !== null ? 'Validando' : 'En Calibración';
   const estado: StatsMolde['estado'] =
     meta?.estado === 'ninguno'
       ? null
@@ -168,7 +170,8 @@ export default function MoldesTab() {
     moldes.forEach((m) => {
       const s = statsPorId.get(m.id)!;
       if (s.estado === 'Activo') activo += 1;
-      if (s.precision !== null && s.precision > 98) preciso += 1;
+      // N-6: un solo umbral compartido (>=) — antes >98 aquí y >=98 en estado.
+      if (s.precision !== null && s.precision >= UMBRAL_APROBADO) preciso += 1;
       if (s.estado === 'En Calibración') calibrando += 1;
     });
     return { todos: moldes.length, activo, preciso, calibrando };
@@ -180,7 +183,7 @@ export default function MoldesTab() {
         const s = statsPorId.get(m.id);
         if (!s) return false;
         if (filtro === 'activo' && s.estado !== 'Activo') return false;
-        if (filtro === 'preciso' && !(s.precision !== null && s.precision > 98)) return false;
+        if (filtro === 'preciso' && !(s.precision !== null && s.precision >= UMBRAL_APROBADO)) return false;
         if (filtro === 'calibrando' && s.estado !== 'En Calibración') return false;
         const q = busqueda.toLowerCase();
         return (
@@ -277,13 +280,23 @@ export default function MoldesTab() {
   async function duplicar(id: string) {
     const m = moldes.find((x) => x.id === id);
     if (!m) return;
-    const molde = JSON.parse(m.json) as MoldeUniversal;
+    // N-8: el duplicado no puede ser mudo — un JSON corrupto en la biblioteca
+    // debe producir feedback, no un stack trace invisible.
+    let molde: MoldeUniversal;
+    try {
+      molde = JSON.parse(m.json) as MoldeUniversal;
+    } catch {
+      toast({ title: 'JSON del molde inválido', description: `No se pudo duplicar «${m.nombre}»: el JSON guardado está corrupto.`, variant: 'destructive' });
+      return;
+    }
     molde.nombre = `${molde.nombre} (copia)`;
     molde.campos = molde.campos.map((c) => ({ ...c, id: nuevoIdCampo() }));
     const r = await repo.crearMolde({ json: molde });
     if (r.ok) {
       await cargarMoldes();
       toast({ title: 'Molde duplicado' });
+    } else {
+      toast({ title: 'No se pudo duplicar', description: r.error, variant: 'destructive' });
     }
   }
 
@@ -396,7 +409,7 @@ export default function MoldesTab() {
             [
               { id: 'todos', label: `Todos (${conteos.todos})` },
               { id: 'activo', label: `Activo (${conteos.activo})` },
-              { id: 'preciso', label: '>98% Precisión' },
+              { id: 'preciso', label: `≥${UMBRAL_APROBADO}% Precisión` },
               { id: 'calibrando', label: 'En Calibración' },
             ] as { id: Filtro; label: string }[]
           ).map((f) => (

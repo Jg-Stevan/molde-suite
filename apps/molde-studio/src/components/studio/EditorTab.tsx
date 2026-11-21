@@ -55,9 +55,12 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { alinearAnclas, rectEditor } from '@/lib/molde/universal-engine';
+import { alinearAnclas, rectEditor, sugerirUmbral } from '@/lib/molde/universal-engine';
+import { escalarCanvas, renderDocumento } from '@/lib/ocr/pdf-client';
 import {
   MOLDE_UNIVERSAL_VERSION,
+  erroresMolde,
+  esMoldeUniversal,
   hexTipo,
   nuevoIdCampo,
   type CampoUniversal,
@@ -93,7 +96,10 @@ async function imagenACanvas(url: string): Promise<HTMLCanvasElement> {
   c.width = img.naturalWidth;
   c.height = img.naturalHeight;
   c.getContext('2d')!.drawImage(img, 0, 0);
-  return c;
+  // Matiz 2 (Fase 2.6): el editor calibra y alinea sobre el MISMO render de
+  // 1000 px que usa el motor en la verificación (antes usaba la resolución
+  // natural de la foto y los rects capturados quedaban en otra escala).
+  return escalarCanvas(c, 1000);
 }
 
 // FIX (rendimiento): caché de canvases decodificados por URL. Antes, el recorte
@@ -199,6 +205,9 @@ export default function EditorTab() {
   // solo se recorta si campoSel.pagina === pagina; si no, se limpia y la UI
   // avisa en lugar de mostrar un recorte engañoso.
   const recortarPreview = useCallback(async () => {
+    // F5.3: primera espera para que ningún setState corra síncronamente dentro
+    // del efecto que invoca esta función (react-hooks/set-state-in-effect).
+    await Promise.resolve();
     if (!campoSel || !imagenRef || !campoSel.zona || campoSel.pagina !== pagina) {
       setCropPreview(null);
       setCropDims(null);
@@ -244,7 +253,9 @@ export default function EditorTab() {
   }, [campoSel, imagenRef, pagina]);
 
   useEffect(() => {
-    recortarPreview();
+    // F5.3: el recorte se calcula en callback (patrón .then aceptado por
+    // react-hooks/set-state-in-effect: nunca setState síncrono en el efecto).
+    void Promise.resolve().then(recortarPreview);
   }, [recortarPreview]);
 
   // FIX: el pointerup puede ocurrir FUERA del viewport (soltar el mouse sobre
@@ -393,9 +404,32 @@ export default function EditorTab() {
   async function subirImagen(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f || !molde) return;
+    // Fase 3.2 (G-12): aceptar también PDF como referencia — se rasteriza la
+    // página actual a PNG antes de subirla, así el editor siempre trabaja con imagen.
+    let archivo: File = f;
+    if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
+      setSubiendo(true);
+      try {
+        const doc = await renderDocumento(f);
+        const paginaIdx = Math.min(pagina - 1, doc.canvases.length - 1);
+        const canvas = doc.canvases[paginaIdx];
+        const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'));
+        if (!blob) throw new Error('No se pudo rasterizar el PDF');
+        archivo = new File([blob], `${f.name.replace(/\.pdf$/i, '')}-p${paginaIdx + 1}.png`, { type: 'image/png' });
+      } catch (err) {
+        toast({ title: 'Error al procesar el PDF', description: (err as Error).message, variant: 'destructive' });
+        return;
+      } finally {
+        setSubiendo(false);
+      }
+    } else if (f.type && !/^image\/(png|jpe?g|webp|heic|heif)$/.test(f.type)) {
+      // Fase 3.2 (N-13): rechazo explícito, nunca silencioso.
+      toast({ title: 'Formato no soportado', description: `${f.name} (${f.type}) — usa PNG, JPEG, WebP, HEIC o PDF.`, variant: 'destructive' });
+      return;
+    }
     setSubiendo(true);
     try {
-      const subida = await repo.subirArchivo(f, f.name);
+      const subida = await repo.subirArchivo(archivo, archivo.name);
       if (!subida.ok) {
         toast({ title: 'Error al subir imagen', description: subida.error, variant: 'destructive' });
         return;
@@ -436,7 +470,55 @@ export default function EditorTab() {
     }
   }
 
+  // ---- Fase 2.1: sugerir umbral a partir de las corridas reales ----
+  // Sobre la corrida más reciente de este molde, mira los ratios de tinta ya
+  // medidos del campo activo y sugiere umbral = trazo más fino × 0.7.
+  async function sugerirUmbralClick() {
+    if (!campoSel || !moldeId) return;
+    const estado = useStudio.getState();
+    const candidatas = estado.pruebas.filter((p) => p.moldeId === moldeId);
+    if (!candidatas.length) {
+      toast({
+        title: 'Sin corridas para calibrar',
+        description: 'Corre al menos una verificación con este molde y vuelve a intentarlo.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    for (const p of candidatas) {
+      const r = await repo.obtenerPrueba(p.id);
+      if (!r.ok || !r.data.resultados) continue;
+      const s = sugerirUmbral(r.data.resultados as Parameters<typeof sugerirUmbral>[0], campoSel.id);
+      if (s.sugerido !== null) {
+        actualizarCampo(campoSel.id, { umbral: s.sugerido });
+        toast({
+          title: `Umbral sugerido: ${(s.sugerido * 100).toFixed(2)}%`,
+          description: `Traza más fina medida: ${((s.minConTinta as number) * 100).toFixed(2)}%${s.maxSinTinta !== null ? ` · celda vacía más «sucia»: ${(s.maxSinTinta * 100).toFixed(2)}%` : ''} · criterio: trazo × 0.7.`,
+        });
+        return;
+      }
+    }
+    toast({
+      title: 'Este campo no tiene mediciones',
+      description: 'Ninguna corrida guardada midió tinta en esta zona. Corre una verificación primero.',
+      variant: 'destructive',
+    });
+  }
+
   async function guardar() {
+    // G-10: no se puede guardar un molde que el motor no pueda ejecutar
+    // (ancla_relativa con ancla vacía o zonas inválidas).
+    if (molde) {
+      const problemas = erroresMolde(molde);
+      if (problemas.length) {
+        toast({
+          title: 'El molde tiene problemas',
+          description: problemas.slice(0, 3).join(' · ') + (problemas.length > 3 ? ` … (+${problemas.length - 3})` : ''),
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
     setGuardando(true);
     try {
       await guardarMoldeActual();
@@ -446,15 +528,27 @@ export default function EditorTab() {
   }
 
   function aplicarJson() {
+    // G-9: validador REAL — antes un JSON sin `zona` pasaba el chequeo de
+    // forma y reventaba el editor al renderizar (campoSel.zona[k], .umbral.toFixed).
+    let obj: unknown;
     try {
-      const obj = JSON.parse(jsonAplicar) as MoldeUniversal;
-      if (obj.tipo !== 'universal' || !Array.isArray(obj.campos)) throw new Error('estructura inválida');
-      setMoldeActual(obj);
-      setJsonAplicar('');
-      toast({ title: 'JSON aplicado al editor', description: 'Recuerda guardar.' });
+      obj = JSON.parse(jsonAplicar);
     } catch (e) {
       toast({ title: 'JSON inválido', description: (e as Error).message, variant: 'destructive' });
+      return;
     }
+    if (!esMoldeUniversal(obj)) {
+      const problemas = erroresMolde(obj).slice(0, 3).join(' · ');
+      toast({
+        title: 'Estructura de molde inválida',
+        description: problemas || 'Se espera { tipo: "universal", nombre, campos[] }',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setMoldeActual(obj);
+    setJsonAplicar('');
+    toast({ title: 'JSON aplicado al editor', description: 'Recuerda guardar.' });
   }
 
   function descargarJson() {
@@ -943,8 +1037,33 @@ export default function EditorTab() {
                 camposPagina.map((c) => {
                   if (ocultos.has(c.id)) return null;
                   const rect = rectEditor(c);
-                  if (!rect) return null;
                   const activo = c.id === campoSeleccionadoId;
+                  // G-10: ancla_relativa sin rect resoluble (ancla vacía o sin
+                  // capturar) se pinta como NO EVALUABLE con hatch rojo — nunca
+                  // como una zona válida donde el motor nunca medirá.
+                  if (!rect) {
+                    if (c.estrategia !== 'ancla_relativa') return null;
+                    return (
+                      <div
+                        key={c.id}
+                        className="pointer-events-none absolute border-2 border-dashed border-rose-500/80"
+                        style={{
+                          left: `${CLAMP(c.zona.x, -0.2, 0.98) * 100}%`,
+                          top: `${CLAMP(c.zona.y, -0.2, 0.98) * 100}%`,
+                          width: `${c.zona.w * 100}%`,
+                          height: `${c.zona.h * 100}%`,
+                          backgroundImage:
+                            'repeating-linear-gradient(45deg, rgba(244,63,94,0.25) 0 6px, transparent 6px 12px)',
+                        }}
+                      >
+                        {verEtiquetas ? (
+                          <span className="absolute -top-5 left-0 max-w-full truncate rounded bg-rose-600 px-1.5 py-0.5 font-mono text-[9px] font-bold text-white">
+                            NO EVALUABLE · falta ancla
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  }
                   return (
                     <div
                       key={c.id}
@@ -1030,7 +1149,7 @@ export default function EditorTab() {
               )}
             </div>
           </div>
-          <input ref={inputImagenRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={subirImagen} aria-hidden />
+          <input ref={inputImagenRef} type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,application/pdf" className="hidden" onChange={subirImagen} aria-hidden />
         </section>
 
         {/* -------- Derecha: propiedades / JSON -------- */}
@@ -1297,15 +1416,25 @@ export default function EditorTab() {
                       </AccordionTrigger>
                       <AccordionContent className="space-y-3 pb-3">
                         <div className="space-y-1">
-                          <Label htmlFor="insp-umbral" className="text-[11px] text-slate-400">
-                            Umbral tinta: <span className="font-mono text-indigo-400">{campoSel.umbral.toFixed(3)}</span>
-                          </Label>
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="insp-umbral" className="text-[11px] text-slate-400">
+                              Umbral tinta: <span className="font-mono text-indigo-400">{campoSel.umbral.toFixed(3)}</span>
+                            </Label>
+                            <button
+                              type="button"
+                              onClick={sugerirUmbralClick}
+                              className="rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-300 transition hover:bg-slate-800"
+                              title="Calcula el umbral a partir de los ratios de tinta medidos en las corridas guardadas (trazo más fino × 0.7)"
+                            >
+                              ✨ Sugerir umbral
+                            </button>
+                          </div>
                           <Slider
                             id="insp-umbral"
                             value={[campoSel.umbral]}
-                            min={0.005}
+                            min={0.001}
                             max={0.4}
-                            step={0.005}
+                            step={0.001}
                             onValueChange={(v) => actualizarCampo(campoSel.id, { umbral: v[0] })}
                           />
                         </div>

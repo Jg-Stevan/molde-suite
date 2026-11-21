@@ -8,9 +8,15 @@
 //   2. Para cada campo de esa página:
 //      - Resolver el rect final (fijo, ancla fuzzy, respaldo o fallback).
 //      - Recortar y binarizar sin líneas impresas -> densidad de tinta.
-//      - tipo presencia/firma/checkbox: diligenciado si ratio >= umbral.
-//      - tipo texto: OCR del recorte (psm 7) + regex opcional.
+//      - tipo presencia/firma/checkbox: diligenciado si ratio >= umbral, con
+//        banda de indeterminación (0.6x–1.4x del umbral) en requiere_revision.
+//      - tipo texto: OCR del recorte (psm 7) + regex anclado + limpieza.
 //      - Generar la captura JPEG de la zona (crop) para la verificación.
+//   3. Validaciones aritméticas de cierre entre campos (Fase 2.2).
+//
+// Principio rector (Fase 2 del plan): los datos que importan se leen o se
+// rechazan con razón — NUNCA se inventan. Ningún campo termina "ok" con
+// confianza inexistente; los manuscritos (HTR) siempre pasan por revisión.
 
 import {
   binarizeNoLines,
@@ -30,6 +36,7 @@ import {
   type ResultadoCampoUniversal,
   type ResultadoPaginaUniversal,
   type ResultadoUniversal,
+  type ResultadoValidacion,
 } from './universal-types';
 
 // ---- utilidades ----
@@ -118,7 +125,13 @@ export function buscarAncla(
           const cy = (palabras[i].bbox[1] + palabras[j].bbox[3]) / 2 / canvasH;
           const dx = Math.abs(cx - (rectEsperado.x + rectEsperado.w / 2));
           const dy = Math.abs(cy - (rectEsperado.y + rectEsperado.h / 2));
-          score *= Math.max(0.1, 1 - (dx + dy) * 4);
+          // Matiz 1 (Fase 2.6): penalización de posición SUAVIZADA. Antes
+          // `score *= max(0.1, 1 - (dx+dy)*4)` hacía caer un match textual
+          // PERFECTO (1.000) a 0.692 con un desplazamiento de solo 0.077
+          // (caso recuento_marca de Transmisión pág. 2) — por debajo del corte
+          // 0.72 y caía al fallback. La curva 1/(1+3d) mantiene 0.812 con
+          // d=0.077 y sigue separando etiquetas lejanas (d=0.25 → 0.57).
+          score *= 1 / (1 + 3 * (dx + dy));
         }
         if (!mejor || score > mejor.score) {
           mejor = {
@@ -201,31 +214,57 @@ export function rectEditor(campo: CampoUniversal): RectNorm | null {
   };
 }
 
-function rectAPx(rect: RectNorm, w: number, h: number, margen = 0.004): [number, number, number, number] {
+/**
+ * Rect normalizado → píxeles. N-4: si el rect trae componentes no finitos o
+ * degenerados (molde malformado), devuelve null en vez de NaN/IndexSizeError —
+ * la corrida sobrevive con bandera `zona_invalida`.
+ */
+function rectAPx(
+  rect: RectNorm,
+  w: number,
+  h: number,
+  margen = 0.004,
+): [number, number, number, number] | null {
+  if (
+    !Number.isFinite(rect.x) || !Number.isFinite(rect.y) ||
+    !Number.isFinite(rect.w) || !Number.isFinite(rect.h) ||
+    rect.w <= 0 || rect.h <= 0
+  ) {
+    return null;
+  }
   const mx = rect.w * margen + 0.002;
   const my = rect.h * margen + 0.002;
   const x0 = Math.max(0, Math.floor((rect.x - mx) * w));
   const y0 = Math.max(0, Math.floor((rect.y - my) * h));
   const x1 = Math.min(w, Math.ceil((rect.x + rect.w + mx) * w));
   const y1 = Math.min(h, Math.ceil((rect.y + rect.h + my) * h));
-  return [x0, y0, x1 - x0, y1 - y0];
+  const cw = x1 - x0;
+  const ch = y1 - y0;
+  if (cw <= 2 || ch <= 2) return null;
+  return [x0, y0, cw, ch];
 }
 
 function recortar(
   canvas: HTMLCanvasElement,
   rect: RectNorm,
-): { crop: HTMLCanvasElement } | null {
-  const [x, y, cw, ch] = rectAPx(rect, canvas.width, canvas.height);
-  if (cw <= 2 || ch <= 2) return null;
+): { crop: HTMLCanvasElement; dims: [number, number] } | null {
+  const px = rectAPx(rect, canvas.width, canvas.height);
+  if (!px) return null;
+  const [x, y, cw, ch] = px;
   const c = document.createElement('canvas');
   c.width = cw;
   c.height = ch;
   const ctx = c.getContext('2d', { willReadFrequently: true })!;
   ctx.drawImage(canvas, x, y, cw, ch, 0, 0, cw, ch);
-  return { crop: c };
+  return { crop: c, dims: [cw, ch] };
 }
 
-function cropDataUrl(canvas: HTMLCanvasElement, rect: RectNorm, maxPx = 420, q = 0.72): string | null {
+function cropDataUrl(
+  canvas: HTMLCanvasElement,
+  rect: RectNorm,
+  maxPx = 420,
+  q = 0.72,
+): { crop: string; dims: [number, number] } | null {
   const r = recortar(canvas, rect);
   if (!r) return null;
   const { crop } = r;
@@ -239,7 +278,7 @@ function cropDataUrl(canvas: HTMLCanvasElement, rect: RectNorm, maxPx = 420, q =
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(crop, 0, 0, src.width, src.height);
   }
-  return src.toDataURL('image/jpeg', q);
+  return { crop: src.toDataURL('image/jpeg', q), dims: [crop.width, crop.height] };
 }
 
 function medirTinta(crop: HTMLCanvasElement): number {
@@ -257,6 +296,37 @@ function confPresencia(ratio: number, umbral: number): number {
   return Math.min(0.97, 0.55 + 0.42 * Math.min(1, margen));
 }
 
+/** Compila el patrón del campo ANCLADO a la cadena completa (G-8). */
+function compilarPatron(campo: CampoUniversal, banderas: string[]): RegExp | null {
+  if (!campo.patron) return null;
+  const yaAnclado = campo.patron.startsWith('^') && campo.patron.endsWith('$');
+  const fuente = yaAnclado ? campo.patron : `^(?:${campo.patron})$`;
+  try {
+    return new RegExp(fuente, 'i');
+  } catch {
+    banderas.push('patron_invalido');
+    return null;
+  }
+}
+
+/**
+ * `limpiar_valor` (G-8): extrae el primer grupo de captura cuando el OCR
+ * devuelve basura con etiqueta pegada ("ZONA: 05" con limpiar_valor "(\d{2})").
+ */
+function limpiarValor(valor: string, campo: CampoUniversal, banderas: string[]): string {
+  if (!campo.limpiar_valor) return valor;
+  try {
+    const m = new RegExp(campo.limpiar_valor, 'i').exec(valor);
+    if (!m) return valor;
+    const extraido = m[1] ?? m[0];
+    if (extraido !== valor) banderas.push('valor_limpiado');
+    return extraido;
+  } catch {
+    banderas.push('limpiar_invalido');
+    return valor;
+  }
+}
+
 // ---- evaluación de un campo ----
 
 async function evaluarCampo(
@@ -271,9 +341,10 @@ async function evaluarCampo(
     pagina: campo.pagina,
     estado: 'no_encontrado',
     valor: null,
-    conf: 0,
+    conf: null,
     rect: null,
     crop: null,
+    crop_dims: null,
     fuente: null,
     banderas: [],
   };
@@ -290,6 +361,7 @@ async function evaluarCampo(
 
   const rec = recortar(canvas, resuelto.rect);
   if (!rec) {
+    // N-4: zona degenerada/NaN — la corrida sobrevive, el campo queda marcado.
     base.banderas.push('zona_invalida');
     return base;
   }
@@ -298,41 +370,53 @@ async function evaluarCampo(
   base.ratio = ratio;
 
   if (campo.tipo === 'presencia' || campo.tipo === 'firma' || campo.tipo === 'checkbox') {
+    // Fase 2.1 — banda de indeterminación: un binario frío en el borde del
+    // umbral (0.6x–1.4x) miente por cualquiera de los dos lados. Dentro de la
+    // banda se reporta la lectura provisional + `requiere_revision`.
     const diligenciado = ratio >= campo.umbral;
-    base.estado = diligenciado ? 'ok' : 'no_encontrado';
     base.valor = diligenciado;
     base.conf = confPresencia(ratio, campo.umbral);
-    if (diligenciado && Math.abs(ratio - campo.umbral) / Math.max(campo.umbral, 0.02) < 0.25) {
+    const captura = cropDataUrl(canvas, resuelto.rect);
+    base.crop = captura?.crop ?? null;
+    base.crop_dims = captura?.dims ?? null;
+    const enBandaAlta = diligenciado && ratio <= campo.umbral * 1.4;
+    const enBandaBaja = !diligenciado && ratio >= campo.umbral * 0.6;
+    if (enBandaAlta || enBandaBaja) {
       base.banderas.push('umbral_al_borde');
+      base.estado = 'requiere_revision';
+    } else {
+      base.estado = diligenciado ? 'ok' : 'no_encontrado';
     }
-    base.crop = cropDataUrl(canvas, resuelto.rect);
     return base;
   }
 
   // tipo texto: OCR de la línea del recorte
   const { texto, conf: confOcr } = await ocrTextoUnico(rec.crop, { whitelist: campo.whitelist });
   const limpio = texto.replace(/\s+/g, ' ').trim();
-  base.crop = cropDataUrl(canvas, resuelto.rect);
-  base.conf = confOcr;
+  const captura = cropDataUrl(canvas, resuelto.rect);
+  base.crop = captura?.crop ?? null;
+  base.crop_dims = captura?.dims ?? null;
+  // N-9/G-3: el OCR puede no reportar confianza (null). Ese caso es "sin
+  // señal", NO un 50-60% inventado: se registra como conf_baja.
+  const confNum = confOcr; // number | null
+  base.conf = confNum;
+  const sinConf = confNum === null;
+  if (sinConf) base.banderas.push('sin_confianza_ocr');
   if (!limpio) {
     base.banderas.push('ocr_vacio');
     if (ratio < campo.umbral * 0.6) base.banderas.push('zona_vacia');
     if (!campo.realce) return base;
   }
-  let valorFinal = limpio;
-  let confFinal = confOcr;
+  const patronRe = compilarPatron(campo, base.banderas);
   const cumplePatron = (v: string): boolean => {
-    if (!campo.patron) return true;
-    try {
-      return new RegExp(campo.patron, 'i').test(v);
-    } catch {
-      base.banderas.push('patron_invalido');
-      return true;
-    }
+    if (!patronRe) return true;
+    return patronRe.test(v);
   };
+  let valorFinal = limpio;
+  let confFinal = confNum;
   if (
     campo.realce &&
-    (!valorFinal || !cumplePatron(valorFinal) || confFinal < 0.5)
+    (!valorFinal || !cumplePatron(valorFinal) || confFinal === null || confFinal < 0.5)
   ) {
     // Reintento con realce (grises + contraste percentil + ampliación 4x) y,
     // si sigue fallando, con binarización Otsu y psm 8/13 — misma ruta que la
@@ -362,14 +446,15 @@ async function evaluarCampo(
       const re = await ocrTextoUnico(v.c, { whitelist: campo.whitelist, psm: v.psm });
       const limpioRe = re.texto.replace(/\s+/g, ' ').trim();
       if (!limpioRe) continue;
-      if (cumplePatron(limpioRe) && (!valorFinal || re.conf > confFinal)) {
+      if (cumplePatron(limpioRe) && (!valorFinal || (re.conf !== null && (confFinal === null || re.conf > confFinal)))) {
         valorFinal = limpioRe;
         confFinal = re.conf;
         base.banderas.push('realce_retry');
         break;
       }
-      if (!valorFinal) {
-        // sin primera lectura: aceptar aunque no cumpla el patrón (peor es nada)
+      if (!valorFinal && !cumplePatron(limpioRe)) {
+        // Sin primera lectura: se guarda la lectura dudosa para que el humano
+        // la vea, pero el estado NUNCA es ok (no se inventa un valor).
         valorFinal = limpioRe;
         confFinal = re.conf;
         base.banderas.push('realce_retry', 'patron_no_cumple');
@@ -378,18 +463,156 @@ async function evaluarCampo(
     }
   }
   if (!valorFinal) return base;
+  // G-8: extraer subvalor y validar el patrón ANCLADO.
+  valorFinal = limpiarValor(valorFinal, campo, base.banderas);
   base.valor = valorFinal;
   base.conf = confFinal;
-  if (confFinal < 0.5) base.banderas.push('conf_baja');
+  const confBaja = confFinal === null || confFinal < 0.5;
+  if (confBaja) base.banderas.push('conf_baja');
   if (!cumplePatron(valorFinal)) {
     base.banderas.push('patron_no_cumple');
+    // G-3: un valor que ni siquiera cumple el patrón no puede ser ok; si el
+    // campo es obligatorio exige revisión explícita.
+    if (campo.obligatorio) base.estado = 'requiere_revision';
+    return base;
+  }
+  // Fase 2.5 (opción C): los manuscritos SIEMPRE pasan por el humano.
+  if (campo.htr) base.banderas.push('htr_manual');
+  if (confBaja && campo.obligatorio) {
+    // G-3: confianza baja (o ausente) en obligatorio → revisión, no "ok".
+    base.estado = 'requiere_revision';
+    return base;
+  }
+  if (campo.htr && campo.obligatorio) {
+    // HTR obligatorio: lectura disponible pero jamás definitiva.
+    base.estado = 'requiere_revision';
     return base;
   }
   base.estado = 'ok';
   return base;
 }
 
+
+// ---- validaciones aritméticas de cierre (Fase 2.2) ----
+
+/**
+ * Convierte el valor de un campo a número. Normaliza espacios y separadores
+ * de miles ("17 000", "1.234" → miles). Presencia/firma/checkbox: true → 1,
+ * false → 0. Devuelve null si no hay lectura numérico-compatible.
+ */
+export function valorNumerico(r: ResultadoCampoUniversal): number | null {
+  if (typeof r.valor === 'boolean') return r.valor ? 1 : 0;
+  if (typeof r.valor !== 'string' || !r.valor.trim()) return null;
+  const s = r.valor.trim();
+  // Formato de miles con espacios o puntos: "17 000", "1.234", "1 234 567".
+  if (/^\d{1,3}([ .]\d{3})+$/.test(s)) {
+    const n = Number(s.replace(/[ .]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  }
+  if (/^-?\d+([.,]\d+)?$/.test(s)) {
+    const n = Number(s.replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/**
+ * Parser seguro de igualdades de sumas: `id1 == id2 + id3 + 5`.
+ * Tokeniza IDs ([a-z_][a-z0-9_]*) y números; NO evalúa JS genérico.
+ * Devuelve [ladoIzq, [operandosDer]] o null si la expresión es inválida.
+ */
+export function parsearIgualdad(
+  expresion: string,
+): { izq: string; der: Array<{ tipo: 'id' | 'num'; valor: string }> } | null {
+  const sinEspacios = expresion.replace(/\s+/g, ' ').trim();
+  const m = /^([a-z_][a-z0-9_]*)\s*==\s*(.+)$/i.exec(sinEspacios);
+  if (!m) return null;
+  const izq = m[1];
+  const partes = m[2].split('+').map((p) => p.trim()).filter(Boolean);
+  if (!partes.length) return null;
+  const der: Array<{ tipo: 'id' | 'num'; valor: string }> = [];
+  for (const p of partes) {
+    if (/^[a-z_][a-z0-9_]*$/i.test(p)) der.push({ tipo: 'id', valor: p });
+    else if (/^-?\d+(\.\d+)?$/.test(p)) der.push({ tipo: 'num', valor: p });
+    else return null; // token inválido: expresión completa rechazada
+  }
+  return { izq, der };
+}
+
+function evaluarValidaciones(
+  molde: MoldeUniversal,
+  porId: Map<string, ResultadoCampoUniversal>,
+): ResultadoValidacion[] {
+  const salidas: ResultadoValidacion[] = [];
+  for (const v of molde.validaciones ?? []) {
+    const parseado = parsearIgualdad(v.expresion);
+    const implicados = new Set<string>();
+    if (!parseado) {
+      salidas.push({
+        id: v.id,
+        expresion: v.expresion,
+        ok: null,
+        detalle: 'Expresión inválida (se espera: id == id + id + … + números)',
+        campos: [],
+      });
+      continue;
+    }
+    implicados.add(parseado.izq);
+    const operandos: Array<{ id?: string; num?: number }> = [];
+    let faltantes: string[] = [];
+    for (const t of parseado.der) {
+      if (t.tipo === 'num') {
+        operandos.push({ num: Number(t.valor) });
+        continue;
+      }
+      implicados.add(t.valor);
+      const r = porId.get(t.valor);
+      const n = r ? valorNumerico(r) : null;
+      if (n === null) faltantes.push(t.valor);
+      operandos.push({ id: t.valor, num: n ?? undefined });
+    }
+    const rIzq = porId.get(parseado.izq);
+    const nIzq = rIzq ? valorNumerico(rIzq) : null;
+    if (nIzq === null) faltantes = [parseado.izq, ...faltantes];
+    const tolerancia = typeof v.tolerancia === 'number' && Number.isFinite(v.tolerancia) ? v.tolerancia : 0;
+    if (faltantes.length) {
+      salidas.push({
+        id: v.id,
+        expresion: v.expresion,
+        ok: null,
+        detalle: `No evaluable: sin lectura de ${[...new Set(faltantes)].join(', ')}`,
+        campos: [...implicados],
+      });
+      continue;
+    }
+    const sumaDer = operandos.reduce((acc, o) => acc + (o.num ?? 0), 0);
+    const cumple = Math.abs((nIzq as number) - sumaDer) <= tolerancia;
+    salidas.push({
+      id: v.id,
+      expresion: v.expresion,
+      ok: cumple,
+      detalle: cumple
+        ? `${nIzq} == ${sumaDer}${tolerancia ? ` (tol ±${tolerancia})` : ''}`
+        : `${nIzq} ≠ ${sumaDer} — la lectura de cierre no cuadra con los componentes`,
+      campos: [...implicados],
+    });
+  }
+  return salidas;
+}
+
 // ---- evaluación de un documento completo ----
+
+/** Voltea un canvas 180° (detección de rotación barata, Fase 3.3). */
+function voltear180(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = canvas.width;
+  c.height = canvas.height;
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  ctx.translate(canvas.width, canvas.height);
+  ctx.scale(-1, -1);
+  ctx.drawImage(canvas, 0, 0);
+  return c;
+}
 
 export async function evaluarDocumentoUniversal(
   canvases: HTMLCanvasElement[],
@@ -398,32 +621,74 @@ export async function evaluarDocumentoUniversal(
   onProgreso?: (msg: string) => void,
 ): Promise<ResultadoUniversal> {
   const t0 = performance.now();
-  const renderMs = 0;
   const paginas: ResultadoPaginaUniversal[] = [];
-  const ocrMsTotal = 0;
   let ocrMs = 0;
   const motorT0 = performance.now();
+  const rotaciones: number[] = [];
+  const paginasEquivocadas: number[] = [];
 
+  // Primera pasada por página: OCR + campos.
+  const anclasPorPagina: boolean[] = [];
   for (let p = 0; p < canvases.length; p++) {
     const canvas = canvases[p];
     onProgreso?.(`OCR página ${p + 1}/${canvases.length}...`);
     const tOcr = performance.now();
-    const { lines, conf } = await ocrLines(canvas);
+    let ocr = await ocrLines(canvas);
     ocrMs += performance.now() - tOcr;
 
     const camposPagina = molde.campos.filter((c) => c.pagina === p + 1);
+    let pageCanvas = canvas;
+
+    // Fase 3.3 (versión pragmática): si NINGUNA ancla de una página N>1
+    // matchea pero el molde sí define anclas para ella, probamos flip 180°
+    // (barato: una sola pasada extra de OCR). Si con el flip las anclas
+    // aparecen, se evalúa la página volteada y se marca
+    // `rotacion_180_corregida`; si no, queda candidata a
+    // `posible_pagina_equivocada` (se confirma si otra página sí ancló).
+    const conAnclas = camposPagina.filter((c) => c.estrategia === 'ancla_relativa' && c.ancla?.texto);
+    if (conAnclas.length > 0 && p >= 1 && !probarLineas(ocr.lines, conAnclas, canvas)) {
+      const flipCanvas = voltear180(canvas);
+      const tFlip = performance.now();
+      const flipOcr = await ocrLines(flipCanvas);
+      ocrMs += performance.now() - tFlip;
+      if (probarLineas(flipOcr.lines, conAnclas, canvas)) {
+        pageCanvas = flipCanvas;
+        ocr = flipOcr;
+        rotaciones.push(p + 1);
+      } else {
+        paginasEquivocadas.push(p + 1);
+      }
+    }
+
     const resultados: ResultadoCampoUniversal[] = [];
     for (let i = 0; i < camposPagina.length; i++) {
       const c = camposPagina[i];
       onProgreso?.(`Página ${p + 1}: campo ${i + 1}/${camposPagina.length} — ${c.etiqueta}`);
-      resultados.push(await evaluarCampo(c, canvas, lines));
+      resultados.push(await evaluarCampo(c, pageCanvas, ocr.lines));
     }
+    anclasPorPagina.push(resultados.some((r) => r.fuente === 'ancla' || r.fuente === 'respaldo'));
     paginas.push({
       pagina: p + 1,
-      ocr_conf: conf,
-      preview: canvasToJpeg(canvas, 900, 0.7),
+      ocr_conf: ocr.conf,
+      preview: canvasToJpeg(pageCanvas, 900, 0.7),
       campos: resultados,
     });
+  }
+
+  // Fase 3.3: página N>1 sin ninguna ancla mientras otras páginas sí anclaron
+  // → casi seguro es OTRA página del documento (o una foto de la pág. 1).
+  if (anclasPorPagina.some((v) => v) && paginasEquivocadas.length) {
+    for (const num of paginasEquivocadas) {
+      const pg = paginas.find((x) => x.pagina === num);
+      if (!pg) continue;
+      for (const c of pg.campos) c.banderas.push('posible_pagina_equivocada');
+    }
+  } else {
+    paginasEquivocadas.length = 0;
+  }
+  for (const num of rotaciones) {
+    const pg = paginas.find((x) => x.pagina === num);
+    if (pg) for (const c of pg.campos) c.banderas.push('rotacion_180_corregida');
   }
 
   // campos de páginas inexistentes
@@ -434,11 +699,12 @@ export async function evaluarDocumentoUniversal(
       etiqueta: c.etiqueta,
       tipo: c.tipo,
       pagina: c.pagina,
-      estado: 'no_encontrado',
+      estado: 'no_encontrado' as const,
       valor: null,
-      conf: 0,
+      conf: null,
       rect: null,
       crop: null,
+      crop_dims: null,
       fuente: null,
       banderas: ['pagina_faltante'],
     }));
@@ -446,13 +712,49 @@ export async function evaluarDocumentoUniversal(
     paginas.push({ pagina: -1, ocr_conf: 0, campos: faltantes });
   }
 
-  const motorMs = performance.now() - motorT0;
+  // ---- validaciones aritméticas (Fase 2.2) ----
   const todos = paginas.flatMap((p) => p.campos);
+  const porId = new Map(todos.map((r) => [r.id, r]));
+  const validaciones = evaluarValidaciones(molde, porId);
+  for (const v of validaciones) {
+    if (v.ok === true) continue;
+    for (const id of v.campos) {
+      const r = porId.get(id);
+      if (!r) continue;
+      r.banderas.push('validacion_fallida');
+      // La defensa principal: una lectura de cierre que no cuadra jamás
+      // permanece en "ok" (las "2"≠17 y "9"≠17 de la auditoría mueren aquí).
+      if (r.estado === 'ok') r.estado = 'requiere_revision';
+    }
+  }
+
+  // ---- métricas (G-2: conceptos separados; G-13: telemetría honesta) ----
+  const camposTinta = todos.filter((r) => r.tipo !== 'texto');
+  const camposTexto = todos.filter((r) => r.tipo === 'texto');
   const ok = todos.filter((r) => r.estado === 'ok');
+  const pctDiligenciado = camposTinta.length
+    ? Math.round((camposTinta.filter((r) => r.valor === true).length / camposTinta.length) * 1000) / 10
+    : null;
+  const pctLectura = camposTexto.length
+    ? Math.round((camposTexto.filter((r) => r.estado === 'ok').length / camposTexto.length) * 1000) / 10
+    : null;
   const obligatoriosFaltantes = molde.campos
     .filter((c) => c.obligatorio)
-    .filter((c) => !todos.some((r) => r.id === c.id && r.estado === 'ok'))
+    .filter((c) => {
+      const r = porId.get(c.id);
+      return !r || r.estado !== 'ok';
+    })
     .map((c) => c.etiqueta);
+  const requiereRevision =
+    obligatoriosFaltantes.length > 0 ||
+    validaciones.some((v) => v.ok !== true) ||
+    todos.some((r) => r.estado === 'requiere_revision') ||
+    paginasEquivocadas.length > 0;
+
+  // G-13: antes `motor_ms = motorMs + (now - t0 - ocrMs - motorMs)` se
+  // auto-cancelaba (los términos se restaban entre sí). El trabajo del motor
+  // es el total del bucle MENOS el tiempo de OCR ya contado aparte.
+  const motorMs = performance.now() - motorT0 - ocrMs;
 
   return {
     archivo: nombreArchivo,
@@ -460,14 +762,30 @@ export async function evaluarDocumentoUniversal(
     total: todos.length,
     ok_count: ok.length,
     score: todos.length ? Math.round((ok.length / todos.length) * 1000) / 10 : 0,
+    pct_diligenciado: pctDiligenciado,
+    pct_lectura: pctLectura,
     obligatorios_faltantes: obligatoriosFaltantes,
-    requiere_revision: obligatoriosFaltantes.length > 0,
-    tiempos: { render_ms: Math.round(renderMs), ocr_ms: Math.round(ocrMs), motor_ms: Math.round(motorMs + (performance.now() - t0 - ocrMs - motorMs)) },
+    validaciones,
+    requiere_revision: requiereRevision,
+    tiempos: { render_ms: 0, ocr_ms: Math.round(ocrMs), motor_ms: Math.round(Math.max(0, motorMs)) },
   };
 }
 
+function probarLineas(lines: LineaOcr[], campos: CampoUniversal[], canvas: HTMLCanvasElement): boolean {
+  let hits = 0;
+  for (const c of campos) {
+    const hit = buscarAncla(c.ancla!.texto, lines, canvas.width, canvas.height, c.ancla!.rect);
+    if (hit && hit.score >= ANCLA_SCORE_MIN) hits++;
+  }
+  return hits > 0;
+}
+
 /** Alinea las anclas de un molde con el OCR de la imagen de referencia de UNA página.
- * Devuelve un nuevo molde con ancla.rect actualizada donde se encontró. */
+ * Devuelve un nuevo molde con ancla.rect actualizada donde se encontró.
+ * N-2: el match del RESPALDO se guarda en `ancla.rectRespaldo` y NUNCA
+ * sobrescribe `ancla.rect` del primario (antes la posición del respaldo se
+ * persistía como si fuera la del ancla principal y sesgaba TODAS las corridas
+ * futuras). */
 export async function alinearAnclas(
   molde: MoldeUniversal,
   canvas: HTMLCanvasElement,
@@ -490,13 +808,38 @@ export async function alinearAnclas(
       if (hit2 && hit2.score >= ANCLA_SCORE_MIN) {
         encontradas++;
         detalles[c.id] = 'respaldo';
-        return { ...c, ancla: { ...c.ancla, rect: hit2.rect } };
+        // N-2: la posición del respaldo va a su propio campo.
+        return { ...c, ancla: { ...c.ancla, rectRespaldo: hit2.rect } };
       }
     }
     detalles[c.id] = 'no';
     return c;
   });
-  return { molde: { ...molde, campos }, encontradas, total: detalles ? Object.keys(detalles).length : 0, detalles };
+  return { molde: { ...molde, campos }, encontradas, total: Object.keys(detalles).length, detalles };
+}
+
+/**
+ * Fase 2.1 (herramienta): sugiere un umbral de tinta por campo a partir de
+ * los ratios MEDIDOS de una corrida (ya se guardan en los resultados).
+ * Umbral sugerido = min(ratios con tinta) × 0.7 — por debajo del trazo más
+ * fino visto y por encima del ruido de una celda vacía.
+ */
+export function sugerirUmbral(
+  resultados: ResultadoUniversal,
+  campoId: string,
+): { sugerido: number | null; minConTinta: number | null; maxSinTinta: number | null } {
+  const historial = resultados.paginas
+    .flatMap((p) => p.campos)
+    .filter((c) => c.id === campoId && typeof c.ratio === 'number')
+    .map((c) => c.ratio as number);
+  if (!historial.length) return { sugerido: null, minConTinta: null, maxSinTinta: null };
+  const conTinta = historial.filter((r) => r > 0.002);
+  const sinTinta = historial.filter((r) => r <= 0.002);
+  const minConTinta = conTinta.length ? Math.min(...conTinta) : null;
+  const maxSinTinta = sinTinta.length ? Math.max(...sinTinta) : null;
+  if (minConTinta === null) return { sugerido: null, minConTinta, maxSinTinta };
+  const sugerido = Math.max(0.0015, Math.round(minConTinta * 0.7 * 10000) / 10000);
+  return { sugerido, minConTinta, maxSinTinta };
 }
 
 export { hexTipo };

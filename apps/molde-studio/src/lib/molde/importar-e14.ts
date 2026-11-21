@@ -108,31 +108,10 @@ export function importarMoldeE14(m: MoldeE14): MoldeUniversal {
       nota: c.nota,
     };
 
-    // Campos de texto (regex): buscar el ancla y leer la zona a su derecha
-    if (c.tipo === 'texto' && c.patron) {
-      const anclaTxt = anclaDePatron(c.patron);
-      if (anclaTxt) {
-        base.estrategia = 'ancla_relativa';
-        base.ancla = { texto: anclaTxt };
-        base.zona = { x: 0.1, y: 0.0, w: 0.2, h: 0.024 };
-        base.nota = `${c.nota ? c.nota + ' · ' : ''}Importado del regex v2: la zona se ubica a la derecha del ancla — ajustar en editor.`;
-      }
-      return base;
-    }
-
-    // recuento_si_no (B3 diferencial): aproximación editable
-    if (c.estrategia === 'recuento_si_no') {
-      base.estrategia = 'ancla_relativa';
-      base.ancla = { texto: 'RECUENTO' };
-      base.zona =
-        c.lado === 'SI'
-          ? { x: 0.52, y: 0.014, w: 0.05, h: 0.018 }
-          : { x: 0.66, y: 0.014, w: 0.05, h: 0.018 };
-      base.nota = `${c.nota ? c.nota + ' · ' : ''}Importado del mecanismo diferencial B3 (ventana SI/NO) — ajustar offsets en editor.`;
-      return base;
-    }
-
-    // ancla_zona con cadena de anclas
+    // ancla_zona con cadena de anclas — Backlog P2 (Fase 5.1): la GEOMETRÍA
+    // prevalece sobre el regex. Antes la vía `tipo texto + patron` se evaluaba
+    // primero y un campo v2 con geometría fila/banda perdía su zona (tomaba
+    // siempre la vía regex a la derecha del ancla).
     if (c.estrategia === 'ancla_zona' && c.anclas && c.anclas.length > 0) {
       const principal = c.anclas[0];
       const anclaTxt = anclaDePatron(principal.patron);
@@ -156,7 +135,34 @@ export function importarMoldeE14(m: MoldeE14): MoldeUniversal {
         if (c.jurado_num) {
           base.nota = `${c.nota ? c.nota + ' · ' : ''}Jurado ${c.jurado_num}: columna por paridad (importado de la rejilla 2x2).`;
         }
+        return base;
       }
+    }
+
+    // Campos de texto (regex) SIN geometría de ancla: buscar el ancla en el
+    // propio patrón y leer la zona a su derecha (texto corrido, p. ej. lugar
+    // de votación). Solo aplica cuando el campo v2 NO trae anclas con zona.
+    if (c.tipo === 'texto' && c.patron) {
+      const anclaTxt = anclaDePatron(c.patron);
+      if (anclaTxt) {
+        base.estrategia = 'ancla_relativa';
+        base.ancla = { texto: anclaTxt };
+        base.zona = { x: 0.1, y: 0.0, w: 0.2, h: 0.024 };
+        base.nota = `${c.nota ? c.nota + ' · ' : ''}Importado del regex v2 (sin geometría): la zona se ubica a la derecha del ancla — ajustar en editor.`;
+      }
+      return base;
+    }
+
+    // recuento_si_no (B3 diferencial): aproximación editable
+    if (c.estrategia === 'recuento_si_no') {
+      base.estrategia = 'ancla_relativa';
+      base.ancla = { texto: 'RECUENTO' };
+      base.zona =
+        c.lado === 'SI'
+          ? { x: 0.52, y: 0.014, w: 0.05, h: 0.018 }
+          : { x: 0.66, y: 0.014, w: 0.05, h: 0.018 };
+      base.nota = `${c.nota ? c.nota + ' · ' : ''}Importado del mecanismo diferencial B3 (ventana SI/NO) — ajustar offsets en editor.`;
+      return base;
     }
 
     return base;

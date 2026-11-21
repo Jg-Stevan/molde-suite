@@ -116,6 +116,17 @@ function ahora(): string {
 /** Caché de object URLs por clave idb: (evita recrear blobs en cada render). */
 const objectUrls = new Map<string, string>();
 
+/** N-7c: revoca el object URL de una clave idb: y borra su blob del store. */
+async function revocarArchivo(key: string | null | undefined): Promise<void> {
+  if (!key || !key.startsWith('idb:')) return;
+  const u = objectUrls.get(key);
+  if (u) {
+    URL.revokeObjectURL(u);
+    objectUrls.delete(key);
+  }
+  await pedir('archivos', 'readwrite', (s) => s.delete(key)).catch(() => undefined);
+}
+
 export const repoIdb: Repo = {
   esEstatico: true,
 
@@ -124,9 +135,23 @@ export const repoIdb: Repo = {
       const moldes = await pedir<MoldeRegistro[]>('moldes', 'readonly', (s) => s.getAll());
       const pruebas = await pedir<PruebaRegistro[]>('pruebas', 'readonly', (s) => s.getAll());
       const conteo = new Map<string, number>();
-      for (const p of pruebas) conteo.set(p.moldeId, (conteo.get(p.moldeId) ?? 0) + 1);
+      // N-1: score de la ÚLTIMA corrida por molde (igual que la API con
+      // orderBy createdAt desc + take 1) — antes el score real nunca llegaba
+      // a la Biblioteca en modo estático.
+      const ultimoScore = new Map<string, number | null>();
+      for (const p of [...pruebas].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+        if (!conteo.has(p.moldeId)) {
+          conteo.set(p.moldeId, 0);
+          ultimoScore.set(p.moldeId, p.score);
+        }
+        conteo.set(p.moldeId, (conteo.get(p.moldeId) ?? 0) + 1);
+      }
       const data: MoldeDB[] = moldes
-        .map((m) => ({ ...m, _count: { pruebas: conteo.get(m.id) ?? 0 } }))
+        .map((m) => ({
+          ...m,
+          _count: { pruebas: conteo.get(m.id) ?? 0 },
+          pruebas: ultimoScore.has(m.id) ? [{ score: ultimoScore.get(m.id) ?? null }] : [],
+        }))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
       return { ok: true, data };
     }),
@@ -154,6 +179,17 @@ export const repoIdb: Repo = {
       const reg = await pedir<MoldeRegistro | undefined>('moldes', 'readonly', (s) => s.get(id));
       if (!reg) return { ok: false as const, error: 'Molde no encontrado' };
       if (patch.json !== undefined) {
+        // N-7c: si el JSON nuevo trae menos escaneos de referencia (p. ej. se
+        // reemplazó la imagen de una página), los blobs huérfanos se borran.
+        const clavesNuevas = new Set((patch.json.paginasRef ?? []).map((p) => p.imagen));
+        try {
+          const viejo = JSON.parse(reg.json) as { paginasRef?: { imagen: string }[] };
+          for (const p of viejo.paginasRef ?? []) {
+            if (!clavesNuevas.has(p.imagen)) await revocarArchivo(p.imagen);
+          }
+        } catch {
+          /* json viejo corrupto: nada que limpiar */
+        }
         reg.json = JSON.stringify(patch.json);
         reg.nombre = patch.nombre ?? patch.json.nombre ?? reg.nombre;
       } else if (patch.nombre !== undefined) {
@@ -167,14 +203,29 @@ export const repoIdb: Repo = {
 
   eliminarMolde: (id) =>
     seguro(async () => {
-      const ids = await pedir<IDBValidKey[]>(
+      // N-7b: recopila las URLs de blobs (fuentes de las corridas + escaneos de
+      // referencia del molde) para revocarlas y borrarlas del store archivos —
+      // antes quedaban MB huérfanos en IndexedDB para siempre.
+      const reg = await pedir<MoldeRegistro | undefined>('moldes', 'readonly', (s) => s.get(id));
+      let paginasRef: string[] = [];
+      if (reg) {
+        try {
+          const json = JSON.parse(reg.json) as { paginasRef?: { imagen: string }[] };
+          paginasRef = (json.paginasRef ?? []).map((p) => p.imagen);
+        } catch {
+          /* json corrupto: sin blobs de referencia que limpiar */
+        }
+      }
+      const pruebas = await pedir<PruebaRegistro[]>(
         'pruebas',
         'readonly',
-        (s) => s.index('moldeId').getAllKeys(IDBKeyRange.only(id)),
+        (s) => s.index('moldeId').getAll(IDBKeyRange.only(id)),
       );
-      for (const pid of ids) {
-        await pedir('pruebas', 'readwrite', (s) => s.delete(pid));
+      for (const p of pruebas) {
+        await revocarArchivo(p.fuenteUrl);
+        await pedir('pruebas', 'readwrite', (s) => s.delete(p.id));
       }
+      for (const key of paginasRef) await revocarArchivo(key);
       await pedir('moldes', 'readwrite', (s) => s.delete(id));
       return { ok: true as const, data: undefined };
     }),
@@ -262,6 +313,9 @@ export const repoIdb: Repo = {
 
   eliminarPrueba: (id) =>
     seguro(async () => {
+      // N-7c: la fuente de una corrida eliminada ya no se usa: se revoca.
+      const p = await pedir<PruebaRegistro | undefined>('pruebas', 'readonly', (s) => s.get(id));
+      if (p) await revocarArchivo(p.fuenteUrl);
       await pedir('pruebas', 'readwrite', (s) => s.delete(id));
       return { ok: true as const, data: undefined };
     }),

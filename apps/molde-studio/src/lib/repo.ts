@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react';
 import type { MoldeUniversal } from '@/lib/molde/universal-types';
 import { repoIdb } from '@/lib/repo-idb';
+import { toast } from '@/hooks/use-toast';
 import type {
   MoldeDB,
   MoldeInput,
@@ -108,10 +109,20 @@ const apiRepo: Repo = {
 
   async listarPruebas(moldeId) {
     try {
-      const url = moldeId ? `/api/pruebas?moldeId=${moldeId}` : '/api/pruebas';
-      const res = await fetch(url);
+      // N-7a: pide hasta 500 y lee X-Total para avisar si la lista se truncó
+      // (antes el take 100 del servidor cortaba el historial en silencio).
+      const base = moldeId ? `/api/pruebas?moldeId=${moldeId}` : '/api/pruebas';
+      const res = await fetch(`${base}${base.includes('?') ? '&' : '?'}take=500`);
       if (!res.ok) return { ok: false, error: 'No se pudo cargar el historial de corridas' };
-      return { ok: true, data: (await res.json()) as PruebaDB[] };
+      const total = Number(res.headers.get('X-Total') ?? '0');
+      const data = (await res.json()) as PruebaDB[];
+      if (total > data.length) {
+        toast({
+          title: 'Historial truncado',
+          description: `Se muestran las ${data.length} corridas más recientes de ${total}. Elimina corridas viejas para ver el resto.`,
+        });
+      }
+      return { ok: true, data };
     } catch (e) {
       return { ok: false, error: (e as Error).message };
     }

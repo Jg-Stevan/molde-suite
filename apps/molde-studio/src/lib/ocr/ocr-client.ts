@@ -42,7 +42,7 @@ async function getWorker(): Promise<TesseractWorker> {
 /** OCR de una pagina -> lineas con palabras y bbox (misma estructura que ocr_lines en Python). */
 export async function ocrLines(
   canvas: HTMLCanvasElement,
-): Promise<{ lines: LineaOcr[]; conf: number }> {
+): Promise<{ lines: LineaOcr[]; conf: number | null }> {
   const worker = await getWorker();
   const ret = await worker.recognize(
     canvas,
@@ -93,15 +93,18 @@ export async function ocrLines(
     }
   }
   lines.sort((a, b) => a.bbox[1] - b.bbox[1] || a.bbox[0] - b.bbox[0]);
-  return { lines, conf: typeof data.confidence === 'number' ? data.confidence / 100 : 0.5 };
+  // N-9: sin confianza reportada → null (antes 0.5 inventado). El motor trata
+  // «sin señal» como conf_baja, no como un 50%.
+  return { lines, conf: typeof data.confidence === 'number' && data.confidence >= 0 ? data.confidence / 100 : null };
 }
 
 /** OCR de una sola línea/valor (psm 7 por defecto) sobre un recorte — motor universal v3.
- * opts.whitelist restringe los caracteres reconocidos (ej. dígitos para manuscritos). */
+ * opts.whitelist restringe los caracteres reconocidos (ej. dígitos para manuscritos).
+ * conf es null cuando Tesseract no reporta confianza (antes se inventaba 0.6). */
 export async function ocrTextoUnico(
   canvas: HTMLCanvasElement,
   opts?: { whitelist?: string; psm?: '6' | '7' | '8' | '13' },
-): Promise<{ texto: string; conf: number }> {
+): Promise<{ texto: string; conf: number | null }> {
   const worker = await getWorker();
   try {
     await worker.setParameters({
@@ -113,7 +116,7 @@ export async function ocrTextoUnico(
     const conf = (ret.data as unknown as { confidence?: number }).confidence;
     return {
       texto,
-      conf: typeof conf === 'number' && conf >= 0 ? conf / 100 : 0.6,
+      conf: typeof conf === 'number' && conf >= 0 ? conf / 100 : null,
     };
   } finally {
     const { PSM } = await import('tesseract.js');
