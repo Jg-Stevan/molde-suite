@@ -15,6 +15,7 @@ import {
   useState,
 } from 'react';
 import {
+  AlertTriangle,
   ArrowLeft,
   ChevronRight,
   Copy,
@@ -33,6 +34,7 @@ import {
   Pencil,
   Play,
   Plus,
+  RotateCw,
   Save,
   ScanLine,
   SquareDashedMousePointer,
@@ -64,6 +66,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { alinearAnclas, rectEditor, sugerirUmbralClustering } from '@/lib/molde/universal-engine';
+import type { LineaOcr } from '@/lib/molde/types';
+import { ocrLines, setOcrProgress } from '@/lib/ocr/ocr-client';
 import { escalarCanvas, renderDocumento } from '@/lib/ocr/pdf-client';
 import {
   MOLDE_UNIVERSAL_VERSION,
@@ -230,6 +234,22 @@ export default function EditorTab() {
   const [verAnclas, setVerAnclas] = useState(true);
   const [verEtiquetas, setVerEtiquetas] = useState(true);
   const [verGrid, setVerGrid] = useState(false);
+  // ---- Capa OCR (visualización del reconocimiento sobre el escaneo) ----
+  // El toggle activa la ejecución de OCR de página completa (ocrLines, el MISMO
+  // pipeline que usa "Alinear anclas") y pinta cada línea/palabra reconocida
+  // como caja con su texto sobre el lienzo: feedback visual de QUÉ ve el OCR y
+  // DÓNDE — imprescindible para calibrar anclas y decidir estrategias.
+  const [verOcr, setVerOcr] = useState(false);
+  const [ocrCapa, setOcrCapa] = useState<{
+    key: string;
+    lines: LineaOcr[];
+    dims: { w: number; h: number };
+    conf: number | null;
+    ms: number;
+  } | null>(null);
+  const [ocrEstado, setOcrEstado] = useState<'inactivo' | 'cargando' | 'listo' | 'error'>('inactivo');
+  const [ocrProgreso, setOcrProgreso] = useState(0);
+  const [ocrError, setOcrError] = useState<string | null>(null);
   const [ocultos, setOcultos] = useState<Set<string>>(new Set());
   const [coordenadas, setCoordenadas] = useState<{ x: number; y: number } | null>(null);
   const [cropPreview, setCropPreview] = useState<string | null>(null);
@@ -446,6 +466,73 @@ export default function EditorTab() {
       if (coordsRafRef.current !== null) cancelAnimationFrame(coordsRafRef.current);
     };
   }, []);
+
+  // ---- Capa OCR: OCR de página completa + overlay de líneas/palabras ----
+  // Misma fuente de verdad que el motor: ocrLines sobre el canvas de 1000 px
+  // (canvasDe ya aplica escalarCanvas), así que las cajas del overlay coinciden
+  // EXACTAMENTE con lo que verá la verificación. Cacheada por clave
+  // imagen@página: alternar el toggle o cambiar de página no re-ejecuta OCR
+  // salvo que la referencia de esa página cambie (las URLs /uploads son UUID
+  // únicos e inmutables — misma garantía que canvasCache).
+  const ocrCapaKey = imagenRef ? `${imagenRef}@p${pagina}` : null;
+  const ejecutarOcrCapa = useCallback(async () => {
+    if (!imagenRef || !moldeId) return;
+    setOcrEstado('cargando');
+    setOcrProgreso(0);
+    setOcrError(null);
+    setOcrProgress((m) => {
+      if (m.status === 'recognizing text') setOcrProgreso(Math.min(99, Math.round(m.progress * 100)));
+    });
+    const t0 = performance.now();
+    try {
+      const canvas = await canvasDe(imagenRef);
+      const { lines, conf } = await ocrLines(canvas);
+      setOcrCapa({
+        key: `${imagenRef}@p${pagina}`,
+        lines,
+        dims: { w: canvas.width, h: canvas.height },
+        conf,
+        ms: Math.round(performance.now() - t0),
+      });
+      setOcrEstado('listo');
+      setOcrProgreso(100);
+      toast({
+        title: `Capa OCR: ${lines.length} línea${lines.length === 1 ? '' : 's'} reconocidas`,
+        description:
+          conf !== null
+            ? `Confianza media ${(conf * 100).toFixed(0)}% · ${Math.round(performance.now() - t0)} ms. Las cajas son lo que el OCR ve en esta página.`
+            : `Confianza no reportada por el core · ${Math.round(performance.now() - t0)} ms.`,
+      });
+    } catch (e) {
+      setOcrEstado('error');
+      setOcrError((e as Error).message);
+      toast({
+        title: 'La capa OCR falló',
+        description: (e as Error).message,
+        variant: 'destructive',
+      });
+    } finally {
+      setOcrProgress(null);
+    }
+  }, [imagenRef, pagina, moldeId, toast]);
+
+  // Guarda de re-ejecución vía ref: solo corre el OCR cuando la clave
+  // imagen@página NO tiene resultado cacheado (activar toggle, cambiar de
+  // página o reemplazar la referencia dispara una clave nueva). El sync de la
+  // ref va en SU propio efecto para que corra antes del trigger en cada commit.
+  const ocrCapaKeyHecha = useRef<string | null>(null);
+  useEffect(() => {
+    ocrCapaKeyHecha.current = ocrCapa?.key ?? null;
+  });
+
+  // Al activar el toggle (o cambiar página/referencia con la capa activa) se
+  // ejecuta el OCR si no hay resultado cacheado para esa clave. Patrón .then
+  // (F5.3): nunca setState síncrono dentro del efecto.
+  useEffect(() => {
+    if (!verOcr || !ocrCapaKey) return;
+    if (ocrCapaKeyHecha.current === ocrCapaKey) return;
+    void Promise.resolve().then(ejecutarOcrCapa);
+  }, [verOcr, ocrCapaKey, ejecutarOcrCapa]);
 
   if (!molde || !moldeId) {
     return (
@@ -1104,6 +1191,34 @@ export default function EditorTab() {
                 <Checkbox checked={verGrid} onCheckedChange={(v) => setVerGrid(Boolean(v))} aria-label="Ver grid" className="border-slate-600" />
                 Grid
               </label>
+              <label
+                className={`flex items-center gap-1.5 font-mono text-[11px] transition ${verOcr ? 'text-teal-300' : 'text-slate-300'}`}
+                title="Superpone sobre el escaneo lo que el OCR reconoce: cajas por línea/palabra con su texto y confianza"
+              >
+                <Checkbox
+                  checked={verOcr}
+                  onCheckedChange={(v) => setVerOcr(Boolean(v))}
+                  aria-label="Ver capa OCR"
+                  className="border-slate-600 data-[state=checked]:bg-teal-600 data-[state=checked]:border-teal-500"
+                />
+                Capa OCR
+              </label>
+              {verOcr ? (
+                <button
+                  type="button"
+                  title="Recalcular capa OCR para esta página"
+                  aria-label="Recalcular capa OCR"
+                  disabled={ocrEstado === 'cargando' || !imagenRef}
+                  onClick={ejecutarOcrCapa}
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-teal-400 transition hover:bg-slate-800 disabled:opacity-40"
+                >
+                  {ocrEstado === 'cargando' ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <RotateCw className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                </button>
+              ) : null}
               <Select value={String(pagina)} onValueChange={(v) => setPagina(Number(v))}>
                 <SelectTrigger className="h-8 w-28 border-slate-700 bg-slate-950 text-xs text-slate-200" aria-label="Página del molde">
                   <SelectValue />
@@ -1168,6 +1283,90 @@ export default function EditorTab() {
                     backgroundSize: '10% 10%',
                   }}
                 />
+              ) : null}
+
+              {/* Capa OCR — overlay con lo que el OCR reconoció en ESTA página.
+                  Cajas de línea (borde teal + etiqueta con texto y confianza)
+                  y sub-cajas por palabra (relleno tenue). Colores por confianza:
+                  ≥85% teal · 60–85% ámbar · <60% rosa. Solo se pinta cuando el
+                  resultado cacheado corresponde a la página/referencia actual. */}
+              {verOcr && imagenRef && ocrEstado === 'listo' && ocrCapa && ocrCapa.key === ocrCapaKey
+                ? ocrCapa.lines.map((l, i) => {
+                    const [lx0, ly0, lx1, ly1] = l.bbox;
+                    const confMedia =
+                      l.palabras.length > 0
+                        ? l.palabras.reduce((acc, w) => acc + (w.conf >= 0 ? w.conf : 0), 0) / l.palabras.length
+                        : null;
+                    const colorL = confMedia === null ? '#2dd4bf' : confMedia >= 0.85 ? '#2dd4bf' : confMedia >= 0.6 ? '#fbbf24' : '#fb7185';
+                    return (
+                      <div
+                        key={`ocr-l-${i}`}
+                        aria-hidden
+                        className="pointer-events-none absolute z-[2]"
+                        style={{
+                          left: `${(lx0 / ocrCapa.dims.w) * 100}%`,
+                          top: `${(ly0 / ocrCapa.dims.h) * 100}%`,
+                          width: `${((lx1 - lx0) / ocrCapa.dims.w) * 100}%`,
+                          height: `${((ly1 - ly0) / ocrCapa.dims.h) * 100}%`,
+                          border: '1px solid',
+                          borderColor: colorL,
+                          backgroundColor: `${colorL}1a`,
+                        }}
+                      >
+                        {verOcr && ocrCapa.lines.length <= 60 ? (
+                          <span
+                            className="absolute -top-[11px] left-0 flex max-w-full items-center gap-1 whitespace-nowrap rounded-sm px-1 font-mono text-[8px] font-semibold leading-[11px] text-slate-950"
+                            style={{ backgroundColor: colorL }}
+                          >
+                            <span className="max-w-[280px] truncate">{l.texto}</span>
+                            {confMedia !== null ? <span className="opacity-70">{Math.round(confMedia * 100)}%</span> : null}
+                          </span>
+                        ) : null}
+                        {l.palabras.map((w, j) => {
+                          const [wx0, wy0, wx1, wy1] = w.bbox;
+                          const colorW = w.conf >= 0 && w.conf < 0.6 ? '#fb7185' : colorL;
+                          return (
+                            <span
+                              key={`ocr-w-${i}-${j}`}
+                              className="absolute"
+                              style={{
+                                left: `${((wx0 - lx0) / (lx1 - lx0 || 1)) * 100}%`,
+                                top: `${((wy0 - ly0) / (ly1 - ly0 || 1)) * 100}%`,
+                                width: `${((wx1 - wx0) / (lx1 - lx0 || 1)) * 100}%`,
+                                height: `${((wy1 - wy0) / (ly1 - ly0 || 1)) * 100}%`,
+                                backgroundColor: `${colorW}30`,
+                                boxShadow: `inset 0 0 0 1px ${colorW}55`,
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    );
+                  })
+                : null}
+
+              {verOcr && ocrEstado === 'cargando' && imagenRef ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 z-[2] flex items-start justify-center"
+                >
+                  <span className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-950/90 px-3 py-1 font-mono text-[10px] text-teal-300 ring-1 ring-teal-500/40">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Reconociendo texto… {ocrProgreso}%
+                  </span>
+                </div>
+              ) : null}
+
+              {verOcr && ocrEstado === 'error' && ocrError ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 z-[2] flex items-start justify-center"
+                >
+                  <span className="mt-3 inline-flex max-w-[90%] items-center gap-2 rounded-full bg-slate-950/90 px-3 py-1 font-mono text-[10px] text-rose-300 ring-1 ring-rose-500/40">
+                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                    OCR falló: {ocrError.slice(0, 80)}
+                  </span>
+                </div>
               ) : null}
 
               {/* Puntos ancla OCR — el del campo activo se agranda para revelar
@@ -1301,6 +1500,24 @@ export default function EditorTab() {
                 X: {(coordenadas?.x ?? 0).toFixed(3)} Y: {(coordenadas?.y ?? 0).toFixed(3)}
               </span>
               <span>Zoom: {zoom}%</span>
+              {verOcr ? (
+                ocrEstado === 'cargando' ? (
+                  <span className="inline-flex items-center gap-1.5 text-teal-300">
+                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> OCR: {ocrProgreso}%
+                  </span>
+                ) : ocrEstado === 'listo' && ocrCapa && ocrCapa.key === ocrCapaKey ? (
+                  <span className="inline-flex items-center gap-1.5 text-teal-300" title="Resultado de la capa OCR para esta página">
+                    <ScanLine className="h-3 w-3" aria-hidden />
+                    OCR: {ocrCapa.lines.length} líneas
+                    {ocrCapa.conf !== null ? ` · conf ${(ocrCapa.conf * 100).toFixed(0)}%` : ''}
+                    {` · ${ocrCapa.ms} ms`}
+                  </span>
+                ) : ocrEstado === 'error' ? (
+                  <span className="inline-flex items-center gap-1.5 text-rose-400">
+                    <AlertTriangle className="h-3 w-3" aria-hidden /> OCR: error
+                  </span>
+                ) : null
+              ) : null}
               {campoSel ? (
                 <span>
                   Campo: <span className="text-indigo-400">{campoSel.id}</span>
