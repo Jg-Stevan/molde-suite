@@ -208,7 +208,7 @@ export default function EditorTab() {
     // F5.3: primera espera para que ningún setState corra síncronamente dentro
     // del efecto que invoca esta función (react-hooks/set-state-in-effect).
     await Promise.resolve();
-    if (!campoSel || !imagenRefVisual || !campoSel.zona || campoSel.pagina !== pagina) {
+    if (!campoSel || !imagenRef || !campoSel.zona || campoSel.pagina !== pagina) {
       setCropPreview(null);
       setCropDims(null);
       return;
@@ -220,7 +220,7 @@ export default function EditorTab() {
       return;
     }
     try {
-      const base = await canvasDe(imagenRefVisual);
+      const base = await canvasDe(imagenRef);
       // Recorte acotado a los límites del canvas de referencia.
       const x0 = Math.max(0, Math.min(rect.x, 1)) * base.width;
       const y0 = Math.max(0, Math.min(rect.y, 1)) * base.height;
@@ -250,7 +250,7 @@ export default function EditorTab() {
       setCropPreview(null);
       setCropDims(null);
     }
-  }, [campoSel, imagenRefVisual, pagina]);
+  }, [campoSel, imagenRef, pagina]);
 
   useEffect(() => {
     // F5.3: el recorte se calcula en callback (patrón .then aceptado por
@@ -449,13 +449,13 @@ export default function EditorTab() {
 
   // ---- alineación de anclas con OCR ----
   async function alinearOCR() {
-    if (!molde || !imagenRefVisual) {
+    if (!molde || !imagenRef) {
       toast({ title: 'Falta la imagen de referencia', description: 'Sube el escaneo de esta página.', variant: 'destructive' });
       return;
     }
     setAlineando(true);
     try {
-      const canvas = await canvasDe(imagenRefVisual);
+      const canvas = await canvasDe(imagenRef);
       const res = await alinearAnclas(molde, canvas, pagina);
       setMoldeActual(res.molde);
       const faltantes = Object.entries(res.detalles).filter(([, v]) => v === 'no').length;
@@ -855,7 +855,7 @@ export default function EditorTab() {
                 type="button"
                 title="Alinear anclas con OCR"
                 aria-label="Alinear anclas con OCR"
-                disabled={alineando || !imagenRefVisual}
+                disabled={alineando || !imagenRef}
                 onClick={alinearOCR}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-amber-400 transition hover:bg-slate-800 disabled:opacity-40"
               >
