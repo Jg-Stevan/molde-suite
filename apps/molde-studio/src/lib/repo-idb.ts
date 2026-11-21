@@ -330,7 +330,14 @@ export const repoIdb: Repo = {
 
   resolverUrl: (url) =>
     (async () => {
-      if (!url.startsWith('idb:')) return url;
+      if (!url.startsWith('idb:')) {
+        // Build estático (GitHub Pages): las rutas absolutas a archivos de /public
+        // (p. ej. paginasRef "/actas-e14/referencia-p1.png" de un molde importado)
+        // necesitan el prefijo del basePath; sin él el navegador pedía
+        // /actas-e14/... fuera de /molde-suite/ y obtenía un 404.
+        const base = process.env.NEXT_PUBLIC_BASE_PATH;
+        return base && url.startsWith('/') ? `${base}${url}` : url;
+      }
       const cacheada = objectUrls.get(url);
       if (cacheada) return cacheada;
       const reg = await pedir<ArchivoRegistro | undefined>('archivos', 'readonly', (s) => s.get(url));
