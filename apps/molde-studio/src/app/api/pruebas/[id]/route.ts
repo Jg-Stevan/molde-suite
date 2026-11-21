@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { protegerEscritura } from '@/lib/api-guard';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -39,6 +40,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
 // una versión nueva del molde: la corrida conserva su identidad (número en la
 // lista) pero se refrescan resultados, score y updated_at.
 export async function PUT(req: NextRequest, { params }: Params) {
+  // Fase 6.2: token opcional (X_API_TOKEN) + rate-limit por IP.
+  const denegado = protegerEscritura(req);
+  if (denegado) return denegado;
   const { id } = await params;
   try {
     const body = await req.json();
@@ -63,7 +67,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
 // DELETE /api/pruebas/:id — idempotente: si la corrida ya no existe, responde OK
 // (evita 500 cuando otra sesión la eliminó antes y la lista local quedó vieja).
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
+  // Fase 6.2: token opcional (X_API_TOKEN) + rate-limit por IP.
+  const denegado = protegerEscritura(req);
+  if (denegado) return denegado;
   const { id } = await params;
   try {
     const existe = await db.prueba.findUnique({ where: { id }, select: { id: true } });

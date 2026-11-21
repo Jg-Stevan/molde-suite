@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execSync } from "node:child_process"; // D8-B: BUILD_ID determinista (sin bindings de Cloudflare: ver docs/auditoria)
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
@@ -86,13 +86,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
-// Solo en DEV: initOpenNextCloudflareForDev levanta miniflare para exponer las
-// bindings de Workers. En `next build` no cumple nada (el móvil se sirve como
-// export estático) y ese arranque intermitente corta el build con EPERM.
-// Sandbox de preview: la app no consume bindings en dev (sin
-// getCloudflareContext en src/) y miniflare no aporta nada aquí; se activa
-// SOLO si se define E14_CF_DEV_BINDINGS=1 para no levantar un proceso extra.
-if (process.env.NODE_ENV === "development" && process.env.E14_CF_DEV_BINDINGS === "1") {
-  import('@opennextjs/cloudflare').then(m => m.initOpenNextCloudflareForDev());
-}

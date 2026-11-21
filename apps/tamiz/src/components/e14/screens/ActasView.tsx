@@ -225,7 +225,7 @@ function docDeFila(fila: HistorialRow, indice: number): DocHistorial {
     tono,
     meta: fila.hora ? `HORA: ${fila.hora}` : null,
     metricas: [],
-    aviso: { ...aviso, hora: fila.hora },
+    aviso: { ...aviso, hora: fila.hora ?? undefined },
     repetir: fila.estado !== "ENVIADO",
     grupo: "HOY",
     // índice de estabilidad para las claves (los ids del core son únicos).

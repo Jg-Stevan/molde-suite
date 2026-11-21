@@ -1,0 +1,87 @@
+/* Tamiz — tokens y utilidades del diseño Stitch oscuro. */
+
+:root {
+  --color-brand-green: #10b981;
+  --color-brand-border: rgba(255, 255, 255, 0.12);
+  --color-brand-black: #0a0c0f;
+  --color-brand-surface: #12161c;
+  --color-brand-surfacelight: #1a2028;
+  --color-brand-viewfinder: #05070a;
+  --color-brand-greendark: #059669;
+}
+
+.bg-brand-black { background-color: var(--color-brand-black); }
+.bg-brand-surface { background-color: var(--color-brand-surface); }
+.bg-brand-surfacelight { background-color: var(--color-brand-surfacelight); }
+.bg-brand-viewfinder { background-color: var(--color-brand-viewfinder); }
+.bg-brand-greendark { background-color: var(--color-brand-greendark); }
+.text-brand-green { color: var(--color-brand-green); }
+.border-brand-border { border-color: var(--color-brand-border); }
+.border-brand-green { border-color: var(--color-brand-green); }
+
+html,
+body {
+  height: 100%;
+  background: var(--color-brand-black);
+  color: #fff;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Animaciones de vistas */
+@keyframes view-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-view-enter { animation: view-enter 150ms ease-out both; }
+
+@keyframes editor-enter {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-editor-enter { animation: editor-enter 180ms ease-out both; }
+
+@keyframes capture-flash {
+  0% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+.animate-capture-flash { animation: capture-flash 420ms ease-out both; }
+
+@keyframes scan-line {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+.animate-scan { animation: scan-line 2.4s ease-in-out infinite alternate; }
+
+/* Obturador del visor */
+@keyframes obturador-pulso {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35); }
+  50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0.05); }
+}
+.obturador-scanner { animation: obturador-pulso 1.6s ease-in-out infinite; }
+
+/* Esquinas del marco de detección */
+.scanner-corner-tl,
+.scanner-corner-tr,
+.scanner-corner-bl,
+.scanner-corner-br {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-color: var(--color-brand-green);
+  border-style: solid;
+  border-width: 0;
+}
+.scanner-corner-tl { top: 0; left: 0; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 10px; }
+.scanner-corner-tr { top: 0; right: 0; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 10px; }
+.scanner-corner-bl { bottom: 0; left: 0; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 10px; }
+.scanner-corner-br { bottom: 0; right: 0; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 10px; }
+
+/* Scrollbars finos / ocultos y safe areas */
+.thin-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 2px; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.tap-action { touch-action: manipulation; }

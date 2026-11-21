@@ -1,13 +1,6 @@
 {
   "name": "molde-suite",
+  "version": "0.1.0",
   "private": true,
-  "workspaces": [
-    "apps/*"
-  ],
-  "scripts": {
-    "studio:dev": "bun run --cwd apps/molde-studio dev",
-    "studio:db": "bun run --cwd apps/molde-studio db:push",
-    "studio:build": "bun run --cwd apps/molde-studio build",
-    "studio:start": "bun run --cwd apps/molde-studio start"
-  }
+  "workspaces": ["apps/*", "packages/*"]
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { protegerEscritura } from '@/lib/api-guard';
 
 // GET /api/pruebas?moldeId=&take=&cursor= — historial de corridas (sin
 // resultados pesados). N-7a: `take` configurable (default 100, máx. 500) y
@@ -41,6 +42,9 @@ export async function GET(req: NextRequest) {
 
 // POST /api/pruebas — guardar una corrida
 export async function POST(req: NextRequest) {
+  // Fase 6.2: token opcional (X_API_TOKEN) + rate-limit por IP.
+  const denegado = protegerEscritura(req);
+  if (denegado) return denegado;
   try {
     const body = await req.json();
     if (!body.moldeId || !body.archivo || !body.resultados) {

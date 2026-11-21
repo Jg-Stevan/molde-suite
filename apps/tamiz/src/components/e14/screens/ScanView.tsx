@@ -775,7 +775,7 @@ export function ScanView() {
                   type="button"
                   onClick={() => setFuente("CAMARA")}
                   className={`flex items-center gap-1 px-2.5 lg:px-3.5 py-1 lg:py-1.5 rounded-full text-[11px] lg:text-xs font-semibold transition-all ${
-                    fuente === "CAMARA"
+                    (fuente as string) === "CAMARA"
                       ? "bg-[#10b981] text-[#090d12] font-bold shadow-sm"
                       : "text-slate-400 hover:text-white"
                   }`}

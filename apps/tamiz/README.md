@@ -15,15 +15,11 @@
 - **Plantillas** (molde `.json` con plantilla base integrada): el punto donde el molde creado en **Molde Studio** gobierna la identificación y aceptación de documentos.
 - **Cabecera `proxy.ts`**: COOP/COEP condicionales (convención `proxy` de Next.js 16) para permitir iframes de preview sin perder el OCR multihilo en navegación top-level.
 
-## Estado de la entrega (importante)
+## Estado de la entrega
 
-Esta entrega es la **capa UI/puente** del digitalizador. Para compilar en solitario faltarían piezas del monorepo privado original, que **no se incluyen y no se han inventado**:
+**Ejecutable (decisión D8, opción B — ver `docs/auditoria/03-informe-final.md` en la raíz del monorepo).** El paquete de motor `@jg-stevan/scanner-core` ahora existe como paquete mínimo dentro del repo (`packages/scanner-core`) y los módulos que faltaban (pipeline, captura, calidad, ocr, política, obs, puente, hooks de cámara…) están implementados en `src/lib/e14/`. La app compila (`bun run typecheck`/`lint` en 0) y construye estática (`BUILD_STATIC=1 bun run build`).
 
-- El paquete de motor `@jg-stevan/scanner-core` (procesador de imágenes, tipos de dominio, clasificador, bridge).
-- Módulos hermanos referenciados por los archivos incluidos: `pipeline`, `pipeline-recorte`, `captura`, `calidad`, `ocr`, `progreso`, `politica/umbrales`, `obs/captura`, `obs/dispositivo`, `adaptacion/plan`, `simulacion-imagenes`, `errores`, `get-bridge`, `hash`, `guion`, `completitud` (referenciado en comentarios), `primitives`, `dev/*`, `hooks/*` (cámara, anillo best-shot, destello, linterna…), `logger`, `store` (barrel), `GaleriaSimulacion`, `QuadEditor`, `PanelDev`, `TuercaResumen`.
-- Los manifiestos del app (`package.json`, `tsconfig.json` con el alias `@/`).
-
-Por eso este paquete **no es ejecutable por sí solo**: es la capa de interfaz y contratos del digitalizador, publicada para revisión/integración. El archivo [`CAMBIOS.txt`](CAMBIOS.txt) documenta la entrega acumulada original (nav según mock, universalización acta→documento, verificación documental, escaneo libre y limpio) con los commits de referencia.
+Lo que el núcleo mínimo NO trae todavía (camino A, por partes): detección de bordes con perspectivas completas (hoy bounding-rect por gradientes), OCR de bandas calibrado con el corpus Nairobi/El Cairo de la auditoría, hub de envío real para el puente (hoy honesto: "sin hub configurado") y PWA con service worker propio. Divipol de demostración.
 
 ## Stack
 

@@ -627,8 +627,8 @@ export class RealCoreBridge implements E14Bridge {
       scoreVisual: campos.scoreVisual,
       status: campos.status,
       rechazo: campos.rechazo,
-      intento: opciones.intento,
-      maxIntentos: opciones.maxIntentos,
+      intento: opciones.intento ?? 1,
+      maxIntentos: opciones.maxIntentos ?? 3,
 
       // ----- Campos reales (§3.1) -----
       fuente: opciones.fuente,

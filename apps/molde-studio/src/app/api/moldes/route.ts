@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { protegerEscritura } from '@/lib/api-guard';
 import { esMoldeUniversal } from '@/lib/molde/universal-types';
 
 // GET /api/moldes — lista de moldes con conteo de pruebas
@@ -13,6 +14,9 @@ export async function GET() {
 
 // POST /api/moldes — crear molde (json = objeto o string JSON)
 export async function POST(req: NextRequest) {
+  // Fase 6.2: token opcional (X_API_TOKEN) + rate-limit por IP.
+  const denegado = protegerEscritura(req);
+  if (denegado) return denegado;
   try {
     const body = await req.json();
     let parsed: unknown;

@@ -1,0 +1,15 @@
+{
+  "name": "@jg-stevan/scanner-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Contrato del núcleo de escaneo de Molde Suite (decisión D8, opción B del plan de implementación): tipos de dominio del documento (Acta), bridge de análisis y primitivas de imagen/OCR. Implementación mínima que delega el análisis al motor universal v3 de Molde Studio a través del puente de Tamiz.",
+  "exports": {
+    "./dominio/types": "./dominio/types.ts",
+    "./dominio/bridge": "./dominio/bridge.ts",
+    "./dominio/clasificador": "./dominio/clasificador.ts",
+    "./core/types": "./core/types.ts",
+    "./core/image-processor": "./core/image-processor.ts",
+    "./core/ocr": "./core/ocr.ts",
+    "./obs-base/breadcrumbs": "./obs-base/breadcrumbs.ts"
+  }
+}

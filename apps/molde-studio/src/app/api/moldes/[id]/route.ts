@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { protegerEscritura } from '@/lib/api-guard';
 import { esMoldeUniversal } from '@/lib/molde/universal-types';
 
 type Params = { params: Promise<{ id: string }> };
@@ -14,6 +15,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 // PUT /api/moldes/:id — actualizar metadatos y/o el JSON del molde
 export async function PUT(req: NextRequest, { params }: Params) {
+  // Fase 6.2: token opcional (X_API_TOKEN) + rate-limit por IP.
+  const denegado = protegerEscritura(req);
+  if (denegado) return denegado;
   const { id } = await params;
   try {
     const body = await req.json();
@@ -43,7 +47,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 // DELETE /api/moldes/:id — elimina el molde y sus pruebas (cascada)
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
+  // Fase 6.2: token opcional (X_API_TOKEN) + rate-limit por IP.
+  const denegado = protegerEscritura(req);
+  if (denegado) return denegado;
   const { id } = await params;
   try {
     await db.molde.delete({ where: { id } });
