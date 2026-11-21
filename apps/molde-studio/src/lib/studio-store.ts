@@ -4,7 +4,11 @@
 // historial de pruebas y navegación entre pestañas.
 
 import { create } from 'zustand';
-import { MOLDE_UNIVERSAL_VERSION, type MoldeUniversal } from '@/lib/molde/universal-types';
+import {
+  MOLDE_UNIVERSAL_VERSION,
+  erroresMolde,
+  type MoldeUniversal,
+} from '@/lib/molde/universal-types';
 import { repo } from '@/lib/repo';
 import type { MoldeDB, PruebaDB } from '@/lib/repo-types';
 import { toast } from '@/hooks/use-toast';
@@ -114,6 +118,22 @@ export const useStudio = create<StudioState>((set, get) => ({
   guardarMoldeActual: async () => {
     const { moldeId, molde } = get();
     if (!moldeId || !molde) return false;
+    // N2 (conversación de mejora): UNA sola ruta de guardado. Antes el botón
+    // «Guardar Plantilla» validaba con erroresMolde() pero «Probar Plantilla»
+    // guardaba directo (sin semántica) — el mismo molde podía guardarse por
+    // una ruta laxa y ser rechazado por la otra. Ahora TODO guardado pasa por
+    // aquí y todos los moldes persistidos cumplen la misma validación.
+    const problemas = erroresMolde(molde);
+    if (problemas.length) {
+      toast({
+        title: 'El molde tiene problemas',
+        description:
+          problemas.slice(0, 3).join(' · ') +
+          (problemas.length > 3 ? ` … (+${problemas.length - 3})` : ''),
+        variant: 'destructive',
+      });
+      return false;
+    }
     const r = await repo.actualizarMolde(moldeId, { json: molde, nombre: molde.nombre });
     if (r.ok) {
       await get().cargarMoldes();

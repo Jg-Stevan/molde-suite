@@ -91,6 +91,16 @@ export interface CampoUniversal {
    * Datos Variables. Sustituye a la heurística /total|pagar|valor|…/ de facturas.
    */
   destacado?: boolean;
+  /**
+   * Opción 1.2 (conversación de mejora — desambiguadores de ancla): textos que
+   * deben aparecer por OCR DENTRO de un radio normalizado (~0.3) del ancla
+   * encontrada para que el hit sea aceptado. Ejemplo: el ancla "FIRMA JURADO 4"
+   * puede declarar ["JURADO 3"] — si el match difuso alto fue en realidad la
+   * etiqueta del jurado 2 en otra banda de la página, el contexto exigido no
+   * aparece cerca y el hit se rechaza (cae a respaldo/referencia, con bandera
+   * `desambiguacion_fallida`). Opcional y backward-compatible.
+   */
+  desambiguadores?: string[];
   obligatorio: boolean;
   nota?: string;
 }
@@ -280,6 +290,12 @@ export function esMoldeUniversal(obj: unknown): obj is MoldeUniversal {
     if (typeof f.umbral !== 'number' || !Number.isFinite(f.umbral) || f.umbral < 0 || f.umbral > 1) {
       return false;
     }
+    if (
+      f.desambiguadores !== undefined &&
+      (!Array.isArray(f.desambiguadores) || !f.desambiguadores.every((d) => typeof d === 'string' && d.trim()))
+    ) {
+      return false;
+    }
     if (f.estrategia === 'ancla_relativa') {
       const ancla = f.ancla as Record<string, unknown> | undefined;
       if (!ancla || typeof ancla.texto !== 'string' || !ancla.texto.trim()) return false;
@@ -313,6 +329,12 @@ export function erroresMolde(obj: unknown): string[] {
     }
     if (typeof f.pagina !== 'number' || !Number.isInteger(f.pagina) || f.pagina < 1) {
       errores.push(`${donde}: pagina debe ser entero >= 1`);
+    }
+    if (
+      f.desambiguadores !== undefined &&
+      (!Array.isArray(f.desambiguadores) || !f.desambiguadores.every((d) => typeof d === 'string' && d.trim()))
+    ) {
+      errores.push(`${donde}: desambiguadores debe ser un arreglo de textos no vacíos`);
     }
     if (f.estrategia === 'ancla_relativa') {
       const ancla = f.ancla as Record<string, unknown> | undefined;

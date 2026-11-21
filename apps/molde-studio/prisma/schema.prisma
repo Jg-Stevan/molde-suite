@@ -32,6 +32,14 @@ model Prueba {
   // RE-EJECUTAR la corrida contra una nueva versión del molde sin volver
   // a subir la foto/PDF ("Probar Plantilla" lo usa automáticamente).
   fuenteUrl        String?
+  // D1 (informe de verificación §6.2, P0): documentos MULTI-PÁGINA subidos
+  // como varias fotos. JSON array de URLs ordenadas por página — la
+  // re-ejecución descarga TODAS y reconstruye el documento completo.
+  // Antes solo se persistía la página 1 (subirFuente(ordenados[0])) y la
+  // re-ejecución dejaba los campos de las páginas 2+ en `pagina_faltante`
+  // con el score caído (33.3% con el molde E-14). `fuenteUrl` conserva la
+  // página 1 como marcador de "es re-ejecutable" (compatibilidad).
+  fuenteUrls       String?
   resultados       String
   score            Float?
   requiereRevision Boolean  @default(false)

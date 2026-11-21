@@ -70,6 +70,72 @@ export function editDistance(a: string, b: string): number {
   return prev[n];
 }
 
+/**
+ * F1 (variante 1.3 — conversación de mejora): los DÍGITOS pesan más que las
+ * letras en la distancia de edición. Las etiquetas vecinas de un formulario
+ * suelen diferir SOLO en un dígito ("FIRMA JURADO 2" ↔ "FIRMA JURADO 4"):
+ * con costo unitario el matcher difuso las acepta como casi idénticas
+ * (score 0.92) y desplaza la zona en silencio — el falso positivo electoral
+ * de la auditoría. Con la ponderación, ese mismo match puntúa por debajo del
+ * corte ANCLA_SCORE_MIN cuando además está lejos del rect esperado, y el campo
+ * cae al rect de referencia (la zona correcta).
+ *
+ * Costos: sustituir dígito→dígito distinto = 3; insertar/borrar un dígito = 2
+ * (si no, el camino insert+borrar (1+1=2) evadiría la penalización de la
+ * sustitución y el efecto se diluiría); letras conservan costo 1 en toda
+ * operación — un error de OCR en una letra sigue tolerado igual que antes.
+ */
+const COSTE_SUBSTITUCION_DIGITO = 3;
+const COSTE_INDEL_DIGITO = 2;
+
+function esDigito(c: string): boolean {
+  return c >= '0' && c <= '9';
+}
+
+function costeSubstitucion(a: string, b: string): number {
+  if (a === b) return 0;
+  // Dígitos distintos = identidad casi segura de OTRA etiqueta vecina.
+  if (esDigito(a) && esDigito(b)) return COSTE_SUBSTITUCION_DIGITO;
+  return 1;
+}
+
+function costeIndel(c: string): number {
+  return esDigito(c) ? COSTE_INDEL_DIGITO : 1;
+}
+
+/**
+ * Levenshtein con costo asimétrico (opción 1.3 de la conversación): misma
+ * programación dinámica que `editDistance`, pero las operaciones sobre
+ * DÍGITOS pesan más (sustitución 3, insert/delete 2). `editDistance` se
+ * mantiene exportada sin cambios (los scripts de calibración/benchmark la usan).
+ */
+export function editDistancePonderada(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (!m) return b.split('').reduce((acc, ch) => acc + costeIndel(ch), 0);
+  if (!n) return a.split('').reduce((acc, ch) => acc + costeIndel(ch), 0);
+  let prev = new Array<number>(n + 1);
+  let cur = new Array<number>(n + 1);
+  // Fila/columna base: insertar/borrar b[0..j] / a[0..i] con su costo ponderado.
+  prev[0] = 0;
+  for (let j = 1; j <= n; j++) prev[j] = prev[j - 1] + costeIndel(b[j - 1]);
+  for (let i = 1; i <= m; i++) {
+    cur[0] = prev[0] + costeIndel(a[i - 1]);
+    for (let j = 1; j <= n; j++) {
+      const cost = costeSubstitucion(a[i - 1], b[j - 1]);
+      // Insertar b[j] / borrar a[i] también pondera dígitos — si no, la ruta
+      // insert+delete eludiría la penalización de sustitución de dígitos.
+      cur[j] = Math.min(
+        prev[j] + costeIndel(a[i - 1]),
+        cur[j - 1] + costeIndel(b[j - 1]),
+        prev[j - 1] + cost,
+      );
+    }
+    [prev, cur] = [cur, prev];
+  }
+  return prev[n];
+}
+
 export interface HitAncla {
   rect: RectNorm;
   score: number;
@@ -110,10 +176,13 @@ export function buscarAncla(
         const fraseOrdenada = normTxt(ventana.map((p) => p.texto).sort((a, b) => a.localeCompare(b)).join(' '));
         if (!frase) continue;
         let score = -1;
-        const d = editDistance(objetivo, frase);
+        // F1 (variante 1.2): distancia PONDERADA — la sustitución de un dígito
+        // por otro cuesta 3x, así las etiquetas vecinas que difieren en un
+        // dígito dejan de puntuar como casi idénticas.
+        const d = editDistancePonderada(objetivo, frase);
         if (d <= tol) score = 1 - d / objetivo.length;
         if (fraseOrdenada && score < 0.95) {
-          const dOrd = editDistance(objetivoOrdenado, fraseOrdenada);
+          const dOrd = editDistancePonderada(objetivoOrdenado, fraseOrdenada);
           if (dOrd <= tol) {
             // Penalización leve: el match en orden correcto siempre gana si existe.
             score = Math.max(score, (1 - dOrd / objetivo.length) * 0.95);
@@ -155,6 +224,12 @@ export interface RectResuelto {
   fuente: 'ancla' | 'respaldo' | 'referencia' | 'fija';
   ancla_encontrada: boolean;
   score?: number;
+  /**
+   * Opción 1.2 (conversación): hubo match textual aceptable pero el CONTEXTO
+   * exigido por `desambiguadores` no apareció cerca — el hit se rechazó y se
+   * cayó a respaldo/referencia. Bandera para la verificación forense.
+   */
+  desambiguacion_fallida?: boolean;
 }
 
 /**
@@ -164,6 +239,40 @@ export interface RectResuelto {
  * molde, que siempre apunta a la zona correcta.
  */
 const ANCLA_SCORE_MIN = 0.72;
+
+/** Radio normalizado (0-1) en el que debe aparecer cada texto de un
+ * `desambiguador` respecto al centro del ancla encontrada (opción 1.2).
+ * Exportado para que las pruebas de geometría del molde usen el MISMO valor. */
+export const RADIO_DESAMBIGUACION = 0.3;
+
+/**
+ * Opción 1.2 (conversación de mejora): un hit de ancla SOLO es válido si cada
+ * texto declarado en `campo.desambiguadores` aparece por OCR dentro de un radio
+ * normalizado alrededor del hit. Ejemplo: el ancla "FIRMA JURADO 4" puede exigir
+ * "JURADO 3" en un radio de 0.3 — si el match de texto alto fue en realidad la
+ * etiqueta del jurado 2 al otro lado de la página, el contexto no aparece y el
+ * hit se rechaza aunque el score textual sea alto.
+ */
+function desambiguado(
+  campo: CampoUniversal,
+  hit: HitAncla,
+  lineas: LineaOcr[],
+  canvasW: number,
+  canvasH: number,
+): boolean {
+  const textos = campo.desambiguadores ?? [];
+  if (!textos.length) return true;
+  const cx = hit.rect.x + hit.rect.w / 2;
+  const cy = hit.rect.y + hit.rect.h / 2;
+  for (const t of textos) {
+    const h2 = buscarAncla(t, lineas, canvasW, canvasH);
+    if (!h2) return false;
+    const dx = Math.abs(h2.rect.x + h2.rect.w / 2 - cx);
+    const dy = Math.abs(h2.rect.y + h2.rect.h / 2 - cy);
+    if (Math.hypot(dx, dy) > RADIO_DESAMBIGUACION) return false;
+  }
+  return true;
+}
 
 /** Resuelve el rectángulo final de un campo sobre una página OCR-izada. */
 export function resolverRectCampo(
@@ -185,19 +294,31 @@ export function resolverRectCampo(
     h: campo.zona.h,
   });
 
+  let desambiguacionFallida = false;
   const hit = buscarAncla(ancla.texto, lineas, canvasW, canvasH, ancla.rect);
   if (hit && hit.score >= ANCLA_SCORE_MIN) {
-    return { rect: aplicarOffset(hit.rect), fuente: 'ancla', ancla_encontrada: true, score: hit.score };
+    if (desambiguado(campo, hit, lineas, canvasW, canvasH)) {
+      return { rect: aplicarOffset(hit.rect), fuente: 'ancla', ancla_encontrada: true, score: hit.score };
+    }
+    desambiguacionFallida = true;
   }
   if (campo.ancla_respaldo) {
     const hit2 = buscarAncla(campo.ancla_respaldo, lineas, canvasW, canvasH, ancla.rect);
     if (hit2 && hit2.score >= ANCLA_SCORE_MIN) {
-      return { rect: aplicarOffset(hit2.rect), fuente: 'respaldo', ancla_encontrada: true, score: hit2.score };
+      if (desambiguado(campo, hit2, lineas, canvasW, canvasH)) {
+        return { rect: aplicarOffset(hit2.rect), fuente: 'respaldo', ancla_encontrada: true, score: hit2.score };
+      }
+      desambiguacionFallida = true;
     }
   }
   // Fallback: usar la posición de referencia guardada en el molde.
   if (ancla.rect) {
-    return { rect: aplicarOffset(ancla.rect), fuente: 'referencia', ancla_encontrada: false };
+    return {
+      rect: aplicarOffset(ancla.rect),
+      fuente: 'referencia',
+      ancla_encontrada: false,
+      desambiguacion_fallida: desambiguacionFallida || undefined,
+    };
   }
   return null;
 }
@@ -358,6 +479,8 @@ async function evaluarCampo(
   base.fuente = resuelto.fuente;
   if (!resuelto.ancla_encontrada) base.banderas.push('ancla_no_encontrada');
   if (resuelto.fuente === 'respaldo') base.banderas.push('ancla_respaldo');
+  // Opción 1.2: el match textual existió pero el contexto exigido no apareció.
+  if (resuelto.desambiguacion_fallida) base.banderas.push('desambiguacion_fallida');
 
   const rec = recortar(canvas, resuelto.rect);
   if (!rec) {
@@ -614,11 +737,56 @@ function voltear180(canvas: HTMLCanvasElement): HTMLCanvasElement {
   return c;
 }
 
+/** Intersección-sobre-unión de dos rects normalizados. */
+function iou(a: RectNorm, b: RectNorm): number {
+  const x0 = Math.max(a.x, b.x);
+  const y0 = Math.max(a.y, b.y);
+  const x1 = Math.min(a.x + a.w, b.x + b.w);
+  const y1 = Math.min(a.y + a.h, b.y + b.h);
+  const inter = Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
+  const union = a.w * a.h + b.w * b.h - inter;
+  return union > 0 ? inter / union : 0;
+}
+
+/** Umbral de solapamiento a partir del cual dos campos distintos que resuelven
+ * el MISMO rect denotan confusión de anclas (F1 — Frankfurt J1≡J3 midieron
+ * el mismo pedazo de papel pixel a pixel; IoU = 1). */
+const IOU_COLISION = 0.8;
+
+/**
+ * F1 (variante 1.1 — la más barata de la conversación de mejora): dedupe de
+ * rects EN RUNTIME. Tras resolver todos los campos de una página, dos campos
+ * distintos con rects idénticos o IoU > 0.8 es casi seguro que dos anclas
+ * matchearon la MISMA etiqueta impresa (o cayeron al mismo fallback). Se marcan
+ * ambos con `ancla_colision` y NUNCA permanecen en estado 'ok' — el veredicto
+ * va a `requiere_revision` para que un humano decida. No corrige la posición:
+ * la IA del engaño desaparece (el falso positivo electoral ya no se reporta
+ * como firma válida).
+ */
+function marcarColisiones(resultados: ResultadoCampoUniversal[]): void {
+  const conRect = resultados.filter((r) => r.rect);
+  for (let i = 0; i < conRect.length; i++) {
+    for (let j = i + 1; j < conRect.length; j++) {
+      if (iou(conRect[i].rect!, conRect[j].rect!) <= IOU_COLISION) continue;
+      for (const r of [conRect[i], conRect[j]]) {
+        if (!r.banderas.includes('ancla_colision')) r.banderas.push('ancla_colision');
+        if (r.estado === 'ok') r.estado = 'requiere_revision';
+      }
+    }
+  }
+}
+
 export async function evaluarDocumentoUniversal(
   canvases: HTMLCanvasElement[],
   molde: MoldeUniversal,
   nombreArchivo: string,
   onProgreso?: (msg: string) => void,
+  /**
+   * F3 (telemetría honesta): total de ms de render medidos por el llamador
+   * (`renderDocumento()` ya produce `renderMsPorPagina` — antes se descartaban
+   * y `tiempos.render_ms` venía hardcodeado en 0). Opcional y backward-compatible.
+   */
+  renderMs?: number,
 ): Promise<ResultadoUniversal> {
   const t0 = performance.now();
   const paginas: ResultadoPaginaUniversal[] = [];
@@ -666,6 +834,9 @@ export async function evaluarDocumentoUniversal(
       onProgreso?.(`Página ${p + 1}: campo ${i + 1}/${camposPagina.length} — ${c.etiqueta}`);
       resultados.push(await evaluarCampo(c, pageCanvas, ocr.lines));
     }
+    // F1 (variante 1.1): detección de colisión de rects — DOS campos que miran
+    // el mismo pedazo de papel es la firma del falso positivo de la auditoría.
+    marcarColisiones(resultados);
     anclasPorPagina.push(resultados.some((r) => r.fuente === 'ancla' || r.fuente === 'respaldo'));
     paginas.push({
       pagina: p + 1,
@@ -767,7 +938,13 @@ export async function evaluarDocumentoUniversal(
     obligatorios_faltantes: obligatoriosFaltantes,
     validaciones,
     requiere_revision: requiereRevision,
-    tiempos: { render_ms: 0, ocr_ms: Math.round(ocrMs), motor_ms: Math.round(Math.max(0, motorMs)) },
+    tiempos: {
+      // F3: el render lo mide el llamador (renderDocumento ya produce
+      // renderMsPorPagina) — antes era un 0 fijo que sub-reportaba el costo real.
+      render_ms: Math.round(renderMs ?? 0),
+      ocr_ms: Math.round(ocrMs),
+      motor_ms: Math.round(Math.max(0, motorMs)),
+    },
   };
 }
 
@@ -823,21 +1000,53 @@ export async function alinearAnclas(
  * los ratios MEDIDOS de una corrida (ya se guardan en los resultados).
  * Umbral sugerido = min(ratios con tinta) × 0.7 — por debajo del trazo más
  * fino visto y por encima del ruido de una celda vacía.
+ *
+ * Devuelve `sugerido: null` (con `motivo`) cuando NO hay evidencia suficiente
+ * para calibrar — nunca un umbral por debajo del ruido.
  */
 export function sugerirUmbral(
   resultados: ResultadoUniversal,
   campoId: string,
-): { sugerido: number | null; minConTinta: number | null; maxSinTinta: number | null } {
+): {
+  sugerido: number | null;
+  minConTinta: number | null;
+  maxSinTinta: number | null;
+  /** F4-1: por qué NO se sugiere (solo presente cuando `sugerido` es null). */
+  motivo?: 'sin_mediciones' | 'sin_tinta' | 'sin_celdas_vacias' | 'clases_entrelazadas';
+} {
   const historial = resultados.paginas
     .flatMap((p) => p.campos)
     .filter((c) => c.id === campoId && typeof c.ratio === 'number')
     .map((c) => c.ratio as number);
-  if (!historial.length) return { sugerido: null, minConTinta: null, maxSinTinta: null };
+  if (!historial.length) return { sugerido: null, minConTinta: null, maxSinTinta: null, motivo: 'sin_mediciones' };
   const conTinta = historial.filter((r) => r > 0.002);
   const sinTinta = historial.filter((r) => r <= 0.002);
   const minConTinta = conTinta.length ? Math.min(...conTinta) : null;
   const maxSinTinta = sinTinta.length ? Math.max(...sinTinta) : null;
-  if (minConTinta === null) return { sugerido: null, minConTinta, maxSinTinta };
+  if (minConTinta === null) return { sugerido: null, minConTinta, maxSinTinta, motivo: 'sin_tinta' };
+  // F4 (variante 4.1 — conversación de mejora): validación de separación de
+  // clases. Una zona VACÍA con ruido de papel/flash midió 0.0139 en la
+  // auditoría: el corte fijo 0.002 la clasifica como «trazo fino» y sugeriría
+  // un umbral POR DEBAJO del ruido — esa firma vacía pasaría a «firmada» en
+  // la próxima corrida. Si el ruido de las vacías no queda claramente por
+  // debajo de la mitad del trazo más fino, NO se sugiere nada (null).
+  if (maxSinTinta !== null && maxSinTinta >= 0.5 * minConTinta) {
+    return { sugerido: null, minConTinta, maxSinTinta, motivo: 'clases_entrelazadas' };
+  }
+  // F4-1 (informe de verificación §6.1, severidad media — mitigación a):
+  // si NINGUNA medición quedó en o bajo el corte 0.002, no hay celda vacía
+  // medida: el piso de ruido real (papel/flash) es DESCONOCIDO y la separación
+  // no se puede verificar. Es el caso exacto de la auditoría: ratios
+  // [0.0139, 0.079, 0.138] — la vacía con flash entra como «con tinta», la
+  // guarda 4.1 no dispara (maxSinTinta es null) y antes se sugería 0.0097,
+  // el valor peligroso. Sin evidencia de separación no se calibra (null).
+  // Matiz residual documentado: una vacía limpia pegada al corte JUNTO a una
+  // vacía con flash encima del corte (p. ej. [0.002, 0.0139, 0.079]) aún pasa
+  // la guarda relativa — ese caso solo lo resuelve el clustering sobre varias
+  // corridas (PLAN Fase 8, variante 4.2), que es la solución de fondo.
+  if (maxSinTinta === null) {
+    return { sugerido: null, minConTinta, maxSinTinta, motivo: 'sin_celdas_vacias' };
+  }
   const sugerido = Math.max(0.0015, Math.round(minConTinta * 0.7 * 10000) / 10000);
   return { sugerido, minConTinta, maxSinTinta };
 }

@@ -473,6 +473,9 @@ export default function EditorTab() {
   // ---- Fase 2.1: sugerir umbral a partir de las corridas reales ----
   // Sobre la corrida más reciente de este molde, mira los ratios de tinta ya
   // medidos del campo activo y sugiere umbral = trazo más fino × 0.7.
+  // F4-1 (informe de verificación §6.1, mitigación c): cuando la guarda NO
+  // sugiere, el toast explica POR QUÉ — antes caía al mensaje genérico "no
+  // tiene mediciones" aunque el campo estuviera medido (engañoso).
   async function sugerirUmbralClick() {
     if (!campoSel || !moldeId) return;
     const estado = useStudio.getState();
@@ -485,6 +488,9 @@ export default function EditorTab() {
       });
       return;
     }
+    type MotivoUmbral = NonNullable<ReturnType<typeof sugerirUmbral>['motivo']>;
+    let motivoBloqueo: MotivoUmbral | null = null;
+    let medicionBloqueo: ReturnType<typeof sugerirUmbral> | null = null;
     for (const p of candidatas) {
       const r = await repo.obtenerPrueba(p.id);
       if (!r.ok || !r.data.resultados) continue;
@@ -497,6 +503,34 @@ export default function EditorTab() {
         });
         return;
       }
+      if (s.motivo && s.motivo !== 'sin_mediciones') {
+        motivoBloqueo = s.motivo;
+        medicionBloqueo = s;
+      }
+    }
+    if (motivoBloqueo === 'sin_celdas_vacias') {
+      toast({
+        title: 'No se puede verificar la separación contra el ruido',
+        description: `El campo SÍ tiene mediciones con tinta (trazo más fino ${((medicionBloqueo?.minConTinta as number) * 100).toFixed(2)}%) pero ninguna celda VACÍA medida: sin el ruido real no se puede garantizar que el umbral quede por encima de él (guarda F4-1). Corre una verificación con la casilla vacía y vuelve a calibrar.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (motivoBloqueo === 'clases_entrelazadas') {
+      toast({
+        title: 'Ruido y tinta entrelazados: no se sugiere umbral',
+        description: `La celda vacía más «sucia» (${((medicionBloqueo?.maxSinTinta as number) * 100).toFixed(2)}%) NO queda por debajo de la mitad del trazo más fino (${((medicionBloqueo?.minConTinta as number) * 100).toFixed(2)}%): un umbral aquí marcaría casillas vacías como firmadas (guarda F4).`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (motivoBloqueo === 'sin_tinta') {
+      toast({
+        title: 'Ninguna medición con tinta en este campo',
+        description: 'Todas las corridas midieron la zona vacía (bajo el corte de ruido). Corre una verificación con la casilla diligenciada.',
+        variant: 'destructive',
+      });
+      return;
     }
     toast({
       title: 'Este campo no tiene mediciones',
@@ -612,12 +646,35 @@ export default function EditorTab() {
               // sin pedir volver a subir ninguna foto/PDF.
               setProbando(true);
               try {
-                if (sucio) await guardarMoldeActual();
+                // N2 (conversación de mejora): si el guardado implícito FALLA
+                // (ahora valida con erroresMolde), no se prueba nada — correr
+                // contra la versión vieja del molde sería engañoso.
+                if (sucio) {
+                  const guardado = await guardarMoldeActual();
+                  if (!guardado) return;
+                }
                 await cargarPruebas();
-                const reejecutable = useStudio.getState().pruebas.find((p) => Boolean(p.fuenteUrl));
+                // D1: una corrida multi-página es re-ejecutable con el set
+                // completo de páginas (fuente_urls), no solo con fuenteUrl.
+                const reejecutable = useStudio
+                  .getState()
+                  .pruebas.find((p) => Boolean(p.fuenteUrl) || Boolean(p.fuente_urls && p.fuente_urls.length >= 2));
                 setPruebaId(reejecutable?.id ?? null);
                 setPestana('verificacion');
-                if (reejecutable) solicitarReejecucion();
+                if (reejecutable) {
+                  solicitarReejecucion();
+                } else {
+                  // N1 (conversación de mejora): antes este caso era un no-op
+                  // SILENTE — se navegaba a Verificación mostrando resultados
+                  // viejos y el usuario creía haber probado sus cambios. Ahora
+                  // se le dice exactamente qué falta para poder re-ejecutar.
+                  toast({
+                    title: 'No hay ninguna corrida con archivo fuente guardado',
+                    description:
+                      'Sube un documento en Verificación (botón +) al menos una vez: desde entonces "Probar Plantilla" re-ejecutará automáticamente esa corrida con los cambios del molde.',
+                    variant: 'destructive',
+                  });
+                }
               } finally {
                 setProbando(false);
               }
@@ -1445,7 +1502,7 @@ export default function EditorTab() {
                           <Input
                             id="insp-patron"
                             className="h-8 border-slate-700 bg-slate-900 font-mono text-xs text-slate-100"
-                            placeholder="Ej: \\d{3}"
+                            placeholder={'Ej: \\d{3}'}
                             value={campoSel.patron ?? ''}
                             onChange={(e) => actualizarCampo(campoSel.id, { patron: e.target.value || undefined })}
                           />

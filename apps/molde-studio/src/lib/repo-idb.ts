@@ -3,7 +3,7 @@
 // Implementación IndexedDB del Repo para builds estáticos (GitHub Pages).
 // Stores:
 // - moldes:  { id, nombre, descripcion, documento, json, imagenRef, createdAt, updatedAt }
-// - pruebas: { id, moldeId, archivo, fuenteUrl, score, requiereRevision, createdAt, updatedAt, resultadoJson }
+// - pruebas: { id, moldeId, archivo, fuenteUrl, fuenteUrls?, score, requiereRevision, createdAt, updatedAt, resultadoJson }
 // - archivos: { key, blob, tipo }  (documentos fuente y escaneos de referencia)
 //
 // Las URLs de documentos usan el esquema "idb:<uuid>/<nombre>" y se resuelven a
@@ -84,6 +84,8 @@ interface PruebaRegistro {
   moldeId: string;
   archivo: string;
   fuenteUrl: string | null;
+  /** D1: páginas fuente ordenadas de una corrida multi-página (set completo). */
+  fuenteUrls?: string[] | null;
   score: number | null;
   requiereRevision: boolean;
   createdAt: string;
@@ -267,6 +269,8 @@ export const repoIdb: Repo = {
       );
       for (const p of pruebas) {
         await revocarArchivo(p.fuenteUrl);
+        // D1: revoca también todas las páginas fuente multi-página.
+        for (const url of p.fuenteUrls ?? []) await revocarArchivo(url);
         await pedir('pruebas', 'readwrite', (s) => s.delete(p.id));
       }
       for (const key of paginasRef) await revocarArchivo(key);
@@ -295,6 +299,7 @@ export const repoIdb: Repo = {
           createdAt: p.createdAt,
           updatedAt: p.updatedAt,
           fuenteUrl: p.fuenteUrl,
+          fuente_urls: p.fuenteUrls ?? null,
           molde: { nombre: nombres.get(p.moldeId) ?? '' },
         }))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -316,6 +321,7 @@ export const repoIdb: Repo = {
         moldeId: p.moldeId,
         archivo: p.archivo,
         fuente_url: p.fuenteUrl,
+        fuente_urls: p.fuenteUrls ?? null,
         score: p.score,
         requiere_revision: p.requiereRevision,
         createdAt: p.createdAt,
@@ -333,6 +339,8 @@ export const repoIdb: Repo = {
         moldeId: input.moldeId,
         archivo: input.archivo,
         fuenteUrl: input.fuenteUrl ?? null,
+        // D1: set completo de páginas (el cliente solo lo envía si todas subieron).
+        fuenteUrls: input.fuenteUrls && input.fuenteUrls.length >= 2 ? input.fuenteUrls : null,
         score: input.score,
         requiereRevision: input.requiereRevision,
         createdAt: now,
@@ -358,8 +366,12 @@ export const repoIdb: Repo = {
   eliminarPrueba: (id) =>
     seguro(async () => {
       // N-7c: la fuente de una corrida eliminada ya no se usa: se revoca.
+      // D1: con fuentes multi-página se revocan TODAS las páginas.
       const p = await pedir<PruebaRegistro | undefined>('pruebas', 'readonly', (s) => s.get(id));
-      if (p) await revocarArchivo(p.fuenteUrl);
+      if (p) {
+        await revocarArchivo(p.fuenteUrl);
+        for (const url of p.fuenteUrls ?? []) await revocarArchivo(url);
+      }
       await pedir('pruebas', 'readwrite', (s) => s.delete(id));
       return { ok: true as const, data: undefined };
     }),

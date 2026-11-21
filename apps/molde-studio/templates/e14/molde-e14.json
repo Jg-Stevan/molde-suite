@@ -485,9 +485,10 @@
         }
       },
       "ancla_respaldo": "FIRMAS JURADO 1",
+      "desambiguadores": ["JURADO 3"],
       "umbral": 0.02,
       "obligatorio": true,
-      "nota": "OBLIGATORIO: casilla izquierda superior; zona bajo la etiqueta impresa (evita que el texto impreso dispare el umbral)."
+      "nota": "OBLIGATORIO: casilla izquierda superior; zona bajo la etiqueta impresa (evita que el texto impreso dispare el umbral). O2 (informe de verificación §6.3): exige «JURADO 3» (casilla inferior de la MISMA columna, a ~0.07 normalizado) cerca del hit — si el match difuso cayera en la banda de la derecha (J2), el contexto no aparece y el hit se rechaza (segunda defensa contra P1)."
     },
     {
       "id": "firma_jurado_2",
@@ -511,8 +512,10 @@
         }
       },
       "ancla_respaldo": "FIRMAS JURADO 2",
+      "desambiguadores": ["JURADO 4"],
       "umbral": 0.02,
-      "obligatorio": false
+      "obligatorio": false,
+      "nota": "O2: exige «JURADO 4» (misma columna, fila inferior) cerca del hit."
     },
     {
       "id": "firma_jurado_3",
@@ -536,8 +539,10 @@
         }
       },
       "ancla_respaldo": "FIRMAS JURADO 3",
+      "desambiguadores": ["JURADO 1"],
       "umbral": 0.02,
-      "obligatorio": false
+      "obligatorio": false,
+      "nota": "O2 (lección Frankfurt J1≡J3): exige «JURADO 1» (misma columna, fila superior) cerca del hit — un hit de J3 que en realidad sea la etiqueta de J4 queda sin contexto y se rechaza."
     },
     {
       "id": "firma_jurado_4",
@@ -561,9 +566,10 @@
         }
       },
       "ancla_respaldo": "FIRMAS JURADO 4",
+      "desambiguadores": ["JURADO 2"],
       "umbral": 0.02,
       "obligatorio": false,
-      "nota": "Zona bajo la etiqueta: si la etiqueta no aparece por OCR cae al rect de referencia (el umbral de score evita snap-earse a la etiqueta del jurado 2)."
+      "nota": "Zona bajo la etiqueta: si la etiqueta no aparece por OCR cae al rect de referencia (el umbral de score evita snap-earse a la etiqueta del jurado 2). O2: exige «JURADO 2» (misma columna, fila superior) cerca del hit como segunda defensa."
     }
   ],
   "meta": {

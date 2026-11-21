@@ -18,6 +18,18 @@ export async function GET(_req: NextRequest, { params }: Params) {
   } catch {
     resultados = null;
   }
+  // D1: páginas fuente ordenadas de una corrida multi-página (JSON array en
+  // la columna fuenteUrls). La re-ejecución descarga TODAS para reconstruir
+  // el documento completo (antes solo había página 1 → pagina_faltante).
+  let fuente_urls: string[] | null = null;
+  try {
+    const arr: unknown = prueba.fuenteUrls ? JSON.parse(prueba.fuenteUrls) : null;
+    if (Array.isArray(arr) && arr.length >= 2 && arr.every((u) => typeof u === 'string' && u)) {
+      fuente_urls = arr as string[];
+    }
+  } catch {
+    fuente_urls = null;
+  }
   return NextResponse.json({
     id: prueba.id,
     moldeId: prueba.moldeId,
@@ -26,6 +38,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
     // Fuente persistida: permite re-ejecutar la corrida sin volver a subir el
     // archivo (botón "Probar Plantilla" / "Re-ejecutar con cambios").
     fuente_url: prueba.fuenteUrl,
+    // D1: lista completa de páginas fuente (multi-página); null en corridas
+    // de una sola página o con set incompleto.
+    fuente_urls,
     score: prueba.score,
     requiere_revision: prueba.requiereRevision,
     createdAt: prueba.createdAt,

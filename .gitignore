@@ -14,12 +14,19 @@ next-env.d.ts
 *.pem
 
 # datos locales y materiales de trabajo (no se publican)
-upload/
-db/
+# FIX F2 (causa raíz — conversación de mejora): estos patrones deben estar
+# ANCLADOS a la raíz (/upload/). El patrón suelto «upload/» matchea CUALQUIER
+# directorio llamado upload a cualquier profundidad — incluido
+# apps/molde-studio/src/app/api/upload/ — y por eso el handler de /api/upload
+# JAMÁS llegó al repo: el commit 8dec868 lo escribió pero `git add` lo ignoró
+# en silencio (documentado en el mensaje del commit, ausente del diff). Con el
+# anclaje, el código de la ruta entra y los datos runtime siguen excluidos.
+/upload/
+/db/
 *.db
-download/
-skills/
-public/actas/
+/download/
+/skills/
+/public/actas/
 
 # herramientas de agentes locales
 .claude
@@ -29,4 +36,8 @@ public/actas/
 *.pid
 
 # uploads del servidor (documentos fuente)
-uploads/
+# O1 (informe de verificación §6.3): anclado a la raíz por la misma causa
+# raíz del FIX F2 — el patrón suelto «uploads/» matchearía CUALQUIER
+# directorio llamado uploads a cualquier profundidad y podría volver a
+# silenciar código futuro (la API vive en src/app/api/upload, sin s).
+/uploads/

@@ -57,6 +57,8 @@ interface PruebaDetalle {
   archivo: string;
   /** Documento fuente persistido (/uploads/...): habilita la re-ejecución automática. */
   fuente_url: string | null;
+  /** D1: páginas fuente ordenadas de una corrida multi-página (set completo). */
+  fuente_urls?: string[] | null;
   score: number | null;
   requiere_revision: boolean;
   createdAt: string;
@@ -435,12 +437,36 @@ export default function VerificacionTab() {
         try {
           const doc = await renderArchivos(ordenados);
           const nombreCorrida = `${ordenados[0].name} (+${ordenados.length - 1})`;
-          const res = await evaluarDocumentoUniversal(doc.canvases, molde, nombreCorrida, (msg) => setProgresoMsg(msg));
-          const fuente = await subirFuente(ordenados[0]);
+          const res = await evaluarDocumentoUniversal(
+            doc.canvases,
+            molde,
+            nombreCorrida,
+            (msg) => setProgresoMsg(msg),
+            // F3: telemetría honesta — el render medido llega al reporte.
+            doc.renderMsPorPagina.reduce((a, b) => a + b, 0),
+          );
+          // D1 (informe de verificación §6.2, P0): subir TODAS las páginas del
+          // documento fuente, no solo la primera. Antes `subirFuente(ordenados[0])`
+          // dejaba la página 1 como única fuente y la re-ejecución reconstruía un
+          // documento incompleto: los campos de las páginas 2+ quedaban
+          // `pagina_faltante` y el score caía (33.3% con el molde E-14).
+          // La corrida solo se declara re-ejecutable multi-página con el SET
+          // COMPLETO — un set parcial reproduciría el defecto en silencio.
+          const fuentes: string[] = [];
+          for (let i = 0; i < ordenados.length; i++) {
+            setProgresoMsg(`Guardando página fuente ${i + 1}/${ordenados.length}...`);
+            const url = await subirFuente(ordenados[i]);
+            if (!url) break; // fuente incompleta: corrida NO re-ejecutable
+            fuentes.push(url);
+          }
+          const fuentesCompletas = fuentes.length === ordenados.length ? fuentes : null;
           const guardar = await repo.crearPrueba({
             moldeId,
             archivo: nombreCorrida,
-            fuenteUrl: fuente,
+            // Compat: la página 1 queda como marcador de "es re-ejecutable";
+            // fuente_urls lleva el set completo para la re-ejecución.
+            fuenteUrl: fuentesCompletas ? fuentesCompletas[0] : null,
+            fuenteUrls: fuentesCompletas,
             resultados: res,
             score: res.score,
             requiereRevision: res.requiere_revision,
@@ -449,7 +475,7 @@ export default function VerificacionTab() {
           const faltantes = res.paginas.flatMap((p) => p.campos).filter((c) => c.banderas.includes('pagina_faltante')).length;
           toast({
             title: `Corrida multi-página completada: ${nombreCorrida}`,
-            description: `Score ${res.score}% · ${res.ok_count}/${res.total} campos OK${faltantes ? ` · ATENCIÓN: ${faltantes} campos de páginas no subidas` : ''}`,
+            description: `Score ${res.score}% · ${res.ok_count}/${res.total} campos OK${faltantes ? ` · ATENCIÓN: ${faltantes} campos de páginas no subidas` : ''}${!fuentesCompletas ? ' · ATENCIÓN: sin todas las páginas fuente guardadas, esta corrida NO podrá re-ejecutarse automáticamente.' : ''}`,
           });
         } catch (e) {
           toast({ title: 'Error en la corrida multi-página', description: (e as Error).message, variant: 'destructive' });
@@ -472,7 +498,14 @@ export default function VerificacionTab() {
           setProgresoMsg(`Renderizando ${f.name}...`);
           try {
             const doc = await renderDocumento(f);
-            const res = await evaluarDocumentoUniversal(doc.canvases, molde, f.name, (msg) => setProgresoMsg(msg));
+            const res = await evaluarDocumentoUniversal(
+              doc.canvases,
+              molde,
+              f.name,
+              (msg) => setProgresoMsg(msg),
+              // F3: telemetría honesta — el render medido llega al reporte.
+              doc.renderMsPorPagina.reduce((a, b) => a + b, 0),
+            );
             // Persiste el documento fuente en el servidor para que esta corrida
             // sea re-ejecutable desde "Probar Plantilla" sin volver a subirlo.
             const fuenteUrl = await subirFuente(f);
@@ -529,11 +562,26 @@ export default function VerificacionTab() {
   // descarga el documento fuente persistido en el servidor, corre el mismo
   // pipeline (render → OCR → motor universal) y ACTUALIZA la corrida en sitio
   // (PUT): misma posición en la lista, resultados y score refrescados.
+  //
+  // N3 (conversación de mejora): `opts.consumirBandera` (la bandera one-shot
+  // de "Probar Plantilla") SOLO se consume cuando el disparo REALMENTE ocurre:
+  // las guardas de ocupado devuelven SIN consumir (el efecto reintenta cuando
+  // `procesando` cambia). La decisión de SI conviene re-correr (N4: la corrida
+  // ya refleja el molde guardado) la toma el EFECTO con el booleano derivado
+  // `corridaActualDesactualizada` — computado aquí en el cuerpo del componente
+  // (F5.3: función plana donde el compiler no puede preservar el useCallback
+  // con valores mutados después).
   const reejecutarCorrida = useCallback(
-    async (corrida: { id: string; archivo: string; fuente_url?: string | null }) => {
-      if (!molde || !moldeId || procesando) return;
-      if (reejecutandoRef.current) return; // ya hay una re-ejecución en curso
-      if (!corrida.fuente_url) {
+    async (
+      corrida: { id: string; archivo: string; fuente_url?: string | null; fuente_urls?: string[] | null },
+      opts?: { consumirBandera?: () => void },
+    ) => {
+      if (!molde || !moldeId || procesando) return; // N3: NO consume — se reintenta
+      if (reejecutandoRef.current) return; // N3: NO consume — ya hay una en curso
+      if (!corrida.fuente_url && !(corrida.fuente_urls && corrida.fuente_urls.length >= 2)) {
+        // Sin fuente no hay reintento posible hasta que el usuario suba el
+        // documento: se consume la bandera Y se dice qué hacer.
+        opts?.consumirBandera?.();
         toast({
           title: 'Esta corrida no tiene archivo fuente guardado',
           description: 'Súbela una última vez con el botón + y desde entonces se re-ejecutará automáticamente.',
@@ -541,25 +589,61 @@ export default function VerificacionTab() {
         });
         return;
       }
+      opts?.consumirBandera?.(); // N3: AHORA sí — el disparo va a ocurrir
       reejecutandoRef.current = corrida.id;
       setProcesando(true);
       setOcrProgress((m) => {
         if (m.status.includes('recognizing')) setProgresoMsg(`OCR ${Math.round(m.progress * 100)}%`);
       });
       try {
-        setProgresoMsg('Recuperando archivo fuente guardado...');
-        const urlFuente = await repo.resolverUrl(corrida.fuente_url);
-        const fuenteRes = await fetch(urlFuente);
-        if (!fuenteRes.ok) throw new Error('No se pudo recuperar el archivo fuente del servidor');
-        const blob = await fuenteRes.blob();
-        const tipo =
-          blob.type ||
-          (corrida.fuente_url.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
-        const f = new File([blob], corrida.archivo, { type: tipo });
-
-        setProgresoMsg(`Renderizando ${f.name}...`);
-        const doc = await renderDocumento(f);
-        const res = await evaluarDocumentoUniversal(doc.canvases, molde, f.name, (msg) => setProgresoMsg(msg));
+        // D1 (informe de verificación §6.2, P0): si la corrida persistió el set
+        // COMPLETO de páginas fuente (fuente_urls), el documento se reconstruye
+        // ENTERO — antes se descargaba solo la página 1 (fuente_url) y los
+        // campos de las páginas 2+ quedaban `pagina_faltante` (score 33.3% con
+        // el molde E-14). Las corridas antiguas (pre-corrección) siguen el
+        // camino de 1 fuente y su aviso de faltantes queda honesto en el toast.
+        const urlsPaginas = corrida.fuente_urls && corrida.fuente_urls.length >= 2 ? corrida.fuente_urls : null;
+        let doc: Awaited<ReturnType<typeof renderArchivos>>;
+        if (urlsPaginas) {
+          const archivos: File[] = [];
+          for (let i = 0; i < urlsPaginas.length; i++) {
+            setProgresoMsg(`Recuperando página fuente ${i + 1}/${urlsPaginas.length}...`);
+            const urlPagina = await repo.resolverUrl(urlsPaginas[i]);
+            const paginaRes = await fetch(urlPagina);
+            if (!paginaRes.ok) throw new Error(`No se pudo recuperar la página ${i + 1} del documento fuente`);
+            const blob = await paginaRes.blob();
+            // Nombre/extension: derivados de la URL persistida (<uuid>.<ext>);
+            // el nombre solo importa para la detección PDF/etiqueta en el render.
+            const ext = (urlsPaginas[i].split('?')[0].split('.').pop() || 'png').toLowerCase();
+            const tipo =
+              blob.type || (ext === 'pdf' ? 'application/pdf' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`);
+            archivos.push(new File([blob], `pagina-${i + 1}.${ext}`, { type: tipo }));
+          }
+          setProgresoMsg(`Renderizando ${archivos.length} páginas...`);
+          doc = await renderArchivos(archivos);
+        } else {
+          setProgresoMsg('Recuperando archivo fuente guardado...');
+          const urlFuente = await repo.resolverUrl(corrida.fuente_url as string);
+          const fuenteRes = await fetch(urlFuente);
+          if (!fuenteRes.ok) throw new Error('No se pudo recuperar el archivo fuente del servidor');
+          const blob = await fuenteRes.blob();
+          const tipo =
+            blob.type ||
+            (corrida.fuente_url!.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+          const f = new File([blob], corrida.archivo, { type: tipo });
+          setProgresoMsg(`Renderizando ${f.name}...`);
+          doc = await renderDocumento(f);
+        }
+        // F3 (telemetría): el render YA se medía en renderMsPorPagina pero se
+        // descartaba — ahora llega a tiempos.render_ms del reporte.
+        const renderMsTotal = doc.renderMsPorPagina.reduce((a, b) => a + b, 0);
+        const res = await evaluarDocumentoUniversal(
+          doc.canvases,
+          molde,
+          corrida.archivo,
+          (msg) => setProgresoMsg(msg),
+          renderMsTotal,
+        );
 
         // Actualiza la corrida EN SITIO; si ya no existe (p. ej. eliminada en
         // otra pestaña), la vuelve a crear para no perder el resultado.
@@ -573,16 +657,22 @@ export default function VerificacionTab() {
           const crear = await repo.crearPrueba({
             moldeId,
             archivo: corrida.archivo,
-            fuenteUrl: corrida.fuente_url,
+            fuenteUrl: corrida.fuente_url ?? null,
+            fuenteUrls: urlsPaginas,
             resultados: res,
             score: res.score,
             requiereRevision: res.requiere_revision,
           });
           if (crear.ok) idFinal = crear.data.id;
         }
+        // D1: el aviso de páginas no recuperables queda explícito — un score
+        // bajo por `pagina_faltante` nunca vuelve a ser un misterio.
+        const faltantes = res.paginas
+          .flatMap((p) => p.campos)
+          .filter((c) => c.banderas.includes('pagina_faltante')).length;
         toast({
           title: 'Corrida re-ejecutada con los cambios guardados',
-          description: `${corrida.archivo} · Score ${res.score}% · ${res.ok_count}/${res.total} campos OK`,
+          description: `${corrida.archivo} · Score ${res.score}% · ${res.ok_count}/${res.total} campos OK${faltantes ? ` · ATENCIÓN: ${faltantes} campos de páginas no recuperables (fuente incompleta de una corrida anterior)` : ''}`,
         });
         await cargarPruebas(moldeId);
         setPruebaId(idFinal);
@@ -602,15 +692,32 @@ export default function VerificacionTab() {
   // "Probar Plantilla" (Editor) pidió re-ejecución automática: cuando la
   // corrida seleccionada termine de cargar, se re-ejecuta EN SITIO con el
   // molde recién guardado — sin volver a subir ningún archivo.
+  // N3 (conversación de mejora): la bandera one-shot se pasa como callback a
+  // reejecutarCorrida, que la consume SOLO cuando el disparo ocurre. Si hay
+  // otra cosa procesándose, el efecto se re-dispara solo (deps de
+  // reejecutarCorrida incluyen `procesando`) y el reintento no se pierde.
+  // N4 (conversación de mejora): re-ejecución CONDICIONAL — si la corrida YA
+  // refleja la última versión guardada del molde, no se gasta CPU re-corréndola
+  // (10-40 s en tier medio-bajo): se consume la bandera con un aviso claro.
+  // `corridaActualDesactualizada` es un booleano derivado (compiler-safe en deps).
   useEffect(() => {
     if (!pendienteReejecutar || cargando) return;
     if (!detalle) return; // espera la carga de la corrida seleccionada
     // F5.3: el flag one-shot se consume en callback (.then), no síncrono.
     void Promise.resolve().then(() => {
-      consumirReejecucion();
-      void reejecutarCorrida(detalle);
+      // N4: ya al día → NO re-correr (el guardado no cambió nada que la corrida
+      // no refleje ya). Se consume y se avisa — nunca un no-op silencioso.
+      if (!corridaActualDesactualizada) {
+        consumirReejecucion();
+        toast({
+          title: 'La corrida ya está al día',
+          description: `${detalle.archivo} ya refleja la última versión guardada del molde — no se re-ejecuta.`,
+        });
+        return;
+      }
+      void reejecutarCorrida(detalle, { consumirBandera: consumirReejecucion });
     });
-  }, [pendienteReejecutar, detalle, cargando, consumirReejecucion, reejecutarCorrida]);
+  }, [pendienteReejecutar, detalle, cargando, corridaActualDesactualizada, consumirReejecucion, reejecutarCorrida]);
 
   // Selección de corrida en la barra "Comparar Molde": además de mostrar sus
   // resultados, si quedó DESACTUALIZADA (se ejecutó antes del último guardado
@@ -623,12 +730,21 @@ export default function VerificacionTab() {
   // selección derivada (pruebaIdEfectiva) la muestra automáticamente.
   function seleccionarCorrida(p: PruebaDB) {
     setPruebaId(p.id);
+    const reejecutable =
+      Boolean(p.fuenteUrl) || Boolean(p.fuente_urls && p.fuente_urls.length >= 2);
     if (
       !procesando &&
-      p.fuenteUrl &&
+      reejecutable &&
       corridaDesactualizada(tMolde, p.updatedAt ?? p.createdAt)
     ) {
-      void reejecutarCorrida({ id: p.id, archivo: p.archivo, fuente_url: p.fuenteUrl });
+      // D1: se pasan también las páginas fuente para que la re-ejecución
+      // reconstruya el documento multi-página completo.
+      void reejecutarCorrida({
+        id: p.id,
+        archivo: p.archivo,
+        fuente_url: p.fuenteUrl,
+        fuente_urls: p.fuente_urls,
+      });
     }
   }
 

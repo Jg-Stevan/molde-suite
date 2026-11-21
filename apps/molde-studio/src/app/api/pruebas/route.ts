@@ -6,6 +6,20 @@ import { protegerEscritura } from '@/lib/api-guard';
 // resultados pesados). N-7a: `take` configurable (default 100, máx. 500) y
 // header X-Total con el total real del filtro, para que el cliente avise
 // cuando la lista está truncada (antes se cortaba en 100 en silencio).
+
+/** Parseo seguro de la columna `fuenteUrls` (JSON array de URLs de páginas).
+ * D1: la re-ejecución multi-página del cliente necesita la lista ordenada. */
+function parseFuenteUrls(raw: unknown): string[] | null {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  try {
+    const arr: unknown = JSON.parse(raw);
+    if (!Array.isArray(arr) || !arr.length || !arr.every((u) => typeof u === 'string' && u)) return null;
+    return arr as string[];
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const moldeId = req.nextUrl.searchParams.get('moldeId') ?? undefined;
   const takeRaw = Number(req.nextUrl.searchParams.get('take') ?? '100');
@@ -25,19 +39,27 @@ export async function GET(req: NextRequest) {
         id: true, moldeId: true, archivo: true, score: true, requiereRevision: true, createdAt: true,
         // fuenteUrl: para saber desde el cliente si la corrida es re-ejecutable
         // sin volver a subir el archivo; updatedAt: para el aviso de versión.
-        fuenteUrl: true, updatedAt: true,
+        // fuenteUrls (D1): páginas fuente ordenadas de una corrida multi-página.
+        fuenteUrl: true, fuenteUrls: true, updatedAt: true,
         molde: { select: { nombre: true } },
       },
     }),
     db.prueba.count({ where: moldeId ? { moldeId } : {} }),
   ]);
-  return NextResponse.json(pruebas, {
-    status: 200,
-    headers: {
-      'X-Total': String(total),
-      'X-Take': String(take),
+  return NextResponse.json(
+    pruebas.map((p) => ({
+      ...p,
+      fuente_urls: parseFuenteUrls(p.fuenteUrls),
+      fuenteUrls: undefined,
+    })),
+    {
+      status: 200,
+      headers: {
+        'X-Total': String(total),
+        'X-Take': String(take),
+      },
     },
-  });
+  );
 }
 
 // POST /api/pruebas — guardar una corrida
@@ -58,6 +80,15 @@ export async function POST(req: NextRequest) {
         archivo: String(body.archivo),
         // URL del documento fuente (/uploads/...) si el cliente la subió.
         fuenteUrl: typeof body.fuenteUrl === 'string' && body.fuenteUrl ? body.fuenteUrl : null,
+        // D1: páginas fuente ordenadas de una corrida multi-página (JSON array).
+        // Solo se persiste si TODAS las páginas llegaron — un set incompleto
+        // produciría re-ejecuciones parciales (exactamente el defecto D1).
+        fuenteUrls:
+          Array.isArray(body.fuenteUrls) &&
+          body.fuenteUrls.length >= 2 &&
+          body.fuenteUrls.every((u: unknown) => typeof u === 'string' && u)
+            ? JSON.stringify(body.fuenteUrls)
+            : null,
         resultados: typeof body.resultados === 'string' ? body.resultados : JSON.stringify(body.resultados),
         score: typeof body.score === 'number' ? body.score : null,
         requiereRevision: Boolean(body.requiereRevision),

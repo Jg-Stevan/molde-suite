@@ -31,6 +31,8 @@ export interface PruebaDB {
   createdAt: string;
   /** URL del documento fuente (/uploads/... o idb:...) si la corrida es re-ejecutable. */
   fuenteUrl?: string | null;
+  /** D1: páginas fuente ordenadas de una corrida multi-página (todas subidas). */
+  fuente_urls?: string[] | null;
   /** Momento de la última ejecución/re-ejecución (detección de versión). */
   updatedAt?: string;
   molde?: { nombre: string };
@@ -53,6 +55,9 @@ export interface PruebaInput {
   moldeId: string;
   archivo: string;
   fuenteUrl?: string | null;
+  /** D1: URLs de TODAS las páginas fuente, ordenadas (corridas multi-página).
+   * Solo se declara la corrida re-ejecutable multi-página si el set está completo. */
+  fuenteUrls?: string[] | null;
   resultados: unknown;
   score: number;
   requiereRevision: boolean;
@@ -70,6 +75,8 @@ export interface PruebaDetalleDB {
   moldeId: string;
   archivo: string;
   fuente_url: string | null;
+  /** D1: páginas fuente ordenadas (multi-página); null en corridas de 1 página. */
+  fuente_urls?: string[] | null;
   score: number | null;
   requiere_revision: boolean;
   createdAt: string;
