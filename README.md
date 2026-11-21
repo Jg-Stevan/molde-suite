@@ -7,7 +7,7 @@ Suite de herramientas para **digitalización documental guiada por moldes**: un 
 | App | Carpeta | Qué es |
 | --- | --- | --- |
 | **Molde Studio** | `apps/molde-studio/` | Editor de moldes y plantillas de documentos: diseño visual sobre documentos escaneados, calibración asistida por OCR y generación del molde `.json` que describe cada tipo de documento. App completa (Next.js 16 + Prisma + SQLite). |
-| **Tamiz** | `apps/tamiz/` | El **digitalizador automático**: escaneo inmersivo (cámara / importación / simulación), análisis con detección de bordes, calidad y OCR, verificación documental contra el molde e historial de escaneos con estados **ÓPTIMA / ADVERTENCIA / RECHAZADA**. Capa UI entregada (ver estado abajo). |
+| **Tamiz** | `apps/tamiz/` | El **digitalizador automático**: escaneo inmersivo (cámara / importación / simulación), análisis con detección de bordes, calidad y OCR, verificación documental contra el molde e historial de escaneos con estados **ÓPTIMA / ADVERTENCIA / RECHAZADA**. Ejecutable (decisión D8-B: núcleo mínimo `packages/scanner-core` + módulos de runtime propios). |
 
 ## Flujo entre las apps
 
@@ -40,7 +40,7 @@ molde-suite/
 ## Estado de las entregas (léelo antes de clonar)
 
 - **Molde Studio** está completo: se instala y ejecuta como cualquier app Next.js (instrucciones en [`apps/molde-studio/README.md`](apps/molde-studio/README.md)). Los documentos escaneados de prueba, la base de datos local y los entornos (`.env`) no se publican en este repositorio.
-- **Tamiz** es la entrega de la **capa UI/puente** (24 archivos, incluye `CAMBIOS.txt` con el historial de la entrega). Depende de piezas del monorepo privado original que **no forman parte de esta entrega**: el paquete `@jg-stevan/scanner-core` y una veintena de módulos hermanos (`pipeline`, `captura`, `calidad`, `ocr`, `progreso`, `politica/umbrales`, etc.). Por eso **no es ejecutable por sí sola**; la lista exacta está en [`apps/tamiz/README.md`](apps/tamiz/README.md). No se ha inventado ningún módulo para "completarla".
+- **Tamiz** es **ejecutable** desde el plan de implementación de 2026-11 (decisión D8, opción B): el contrato vive en `packages/scanner-core` y los módulos de runtime (`pipeline`, `captura`, `calidad`, `ocr`, `politica/umbrales`, observabilidad, puente, hooks de cámara…) están implementados en `apps/tamiz/src/lib/e14/`. `typecheck`, `lint` y el build estático están en verde. Los límites del núcleo mínimo (detector sin perspectivas completas, OCR de bandas sin calibrar con el corpus, puente sin hub) están documentados en [`docs/auditoria/03-informe-final.md`](docs/auditoria/03-informe-final.md) y [`apps/tamiz/README.md`](apps/tamiz/README.md).
 
 ## Ejecutar Molde Studio
 
