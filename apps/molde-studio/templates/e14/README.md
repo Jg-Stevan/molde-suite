@@ -82,6 +82,12 @@ Documento: `acta_e14` · Idioma: `es` · 21 campos mapeados.
 - `precision`: 82 · `docs`: 3 actas de prueba · `estado`: validando
 - Validado contra: Nairobi (plantilla) + Barcelona (transmisión) + El Cairo (foto con flash)
 
+## Nota: preinstalado en GitHub Pages
+
+El sitio desplegado (https://jg-stevan.github.io/molde-suite/) siembra este molde
+en la biblioteca en la primera visita (IndexedDB local), con las páginas de
+referencia servidas del propio build. No hace falta importarlo a mano ahí.
+
 ## Uso sugerido para agentes
 
 1. Cargar `molde-e14.json` y `referencia-p1.png` / `referencia-p2.png`.

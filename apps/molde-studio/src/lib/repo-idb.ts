@@ -127,11 +127,55 @@ async function revocarArchivo(key: string | null | undefined): Promise<void> {
   await pedir('archivos', 'readwrite', (s) => s.delete(key)).catch(() => undefined);
 }
 
+// ---- Semilla: molde del Acta E-14 preinstalado en el modo estático ----
+// Al abrir el sitio en GitHub Pages la biblioteca nacía vacía (el IndexedDB es
+// por dispositivo). En la PRIMERA visita se siembra el molde del Acta E-14
+// Exterior con sus páginas de referencia (/actas-e14/*.png servidas por el
+// propio build), para que la biblioteca llegue con el acta lista para usar.
+// Un flag en localStorage evita duplicar la semilla y evita resucitar el molde
+// si el usuario lo eliminó a propósito.
+import moldeE14Seed from '../../templates/e14/molde-e14.json';
+
+const ID_SEMILLA_E14 = 'semilla-acta-e14-exterior';
+const FLAG_SEMILLA_E14 = 'molde-studio-semilla-e14';
+
+async function sembrarE14SiToca(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    if (localStorage.getItem(FLAG_SEMILLA_E14)) return;
+    // Se marca ANTES de revisar: si ya hay moldes (usuario avanzado que importó
+    // los suyos), no se duplica nada y futuras visitas no reintenta.
+    localStorage.setItem(FLAG_SEMILLA_E14, 'e14');
+    const existentes = await pedir<MoldeRegistro[]>('moldes', 'readonly', (s) => s.getAll());
+    if (existentes.length > 0) return;
+    const paginas = (moldeE14Seed.paginasRef ?? []).map((p) => ({
+      pagina: p.pagina,
+      imagen: p.imagen,
+    }));
+    const primera = paginas.find((pg) => pg.pagina === 1)?.imagen ?? paginas[0]?.imagen ?? null;
+    const now = ahora();
+    const reg: MoldeRegistro = {
+      id: ID_SEMILLA_E14,
+      nombre: moldeE14Seed.nombre,
+      descripcion: moldeE14Seed.descripcion ?? null,
+      documento: moldeE14Seed.documento ?? null,
+      json: JSON.stringify(moldeE14Seed),
+      imagenRef: primera,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await pedir('moldes', 'readwrite', (s) => s.put(reg));
+  } catch {
+    /* la semilla jamás debe romper la app */
+  }
+}
+
 export const repoIdb: Repo = {
   esEstatico: true,
 
   listarMoldes: () =>
     seguro(async () => {
+      await sembrarE14SiToca();
       const moldes = await pedir<MoldeRegistro[]>('moldes', 'readonly', (s) => s.getAll());
       const pruebas = await pedir<PruebaRegistro[]>('pruebas', 'readonly', (s) => s.getAll());
       const conteo = new Map<string, number>();
