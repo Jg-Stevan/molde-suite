@@ -1,0 +1,47 @@
+name: Quality Gate
+
+# Gate en PR y push a main: typecheck + lint de las dos apps del monorepo
+# (apps/molde-studio y apps/tamiz). NO despliega (eso lo hace deploy-pages.yml).
+# Plantilla: quality.yml de web-scanner (Fase B3 de PLAN-ruta-pendiente-v2).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# El deploy usa el grupo "github-pages": este grupo es distinto, no chocan.
+# cancel-in-progress solo cancela corridas redundantes de este mismo gate.
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies (workspace raíz)
+        run: bun install --frozen-lockfile
+
+      # bun no ejecuta postinstall de terceros sin trustedDependencies:
+      # el cliente Prisma no se genera solo. El typecheck de molde-studio
+      # necesita el cliente generado.
+      - name: Prisma generate — apps/molde-studio
+        run: cd apps/molde-studio && bun run db:generate
+
+      - name: Type check — apps/molde-studio
+        run: cd apps/molde-studio && bun run typecheck
+
+      - name: Type check — apps/tamiz
+        run: cd apps/tamiz && bun run typecheck
+
+      - name: Lint — apps/molde-studio
+        run: cd apps/molde-studio && bun run lint
+
+      - name: Lint — apps/tamiz
+        run: cd apps/tamiz && bun run lint
