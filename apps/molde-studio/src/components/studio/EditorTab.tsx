@@ -55,7 +55,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { alinearAnclas, rectEditor, sugerirUmbral } from '@/lib/molde/universal-engine';
+import { alinearAnclas, rectEditor, sugerirUmbralClustering } from '@/lib/molde/universal-engine';
 import { escalarCanvas, renderDocumento } from '@/lib/ocr/pdf-client';
 import {
   MOLDE_UNIVERSAL_VERSION,
@@ -66,6 +66,7 @@ import {
   type CampoUniversal,
   type MoldeUniversal,
   type RectNorm,
+  type ResultadoUniversal,
   type TipoCampo,
 } from '@/lib/molde/universal-types';
 import { repo, useUrlResuelta } from '@/lib/repo';
@@ -470,12 +471,14 @@ export default function EditorTab() {
     }
   }
 
-  // ---- Fase 2.1: sugerir umbral a partir de las corridas reales ----
-  // Sobre la corrida más reciente de este molde, mira los ratios de tinta ya
-  // medidos del campo activo y sugiere umbral = trazo más fino × 0.7.
+  // ---- Fase 2.1 + Fase 8: sugerir umbral a partir de TODAS las corridas ----
+  // Fase 8 (variante 4.2, solución de fondo del matiz residual de F4): reúne
+  // los ratios del campo en TODAS las corridas del molde y separa ruido/tinta
+  // por clustering (k-means k=2 en log10) en vez del corte fijo 0.002. Con
+  // < 3 corridas el motor conserva el comportamiento anterior (primera
+  // corrida que sugiere, mismas guardas F4/F4-1).
   // F4-1 (informe de verificación §6.1, mitigación c): cuando la guarda NO
-  // sugiere, el toast explica POR QUÉ — antes caía al mensaje genérico "no
-  // tiene mediciones" aunque el campo estuviera medido (engañoso).
+  // sugiere, el toast explica POR QUÉ — nunca el mensaje genérico.
   async function sugerirUmbralClick() {
     if (!campoSel || !moldeId) return;
     const estado = useStudio.getState();
@@ -488,46 +491,51 @@ export default function EditorTab() {
       });
       return;
     }
-    type MotivoUmbral = NonNullable<ReturnType<typeof sugerirUmbral>['motivo']>;
-    let motivoBloqueo: MotivoUmbral | null = null;
-    let medicionBloqueo: ReturnType<typeof sugerirUmbral> | null = null;
+    const resultadosCorridas: ResultadoUniversal[] = [];
     for (const p of candidatas) {
       const r = await repo.obtenerPrueba(p.id);
       if (!r.ok || !r.data.resultados) continue;
-      const s = sugerirUmbral(r.data.resultados as Parameters<typeof sugerirUmbral>[0], campoSel.id);
-      if (s.sugerido !== null) {
-        actualizarCampo(campoSel.id, { umbral: s.sugerido });
-        toast({
-          title: `Umbral sugerido: ${(s.sugerido * 100).toFixed(2)}%`,
-          description: `Traza más fina medida: ${((s.minConTinta as number) * 100).toFixed(2)}%${s.maxSinTinta !== null ? ` · celda vacía más «sucia»: ${(s.maxSinTinta * 100).toFixed(2)}%` : ''} · criterio: trazo × 0.7.`,
-        });
-        return;
-      }
-      if (s.motivo && s.motivo !== 'sin_mediciones') {
-        motivoBloqueo = s.motivo;
-        medicionBloqueo = s;
-      }
+      resultadosCorridas.push(r.data.resultados as ResultadoUniversal);
     }
-    if (motivoBloqueo === 'sin_celdas_vacias') {
+    const s = sugerirUmbralClustering(resultadosCorridas, campoSel.id);
+    if (s.sugerido !== null) {
+      actualizarCampo(campoSel.id, { umbral: s.sugerido });
+      const trazos = `trazo más fino: ${((s.minConTinta as number) * 100).toFixed(2)}%`;
+      const ruido = s.maxSinTinta !== null ? ` · ruido máximo: ${((s.maxSinTinta as number) * 100).toFixed(2)}%` : '';
+      toast({
+        title: `Umbral sugerido: ${(s.sugerido * 100).toFixed(2)}%`,
+        description:
+          s.metodo === 'clustering'
+            ? `${trazos}${ruido} · clasificación por clustering (k=2) sobre ${s.corridasConMediciones} corridas · criterio: trazo × 0.7.`
+            : `${trazos}${ruido} · criterio: trazo × 0.7 · corridas con mediciones: ${s.corridasConMediciones} (con ${3 - s.corridasConMediciones} más se calibra por clustering).`,
+      });
+      return;
+    }
+    const medicion = (v: number | null | undefined) =>
+      v === null || v === undefined ? '—' : `${(v * 100).toFixed(2)}%`;
+    if (s.motivo === 'sin_celdas_vacias') {
       toast({
         title: 'No se puede verificar la separación contra el ruido',
-        description: `El campo SÍ tiene mediciones con tinta (trazo más fino ${((medicionBloqueo?.minConTinta as number) * 100).toFixed(2)}%) pero ninguna celda VACÍA medida: sin el ruido real no se puede garantizar que el umbral quede por encima de él (guarda F4-1). Corre una verificación con la casilla vacía y vuelve a calibrar.`,
+        description: `El campo SÍ tiene mediciones con tinta (trazo más fino ${medicion(s.minConTinta)}) pero ninguna celda VACÍA medida en ${s.corridasConMediciones} corridas: sin el ruido real no se puede garantizar que el umbral quede por encima de él (guarda F4-1). Corre una verificación con la casilla vacía y vuelve a calibrar.`,
         variant: 'destructive',
       });
       return;
     }
-    if (motivoBloqueo === 'clases_entrelazadas') {
+    if (s.motivo === 'clases_entrelazadas') {
       toast({
         title: 'Ruido y tinta entrelazados: no se sugiere umbral',
-        description: `La celda vacía más «sucia» (${((medicionBloqueo?.maxSinTinta as number) * 100).toFixed(2)}%) NO queda por debajo de la mitad del trazo más fino (${((medicionBloqueo?.minConTinta as number) * 100).toFixed(2)}%): un umbral aquí marcaría casillas vacías como firmadas (guarda F4).`,
+        description: `La celda vacía más «sucia» (${medicion(s.maxSinTinta)}) NO queda por debajo de la mitad del trazo más fino (${medicion(s.minConTinta)}): un umbral aquí marcaría casillas vacías como firmadas (guarda F4).`,
         variant: 'destructive',
       });
       return;
     }
-    if (motivoBloqueo === 'sin_tinta') {
+    if (s.motivo === 'sin_tinta') {
       toast({
-        title: 'Ninguna medición con tinta en este campo',
-        description: 'Todas las corridas midieron la zona vacía (bajo el corte de ruido). Corre una verificación con la casilla diligenciada.',
+        title: 'Ningún nivel de tinta demostrado en este campo',
+        description:
+          s.minConTinta !== null
+            ? `Las ${s.corridasConMediciones} corridas con mediciones NO demuestran tinta real: el nivel más alto medido (${medicion(s.minConTinta)}) no supera el techo de ruido del corpus (2%). Calibra manualmente o con un corpus con trazos más marcados.`
+            : `Las ${s.corridasConMediciones} corridas con mediciones midieron la zona a nivel de ruido (máximo ${medicion(s.maxSinTinta)}). Corre una verificación con la casilla diligenciada.`,
         variant: 'destructive',
       });
       return;

@@ -1051,4 +1051,251 @@ export function sugerirUmbral(
   return { sugerido, minConTinta, maxSinTinta };
 }
 
+// ---- Fase 8 (PLAN variante 4.2): umbral adaptativo por clustering ----
+//
+// La guarda F4/F4-1 clasifica las mediciones con el CORTE FIJO 0.002. Eso
+// deja el matiz residual documentado: una vacía limpia pegada al corte JUNTO
+// a una vacía con flash encima del corte (p. ej. [0.002, 0.0139, 0.079]) pasa
+// la guarda relativa de una sola corrida, y el caso «todo por encima de
+// 0.002» bloquea la calibración (sin_celdas_vacias) aunque el ruido real del
+// papel SÍ haya sido medido en otras corridas.
+//
+// La solución de fondo (PLAN Fase 8, opción 4.1): acumular los ratios de
+// TODAS las corridas del molde y separar las clases con clustering 1D
+// (k-means k=2) en vez del corte fijo — el corte sale de los DATOS, no de la
+// constante. Con < 3 corridas no hay estructura de clases fiable: se conserva
+// el comportamiento anterior (primera corrida que sugiere, mismas guardas).
+
+/**
+ * Techo de ruido del corpus de la auditoría: la peor vacía con flash midió
+ * 0.0139 y el trazo más fino real 0.045 (CORRECCIONES-POST-VERIFICACION §2.3).
+ * 0.02 queda 1.4× por encima del ruido y 2.2× por debajo del trazo más fino:
+ * sirve para validar que la clase BAJA del clustering es ruido de verdad (su
+ * mínimo debe alcanzar valores de papel) y que la clase ALTA es tinta real
+ * (su mínimo debe superar el techo). Exportado para que las pruebas usen el
+ * MISMO valor que el motor. Si un molde futuro tuviera trazos por debajo de
+ * este techo, recalibrar la constante con corpus propio y documentarlo.
+ */
+export const TECHO_RUIDO = 0.02;
+
+/** Corridas mínimas para que el clustering sea fiable (PLAN Fase 8: ≥3-5). */
+export const MIN_CORRIDAS_CLUSTERING = 3;
+
+/** ε del dominio log: evita log(0) de celdas totalmente limpias (ratio 0)
+ * sin distorsionar la separación a partir de 0.001. */
+const LOG_EPS = 1e-4;
+
+/**
+ * k-means 1D DETERMINISTA (k=2) en espacio log10: los ratios abarcan órdenes
+ * de magnitud (0.002 vs 0.138) y la distancia relativa es lo que separa las
+ * clases. Inicialización en el mínimo y máximo (sin azar: misma entrada →
+ * misma salida, requisito de reproducibilidad de la calibración). Devuelve
+ * null cuando no hay varianza (todas las mediciones idénticas — no hay
+ * estructura de clases que separar).
+ */
+function kmeans1D(valores: number[]): { bajos: number[]; altos: number[] } | null {
+  if (valores.length < 2) return null;
+  const logs = valores.map((v) => Math.log10(v + LOG_EPS));
+  const min = Math.min(...logs);
+  const max = Math.max(...logs);
+  if (max - min < 1e-9) return null; // sin varianza: una sola "clase"
+  let cBajo = min;
+  let cAlto = max;
+  let asignacion = new Array<number>(logs.length).fill(0);
+  for (let iter = 0; iter < 50; iter++) {
+    const nueva = logs.map((l) => (Math.abs(l - cBajo) <= Math.abs(l - cAlto) ? 0 : 1));
+    const igual = nueva.every((v, i) => v === asignacion[i]);
+    asignacion = nueva;
+    const bajos = logs.filter((_, i) => asignacion[i] === 0);
+    const altos = logs.filter((_, i) => asignacion[i] === 1);
+    if (bajos.length) cBajo = bajos.reduce((a, b) => a + b, 0) / bajos.length;
+    if (altos.length) cAlto = altos.reduce((a, b) => a + b, 0) / altos.length;
+    if (igual) break;
+  }
+  const bajos: number[] = [];
+  const altos: number[] = [];
+  valores.forEach((v, i) => (asignacion[i] === 0 ? bajos : altos).push(v));
+  // Sanidad: ambas clases no vacías (k-means k=2 con varianza siempre las
+  // produce, pero el desempate por <= en la asignación puede colapsar si los
+  // centros coinciden tras una iteración degenerada).
+  if (!bajos.length || !altos.length) return null;
+  return { bajos, altos };
+}
+
+/**
+ * Candidato 2 de corte: separa por la BRECHA más grande en espacio log10
+ * (máxima razón multiplicativa entre mediciones ordenadas consecutivas).
+ * A diferencia del k-means (que minimiza varianza y puede arrastrar un flash
+ * a la clase de tinta cuando hay muchas vacías limpias), la brecha máxima
+ * parte SIEMPRE en el hueco de datos más ancho. Sometido a las mismas
+ * guardas que el k-means: su defecto conocido (tinta bimodal sin vacías)
+ * queda atrapado por el pre-gate y la guarda del techo.
+ */
+function brechaMaximaLog(valores: number[]): { bajos: number[]; altos: number[] } | null {
+  if (valores.length < 2) return null;
+  const orden = [...valores].sort((a, b) => a - b);
+  let idxMejor = -1;
+  let gapMejor = 0;
+  for (let i = 0; i < orden.length - 1; i++) {
+    const gap = Math.log10(orden[i + 1] + LOG_EPS) - Math.log10(orden[i] + LOG_EPS);
+    if (gap > gapMejor) {
+      gapMejor = gap;
+      idxMejor = i;
+    }
+  }
+  if (idxMejor < 0 || gapMejor <= 0) return null; // sin hueco: nada que separar
+  const corte = (orden[idxMejor] + orden[idxMejor + 1]) / 2;
+  const bajos = valores.filter((v) => v <= corte);
+  const altos = valores.filter((v) => v > corte);
+  if (!bajos.length || !altos.length) return null;
+  return { bajos, altos };
+}
+
+/**
+ * Fase 8: sugiere umbral acumulando los ratios del campo en TODAS las
+ * corridas del molde y separando ruido/tinta por clustering 1D en vez del
+ * corte fijo 0.002. Con menos de MIN_CORRIDAS_CLUSTERING corridas con
+ * mediciones, conserva el comportamiento exacto de `sugerirUmbral` (primera
+ * corrida que sugiere gana; mismas guardas F4/F4-1).
+ *
+ * Se evalúan DOS candidatos de corte y se acepta el PRIMERO que pase TODAS
+ * las guardas de honestidad (si ninguno pasa, no se calibra):
+ *   1. k-means k=2 (minimiza varianza intra-clase — el que prescribe el PLAN).
+ *      Falla conocido: con vacías limpias + flash, la varianza arrastra el
+ *      flash (0.0139) a la clase de tinta → lo detecta la guarda del techo.
+ *   2. Brecha máxima en espacio log (máxima razón multiplicativa entre
+ *      mediciones consecutivas). Falla conocido: con tinta bimodal sin
+ *      vacías, parte entre los dos modos de tinta → lo detecta el pre-gate
+ *      y la guarda del techo.
+ * Los dos candidatos pasan por LAS MISMAS guardas, así que ninguna salida
+ * peligrosa puede colarse: el defecto de cada candidato lo atrapa una guarda
+ * distinta y el rechazo total es siempre el camino seguro.
+ *
+ * Guardas de honestidad (sobre las CLASES, ya no sobre el corte fijo):
+ *   0. max(corridas) ≤ TECHO_RUIDO     → 'sin_tinta' (todo a nivel ruido)
+ *   0. min(corridas) > TECHO_RUIDO     → 'sin_celdas_vacias' (todo a nivel trazo)
+ *   1. clase alta: min(altos) > TECHO_RUIDO    → 'sin_tinta' (sin tinta demostrada)
+ *   2. separación: max(bajos) < 0.5 × min(altos) → 'clases_entrelazadas' (guarda F4)
+ *   3. defensiva: sugerido > max(bajos)        → 'clases_entrelazadas'
+ *
+ * El umbral sugerido mantiene el criterio del motor: trazo más fino × 0.7,
+ * con piso absoluto 0.0015 (bajo él el OCR ya no discrimina nada fiable).
+ */
+export function sugerirUmbralClustering(
+  corridas: ResultadoUniversal[],
+  campoId: string,
+): {
+  sugerido: number | null;
+  minConTinta: number | null;
+  maxSinTinta: number | null;
+  /** De dónde salió la clasificación de clases para ESTA sugerencia. */
+  metodo: 'clustering' | 'corte_fijo';
+  /** Cuántas corridas aportaron al menos una medición del campo. */
+  corridasConMediciones: number;
+  /** Por qué NO se sugiere (solo presente cuando `sugerido` es null). */
+  motivo?: 'sin_mediciones' | 'sin_tinta' | 'sin_celdas_vacias' | 'clases_entrelazadas';
+} {
+  const medicionesPorCorrida = corridas.map((r) =>
+    r.paginas
+      .flatMap((p) => p.campos)
+      .filter((c) => c.id === campoId && typeof c.ratio === 'number')
+      .map((c) => c.ratio as number),
+  );
+  const corridasConMediciones = medicionesPorCorrida.filter((m) => m.length > 0).length;
+
+  if (corridasConMediciones === 0) {
+    return { sugerido: null, minConTinta: null, maxSinTinta: null, metodo: 'corte_fijo', corridasConMediciones, motivo: 'sin_mediciones' };
+  }
+
+  // Camino de compatibilidad (< 3 corridas): misma semántica que la UI tenía
+  // antes de Fase 8 — iterar en el orden dado y quedarse con la PRIMERA
+  // corrida que sugiere; si ninguna sugiere, el primer motivo bloqueante.
+  if (corridasConMediciones < MIN_CORRIDAS_CLUSTERING) {
+    let bloqueo: ReturnType<typeof sugerirUmbral> | null = null;
+    for (const mediciones of medicionesPorCorrida) {
+      if (!mediciones.length) continue;
+      const corridaSintetica = {
+        paginas: mediciones.map((r) => ({ pagina: 1, campos: [{ id: campoId, ratio: r }] })),
+      } as unknown as ResultadoUniversal;
+      const s = sugerirUmbral(corridaSintetica, campoId);
+      if (s.sugerido !== null) {
+        return { ...s, metodo: 'corte_fijo', corridasConMediciones };
+      }
+      if (s.motivo && s.motivo !== 'sin_mediciones' && !bloqueo) bloqueo = s;
+    }
+    return {
+      sugerido: null,
+      minConTinta: bloqueo?.minConTinta ?? null,
+      maxSinTinta: bloqueo?.maxSinTinta ?? null,
+      metodo: 'corte_fijo',
+      corridasConMediciones,
+      motivo: bloqueo?.motivo ?? 'sin_mediciones',
+    };
+  }
+
+  // Camino Fase 8: pooling de TODAS las mediciones + clustering.
+  const pooled = medicionesPorCorrida.flat();
+  const maxPooled = Math.max(...pooled);
+  const minPooled = Math.min(...pooled);
+
+  // Pre-gates sobre el TECHO de ruido (ya NO sobre el corte fijo 0.002):
+  // deciden si los datos siquiera tienen dos clases plausibles.
+  if (maxPooled <= TECHO_RUIDO) {
+    return { sugerido: null, minConTinta: null, maxSinTinta: maxPooled, metodo: 'clustering', corridasConMediciones, motivo: 'sin_tinta' };
+  }
+  if (minPooled > TECHO_RUIDO) {
+    return { sugerido: null, minConTinta: minPooled, maxSinTinta: null, metodo: 'clustering', corridasConMediciones, motivo: 'sin_celdas_vacias' };
+  }
+
+  // Candidato 1 (PLAN): k-means k=2 determinista en log10.
+  const clases = kmeans1D(pooled);
+  // Candidato 2: brecha máxima log (máxima razón multiplicativa consecutiva).
+  const brecha = brechaMaximaLog(pooled);
+
+  const mediaLog = (arr: number[]) => arr.reduce((a, b) => a + Math.log10(b + LOG_EPS), 0) / arr.length;
+
+  type Fallo = { minConTinta: number | null; maxSinTinta: number | null; motivo: 'sin_tinta' | 'clases_entrelazadas' };
+  let primerFallo: Fallo | null = null;
+
+  for (const candidato of [clases, brecha]) {
+    if (!candidato) continue;
+    // Orientación: clase baja = ruido, clase alta = tinta (por media log).
+    const { bajos, altos } =
+      mediaLog(candidato.bajos) <= mediaLog(candidato.altos) ? candidato : { bajos: candidato.altos, altos: candidato.bajos };
+    const minConTinta = Math.min(...altos);
+    const maxSinTinta = Math.max(...bajos);
+
+    // Guarda 1: la clase alta debe superar el techo de ruido — si su mínimo
+    // vive en territorio de papel/flash, no hay tinta demostrada (el defecto
+    // conocido del k-means: la varianza arrastra el flash a la clase alta).
+    if (minConTinta <= TECHO_RUIDO) {
+      if (!primerFallo) primerFallo = { minConTinta, maxSinTinta, motivo: 'sin_tinta' };
+      continue;
+    }
+    // Guarda 2 (F4 sobre clases reales, no sobre el corte fijo).
+    if (maxSinTinta >= 0.5 * minConTinta) {
+      if (!primerFallo) primerFallo = { minConTinta, maxSinTinta, motivo: 'clases_entrelazadas' };
+      continue;
+    }
+    const sugerido = Math.max(0.0015, Math.round(minConTinta * 0.7 * 10000) / 10000);
+    // Guarda 3 (defensiva): el sugerido SIEMPRE debe quedar por encima del
+    // ruido máximo medido.
+    if (sugerido <= maxSinTinta) {
+      if (!primerFallo) primerFallo = { minConTinta, maxSinTinta, motivo: 'clases_entrelazadas' };
+      continue;
+    }
+    return { sugerido, minConTinta, maxSinTinta, metodo: 'clustering', corridasConMediciones };
+  }
+
+  // Ningún candidato pasó las guardas: no se calibra (camino seguro).
+  return {
+    sugerido: null,
+    minConTinta: primerFallo?.minConTinta ?? null,
+    maxSinTinta: primerFallo?.maxSinTinta ?? null,
+    metodo: 'clustering',
+    corridasConMediciones,
+    motivo: primerFallo?.motivo ?? 'clases_entrelazadas',
+  };
+}
+
 export { hexTipo };

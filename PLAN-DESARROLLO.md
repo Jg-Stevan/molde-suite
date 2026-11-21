@@ -1,7 +1,7 @@
 # PLAN DE DESARROLLO — molde-suite (de la conversación de mejora)
 
 **Origen:** análisis de la conversación DeepSeek (sesión 2026-11-21) sobre la auditoría técnica de `Jg-Stevan/molde-suite`.
-**Estado de este documento:** FASES 1-2 IMPLEMENTADAS y verificadas E2E (ver RESUMEN-IMPLEMENTACION.md). RONDA POST-VERIFICACIÓN aplicada (D1, F4-1, O1-O3 — ver CORRECCIONES-POST-VERIFICACION.md). FASES 3-9 son propuestas pendientes de autorización.
+**Estado de este documento:** FASES 1-2 IMPLEMENTADAS y verificadas E2E (ver RESUMEN-IMPLEMENTACION.md). RONDA POST-VERIFICACIÓN aplicada (D1, F4-1, O1-O3 — ver CORRECCIONES-POST-VERIFICACION.md). FASE 8 IMPLEMENTADA (clustering para el umbral — ver su sección). FASES 3-7 y 9 son propuestas pendientes de autorización.
 **Regla de subida:** ningún cambio se sube al repo sin autorización explícita del dueño.
 
 ---
@@ -64,11 +64,44 @@ Costo típico 1-2 s vs 10-40 s de análisis completo. Editor: proponer la huella
 
 Opción 3.2 de la conversación: alinear la foto entrante contra la referencia antes de resolver zonas (fotos de cámara en ángulo). ORB en celular; SIFT en masivo. Complemento cuando el OCR falla por borrosidad: template matching del encabezado (3.1).
 
-## Fase 8 — Umbral adaptativo por clustering (PENDIENTE)
+## Fase 8 — Umbral adaptativo por clustering (IMPLEMENTADO ✅ — 2026-11-21)
 
-Opción 4.1 completa: acumular ratios de TODAS las corridas y calibrar con Otsu/K-means 1D (k=2) en vez del corte fijo 0.002. La validación de separación (F4) ya quedó sembrada en `sugerirUmbral`; la evolución es clustering con ≥3-5 corridas.
+Opción 4.1 completa: acumular ratios de TODAS las corridas y calibrar con
+clustering 1D en vez del corte fijo 0.002. La validación de separación (F4)
+ya quedó sembrada en `sugerirUmbral`; esta fase es su solución de fondo.
 
-**Matiz F4-1 (post-verificación):** la guarda relativa no cubre el caso «vacía limpia pegada al corte + vacía con flash encima del corte» (p. ej. `[0.002, 0.0139, 0.079]`); el caso sin NINGUNA vacía medida ya devuelve null (`sin_celdas_vacias`). El clustering de esta fase es la solución de fondo del matiz residual.
+**Implementación:**
+
+- **Motor:** `sugerirUmbralClustering(corridas, campoId)` en
+  `universal-engine.ts`. Dos candidatos de corte — k-means k=2 determinista
+  en log10 (el que prescribe el PLAN) y brecha máxima log — pasan por LAS
+  MISMAS guardas (`TECHO_RUIDO = 0.02` exportado, separación 0.5×, sugerido
+  > ruido máximo): el defecto conocido de cada candidato lo atrapa una
+  guarda distinta y el rechazo total es el camino seguro.
+- **Compatibilidad:** con < 3 corridas (`MIN_CORRIDAS_CLUSTERING`) el
+  comportamiento es EXACTAMENTE el anterior (primera corrida que sugiere
+  gana; guardas F4/F4-1 intactas) — regresión probada unitariamente.
+- **Matiz residual de F4-1 RESUELTO:** `[0.002, 0.0139, 0.079]` con 3
+  corridas → corte entre distribuciones (0.0553), flash por debajo del
+  umbral; y el caso de la auditoría `[0.0139, 0.079, 0.138]` que F4-1
+  bloqueaba ahora calibra con evidencia de 3 corridas (0.0539).
+- **Límite documentado:** campos con TODAS las mediciones por debajo del
+  techo (2%) no calibran por clustering (`sin_tinta`) — quedan para el
+  camino de pocas corridas o umbral manual; `TECHO_RUIDO` es recalibrable
+  con corpus propio.
+- **UI:** el botón «Sugerir umbral» reúne TODAS las corridas del molde y el
+  toast indica el método usado (clustering con N corridas / corte fijo con
+  las que hay, avisando cuántas faltan).
+- **Pruebas:** `tests/fase8-clustering.test.ts` — 17 casos (caso residual,
+  auditoría, ratio 0, ruido sobre el corte fijo, entrelazadas, guardas del
+  techo, determinismo, regresiones de compatibilidad).
+- **Lección:** `lessons/acta_e14/2026-11-21-fase8-clustering-umbral.md`.
+
+**knip (pendiente 6.4 — CERRADO como bloqueo de toolchain):** tres corridas
+(heap 4/6 GB, `--production`, sin lockfile) reproducen el mismo crash de
+`oxc-parser` (`new ArrayBuffer` en raw-transfer) con Node 24: NO es memoria
+del heap sino una asignación del parser. Pendiente upstream de knip/oxc o
+cambio de herramienta; se retira del backlog de este repo.
 
 ## Ronda post-verificación (APLICADA — 2026-11-21)
 

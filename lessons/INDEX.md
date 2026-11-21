@@ -42,10 +42,14 @@ corte 0.002 y el historial NO tiene ninguna vacía medida (ruido desconocido);
 **Mitigaciones (ya en el motor):** `sugerirUmbral` exige
 `max(sin tinta) < 0.5 × min(con tinta)` antes de sugerir (4.1) y, desde la
 ronda post-verificación, NO sugiere tampoco cuando no hay NINGUNA medición ≤
-0.002 (`motivo: 'sin_celdas_vacias'` — F4-1, caso (a)). El caso (b) solo lo
-resuelve el clustering sobre varias corridas (PLAN Fase 8, variante 4.2).
+0.002 (`motivo: 'sin_celdas_vacias'` — F4-1, caso (a)). El caso (b) quedó
+RESUELTO por la Fase 8: `sugerirUmbralClustering` separa las clases por los
+datos (k-means k=2 en log10 + brecha máxima log, ambos con las mismas
+guardas y `TECHO_RUIDO = 0.02`) acumulando los ratios de TODAS las corridas
+(≥ 3) — con menos corridas conserva el comportamiento anterior.
 
-**Lecciones:** acta_e14/2026-11-21-f4-1-guarda-sin-celdas-vacias.md
+**Lecciones:** acta_e14/2026-11-21-f4-1-guarda-sin-celdas-vacias.md,
+acta_e14/2026-11-21-fase8-clustering-umbral.md
 
 ## P4 — Manuscritos ilegibles (comportamiento correcto, no fallo)
 
