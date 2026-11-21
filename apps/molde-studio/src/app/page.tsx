@@ -6,10 +6,12 @@
 // el módulo Editor usa barra oscura con ruta "Inicio › Biblioteca › Editor".
 
 import { useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import {
   ChevronRight,
   FileScan,
   HelpCircle,
+  Loader2,
   Moon,
   Sun,
 } from 'lucide-react';
@@ -25,10 +27,32 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import MoldesTab from '@/components/studio/MoldesTab';
-import EditorTab from '@/components/studio/EditorTab';
-import VerificacionTab from '@/components/studio/VerificacionTab';
 import { MODO_ESTATICO } from '@/lib/repo';
 import { useStudio, type Pestana } from '@/lib/studio-store';
+
+// P2 (diagnóstico 2026-11-21, seccion 3): dividir el bundle del editor — la
+// apertura del Editor dejaba long tasks de hasta 169 ms porque el JS del módulo
+// (y Verificación) se parseaba/ejecutaba al cargar la página. Editor y
+// Verificación se cargan bajo demanda al entrar al módulo (dynamic import),
+// con un fallback mínimo mientras llega el chunk.
+const CargandoModulo = () => (
+  <div className="flex min-h-[420px] w-full items-center justify-center" role="status" aria-live="polite">
+    <div className="flex flex-col items-center gap-3 text-slate-400">
+      <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
+      <span className="font-mono text-xs">Cargando módulo…</span>
+    </div>
+  </div>
+);
+
+const EditorTab = dynamic(() => import('@/components/studio/EditorTab'), {
+  loading: CargandoModulo,
+  ssr: false,
+});
+
+const VerificacionTab = dynamic(() => import('@/components/studio/VerificacionTab'), {
+  loading: CargandoModulo,
+  ssr: false,
+});
 
 export default function Home() {
   const { pestana, setPestana, molde, cargarMoldes } = useStudio();

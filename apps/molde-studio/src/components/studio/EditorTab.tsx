@@ -5,7 +5,15 @@
 // toggles de anclas/etiquetas/grid y barra de estado; derecha: propiedades
 // con recorte 300 DPI + JSON en vivo. La lógica del motor universal intacta.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  startTransition,
+  useState,
+} from 'react';
 import {
   ArrowLeft,
   ChevronRight,
@@ -87,6 +95,82 @@ const NOMBRE_TIPO: Record<TipoCampo, string> = {
   firma: 'Firma / Sello',
   checkbox: 'Checkbox OMR',
 };
+
+// P2 (diagnóstico 2026-11-21 §3): las zonas del lienzo son componentes
+// MEMOIZADOS con props primitivas — seleccionar/mover un campo ya NO
+// re-renderiza todo el árbol de overlays (pointerdown de 640 ms medido en la
+// sesión trazada). Solo la zona cuyo rect o estado `activo` cambia se
+// re-renderiza; el resto compara props y descarta.
+interface ZonaCampoProps {
+  campoId: string;
+  etiqueta: string;
+  color: string;
+  activo: boolean;
+  verEtiquetas: boolean;
+  rx: number;
+  ry: number;
+  rw: number;
+  rh: number;
+  onArrastreZona: (e: React.PointerEvent, campoId: string, modo: 'mover' | 'redimensionar') => void;
+  onSeleccion: (id: string | null) => void;
+}
+
+const ZonaCampo = memo(function ZonaCampo({
+  campoId,
+  etiqueta,
+  color,
+  activo,
+  verEtiquetas,
+  rx,
+  ry,
+  rw,
+  rh,
+  onArrastreZona,
+  onSeleccion,
+}: ZonaCampoProps) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Zona ${etiqueta}`}
+      className={`absolute cursor-move border-2 transition-shadow ${activo ? 'z-10 shadow-[0_0_0_2px_rgba(255,255,255,0.85),0_0_18px_rgba(99,102,241,0.65)]' : 'opacity-85'}`}
+      style={{
+        left: `${rx * 100}%`,
+        top: `${ry * 100}%`,
+        width: `${rw * 100}%`,
+        height: `${rh * 100}%`,
+        color,
+        borderColor: color,
+        backgroundColor: `${color}26`,
+        borderWidth: activo ? 3 : 1.6,
+      }}
+      onPointerDown={(e) => onArrastreZona(e, campoId, 'mover')}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onSeleccion(campoId);
+      }}
+    >
+      {verEtiquetas ? (
+        <span
+          className="absolute -top-5 left-0 max-w-full truncate rounded px-1.5 py-0.5 font-mono text-[9px] font-bold text-white"
+          style={{ backgroundColor: color }}
+        >
+          {etiqueta}
+        </span>
+      ) : null}
+      {activo ? (
+        <span
+          role="button"
+          aria-label="Redimensionar zona"
+          className="absolute -bottom-2 -right-2 h-4 w-4 cursor-se-resize rounded-full border-2 border-white shadow"
+          style={{ backgroundColor: color }}
+          onPointerDown={(e) => onArrastreZona(e, campoId, 'redimensionar')}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : null}
+    </div>
+  );
+});
 
 async function imagenACanvas(url: string): Promise<HTMLCanvasElement> {
   const img = new Image();
@@ -279,6 +363,90 @@ export default function EditorTab() {
     };
   }, []);
 
+  // ---- P2: handlers estables + actualizaciones no urgentes ----
+  // El componente suscribe el store completo; con estos handlers estables las
+  // zonas memoizadas solo se re-renderizan cuando CAMBIA su parte.
+  const moldeRef = useRef(molde);
+  // Sincronización en commit (no en render: react-hooks/refs). Los handlers
+  // de drag solo leen la ref tras el commit → siempre ven el molde vigente.
+  useEffect(() => {
+    moldeRef.current = molde;
+  });
+
+  // P2: la selección es una actualización NO urgente — el pointerdown no debe
+  // bloquearse re-renderizando el árbol completo (INP de 640 ms medido).
+  const seleccionarCampo = useCallback(
+    (id: string | null) => {
+      startTransition(() => setCampoSeleccionado(id));
+    },
+    [setCampoSeleccionado],
+  );
+
+  // P2: handler de arrastre estable (identidad fija para las zonas memoizadas).
+  // El campo se resuelve vía ref para no depender de la identidad de `molde`.
+  const onArrastreZona = useCallback(
+    (e: React.PointerEvent, campoId: string, modo: 'mover' | 'redimensionar') => {
+      e.stopPropagation();
+      const campo = moldeRef.current?.campos.find((c) => c.id === campoId);
+      if (!campo) return;
+      dragState.current = { campoId, modo, x0: e.clientX, y0: e.clientY, zona0: { ...campo.zona } };
+      seleccionarCampo(campoId);
+      // FIX: setPointerCapture lanza NotFoundError si el pointer ya no está
+      // activo (eventos sintéticos, dedo levantado en táctil antes del capture,
+      // o el nodo re-renderizado entre el down y el capture). Sin captura el
+      // arrastre igual funciona dentro del viewport, así que solo se ignora.
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        /* sin captura: el drag continúa vía los handlers del viewport */
+      }
+    },
+    [seleccionarCampo],
+  );
+
+  // P2: rects resueltos UNA vez por render (antes rectEditor se llamaba 2-3
+  // veces por campo por render y creaba objetos nuevos que impedían memoizar).
+  const rectsPorId = useMemo(() => {
+    const map = new Map<string, RectNorm>();
+    if (!molde) return map;
+    for (const c of molde.campos) {
+      if (c.pagina !== pagina) continue;
+      const r = rectEditor(c);
+      if (r) map.set(c.id, r);
+    }
+    return map;
+  }, [molde, pagina]);
+
+  // P2: el zoom dispara re-layout del lienzo — transición no urgente.
+  const cambiarZoom = useCallback((v: number | ((z: number) => number)) => {
+    startTransition(() => setZoom(v));
+  }, []);
+
+  // P2: mousemove alimentaba la barra de estado con un setState por evento
+  // (re-render completo por cada píxel). Ahora: 1 actualización por frame
+  // (rAF) y como transición no urgente.
+  const coordsRafRef = useRef<number | null>(null);
+  const onPointerMoveCoords = useCallback((e: React.MouseEvent) => {
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    if (coordsRafRef.current !== null) return;
+    coordsRafRef.current = requestAnimationFrame(() => {
+      coordsRafRef.current = null;
+      const cont = contenedorRef.current;
+      if (!cont) return;
+      const r = cont.getBoundingClientRect();
+      const x = CLAMP((clientX - r.left) / r.width);
+      const y = CLAMP((clientY - r.top) / r.height);
+      startTransition(() => setCoordenadas({ x, y }));
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (coordsRafRef.current !== null) cancelAnimationFrame(coordsRafRef.current);
+    };
+  }, []);
+
   if (!molde || !moldeId) {
     return (
       <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6">
@@ -348,22 +516,9 @@ export default function EditorTab() {
     });
   }
 
-  // ---- arrastre de zonas ----
-  function onPointerDownZona(e: React.PointerEvent, campo: CampoUniversal, modo: 'mover' | 'redimensionar') {
-    e.stopPropagation();
-    dragState.current = { campoId: campo.id, modo, x0: e.clientX, y0: e.clientY, zona0: { ...campo.zona } };
-    setCampoSeleccionado(campo.id);
-    // FIX: setPointerCapture lanza NotFoundError si el pointer ya no está
-    // activo (eventos sintéticos, dedo levantado en táctil antes del capture,
-    // o el nodo re-renderizado entre el down y el capture). Sin captura el
-    // arrastre igual funciona dentro del viewport, así que solo se ignora.
-    try {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    } catch {
-      /* sin captura: el drag continúa vía los handlers del viewport */
-    }
-  }
-
+  // ---- arrastre de zonas (movimiento: se mantiene urgente para feedback
+  // visual inmediato; el inicio del drag y la selección viven arriba como
+  // handlers estables para las zonas memoizadas) ----
   function onPointerMoveZona(e: React.PointerEvent) {
     const d = dragState.current;
     const cont = contenedorRef.current;
@@ -389,16 +544,6 @@ export default function EditorTab() {
 
   function onPointerUpZona() {
     dragState.current = null;
-  }
-
-  function onPointerMoveCoords(e: React.MouseEvent) {
-    const cont = contenedorRef.current;
-    if (!cont) return;
-    const r = cont.getBoundingClientRect();
-    setCoordenadas({
-      x: CLAMP((e.clientX - r.left) / r.width),
-      y: CLAMP((e.clientY - r.top) / r.height),
-    });
   }
 
   // ---- referencia de imagen ----
@@ -911,7 +1056,7 @@ export default function EditorTab() {
                 type="button"
                 title="Ajustar al 100%"
                 aria-label="Ajustar zoom al 100%"
-                onClick={() => setZoom(100)}
+                onClick={() => cambiarZoom(100)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
               >
                 <Maximize2 className="h-4 w-4" aria-hidden />
@@ -931,7 +1076,7 @@ export default function EditorTab() {
               <button
                 type="button"
                 aria-label="Alejar"
-                onClick={() => setZoom((z) => Math.max(30, z - 10))}
+                onClick={() => cambiarZoom((z) => Math.max(30, z - 10))}
                 className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-700 text-slate-300 transition hover:bg-slate-800"
               >
                 <Minus className="h-3.5 w-3.5" aria-hidden />
@@ -940,7 +1085,7 @@ export default function EditorTab() {
               <button
                 type="button"
                 aria-label="Acercar"
-                onClick={() => setZoom((z) => Math.min(220, z + 10))}
+                onClick={() => cambiarZoom((z) => Math.min(220, z + 10))}
                 className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-700 text-slate-300 transition hover:bg-slate-800"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden />
@@ -982,7 +1127,7 @@ export default function EditorTab() {
             onPointerUp={onPointerUpZona}
             onMouseMove={onPointerMoveCoords}
             onMouseLeave={() => setCoordenadas(null)}
-            onClick={() => setCampoSeleccionado(null)}
+            onClick={() => seleccionarCampo(null)}
           >
             <div
               ref={contenedorRef}
@@ -1055,7 +1200,7 @@ export default function EditorTab() {
                   {camposPagina.map((c) => {
                     const ar = c.ancla?.rect;
                     if (!ar || ocultos.has(c.id)) return null;
-                    const rect = rectEditor(c);
+                    const rect = rectsPorId.get(c.id);
                     if (!rect) return null;
                     const activo = c.id === campoSeleccionadoId;
                     return (
@@ -1097,12 +1242,12 @@ export default function EditorTab() {
                 })()
               ) : null}
 
-              {/* Zonas del molde */}
+              {/* Zonas del molde — memoizadas (P2): solo re-renderiza la zona
+                  cuyo rect o estado activo cambió */}
               {imagenRef &&
                 camposPagina.map((c) => {
                   if (ocultos.has(c.id)) return null;
-                  const rect = rectEditor(c);
-                  const activo = c.id === campoSeleccionadoId;
+                  const rect = rectsPorId.get(c.id);
                   // G-10: ancla_relativa sin rect resoluble (ancla vacía o sin
                   // capturar) se pinta como NO EVALUABLE con hatch rojo — nunca
                   // como una zona válida donde el motor nunca medirá.
@@ -1130,47 +1275,20 @@ export default function EditorTab() {
                     );
                   }
                   return (
-                    <div
+                    <ZonaCampo
                       key={c.id}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Zona ${c.etiqueta}`}
-                      className={`absolute cursor-move border-2 transition-shadow ${activo ? 'z-10 shadow-[0_0_0_2px_rgba(255,255,255,0.85),0_0_18px_rgba(99,102,241,0.65)]' : 'opacity-85'}`}
-                      style={{
-                        left: `${rect.x * 100}%`,
-                        top: `${rect.y * 100}%`,
-                        width: `${rect.w * 100}%`,
-                        height: `${rect.h * 100}%`,
-                        color: hexTipo(c.tipo),
-                        borderColor: hexTipo(c.tipo),
-                        backgroundColor: `${hexTipo(c.tipo)}26`,
-                        borderWidth: activo ? 3 : 1.6,
-                      }}
-                      onPointerDown={(e) => onPointerDownZona(e, c, 'mover')}
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') setCampoSeleccionado(c.id);
-                      }}
-                    >
-                      {verEtiquetas ? (
-                        <span
-                          className="absolute -top-5 left-0 max-w-full truncate rounded px-1.5 py-0.5 font-mono text-[9px] font-bold text-white"
-                          style={{ backgroundColor: hexTipo(c.tipo) }}
-                        >
-                          {c.etiqueta}
-                        </span>
-                      ) : null}
-                      {activo ? (
-                        <span
-                          role="button"
-                          aria-label="Redimensionar zona"
-                          className="absolute -bottom-2 -right-2 h-4 w-4 cursor-se-resize rounded-full border-2 border-white shadow"
-                          style={{ backgroundColor: hexTipo(c.tipo) }}
-                          onPointerDown={(e) => onPointerDownZona(e, c, 'redimensionar')}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : null}
-                    </div>
+                      campoId={c.id}
+                      etiqueta={c.etiqueta}
+                      color={hexTipo(c.tipo)}
+                      activo={c.id === campoSeleccionadoId}
+                      verEtiquetas={verEtiquetas}
+                      rx={rect.x}
+                      ry={rect.y}
+                      rw={rect.w}
+                      rh={rect.h}
+                      onArrastreZona={onArrastreZona}
+                      onSeleccion={seleccionarCampo}
+                    />
                   );
                 })}
             </div>

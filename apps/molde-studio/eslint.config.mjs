@@ -44,7 +44,18 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+  ignores: [
+    "node_modules/**",
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    "examples/**",
+    "skills",
+    // Assets de terceros generados/minificados (cores WASM de tesseract.js):
+    // nunca se linteaban antes de auto-hospedarlos (P1 2026-11-21).
+    "public/tesseract/**",
+  ]
 }];
 
 export default eslintConfig;
