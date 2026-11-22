@@ -38,9 +38,12 @@ import {
   RotateCw,
   Save,
   ScanLine,
+  ShieldAlert,
+  ShieldCheck,
   SquareDashedMousePointer,
   Table,
   Trash2,
+  Wand2,
 } from 'lucide-react';
 
 import {
@@ -78,6 +81,7 @@ import { useToast } from '@/hooks/use-toast';
 import { alinearAnclas, editDistancePonderada, normTxt, rectEditor, sugerirUmbralClustering } from '@/lib/molde/universal-engine';
 import type { LineaOcr } from '@/lib/molde/types';
 import { detectarTabla, type TablaDetectada } from '@/lib/molde/tabla-detect';
+import { auditarCamposPagina, type InformePagina } from '@/lib/molde/auditoria';
 import { ocrLines, setOcrProgress } from '@/lib/ocr/ocr-client';
 import { escalarCanvas, renderDocumento } from '@/lib/ocr/pdf-client';
 import {
@@ -308,7 +312,7 @@ export default function EditorTab() {
     digitos: boolean;
     prefijo: string;
   }>({ encabezado: true, anclar: true, tipoCelda: 'texto', digitos: true, prefijo: 'Tabla' });
-  const [pestanaDerecha, setPestanaDerecha] = useState<'propiedades' | 'json' | 'ocr'>('propiedades');
+  const [pestanaDerecha, setPestanaDerecha] = useState<'propiedades' | 'diag' | 'json' | 'ocr'>('propiedades');
   const [ocultos, setOcultos] = useState<Set<string>>(new Set());
   const [coordenadas, setCoordenadas] = useState<{ x: number; y: number } | null>(null);
   const [cropPreview, setCropPreview] = useState<string | null>(null);
@@ -681,6 +685,21 @@ export default function EditorTab() {
     return puntuadas.filter((s) => s.score >= corte).sort((a, b) => b.score - a.score).slice(0, 3);
   }, [campoSel, ocrCapaVigente, ocrExcluidasVigentes]);
 
+  // ---- Diagnóstico de robustez (auditoría contra el OCR de la página) ----
+  // Corre la MISMA lógica del motor (buscarAncla/resolverRectCampo) y SIMULA
+  // fallos de campo: ¿qué fuente usa cada campo si mañana el OCR NO lee la
+  // ancla? ¿Y si tampoco lee el respaldo? La capa auditada es la vigente SIN
+  // las líneas eliminadas (mismo criterio del tab OCR y del motor en corridas
+  // con exclusión). Memoizada por capa/página/campos: no recomputa en cada render.
+  const informeDiagnostico = useMemo<InformePagina | null>(() => {
+    if (!molde || !ocrCapaVigente) return null;
+    const camposPagina = molde.campos.filter((c) => c.pagina === pagina);
+    if (camposPagina.length === 0) return null;
+    const { lines, dims } = ocrCapaVigente;
+    const vivas = lines.filter((_, i) => !ocrExcluidasVigentes.has(i));
+    return auditarCamposPagina(camposPagina, vivas, dims.w, dims.h, pagina);
+  }, [molde, ocrCapaVigente, ocrExcluidasVigentes, pagina]);
+
   if (!molde || !moldeId) {
     return (
       <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6">
@@ -706,6 +725,37 @@ export default function EditorTab() {
     setMoldeActual({
       ...molde,
       campos: molde.campos.map((c) => (c.id === id ? { ...c, ...cambios } : c)),
+    });
+  }
+
+  // Diagnóstico: fija la ancla de respaldo sugerida en UN campo.
+  function fortalecerCampo(id: string, respaldo: string) {
+    actualizarCampo(id, { ancla_respaldo: respaldo });
+    toast({
+      title: 'Ancla de respaldo agregada',
+      description: `Respaldado con "${respaldo}". Si mañana el OCR no lee la ancla principal, el motor cae a esta línea en vez de degradar. Guarda el molde para persistir.`,
+    });
+  }
+
+  // Diagnóstico: aplica TODAS las sugerencias de respaldo en una sola edición.
+  function fortalecerTodo() {
+    if (!molde || !informeDiagnostico) return;
+    const sugeridas = informeDiagnostico.campos.filter((i) => i.respaldoSugerido && !i.tieneRespaldo);
+    if (sugeridas.length === 0) return;
+    const porId = new Map(
+      sugeridas.map((i) => [i.id, i.respaldoSugerido ? i.respaldoSugerido.texto : ''] as const),
+    );
+    setMoldeActual({
+      ...molde,
+      campos: molde.campos.map((c) => {
+        const t = porId.get(c.id);
+        return t ? { ...c, ancla_respaldo: t } : c;
+      }),
+    });
+    toast({
+      title: `${sugeridas.length} campo${sugeridas.length === 1 ? '' : 's'} fortalecido${sugeridas.length === 1 ? '' : 's'}`,
+      description:
+        'Anclas de respaldo agregadas con la línea única y de alta confianza más cercana sobre cada ancla. Guarda el molde para persistir.',
     });
   }
 
@@ -2216,13 +2266,16 @@ export default function EditorTab() {
         <aside className="flex max-h-[780px] flex-col overflow-hidden rounded-xl border border-slate-800 bg-slate-900 lg:col-span-3">
           <Tabs
             value={pestanaDerecha}
-            onValueChange={(v) => setPestanaDerecha(v as 'propiedades' | 'json' | 'ocr')}
+            onValueChange={(v) => setPestanaDerecha(v as 'propiedades' | 'diag' | 'json' | 'ocr')}
             className="flex min-h-0 flex-1 flex-col gap-0"
           >
             <div className="border-b border-slate-800 p-2">
-              <TabsList className="grid w-full grid-cols-3 bg-slate-950">
+              <TabsList className="grid w-full grid-cols-4 bg-slate-950">
                 <TabsTrigger value="propiedades" className="font-mono text-[11px] data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
                   Propiedades
+                </TabsTrigger>
+                <TabsTrigger value="diag" className="font-mono text-[11px] data-[state=active]:bg-emerald-700 data-[state=active]:text-white">
+                  Diagnóstico
                 </TabsTrigger>
                 <TabsTrigger value="ocr" className="font-mono text-[11px] data-[state=active]:bg-teal-700 data-[state=active]:text-white">
                   OCR
@@ -2554,6 +2607,213 @@ export default function EditorTab() {
                 <div className="m-3 rounded-lg border border-dashed border-slate-700 p-6 text-center text-xs text-slate-500">
                   Selecciona una zona en el lienzo o en la lista para editar sus propiedades y ver el recorte
                   forense.
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="diag" className="mt-0 min-h-0 flex-1 overflow-y-auto scroll-fino p-3">
+              {!ocrCapaVigente ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8 text-center">
+                  <ShieldCheck className="h-8 w-8 text-emerald-400" aria-hidden />
+                  <p className="max-w-[250px] text-xs leading-5 text-slate-400">
+                    Ejecuta la capa OCR de la página {pagina} para auditar la robustez del molde: qué pasa si mañana el
+                    OCR de campo no lee una ancla.
+                  </p>
+                  <Button
+                    size="sm"
+                    disabled={!imagenRef || ocrEstado === 'cargando'}
+                    onClick={() => {
+                      setVerOcr(true);
+                      void Promise.resolve().then(ejecutarOcrCapa);
+                    }}
+                  >
+                    {ocrEstado === 'cargando' ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <ShieldCheck className="mr-2 h-4 w-4" aria-hidden />
+                    )}
+                    {ocrEstado === 'cargando' ? `Analizando… ${ocrProgreso}%` : 'Analizar página'}
+                  </Button>
+                </div>
+              ) : informeDiagnostico ? (
+                <div className="space-y-3">
+                  {/* Resumen de robustez de la página */}
+                  <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        Robustez página {pagina}
+                      </span>
+                      <Badge
+                        className={
+                          informeDiagnostico.conteo.alto > 0
+                            ? 'bg-rose-950 text-rose-300 hover:bg-rose-950'
+                            : informeDiagnostico.conteo.medio > 0
+                              ? 'bg-amber-950 text-amber-300 hover:bg-amber-950'
+                              : 'bg-emerald-950 text-emerald-300 hover:bg-emerald-950'
+                        }
+                      >
+                        {informeDiagnostico.score}/100
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 font-mono text-[10px]">
+                      <span className="rounded bg-emerald-950/80 px-1.5 py-0.5 text-emerald-300">
+                        {informeDiagnostico.conteo.ok} sólidos
+                      </span>
+                      <span className="rounded bg-amber-950/80 px-1.5 py-0.5 text-amber-300">
+                        {informeDiagnostico.conteo.medio} medios
+                      </span>
+                      <span className="rounded bg-rose-950/80 px-1.5 py-0.5 text-rose-300">
+                        {informeDiagnostico.conteo.alto} frágiles
+                      </span>
+                    </div>
+                    <p className="text-[11px] leading-4 text-slate-400">
+                      La auditoría corre el MISMO motor y simula fallos de campo. Escalera de degradación:{' '}
+                      <span className="text-slate-200">ancla → respaldo → referencia guardada</span>. Caer un peldaño NO
+                      descuadra el formato; solo <span className="text-rose-300">colapso</span> (sin nada que resolver)
+                      lo rompe.
+                    </p>
+                    {(() => {
+                      const sugerencias = informeDiagnostico.campos.filter(
+                        (i) => i.respaldoSugerido && !i.tieneRespaldo,
+                      );
+                      if (sugerencias.length === 0) return null;
+                      return (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full border-emerald-700 text-emerald-300 hover:bg-emerald-950/60"
+                          onClick={fortalecerTodo}
+                        >
+                          <Wand2 className="mr-2 h-4 w-4" aria-hidden />
+                          Fortalecer {sugerencias.length} campo{sugerencias.length === 1 ? '' : 's'} sin respaldo
+                        </Button>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Informe por campo */}
+                  <div className="max-h-[460px] space-y-2 overflow-y-auto scroll-fino pr-1">
+                    {informeDiagnostico.campos.map((inf) => (
+                      <div
+                        key={inf.id}
+                        className={`space-y-1.5 rounded-lg border p-2.5 ${
+                          inf.nivel === 'alto'
+                            ? 'border-rose-800 bg-rose-950/20'
+                            : inf.nivel === 'medio'
+                              ? 'border-amber-800 bg-amber-950/15'
+                              : 'border-slate-800 bg-slate-950/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-xs font-semibold text-slate-100">{inf.etiqueta}</span>
+                          {inf.nivel === 'alto' ? (
+                            <Badge className="shrink-0 bg-rose-900 text-rose-100 hover:bg-rose-900">
+                              <ShieldAlert className="mr-1 h-3 w-3" aria-hidden />
+                              frágil
+                            </Badge>
+                          ) : inf.nivel === 'medio' ? (
+                            <Badge className="shrink-0 bg-amber-900 text-amber-100 hover:bg-amber-900">medio</Badge>
+                          ) : (
+                            <Badge className="shrink-0 bg-emerald-900 text-emerald-100 hover:bg-emerald-900">
+                              <ShieldCheck className="mr-1 h-3 w-3" aria-hidden />
+                              sólido
+                            </Badge>
+                          )}
+                        </div>
+
+                        {inf.estrategia === 'ancla_relativa' ? (
+                          <>
+                            {/* Escalera de degradación: ancla / respaldo / referencia */}
+                            <div className="flex flex-wrap items-center gap-1 font-mono text-[10px]">
+                              <span
+                                className={`rounded px-1.5 py-0.5 ${
+                                  inf.anclaEncontrada
+                                    ? 'bg-emerald-950 text-emerald-300'
+                                    : 'bg-rose-950 text-rose-300'
+                                }`}
+                              >
+                                ancla {inf.anclaEncontrada ? 'ok' : 'ausente'}
+                                {inf.anclaConf !== null ? ` · ${(inf.anclaConf * 100).toFixed(0)}%` : ''}
+                                {inf.ocurrencias >= 2 ? ` · ×${inf.ocurrencias}` : ''}
+                              </span>
+                              <ChevronRight className="h-3 w-3 shrink-0 text-slate-600" aria-hidden />
+                              <span
+                                className={`rounded px-1.5 py-0.5 ${
+                                  inf.simSinAncla === 'respaldo'
+                                    ? 'bg-emerald-950 text-emerald-300'
+                                    : inf.tieneRespaldo
+                                      ? 'bg-amber-950 text-amber-300'
+                                      : 'bg-slate-900 text-slate-400'
+                                }`}
+                              >
+                                {inf.tieneRespaldo
+                                  ? inf.simSinAncla === 'respaldo'
+                                    ? 'respaldo actúa'
+                                    : 'respaldo no actúa'
+                                  : 'sin respaldo'}
+                              </span>
+                              <ChevronRight className="h-3 w-3 shrink-0 text-slate-600" aria-hidden />
+                              <span
+                                className={`rounded px-1.5 py-0.5 ${
+                                  inf.simSinAnclaYRespaldo === 'referencia'
+                                    ? 'bg-emerald-950 text-emerald-300'
+                                    : 'bg-rose-950 text-rose-300'
+                                }`}
+                              >
+                                {inf.simSinAnclaYRespaldo === 'referencia'
+                                  ? 'referencia salvaguarda'
+                                  : inf.simSinAnclaYRespaldo === 'fija'
+                                    ? 'zona fija'
+                                    : 'colapso'}
+                              </span>
+                            </div>
+
+                            {inf.problemas.map((p) => (
+                              <p key={p} className="text-[10px] leading-4 text-amber-300/90">
+                                <AlertTriangle className="mr-1 inline h-3 w-3" aria-hidden />
+                                {p}
+                              </p>
+                            ))}
+
+                            {inf.respaldoSugerido &&
+                              !inf.tieneRespaldo &&
+                              (() => {
+                                const sug = inf.respaldoSugerido;
+                                return (
+                                  <div className="flex items-center justify-between gap-2 rounded bg-slate-900 px-2 py-1.5">
+                                    <div className="min-w-0">
+                                      <span className="font-mono text-[9px] uppercase tracking-widest text-slate-500">
+                                        respaldo sugerido
+                                      </span>
+                                      <p className="truncate font-mono text-[11px] text-emerald-300">
+                                        {sug.texto}{' '}
+                                        <span className="text-slate-500">({(sug.conf * 100).toFixed(0)}%)</span>
+                                      </p>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 shrink-0 border-emerald-700 text-emerald-300 hover:bg-emerald-950/60"
+                                      onClick={() => fortalecerCampo(inf.id, sug.texto)}
+                                    >
+                                      Usar
+                                    </Button>
+                                  </div>
+                                );
+                              })()}
+                          </>
+                        ) : (
+                          <p className="text-[10px] text-slate-400">
+                            Zona fija: no depende de OCR, se resuelve siempre con el rect del molde.
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-slate-700 p-6 text-center text-xs text-slate-500">
+                  Esta página no tiene campos que auditar. Mapea campos o cambia a una página con zonas.
                 </div>
               )}
             </TabsContent>

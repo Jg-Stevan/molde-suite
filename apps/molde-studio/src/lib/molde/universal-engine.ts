@@ -237,8 +237,11 @@ export interface RectResuelto {
  * corresponde a OTRA etiqueta del documento (p.ej. "FIRMA JURADO 4" difusa contra
  * la etiqueta impresa del jurado 2) y conviene caer al rect de referencia del
  * molde, que siempre apunta a la zona correcta.
+ *
+ * Exportado para que la auditoría de robustez (auditoria.ts) simule fallos y
+ * cuente ambigüedades con EXACTAMENTE el mismo corte que corre en producción.
  */
-const ANCLA_SCORE_MIN = 0.72;
+export const ANCLA_SCORE_MIN = 0.72;
 
 /** Radio normalizado (0-1) en el que debe aparecer cada texto de un
  * `desambiguador` respecto al centro del ancla encontrada (opción 1.2).
