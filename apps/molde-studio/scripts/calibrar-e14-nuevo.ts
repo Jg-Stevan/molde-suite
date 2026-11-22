@@ -13,7 +13,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 const DIR = 'scripts/actas-nuevas';
 const CACHE = 'scripts/actas-nuevas/ocr-cache.json';
-const MOLDE_PATH = 'scripts/molde-e14-nuevo.json';
+const MOLDE_PATH = 'templates/e14/molde-e14.json';
 
 const DOCS = [
   { doc: 'plantilla', p1: `${DIR}/plantilla-nairobi-1.png`, p2: `${DIR}/plantilla-nairobi-2.png`, tipo: 'escaneo' },

@@ -6,7 +6,7 @@ const PATHS: Record<string, string> = {
   transmision: 'scripts/actas-nuevas/transmision-barcelona-1.png',
   cairo: 'scripts/actas-nuevas/foto-cairo-1.png',
 };
-const molde = JSON.parse(readFileSync('scripts/molde-e14-nuevo.json', 'utf8'));
+const molde = JSON.parse(readFileSync('templates/e14/molde-e14.json', 'utf8'));
 const campo = molde.campos.find((c) => c.id === 'suma_total');
 const ocr = await ocrTodasLasPaginas();
 for (const [DOC, path] of Object.entries(PATHS)) {

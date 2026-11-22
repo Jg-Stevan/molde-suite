@@ -3,10 +3,15 @@
 > Generado/actualizado desde las lecciones con `resultado: exitoso` en
 > `lessons/`. Cada entrada resume la receta ganadora y los límites conocidos.
 > Un agente nuevo DEBE empezar aquí antes de crear un molde nuevo.
+>
+> **Molde único del repo:** `apps/molde-studio/templates/e14/molde-e14.json`
+> (seed que carga Studio). Incluye el cuerpo calibrado histórico **y** el
+> bloque `layout` v1 (28 reglas con cajas normalizadas) que alimenta el gate
+> estructural de Tamiz. Las copias previas de `scripts/` se retiraron.
 
 | Plantilla | Tipo | Estado | Receta ganadora | Límites conocidos |
 |---|---|---|---|---|
-| `acta_e_14_exterior_consul_embajado` | acta_e14 | validada (auditoría 2026-11-21; post-verificación) | ancla difusa + respaldo + rect de referencia + **desambiguadores de columna en las 4 firmas** (`JURADO 3/4/1/2` — la etiqueta de la misma columna está a ~0.07 normalizado, la de la otra banda a ~0.45, fuera del radio 0.3); umbral de tinta calibrado 0.018; validación aritmética de cierre | El matcher difuso solo confundía "JURADO 2"/"JURADO 4" cuando el OCR perdía la etiqueta (F1); con la penalización de dígitos + dedupe de rects + desambiguadores el caso cae a referencia/revisión. Manuscritos (votos, suma) SIEMPRE requieren revisión humana (HTR). Calibrar umbral exige una corrida CON la casilla vacía medida (guarda F4-1: sin vacías medidas no se sugiere nada). |
+| `acta_e_14_exterior_consul_embajado` | acta_e14 | validada (auditoría 2026-11-21; post-verificación) + layout v1 (2026-11-22) | ancla difusa + respaldo + rect de referencia + **desambiguadores de columna en las 4 firmas** (`JURADO 3/4/1/2` — la etiqueta de la misma columna está a ~0.07 normalizado, la de la otra banda a ~0.45, fuera del radio 0.3); umbral de tinta calibrado 0.018; validación aritmética de cierre; reglas de layout PP-DocLayout-S/plusL con clave `cajas` por regla | El matcher difuso solo confundía "JURADO 2"/"JURADO 4" cuando el OCR perdía la etiqueta (F1); con la penalización de dígitos + dedupe de rects + desambiguadores el caso cae a referencia/revisión. Manuscritos (votos, suma) SIEMPRE requieren revisión humana (HTR). Calibrar umbral exige una corrida CON la casilla vacía medida (guarda F4-1: sin vacías medidas no se sugiere nada). |
 
 ## Receta de la plantilla acta_e14 (resumen de lecciones)
 

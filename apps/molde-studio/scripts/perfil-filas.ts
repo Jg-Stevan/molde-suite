@@ -57,7 +57,7 @@ function perfilX(key: string, rect: [number, number, number, number], franjas = 
 
 async function main() {
   await precargar();
-  const molde = JSON.parse(readFileSync('scripts/molde-e14-nuevo.json', 'utf8'));
+  const molde = JSON.parse(readFileSync('templates/e14/molde-e14.json', 'utf8'));
   const c1 = molde.campos.find((c: any) => c.id === 'votos_candidato_1');
   const c2 = molde.campos.find((c: any) => c.id === 'votos_candidato_2');
   const rc = molde.campos.find((c: any) => c.id === 'recuento_marca');

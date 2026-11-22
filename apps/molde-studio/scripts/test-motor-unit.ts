@@ -215,25 +215,9 @@ check('pagina 0 NO pasa', !esMoldeUniversal(paginaCero));
 const umbralFuera = { tipo: 'universal', nombre: 'X', campos: [{ id: 'a', etiqueta: 'A', pagina: 1, tipo: 'presencia', estrategia: 'zona_fija', zona: { x: 0.1, y: 0.1, w: 0.2, h: 0.03 }, umbral: 1.4, obligatorio: true }] };
 check('umbral fuera de [0,1] NO pasa', !esMoldeUniversal(umbralFuera));
 
-// ---------- molde regenerado ----------
-console.log('molde regenerado — sanidad');
-
-{
-  const molde = (await import('./acta_e_14_exterior_consul_embajado.molde.json')).default;
-  check('el molde regenerado pasa el validador endurecido', esMoldeUniversal(molde));
-  check('sin meta.precision (G-1)', molde.meta === undefined || !('precision' in (molde.meta as Record<string, unknown>)));
-  check('paginasRef explícito vacío', Array.isArray(molde.paginasRef) && molde.paginasRef.length === 0);
-  check('validación de cierre presente', (molde.validaciones ?? []).some((v) => v.id === 'cierre_suma'));
-  const suma = molde.campos.find((c) => c.id === 'suma_total');
-  check('suma_total es HTR (Fase 2.5 opción C)', suma?.htr === true);
-  const zona = molde.campos.find((c) => c.id === 'divipol_zona');
-  check('patrón de zona anclado (G-8)', zona?.patron === '^\\d{2}$');
-  const v1 = molde.campos.find((c) => c.id === 'votos_candidato_1');
-  check('votos_candidato_1 con umbral 0.006 (Fase 2.1)', v1?.umbral === 0.006);
-  const firma = molde.campos.find((c) => c.id === 'firma_jurado_1');
-  check('firma sin etiqueta impresa: umbral 0.018 (G-11)', firma?.umbral === 0.018);
-  check('la expresión del cierre parsea con el parser seguro', parsearIgualdad(molde.validaciones![0].expresion) !== null);
-}
+// ---------- molde activo ----------
+// (El bloque del «molde regenerado v3» se retiró con su JSON: el repo conserva
+// un único molde E-14 en templates/e14/molde-e14.json.)
 
 if (fallos > 0) {
   console.error(`\n✗ ${fallos} comprobaciones fallaron`);

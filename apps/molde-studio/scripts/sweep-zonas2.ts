@@ -121,7 +121,7 @@ async function sweep(id: string, molde: any) {
 }
 
 async function main() {
-  const molde = JSON.parse(readFileSync('scripts/molde-e14-nuevo.json', 'utf8'));
+  const molde = JSON.parse(readFileSync('templates/e14/molde-e14.json', 'utf8'));
   console.log('Precargando OCR cache...');
   OCR = await ocrTodasLasPaginas();
   console.log('Precargando grises...');
