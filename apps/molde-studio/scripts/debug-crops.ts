@@ -2,7 +2,7 @@
 import sharp from 'sharp';
 import { readFileSync } from 'node:fs';
 
-const MOLDE = JSON.parse(readFileSync('scripts/molde-e14-nuevo.json', 'utf8'));
+const MOLDE = JSON.parse(readFileSync('templates/e14/molde-e14.json', 'utf8'));
 const IMG = 'scripts/actas-nuevas/plantilla-nairobi-1.png';
 
 async function crop(path: string, rect: [number, number, number, number], out: string, escala = 1) {

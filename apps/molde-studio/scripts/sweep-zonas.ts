@@ -151,7 +151,7 @@ async function sweepSuma(molde: any, ocr: any) {
 }
 
 async function main() {
-  const molde = JSON.parse(readFileSync('scripts/molde-e14-nuevo.json', 'utf8'));
+  const molde = JSON.parse(readFileSync('templates/e14/molde-e14.json', 'utf8'));
   const ocr = await ocrTodasLasPaginas();
   const ids = [
     'total_votantes_e11', 'total_votos_urna', 'total_votos_incinerados',

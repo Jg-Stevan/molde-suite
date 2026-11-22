@@ -485,7 +485,9 @@
         }
       },
       "ancla_respaldo": "FIRMAS JURADO 1",
-      "desambiguadores": ["JURADO 3"],
+      "desambiguadores": [
+        "JURADO 3"
+      ],
       "umbral": 0.02,
       "obligatorio": true,
       "nota": "OBLIGATORIO: casilla izquierda superior; zona bajo la etiqueta impresa (evita que el texto impreso dispare el umbral). O2 (informe de verificación §6.3): exige «JURADO 3» (casilla inferior de la MISMA columna, a ~0.07 normalizado) cerca del hit — si el match difuso cayera en la banda de la derecha (J2), el contexto no aparece y el hit se rechaza (segunda defensa contra P1)."
@@ -512,7 +514,9 @@
         }
       },
       "ancla_respaldo": "FIRMAS JURADO 2",
-      "desambiguadores": ["JURADO 4"],
+      "desambiguadores": [
+        "JURADO 4"
+      ],
       "umbral": 0.02,
       "obligatorio": false,
       "nota": "O2: exige «JURADO 4» (misma columna, fila inferior) cerca del hit."
@@ -539,7 +543,9 @@
         }
       },
       "ancla_respaldo": "FIRMAS JURADO 3",
-      "desambiguadores": ["JURADO 1"],
+      "desambiguadores": [
+        "JURADO 1"
+      ],
       "umbral": 0.02,
       "obligatorio": false,
       "nota": "O2 (lección Frankfurt J1≡J3): exige «JURADO 1» (misma columna, fila superior) cerca del hit — un hit de J3 que en realidad sea la etiqueta de J4 queda sin contexto y se rechaza."
@@ -566,7 +572,9 @@
         }
       },
       "ancla_respaldo": "FIRMAS JURADO 4",
-      "desambiguadores": ["JURADO 2"],
+      "desambiguadores": [
+        "JURADO 2"
+      ],
       "umbral": 0.02,
       "obligatorio": false,
       "nota": "Zona bajo la etiqueta: si la etiqueta no aparece por OCR cae al rect de referencia (el umbral de score evita snap-earse a la etiqueta del jurado 2). O2: exige «JURADO 2» (misma columna, fila superior) cerca del hit como segunda defensa."
@@ -586,5 +594,435 @@
     },
     "etiquetaCampos": "Campos Mapeados",
     "orden": 0
+  },
+  "layout": {
+    "version": 1,
+    "modeloPreferido": "s",
+    "reglas": [
+      {
+        "id": "layout_v2_1_1",
+        "etiqueta": "Pie 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.4065004156891411,
+          "y": 0.9767376184463501,
+          "w": 0.15026160245816383,
+          "h": 0.010947048664093018
+        },
+        "clases": [
+          "footer"
+        ],
+        "obligatorio": true
+      },
+      {
+        "id": "layout_v2_2_2",
+        "etiqueta": "Pie 2",
+        "pagina": 1,
+        "zona": {
+          "x": 0.024399486519175874,
+          "y": 0.978034257888794,
+          "w": 0.17879052133955195,
+          "h": 0.010260999202728271
+        },
+        "clases": [
+          "footer"
+        ],
+        "obligatorio": true
+      },
+      {
+        "id": "layout_v2_3_1",
+        "etiqueta": "Imagen 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.03777713888495631,
+          "y": 0,
+          "w": 0.9035492959107168,
+          "h": 0.8541638215538114
+        },
+        "clases": [
+          "image"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_4_1",
+        "etiqueta": "Texto 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.2533296664085614,
+          "y": 0.5064437389373779,
+          "w": 0.2687889866574982,
+          "h": 0.02549886703491211
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_5_3",
+        "etiqueta": "Pie 3",
+        "pagina": 1,
+        "zona": {
+          "x": 0.812375672470183,
+          "y": 0.9772412776947021,
+          "w": 0.12708106407752404,
+          "h": 0.011297464370727539
+        },
+        "clases": [
+          "footer"
+        ],
+        "obligatorio": true
+      },
+      {
+        "id": "layout_v2_6_2",
+        "etiqueta": "Texto 2",
+        "pagina": 1,
+        "zona": {
+          "x": 0.1876524976019323,
+          "y": 0.3701494634151459,
+          "w": 0.14332183296158468,
+          "h": 0.012156128883361816
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_7_3",
+        "etiqueta": "Cabecera 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.2821924333741679,
+          "y": 0.058252498507499695,
+          "w": 0.41264031765729015,
+          "h": 0.07515107095241547
+        },
+        "clases": [
+          "header",
+          "text",
+          "paragraph_title",
+          "doc_title",
+          "number"
+        ],
+        "obligatorio": true
+      },
+      {
+        "id": "layout_v2_8_4",
+        "etiqueta": "Texto 4",
+        "pagina": 1,
+        "zona": {
+          "x": 0.21620417487691845,
+          "y": 0.661828339099884,
+          "w": 0.34137879320855674,
+          "h": 0.02464425563812256
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_9_1",
+        "etiqueta": "paragraph_title 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.24456642647466717,
+          "y": 0.01616508699953556,
+          "w": 0.4905846048388961,
+          "h": 0.028051847591996193
+        },
+        "clases": [
+          "paragraph_title"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_a_2",
+        "etiqueta": "Imagen 2",
+        "pagina": 1,
+        "zona": {
+          "x": 0.04066711346778644,
+          "y": 0.05938722938299179,
+          "w": 0.2228163290305956,
+          "h": 0.07709189504384995
+        },
+        "clases": [
+          "image"
+        ],
+        "obligatorio": true
+      },
+      {
+        "id": "layout_v2_b_5",
+        "etiqueta": "Texto 5",
+        "pagina": 1,
+        "zona": {
+          "x": 0.46755128217166697,
+          "y": 0.3708072006702423,
+          "w": 0.16362762451171875,
+          "h": 0.010670125484466553
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_c_1",
+        "etiqueta": "doc_title 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.04668998718261719,
+          "y": 0.5594404339790344,
+          "w": 0.8853707511044113,
+          "h": 0.08252829313278198
+        },
+        "clases": [
+          "doc_title"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_d_6",
+        "etiqueta": "Texto 6",
+        "pagina": 1,
+        "zona": {
+          "x": 0.05768440743169841,
+          "y": 0.14761190116405487,
+          "w": 0.456406768257096,
+          "h": 0.016065046191215515
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_e_7",
+        "etiqueta": "Texto 7",
+        "pagina": 1,
+        "zona": {
+          "x": 0.7217963404909393,
+          "y": 0.09662524610757828,
+          "w": 0.18270738590398483,
+          "h": 0.03897906094789505
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_f_8",
+        "etiqueta": "Texto 8",
+        "pagina": 1,
+        "zona": {
+          "x": 0.04384657617151384,
+          "y": 0.7128020524978638,
+          "w": 0.8904209983419384,
+          "h": 0.12853044271469116
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_g_9",
+        "etiqueta": "Texto 9",
+        "pagina": 1,
+        "zona": {
+          "x": 0.7457267716086122,
+          "y": 0.37075191736221313,
+          "w": 0.12626778867823132,
+          "h": 0.011422187089920044
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_h_a",
+        "etiqueta": "Texto 10",
+        "pagina": 1,
+        "zona": {
+          "x": 0.0560052860418015,
+          "y": 0.17562924325466156,
+          "w": 0.4585121425651234,
+          "h": 0.02421686053276062
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_i_b",
+        "etiqueta": "Texto 11",
+        "pagina": 1,
+        "zona": {
+          "x": 0.05323718708647779,
+          "y": 0.1466885507106781,
+          "w": 0.6119376244629628,
+          "h": 0.055081307888031006
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_j_1",
+        "etiqueta": "Número 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.034921324464696396,
+          "y": 0.0141191016882658,
+          "w": 0.032520299832496415,
+          "h": 0.012229688465595245
+        },
+        "clases": [
+          "number"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_k_c",
+        "etiqueta": "Texto 12",
+        "pagina": 1,
+        "zona": {
+          "x": 0.2708582229162814,
+          "y": 0.213121697306633,
+          "w": 0.43174048429410133,
+          "h": 0.014565497636795044
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_l_d",
+        "etiqueta": "Texto 13",
+        "pagina": 1,
+        "zona": {
+          "x": 0.054117710632685376,
+          "y": 0.21440881490707397,
+          "w": 0.8850396286101031,
+          "h": 0.14126357436180115
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_m_e",
+        "etiqueta": "Texto 14",
+        "pagina": 1,
+        "zona": {
+          "x": 0.7389776466866217,
+          "y": 0.0663084015250206,
+          "w": 0.13670963084203958,
+          "h": 0.017115004360675812
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_n_f",
+        "etiqueta": "Texto 15",
+        "pagina": 1,
+        "zona": {
+          "x": 0.7228022468160595,
+          "y": 0.6138404011726379,
+          "w": 0.17699445916350776,
+          "h": 0.013980507850646973
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_o_g",
+        "etiqueta": "Texto 16",
+        "pagina": 1,
+        "zona": {
+          "x": 0.046342499862761184,
+          "y": 0.4049021601676941,
+          "w": 0.8754494345399755,
+          "h": 0.08258664608001709
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_p_h",
+        "etiqueta": "Texto 17",
+        "pagina": 1,
+        "zona": {
+          "x": 0.7429658788195729,
+          "y": 0.04792523384094238,
+          "w": 0.19374210876825998,
+          "h": 0.011691790074110031
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_q_3",
+        "etiqueta": "Imagen 3",
+        "pagina": 1,
+        "zona": {
+          "x": 0.6874379716681306,
+          "y": 0.2428104728460312,
+          "w": 0.22470986631495007,
+          "h": 0.10809962451457977
+        },
+        "clases": [
+          "image"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_r_i",
+        "etiqueta": "Texto 18",
+        "pagina": 1,
+        "zona": {
+          "x": 0.038010741126607864,
+          "y": 0.05611923709511757,
+          "w": 0.9097462349389431,
+          "h": 0.07465499266982079
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_s_j",
+        "etiqueta": "Texto 19",
+        "pagina": 1,
+        "zona": {
+          "x": 0.46020932169355583,
+          "y": 0.36995014548301697,
+          "w": 0.42283819977348375,
+          "h": 0.01503223180770874
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      }
+    ]
   }
 }

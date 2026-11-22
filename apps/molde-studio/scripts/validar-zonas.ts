@@ -62,7 +62,7 @@ function evalPresencia(id: string, molde: any, zona: { x: number; y: number; w: 
 }
 
 async function main() {
-  const molde = JSON.parse(readFileSync('scripts/molde-e14-nuevo.json', 'utf8'));
+  const molde = JSON.parse(readFileSync('templates/e14/molde-e14.json', 'utf8'));
   OCR = await ocrTodasLasPaginas();
   await precargar();
 

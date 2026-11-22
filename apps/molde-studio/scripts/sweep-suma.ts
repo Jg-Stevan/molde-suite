@@ -10,7 +10,7 @@ const DOCS = [
 const ESPERA: Record<string, string> = { plantilla: '9', transmision: '102', cairo: '17' };
 
 async function main() {
-  const molde = JSON.parse(readFileSync('scripts/molde-e14-nuevo.json', 'utf8'));
+  const molde = JSON.parse(readFileSync('templates/e14/molde-e14.json', 'utf8'));
   const campo = molde.campos.find((c: any) => c.id === 'suma_total');
   const ocr = await ocrTodasLasPaginas();
   const variantes = [
