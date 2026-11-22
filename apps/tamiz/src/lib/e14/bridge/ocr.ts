@@ -4,29 +4,9 @@
 // escalas; Cascada = reintento con realce cuando la primera lectura es débil.
 
 import { logger } from '../../logger';
-
-type TesseractWorkerLike = {
-  recognize: (imagen: unknown, opts?: unknown, out?: unknown) => Promise<{ data: { text?: string; confidence?: number } }>;
-  setParameters: (p: Record<string, string>) => Promise<unknown>;
-  terminate?: () => Promise<unknown>;
-};
-
-let workerPromise: Promise<TesseractWorkerLike> | null = null;
-
-async function getWorker(): Promise<TesseractWorkerLike> {
-  if (!workerPromise) {
-    workerPromise = (async () => {
-      const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker('spa', 1, {
-        logger: () => {
-          /* silencioso: el progreso vive en el pipeline */
-        },
-      });
-      return worker as unknown as TesseractWorkerLike;
-    })();
-  }
-  return workerPromise;
-}
+// FASE 0 (blueprint DLA): el singleton del worker vive ahora en ./ocr-worker
+// y lo comparte con el proveedor OCR del motor universal (molde/ocr-proveedor).
+import { getWorker } from './ocr-worker';
 
 async function ocrDataUrl(dataUrl: string, psm?: string): Promise<{ texto: string; conf: number | null }> {
   try {

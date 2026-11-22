@@ -64,6 +64,25 @@ export interface PaginaActa {
   total: number;
 }
 
+/**
+ * FASE 0 (blueprint DLA): resumen de la evaluación del MOLDE activo sobre el
+ * acta — Tamiz ejecuta `evaluarDocumentoUniversal` tras el gate cuando hay un
+ * molde registrado. Resumen LIGERO (sin crops ni previews: la memoria del
+ * móvil manda); el detalle por campo queda en el store de la sesión.
+ */
+export interface ResumenMoldeActa {
+  moldeNombre: string;
+  total: number;
+  ok: number;
+  /** Score 0-100 del motor (campos ok / total). */
+  score: number;
+  requiereRevision: boolean;
+  obligatoriosFaltantes: string[];
+  /** Banderas agregadas del motor (sin duplicar): forma_discrepa, umbral_al_borde, … */
+  banderas: string[];
+  tiempos: { render_ms: number; ocr_ms: number; motor_ms: number };
+}
+
 /** El documento escaneado: foto + calidad + OCR + clasificación + desenlace. */
 export interface Acta {
   id: string;
@@ -94,6 +113,8 @@ export interface Acta {
   filtro?: string;
   clasificacion?: import("./clasificador").ClasificacionE14 | null;
   diagnostico?: DiagnosticoActa | null;
+  /** FASE 0 (blueprint DLA): evaluación por molde tras el gate (opcional). */
+  evaluacionMolde?: ResumenMoldeActa | null;
   hashSha256?: string;
   qrPayload?: string | null;
   qrEstado?: "leido" | "sin-payload";

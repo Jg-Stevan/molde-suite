@@ -6,8 +6,13 @@ import type { NextConfig } from "next";
 // Sin esas variables el proyecto compila en modo servidor (standalone, sandbox).
 const estatico = process.env.NEXT_PUBLIC_STATIC === "1";
 
+// FASE 0 (blueprint DLA): el motor universal vive en packages/scanner-core
+// (TS fuente, sin build previo) — transpilarlo como parte del app.
+const transpile = ["@jg-stevan/scanner-core"];
+
 const nextConfig: NextConfig = estatico
   ? {
+      transpilePackages: transpile,
       output: "export",
       basePath: process.env.NEXT_PUBLIC_BASE_PATH || undefined,
       trailingSlash: true,
@@ -18,6 +23,7 @@ const nextConfig: NextConfig = estatico
       reactStrictMode: false,
     }
   : {
+      transpilePackages: transpile,
       output: "standalone",
       typescript: {
         ignoreBuildErrors: true,

@@ -1,0 +1,16 @@
+{
+  "name": "@jg-stevan/dla-onnx",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FASE B del blueprint DLA: señales de detectores ONNX en el navegador (Nivel 2) — detección de casillas (checkbox-detector YOLO12n), regiones de layout (PP-DocLayout-S) y presencia de manuscrito (D-FINE). Worker dedicado + onnxruntime-web (fallback WebGPU→WASM) + caché de modelos en Cache Storage. Los modelos NO viajan en el repo: se configuran por URL (NEXT_PUBLIC_DLA_*) y se cargan bajo demanda; sin URL, las señales quedan apagadas (Nivel 1 siempre activo).",
+  "exports": {
+    ".": "./src/index.ts",
+    "./runtime": "./src/runtime.ts",
+    "./regiones": "./src/regiones.ts",
+    "./casillas": "./src/casillas.ts",
+    "./manuscrito": "./src/manuscrito.ts"
+  },
+  "dependencies": {
+    "onnxruntime-web": "^1.20.1"
+  }
+}

@@ -42,6 +42,16 @@ molde-suite/
 - **Molde Studio** está completo: se instala y ejecuta como cualquier app Next.js (instrucciones en [`apps/molde-studio/README.md`](apps/molde-studio/README.md)). Los documentos escaneados de prueba, la base de datos local y los entornos (`.env`) no se publican en este repositorio.
 - **Tamiz** es **ejecutable** desde el plan de implementación de 2026-11 (decisión D8, opción B): el contrato vive en `packages/scanner-core` y los módulos de runtime (`pipeline`, `captura`, `calidad`, `ocr`, `politica/umbrales`, observabilidad, puente, hooks de cámara…) están implementados en `apps/tamiz/src/lib/e14/`. `typecheck`, `lint` y el build estático están en verde. Los límites del núcleo mínimo (detector sin perspectivas completas, OCR de bandas sin calibrar con el corpus, puente sin hub) están documentados en [`docs/auditoria/03-informe-final.md`](docs/auditoria/03-informe-final.md) y [`apps/tamiz/README.md`](apps/tamiz/README.md).
 
+## Motor universal compartido + DLA (rama feature/dla-integracion)
+
+El motor universal v3 vive en `packages/scanner-core/molde/` y lo ejecutan las
+DOS apps (proveedor OCR inyectable). Tamiz evalúa el molde activo tras el gate
+(`acta.evaluacionMolde`); tablas por retícula de imagen (port SPARTAN), marcas
+de casilla por forma (port checkbox-extractor + SÍ/NO diferencial v2), homografía
+real + deskew, y señales ONNX opcionales (`@jg-stevan/dla-onnx`) con kill-switch.
+Detalles: [`docs/DLA-INTEGRACION.md`](docs/DLA-INTEGRACION.md). Sidecar Python
+OPCIONAL de calibración: [`services/sidecar-dla/`](services/sidecar-dla/).
+
 ## Ejecutar Molde Studio
 
 ```bash

@@ -4,6 +4,12 @@
 // quad con transformación bilineal aproximada por triangulación.
 
 import type { PageFilter, Quad } from './types';
+import {
+  anguloDeskew,
+  corregirDeskew,
+  quadSesgado,
+  warpPerspectiva,
+} from '../molde/homografia';
 
 /** Origen del quad usado en el recorte. */
 export type OrigenQuad =
@@ -119,7 +125,17 @@ export async function detectDocumentEdgesDetail(
 }
 
 /**
- * Procesa la foto: recorta el quad (warp) y aplica el filtro de revelado.
+ * Procesa la foto: recorta el quad y aplica el filtro de revelado.
+ *
+ * FASE A3 (blueprint DLA): el quad ya NO se reduce a su bounding box. Si el
+ * quad está SESGADO (alguna esquina separada del bbox — foto en ángulo), se
+ * aplica una homografía real de 4 puntos (warpPerspectiva, muestreo bilineal
+ * inverso); si es axis-aligned exacto, el recorte recto equivale al warp y es
+ * más barato. El ancho de salida conserva la resolución del documento.
+ * Además, con `opts.deskew` (kill-switch por flag en Tamiz) se corrige la
+ * INCLINACIÓN residual ≤10° por perfil de proyección — la que el quad no ve.
+ * `manual: true` (recorte del editor) respeta el quad al píxel y desactiva el
+ * deskew automático (la decisión del usuario manda).
  * Devuelve { processed } como dataURL.
  */
 export async function processImage(
@@ -127,26 +143,48 @@ export async function processImage(
   quad: Quad,
   filtro: PageFilter,
   rotation: number,
-  _opts?: { manual?: boolean },
+  opts?: { manual?: boolean; deskew?: boolean },
 ): Promise<{ processed: string; width: number; height: number }> {
   const img = await decodificar(foto);
   const src = imgACanvas(img);
   const w = img.naturalWidth;
   const h = img.naturalHeight;
-  // Rect del quad (bounding) en px.
-  const xs = quad.map((p) => p.x * w);
-  const ys = quad.map((p) => p.y * h);
-  const x0 = Math.max(0, Math.floor(Math.min(...xs)));
-  const y0 = Math.max(0, Math.floor(Math.min(...ys)));
-  const x1 = Math.min(w, Math.ceil(Math.max(...xs)));
-  const y1 = Math.min(h, Math.ceil(Math.max(...ys)));
-  const cw = Math.max(1, x1 - x0);
-  const ch = Math.max(1, y1 - y0);
-  const out = document.createElement('canvas');
-  out.width = cw;
-  out.height = ch;
-  const ctx = out.getContext('2d', { willReadFrequently: true })!;
-  ctx.drawImage(src, x0, y0, cw, ch, 0, 0, cw, ch);
+  const sesgado = quadSesgado(quad);
+  let out: HTMLCanvasElement;
+  if (sesgado) {
+    // Warp de perspectiva real: la salida conserva el ancho efectivo del
+    // documento (media de lados cortos/largos lo decide warpPerspectiva).
+    const anchoDoc = Math.round(
+      (Math.hypot((quad[1].x - quad[0].x) * w, (quad[1].y - quad[0].y) * h) +
+        Math.hypot((quad[2].x - quad[3].x) * w, (quad[2].y - quad[3].y) * h)) / 2,
+    );
+    out = warpPerspectiva(src, quad, Math.max(200, Math.min(3200, anchoDoc)));
+  } else {
+    // Rect del quad (bounding) en px — camino equivalente al recorte histórico.
+    const xs = quad.map((p) => p.x * w);
+    const ys = quad.map((p) => p.y * h);
+    const x0 = Math.max(0, Math.floor(Math.min(...xs)));
+    const y0 = Math.max(0, Math.floor(Math.min(...ys)));
+    const x1 = Math.min(w, Math.ceil(Math.max(...xs)));
+    const y1 = Math.min(h, Math.ceil(Math.max(...ys)));
+    const cw = Math.max(1, x1 - x0);
+    const ch = Math.max(1, y1 - y0);
+    out = document.createElement('canvas');
+    out.width = cw;
+    out.height = ch;
+    const ctx = out.getContext('2d', { willReadFrequently: true })!;
+    ctx.drawImage(src, x0, y0, cw, ch, 0, 0, cw, ch);
+  }
+  // FASE A3 — deskew residual (≤10°): solo fuera del recorte manual y cuando
+  // la flag del host lo habilita; el ángulo lo mide el perfil de proyección.
+  if (opts?.deskew && !opts?.manual) {
+    try {
+      const ang = anguloDeskew(out);
+      if (ang !== 0) out = corregirDeskew(out, ang);
+    } catch {
+      /* sin corrección: degradación honesta, el pipeline sigue */
+    }
+  }
   // Rotación en pasos de 90°.
   const pasos = ((Math.round(rotation / 90) % 4) + 4) % 4;
   let rotado = out;
