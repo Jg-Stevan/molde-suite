@@ -27,6 +27,7 @@ import {
   GripVertical,
   Link2,
   Loader2,
+  Magnet,
   Maximize2,
   Minus,
   MoreVertical,
@@ -38,6 +39,7 @@ import {
   Save,
   ScanLine,
   SquareDashedMousePointer,
+  Table,
   Trash2,
 } from 'lucide-react';
 
@@ -57,6 +59,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -65,8 +75,9 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { alinearAnclas, rectEditor, sugerirUmbralClustering } from '@/lib/molde/universal-engine';
+import { alinearAnclas, editDistancePonderada, normTxt, rectEditor, sugerirUmbralClustering } from '@/lib/molde/universal-engine';
 import type { LineaOcr } from '@/lib/molde/types';
+import { detectarTabla, type TablaDetectada } from '@/lib/molde/tabla-detect';
 import { ocrLines, setOcrProgress } from '@/lib/ocr/ocr-client';
 import { escalarCanvas, renderDocumento } from '@/lib/ocr/pdf-client';
 import {
@@ -85,6 +96,23 @@ import { repo, useUrlResuelta } from '@/lib/repo';
 import { useStudio } from '@/lib/studio-store';
 
 const CLAMP = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+
+/** Set compartido «sin cajas eliminadas»: identidad estable para memo/deps. */
+const SIN_ELIMINADAS: ReadonlySet<number> = new Set();
+
+/** Rect normalizado (0–1) de la caja de una línea OCR sobre la página. */
+function rectDeLineaOcr(l: LineaOcr, dims: { w: number; h: number }): RectNorm {
+  const [x0, y0, x1, y1] = l.bbox;
+  return {
+    x: x0 / dims.w,
+    y: y0 / dims.h,
+    w: (x1 - x0) / dims.w,
+    h: (y1 - y0) / dims.h,
+  };
+}
+
+/** Longitud máxima de la etiqueta de un campo creado desde una caja OCR. */
+const ETIQUETA_OCR_MAX = 48;
 
 const TIPOS: { id: TipoCampo; nombre: string; dot: string; grupo: string }[] = [
   { id: 'presencia', nombre: 'Cifras', dot: 'bg-emerald-500', grupo: 'Dato Variable (Presencia)' },
@@ -111,6 +139,9 @@ interface ZonaCampoProps {
   color: string;
   activo: boolean;
   verEtiquetas: boolean;
+  /** En modo Detectar tabla las zonas NO capturan puntero: el arrastre
+      sobre el lienzo es para delimitar la tabla, no para mover zonas. */
+  inerte: boolean;
   rx: number;
   ry: number;
   rw: number;
@@ -125,6 +156,7 @@ const ZonaCampo = memo(function ZonaCampo({
   color,
   activo,
   verEtiquetas,
+  inerte,
   rx,
   ry,
   rw,
@@ -135,9 +167,9 @@ const ZonaCampo = memo(function ZonaCampo({
   return (
     <div
       role="button"
-      tabIndex={0}
+      tabIndex={inerte ? -1 : 0}
       aria-label={`Zona ${etiqueta}`}
-      className={`absolute cursor-move border-2 transition-shadow ${activo ? 'z-10 shadow-[0_0_0_2px_rgba(255,255,255,0.85),0_0_18px_rgba(99,102,241,0.65)]' : 'opacity-85'}`}
+      className={`absolute border-2 transition-shadow ${inerte ? 'pointer-events-none' : 'cursor-move'} ${activo ? 'z-10 shadow-[0_0_0_2px_rgba(255,255,255,0.85),0_0_18px_rgba(99,102,241,0.65)]' : 'opacity-85'}`}
       style={{
         left: `${rx * 100}%`,
         top: `${ry * 100}%`,
@@ -236,8 +268,8 @@ export default function EditorTab() {
   const [verGrid, setVerGrid] = useState(false);
   // ---- Capa OCR (visualización del reconocimiento sobre el escaneo) ----
   // El toggle activa la ejecución de OCR de página completa (ocrLines, el MISMO
-  // pipeline que usa "Alinear anclas") y pinta cada línea/palabra reconocida
-  // como caja con su texto sobre el lienzo: feedback visual de QUÉ ve el OCR y
+  // pipeline que usa "Alinear anclas") y resalta cada línea reconocida sobre
+  // el lienzo (velo de color, SIN cajas): feedback visual de QUÉ ve el OCR y
   // DÓNDE — imprescindible para calibrar anclas y decidir estrategias.
   const [verOcr, setVerOcr] = useState(false);
   const [ocrCapa, setOcrCapa] = useState<{
@@ -250,6 +282,33 @@ export default function EditorTab() {
   const [ocrEstado, setOcrEstado] = useState<'inactivo' | 'cargando' | 'listo' | 'error'>('inactivo');
   const [ocrProgreso, setOcrProgreso] = useState(0);
   const [ocrError, setOcrError] = useState<string | null>(null);
+  // ---- Capa OCR EDITABLE (mapear estructura): modo mapeo con resaltados clicables,
+  // menú contextual por línea, lista buscable y sugerencias de ancla. ----
+  const [mapearOcr, setMapearOcr] = useState(false);
+  const [ocrMenu, setOcrMenu] = useState<{ idx: number; leftPct: number; topPct: number } | null>(null);
+  const [ocrDestacada, setOcrDestacada] = useState<number | null>(null);
+  const [busquedaOcr, setBusquedaOcr] = useState('');
+  // Líneas eliminadas de la capa OCR (ruido: mal ubicadas o sin texto), por clave
+  // imagen@página: cambiar de página/referencia arranca con la capa limpia y
+  // re-ejecutar OCR resetea (los índices apuntaban al resultado anterior).
+  const [ocrExcluidas, setOcrExcluidas] = useState<{ key: string; set: Set<number> } | null>(null);
+  // ---- Detectar tabla (generador de campos desde la capa OCR) ----
+  // modoTabla: el usuario arrastra un rect sobre el lienzo; detectarTabla()
+  // agrupa líneas en renglones e infiere columnas; el diálogo muestra la
+  // grilla con textos EDITABLES (por si el OCR se equivocó) y genera un
+  // campo por celda — campos normales, 100% editables después.
+  const [modoTabla, setModoTabla] = useState(false);
+  const [arrastreTabla, setArrastreTabla] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const [tablaDetectada, setTablaDetectada] = useState<TablaDetectada | null>(null);
+  const [tablaDialog, setTablaDialog] = useState<{ textos: string[][]; filasOn: boolean[]; colsOn: boolean[] } | null>(null);
+  const [tablaOpts, setTablaOpts] = useState<{
+    encabezado: boolean;
+    anclar: boolean;
+    tipoCelda: TipoCampo;
+    digitos: boolean;
+    prefijo: string;
+  }>({ encabezado: true, anclar: true, tipoCelda: 'texto', digitos: true, prefijo: 'Tabla' });
+  const [pestanaDerecha, setPestanaDerecha] = useState<'propiedades' | 'json' | 'ocr'>('propiedades');
   const [ocultos, setOcultos] = useState<Set<string>>(new Set());
   const [coordenadas, setCoordenadas] = useState<{ x: number; y: number } | null>(null);
   const [cropPreview, setCropPreview] = useState<string | null>(null);
@@ -264,9 +323,12 @@ export default function EditorTab() {
     [molde, moldeDB],
   );
 
+  /** Páginas navegables del molde: donde hay campos, donde hay escaneo de
+      referencia (aunque aún no tenga campos) y la página actual. */
   const paginas = useMemo(() => {
     if (!molde) return [1];
     const set = new Set(molde.campos.map((c) => c.pagina));
+    for (const p of molde.paginasRef ?? []) set.add(p.pagina);
     set.add(pagina);
     return [...set].sort((a, b) => a - b);
   }, [molde, pagina]);
@@ -469,7 +531,7 @@ export default function EditorTab() {
 
   // ---- Capa OCR: OCR de página completa + overlay de líneas/palabras ----
   // Misma fuente de verdad que el motor: ocrLines sobre el canvas de 1000 px
-  // (canvasDe ya aplica escalarCanvas), así que las cajas del overlay coinciden
+  // (canvasDe ya aplica escalarCanvas), así que el resaltado del overlay coincide
   // EXACTAMENTE con lo que verá la verificación. Cacheada por clave
   // imagen@página: alternar el toggle o cambiar de página no re-ejecuta OCR
   // salvo que la referencia de esa página cambie (las URLs /uploads son UUID
@@ -494,13 +556,15 @@ export default function EditorTab() {
         conf,
         ms: Math.round(performance.now() - t0),
       });
+      // Nueva lectura → índices nuevos: las líneas eliminadas se resetean.
+      setOcrExcluidas(null);
       setOcrEstado('listo');
       setOcrProgreso(100);
       toast({
         title: `Capa OCR: ${lines.length} línea${lines.length === 1 ? '' : 's'} reconocidas`,
         description:
           conf !== null
-            ? `Confianza media ${(conf * 100).toFixed(0)}% · ${Math.round(performance.now() - t0)} ms. Las cajas son lo que el OCR ve en esta página.`
+            ? `Confianza media ${(conf * 100).toFixed(0)}% · ${Math.round(performance.now() - t0)} ms. El resaltado es lo que el OCR ve en esta página. Clic en modo Mapear para elegir qué hacer.`
             : `Confianza no reportada por el core · ${Math.round(performance.now() - t0)} ms.`,
       });
     } catch (e) {
@@ -533,6 +597,89 @@ export default function EditorTab() {
     if (ocrCapaKeyHecha.current === ocrCapaKey) return;
     void Promise.resolve().then(ejecutarOcrCapa);
   }, [verOcr, ocrCapaKey, ejecutarOcrCapa]);
+
+  // Capa OCR vigente para la página/referencia actual. NO depende del toggle
+  // del overlay: el tab «OCR» y las sugerencias de ancla usan el caché aunque
+  // las líneas estén ocultas en el lienzo.
+  const ocrCapaVigente = ocrCapa && ocrCapa.key === ocrCapaKey ? ocrCapa : null;
+
+  // Índices eliminados de la capa VIGENTE (sobre ocrCapa.lines). Si la clave no
+  // coincide (otra página/referencia), la capa arranca sin eliminadas.
+  const ocrExcluidasVigentes: ReadonlySet<number> =
+    ocrExcluidas && ocrCapaKey !== null && ocrExcluidas.key === ocrCapaKey ? ocrExcluidas.set : SIN_ELIMINADAS;
+  // Líneas sin texto reconocido aún NO eliminadas — alimenta la acción «Quitar vacías».
+  const nVaciasPendientes = useMemo(() => {
+    if (!ocrCapaVigente) return 0;
+    return ocrCapaVigente.lines.reduce(
+      (n, l, i) => (l.texto.trim() === '' && !ocrExcluidasVigentes.has(i) ? n + 1 : n),
+      0,
+    );
+  }, [ocrCapaVigente, ocrExcluidasVigentes]);
+
+  // Escape cierra el menú contextual de mapeo y cancela el modo tabla.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setOcrMenu(null);
+      if (modoTabla) {
+        setModoTabla(false);
+        setArrastreTabla(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [modoTabla]);
+
+  // Líneas OCR filtradas para el tab «OCR» (búsqueda normalizada, incluye palabras).
+  const lineasOcrFiltradas = useMemo(() => {
+    if (!ocrCapaVigente) return [];
+    const q = normTxt(busquedaOcr);
+    const todas = ocrCapaVigente.lines
+      .map((l, i) => ({ l, i }))
+      // Líneas eliminadas por el usuario: fuera del listado (recuperables).
+      .filter(({ i }) => !ocrExcluidasVigentes.has(i));
+    if (!q) return todas;
+    return todas.filter(
+      ({ l }) => normTxt(l.texto).includes(q) || l.palabras.some((w) => normTxt(w.texto).includes(q)),
+    );
+  }, [ocrCapaVigente, busquedaOcr, ocrExcluidasVigentes]);
+
+  // Sugerencias de ancla para el campo activo (ancla_relativa): top-3 líneas
+  // por similitud difusa con el texto del ancla — o por cercanía espacial al
+  // rect esperado cuando el texto está vacío. Un clic fija texto + rect.
+  const sugerenciasAncla = useMemo(() => {
+    if (!campoSel || campoSel.estrategia !== 'ancla_relativa' || !ocrCapaVigente) return [];
+    const dims = ocrCapaVigente.dims;
+    const objetivo = normTxt(campoSel.ancla?.texto ?? '');
+    const objetivoOrden = normTxt(
+      objetivo.split(' ').sort((a, b) => a.localeCompare(b)).join(' '),
+    );
+    const base = campoSel.ancla?.rect ?? rectEditor(campoSel);
+    const centro = base ? { x: base.x + base.w / 2, y: base.y + base.h / 2 } : null;
+    // Las líneas eliminadas (ruido) nunca se sugieren como ancla.
+    const candidatas = ocrCapaVigente.lines
+      .map((l, i) => ({ l, i }))
+      .filter(({ i }) => !ocrExcluidasVigentes.has(i));
+    const puntuadas = candidatas.map(({ l, i }) => {
+      const t = normTxt(l.texto);
+      let score: number;
+      if (objetivo && t) {
+        const d1 = editDistancePonderada(objetivo, t);
+        const tOrden = normTxt(t.split(' ').sort((a, b) => a.localeCompare(b)).join(' '));
+        const d2 = editDistancePonderada(objetivoOrden, tOrden);
+        score = 1 - Math.min(d1, d2) / Math.max(objetivo.length, t.length, 1);
+      } else if (centro) {
+        const cx = (l.bbox[0] + l.bbox[2]) / 2 / dims.w;
+        const cy = (l.bbox[1] + l.bbox[3]) / 2 / dims.h;
+        score = Math.max(0, 1 - Math.hypot(cx - centro.x, cy - centro.y));
+      } else {
+        score = 0;
+      }
+      return { l, i, score };
+    });
+    const corte = objetivo ? 0.3 : 0.55;
+    return puntuadas.filter((s) => s.score >= corte).sort((a, b) => b.score - a.score).slice(0, 3);
+  }, [campoSel, ocrCapaVigente, ocrExcluidasVigentes]);
 
   if (!molde || !moldeId) {
     return (
@@ -594,6 +741,328 @@ export default function EditorTab() {
     setCampoSeleccionado(copia.id);
   }
 
+  // ---- Capa OCR editable (mapear estructura desde lo reconocido) ----
+  function cerrarMenuOcr() {
+    setOcrMenu(null);
+  }
+
+  /** Abre el menú de mapeo sobre el resaltado OCR idx (posición en % de la página). */
+  function abrirMenuOcr(idx: number) {
+    const capa = ocrCapaVigente;
+    const l = capa?.lines[idx];
+    if (!capa || !l) return;
+    setOcrDestacada(idx);
+    setOcrMenu({
+      idx,
+      leftPct: (l.bbox[0] / capa.dims.w) * 100,
+      topPct: (l.bbox[1] / capa.dims.h) * 100,
+    });
+  }
+
+  /** Crea un campo desde una caja OCR: zona fija (rect de la caja) o anclada (ancla = la línea). */
+  function crearCampoDesdeOcr(l: LineaOcr, modo: 'fija' | 'anclada') {
+    if (!molde || !ocrCapaVigente) return;
+    const rect = rectDeLineaOcr(l, ocrCapaVigente.dims);
+    const etiqueta = l.texto.trim().slice(0, ETIQUETA_OCR_MAX) || `Campo OCR ${molde.campos.length + 1}`;
+    const c: CampoUniversal = {
+      id: nuevoIdCampo(),
+      etiqueta,
+      pagina,
+      tipo: 'presencia',
+      estrategia: modo === 'fija' ? 'zona_fija' : 'ancla_relativa',
+      zona: modo === 'fija' ? rect : { x: 0.008, y: rect.h + 0.004, w: rect.w, h: rect.h },
+      ancla: modo === 'anclada' ? { texto: l.texto, rect } : undefined,
+      umbral: 0.03,
+      obligatorio: false,
+      nota: 'Creado desde la capa OCR — ajusta tipo, tamaño y estrategia.',
+    };
+    setMoldeActual({ ...molde, campos: [...molde.campos, c] });
+    setCampoSeleccionado(c.id);
+    setPestanaDerecha('propiedades');
+    cerrarMenuOcr();
+    toast({
+      title: modo === 'fija' ? 'Campo creado sobre la línea OCR' : 'Campo anclado a la línea OCR',
+      description:
+        modo === 'fija'
+          ? 'Zona fija = rect de la línea reconocida. Ajusta tipo y tamaño en Propiedades.'
+          : `Ancla «${l.texto.slice(0, 32)}» + offset bajo la línea. Revisa el enlace ancla→zona.`,
+    });
+  }
+
+  /** Usa la línea OCR como ancla del campo activo (lo convierte si era zona_fija). */
+  function usarLineaComoAncla(l: LineaOcr) {
+    if (!molde || !ocrCapaVigente) return;
+    if (!campoSel) {
+      toast({
+        title: 'Sin campo activo',
+        description: 'Selecciona primero el campo al que quieres asignar esta ancla.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (campoSel.pagina !== pagina) {
+      toast({
+        title: 'El campo activo es de otra página',
+        description: `La ancla pertenece a la página ${pagina}; el campo ${campoSel.etiqueta} a la ${campoSel.pagina}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    const rect = rectDeLineaOcr(l, ocrCapaVigente.dims);
+    if (campoSel.estrategia === 'zona_fija') {
+      // Conversión preservando la posición visual: offset = zona actual − rect del ancla.
+      actualizarCampo(campoSel.id, {
+        estrategia: 'ancla_relativa',
+        ancla: { texto: l.texto, rect },
+        zona: {
+          x: campoSel.zona.x - rect.x,
+          y: campoSel.zona.y - rect.y,
+          w: campoSel.zona.w,
+          h: campoSel.zona.h,
+        },
+      });
+    } else {
+      actualizarCampo(campoSel.id, { ancla: { texto: l.texto, rect } });
+    }
+    setPestanaDerecha('propiedades');
+    cerrarMenuOcr();
+    toast({
+      title: 'Ancla aplicada desde la capa OCR',
+      description: `«${l.texto.slice(0, 40)}» es ahora el ancla de ${campoSel.etiqueta}.`,
+    });
+  }
+
+  /** Ajusta (snap) la zona del campo activo al rect de la línea OCR. */
+  function ajustarZonaActivaAOcr(l: LineaOcr) {
+    if (!molde || !ocrCapaVigente) return;
+    if (!campoSel) {
+      toast({
+        title: 'Sin campo activo',
+        description: 'Selecciona el campo cuya zona quieres ajustar a esta línea.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (campoSel.pagina !== pagina) {
+      toast({
+        title: 'El campo activo es de otra página',
+        description: `Cambia a la página ${campoSel.pagina} para ajustar su zona.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    const rect = rectDeLineaOcr(l, ocrCapaVigente.dims);
+    if (campoSel.estrategia === 'zona_fija') {
+      actualizarCampo(campoSel.id, { zona: rect });
+    } else {
+      const ax = campoSel.ancla?.rect?.x ?? 0;
+      const ay = campoSel.ancla?.rect?.y ?? 0;
+      actualizarCampo(campoSel.id, {
+        zona: {
+          x: campoSel.x_absoluto ? rect.x : rect.x - ax,
+          y: rect.y - ay,
+          w: rect.w,
+          h: rect.h,
+        },
+      });
+    }
+    cerrarMenuOcr();
+    toast({
+      title: 'Zona ajustada a la línea OCR',
+      description: `La zona de ${campoSel.etiqueta} coincide ahora con el rect reconocido.`,
+    });
+  }
+
+  /** Aplica una sugerencia difusa como ancla del campo activo (texto + rect). */
+  function aplicarSugerenciaAncla(s: { l: LineaOcr }) {
+    if (!campoSel || !ocrCapaVigente) return;
+    const rect = rectDeLineaOcr(s.l, ocrCapaVigente.dims);
+    actualizarCampo(campoSel.id, { ancla: { texto: s.l.texto, rect } });
+    toast({
+      title: 'Ancla corregida desde la capa OCR',
+      description: `«${s.l.texto.slice(0, 40)}» con el rect de la línea reconocida.`,
+    });
+  }
+
+  // ---- Eliminar líneas de la capa OCR (ruido: mal ubicadas o sin texto) ----
+  /** Quita una línea de la capa OCR vigente; recuperable desde el tab OCR. */
+  function eliminarLineaOcr(idx: number) {
+    if (!ocrCapaKey) return;
+    setOcrExcluidas((prev) => {
+      const base = prev && prev.key === ocrCapaKey ? prev.set : new Set<number>();
+      const next = new Set(base);
+      next.add(idx);
+      return { key: ocrCapaKey, set: next };
+    });
+    if (ocrMenu?.idx === idx) setOcrMenu(null);
+    if (ocrDestacada === idx) setOcrDestacada(null);
+    toast({
+      title: 'Línea OCR eliminada de la capa',
+      description: 'Ya no se resalta ni entra en las sugerencias de ancla. Restáurala con el botón «Restaurar» del tab OCR.',
+    });
+  }
+
+  /** Restaura TODAS las líneas eliminadas de la capa vigente. */
+  function restaurarLineasOcr() {
+    setOcrExcluidas(null);
+    toast({ title: 'Capa OCR restaurada', description: 'Las líneas eliminadas vuelven a resaltarse en el lienzo.' });
+  }
+
+  /** Elimina en bloque las líneas de la capa vigente sin texto reconocido. */
+  function eliminarVaciasOcr() {
+    if (!ocrCapaVigente || !ocrCapaKey) return;
+    const next = new Set<number>(ocrExcluidasVigentes);
+    ocrCapaVigente.lines.forEach((l, i) => {
+      if (l.texto.trim() === '') next.add(i);
+    });
+    const n = next.size - ocrExcluidasVigentes.size;
+    if (n === 0) {
+      toast({ title: 'No quedan líneas vacías por eliminar' });
+      return;
+    }
+    setOcrExcluidas({ key: ocrCapaKey, set: next });
+    toast({
+      title: `${n} línea${n === 1 ? '' : 's'} vacía${n === 1 ? '' : 's'} eliminada${n === 1 ? '' : 's'}`,
+      description: 'Las líneas sin texto reconocido salieron de la capa. Recuperables con «Restaurar».',
+    });
+  }
+
+  // ---- Detectar tabla: generador de campos por celda desde la capa OCR ----
+  /** Activa/desactiva el modo arrastre de zona para detectar una tabla. */
+  function alternarModoTabla() {
+    setModoTabla((v) => !v);
+    setArrastreTabla(null);
+    setOcrMenu(null);
+    setOcrDestacada(null);
+  }
+
+  /** Coordenada normalizada (0–1) del puntero respecto a la página en el lienzo. */
+  function coordTabla(e: React.PointerEvent): { x: number; y: number } | null {
+    const cont = contenedorRef.current;
+    if (!cont) return null;
+    const r = cont.getBoundingClientRect();
+    return { x: CLAMP((e.clientX - r.left) / r.width), y: CLAMP((e.clientY - r.top) / r.height) };
+  }
+
+  function onPointerDownTabla(e: React.PointerEvent) {
+    if (!modoTabla || !ocrCapaVigente) return;
+    const p = coordTabla(e);
+    if (!p) return;
+    e.preventDefault();
+    try {
+      contenedorRef.current?.setPointerCapture(e.pointerId);
+    } catch {
+      /* el capture es best-effort; el arrastre funciona igual dentro del lienzo */
+    }
+    setArrastreTabla({ x0: p.x, y0: p.y, x1: p.x, y1: p.y });
+  }
+
+  function onPointerMoveTabla(e: React.PointerEvent) {
+    if (!arrastreTabla) return;
+    const p = coordTabla(e);
+    if (!p) return;
+    setArrastreTabla((a) => (a ? { ...a, x1: p.x, y1: p.y } : a));
+  }
+
+  function onPointerUpTabla() {
+    if (!arrastreTabla || !ocrCapaVigente) return;
+    const { x0, y0, x1, y1 } = arrastreTabla;
+    setArrastreTabla(null);
+    const zona = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
+    if (zona.w < 0.02 || zona.h < 0.02) return;
+    const t = detectarTabla(ocrCapaVigente.lines, zona, ocrCapaVigente.dims);
+    if (!t || t.filas.length < 1) {
+      toast({
+        title: 'No se detectó una tabla',
+        description: 'Arrastra una zona que contenga al menos 2 renglones de texto reconocido (Capa OCR activa).',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const primera = t.filas[0].filter((c) => c.texto.trim() !== '').length;
+    setTablaDetectada(t);
+    setTablaOpts((o) => ({ ...o, encabezado: primera >= 2 }));
+    setTablaDialog({
+      textos: t.filas.map((f) => f.map((c) => c.texto)),
+      filasOn: t.filas.map(() => true),
+      colsOn: t.filas[0].map(() => true),
+    });
+  }
+
+  /** Genera un campo por celda activa de la tabla detectada (anclados a su
+      etiqueta de fila cuando es posible). Campos normales y editables. */
+  function generarCamposTabla() {
+    if (!tablaDetectada || !tablaDialog || !molde) return;
+    const { textos, filasOn, colsOn } = tablaDialog;
+    const { filas } = tablaDetectada;
+    const headerTexts = tablaOpts.encabezado ? (textos[0] ?? []) : [];
+    const nuevos: CampoUniversal[] = [];
+    for (let f = 0; f < filas.length; f++) {
+      if (!filasOn[f]) continue;
+      if (tablaOpts.encabezado && f === 0) continue; // fila de encabezado: solo etiquetas
+      const fila = filas[f];
+      // Celdas activas del renglón (texto vacío no genera campo de tipo texto).
+      const activas: number[] = [];
+      for (let c = 0; c < fila.length; c++) {
+        if (!colsOn[c]) continue;
+        if (tablaOpts.tipoCelda === 'texto' && (textos[f][c] ?? '').trim() === '') continue;
+        activas.push(c);
+      }
+      if (activas.length === 0) continue;
+      // Ancla de la fila: primera celda activa con texto (preferencia columna 0).
+      let cAncla = -1;
+      for (const c of activas) {
+        if ((textos[f][c] ?? '').trim() !== '') {
+          cAncla = c;
+          break;
+        }
+      }
+      // El ancla solo tiene sentido si quedan MÁS celdas además de ella; si la
+      // fila tiene una única celda activa (lista de renglones), se genera como
+      // zona fija y el ancla no aplica.
+      const usarAncla = tablaOpts.anclar && cAncla >= 0 && activas.length > 1;
+      const anclaTexto = usarAncla && cAncla >= 0 ? textos[f][cAncla].trim() : '';
+      const anclaRect = usarAncla && cAncla >= 0 ? fila[cAncla].rect : undefined;
+      const etiquetaFila = anclaTexto || `fila ${f + 1}`;
+      for (const c of activas) {
+        if (usarAncla && c === cAncla) continue; // la celda del ancla es la etiqueta, no genera campo
+        const cel = fila[c];
+        const texto = (textos[f][c] ?? '').trim();
+        const esTexto = tablaOpts.tipoCelda === 'texto';
+        const anclada = usarAncla && Boolean(anclaTexto && anclaRect);
+        const header = (headerTexts[c] ?? '').trim().slice(0, 18);
+        const etiqueta = [header, etiquetaFila].filter(Boolean).join(' · ') || `${tablaOpts.prefijo} ${f + 1}-${c + 1}`;
+        nuevos.push({
+          id: nuevoIdCampo(),
+          etiqueta: etiqueta.slice(0, ETIQUETA_OCR_MAX),
+          pagina,
+          tipo: tablaOpts.tipoCelda,
+          estrategia: anclada ? 'ancla_relativa' : 'zona_fija',
+          zona: anclada
+            ? { x: cel.rect.x, y: cel.rect.y - anclaRect!.y, w: cel.rect.w, h: cel.rect.h }
+            : cel.rect,
+          ...(anclada ? { ancla: { texto: anclaTexto, rect: anclaRect! }, x_absoluto: true } : {}),
+          umbral: 0.03,
+          obligatorio: false,
+          ...(esTexto && tablaOpts.digitos ? { whitelist: '0123456789', patron: '\\d+', realce: true } : {}),
+          nota: 'Celda generada por «Detectar tabla» — ajusta tipo, tamaño o ancla si hace falta.',
+        });
+      }
+    }
+    if (nuevos.length === 0) {
+      toast({ title: 'Nada por generar', description: 'Todas las celdas activas están vacías o excluidas.', variant: 'destructive' });
+      return;
+    }
+    setMoldeActual({ ...molde, campos: [...molde.campos, ...nuevos] });
+    setTablaDialog(null);
+    setTablaDetectada(null);
+    setModoTabla(false);
+    toast({
+      title: `${nuevos.length} campos de tabla generados`,
+      description: 'Son campos normales: se leen en Verificación igual que el resto, y puedes moverlos, redimensionarlos o eliminarlos.',
+    });
+  }
+
   function alternarOculto(id: string) {
     setOcultos((prev) => {
       const next = new Set(prev);
@@ -634,46 +1103,68 @@ export default function EditorTab() {
   }
 
   // ---- referencia de imagen ----
+  /** Sube el escaneo de referencia de la página actual. Si el archivo es un
+      PDF multipágina, importa TODAS sus páginas de una sola vez: la página 1
+      del PDF cae en la página actual del molde y las siguientes se encadenan
+      a continuación (cada una con su escaneo listo para su capa OCR). */
   async function subirImagen(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f || !molde) return;
-    // Fase 3.2 (G-12): aceptar también PDF como referencia — se rasteriza la
-    // página actual a PNG antes de subirla, así el editor siempre trabaja con imagen.
-    let archivo: File = f;
-    if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
-      setSubiendo(true);
-      try {
-        const doc = await renderDocumento(f);
-        const paginaIdx = Math.min(pagina - 1, doc.canvases.length - 1);
-        const canvas = doc.canvases[paginaIdx];
-        const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'));
-        if (!blob) throw new Error('No se pudo rasterizar el PDF');
-        archivo = new File([blob], `${f.name.replace(/\.pdf$/i, '')}-p${paginaIdx + 1}.png`, { type: 'image/png' });
-      } catch (err) {
-        toast({ title: 'Error al procesar el PDF', description: (err as Error).message, variant: 'destructive' });
-        return;
-      } finally {
-        setSubiendo(false);
-      }
-    } else if (f.type && !/^image\/(png|jpe?g|webp|heic|heif)$/.test(f.type)) {
-      // Fase 3.2 (N-13): rechazo explícito, nunca silencioso.
-      toast({ title: 'Formato no soportado', description: `${f.name} (${f.type}) — usa PNG, JPEG, WebP, HEIC o PDF.`, variant: 'destructive' });
-      return;
-    }
+    // Fase 3.2 (G-12): aceptar también PDF como referencia — se rasteriza a
+    // PNG antes de subirla, así el editor siempre trabaja con imagen.
     setSubiendo(true);
     try {
-      const subida = await repo.subirArchivo(archivo, archivo.name);
-      if (!subida.ok) {
-        toast({ title: 'Error al subir imagen', description: subida.error, variant: 'destructive' });
-        return;
+      if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
+        const doc = await renderDocumento(f);
+        if (doc.canvases.length === 0) throw new Error('El PDF no tiene páginas');
+        const base = f.name.replace(/\.pdf$/i, '');
+        const entradas: { pagina: number; imagen: string }[] = [];
+        for (let i = 0; i < doc.canvases.length; i++) {
+          const blob = await new Promise<Blob | null>((res) => doc.canvases[i].toBlob(res, 'image/png'));
+          if (!blob) throw new Error(`No se pudo rasterizar la página ${i + 1} del PDF`);
+          const archivo = new File([blob], `${base}-p${pagina + i}.png`, { type: 'image/png' });
+          const subida = await repo.subirArchivo(archivo, archivo.name);
+          if (!subida.ok) throw new Error(subida.error);
+          entradas.push({ pagina: pagina + i, imagen: subida.data.url });
+        }
+        const desde = pagina;
+        const hasta = pagina + doc.canvases.length - 1;
+        const otras = (molde.paginasRef ?? []).filter((p) => p.pagina < desde || p.pagina > hasta);
+        setMoldeActual({
+          ...molde,
+          paginasRef: [...otras, ...entradas].sort((a, b) => a.pagina - b.pagina),
+        });
+        toast({
+          title:
+            entradas.length > 1
+              ? `PDF importado: ${entradas.length} páginas → molde ${desde}–${hasta}`
+              : `Escaneo de referencia cargado (página ${pagina})`,
+          description:
+            entradas.length > 1
+              ? 'Cada página del molde recibió su escaneo. Activa la Capa OCR página por página para mapearlas.'
+              : undefined,
+        });
+      } else {
+        if (f.type && !/^image\/(png|jpe?g|webp|heic|heif)$/.test(f.type)) {
+          // Fase 3.2 (N-13): rechazo explícito, nunca silencioso.
+          toast({ title: 'Formato no soportado', description: `${f.name} (${f.type}) — usa PNG, JPEG, WebP, HEIC o PDF.`, variant: 'destructive' });
+          return;
+        }
+        const subida = await repo.subirArchivo(f, f.name);
+        if (!subida.ok) {
+          toast({ title: 'Error al subir imagen', description: subida.error, variant: 'destructive' });
+          return;
+        }
+        const url = subida.data.url;
+        const otras = (molde.paginasRef ?? []).filter((p) => p.pagina !== pagina);
+        setMoldeActual({
+          ...molde,
+          paginasRef: [...otras, { pagina, imagen: url }].sort((a, b) => a.pagina - b.pagina),
+        });
+        toast({ title: `Escaneo de referencia cargado (página ${pagina})` });
       }
-      const url = subida.data.url;
-      const otras = (molde.paginasRef ?? []).filter((p) => p.pagina !== pagina);
-      setMoldeActual({
-        ...molde,
-        paginasRef: [...otras, { pagina, imagen: url }].sort((a, b) => a.pagina - b.pagina),
-      });
-      toast({ title: `Escaneo de referencia cargado (página ${pagina})` });
+    } catch (err) {
+      toast({ title: 'Error al procesar el archivo', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setSubiendo(false);
       if (inputImagenRef.current) inputImagenRef.current.value = '';
@@ -1193,7 +1684,7 @@ export default function EditorTab() {
               </label>
               <label
                 className={`flex items-center gap-1.5 font-mono text-[11px] transition ${verOcr ? 'text-teal-300' : 'text-slate-300'}`}
-                title="Superpone sobre el escaneo lo que el OCR reconoce: cajas por línea/palabra con su texto y confianza"
+                title="Resalta sobre el escaneo el texto que el OCR reconoce (color según confianza), sin cajas ni etiquetas"
               >
                 <Checkbox
                   checked={verOcr}
@@ -1203,6 +1694,47 @@ export default function EditorTab() {
                 />
                 Capa OCR
               </label>
+              <label
+                className={`flex items-center gap-1.5 font-mono text-[11px] transition ${
+                  mapearOcr && ocrCapaVigente ? 'text-teal-200' : ocrCapaVigente ? 'text-slate-300' : 'text-slate-600'
+                }`}
+                title={
+                  ocrCapaVigente
+                    ? 'Modo mapeo: clic sobre un resaltado OCR para crear campos, fijar el ancla del campo activo o ajustar su zona'
+                    : 'Activa la Capa OCR para habilitar el modo mapeo'
+                }
+              >
+                <Checkbox
+                  checked={mapearOcr}
+                  disabled={!ocrCapaVigente}
+                  onCheckedChange={(v) => {
+                    setMapearOcr(Boolean(v));
+                    if (!v) {
+                      setOcrMenu(null);
+                      setOcrDestacada(null);
+                    }
+                  }}
+                  aria-label="Modo mapeo de la capa OCR"
+                  className="border-slate-600 data-[state=checked]:bg-teal-500 data-[state=checked]:border-teal-400"
+                />
+                Mapear
+              </label>
+              {/* Detectar tabla: modo de arrastre sobre la capa OCR que genera
+                  un campo por celda (revisable y editable antes de crear). */}
+              {verOcr ? (
+                <button
+                  type="button"
+                  title="Detectar tabla: arrastra un rectángulo sobre la tabla en el lienzo; se agrupan renglones y columnas y se generan campos por celda (revisables antes de crear)"
+                  aria-pressed={modoTabla}
+                  disabled={!ocrCapaVigente || ocrEstado === 'cargando'}
+                  onClick={alternarModoTabla}
+                  className={`inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition disabled:opacity-40 ${
+                    modoTabla ? 'bg-teal-600 text-white' : 'text-teal-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <Table className="h-3.5 w-3.5" aria-hidden /> Tabla
+                </button>
+              ) : null}
               {verOcr ? (
                 <button
                   type="button"
@@ -1219,7 +1751,14 @@ export default function EditorTab() {
                   )}
                 </button>
               ) : null}
-              <Select value={String(pagina)} onValueChange={(v) => setPagina(Number(v))}>
+              <Select
+                value={String(pagina)}
+                onValueChange={(v) => {
+                  setPagina(Number(v));
+                  setOcrMenu(null);
+                  setOcrDestacada(null);
+                }}
+              >
                 <SelectTrigger className="h-8 w-28 border-slate-700 bg-slate-950 text-xs text-slate-200" aria-label="Página del molde">
                   <SelectValue />
                 </SelectTrigger>
@@ -1231,6 +1770,22 @@ export default function EditorTab() {
                   ))}
                 </SelectContent>
               </Select>
+              {/* Agregar página: navega a la primera página sin uso para
+                  subirle su escaneo de referencia (y luego mapearla). */}
+              <button
+                type="button"
+                title={`Agregar página ${paginas[paginas.length - 1] + 1}`}
+                aria-label={`Agregar página ${paginas[paginas.length - 1] + 1}`}
+                disabled={subiendo}
+                onClick={() => {
+                  setPagina(paginas[paginas.length - 1] + 1);
+                  setOcrMenu(null);
+                  setOcrDestacada(null);
+                }}
+                className="flex h-8 w-7 items-center justify-center rounded-md border border-slate-700 bg-slate-950 text-slate-400 transition hover:border-slate-500 hover:text-slate-200 disabled:opacity-40"
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+              </button>
             </div>
           </div>
 
@@ -1242,12 +1797,21 @@ export default function EditorTab() {
             onPointerUp={onPointerUpZona}
             onMouseMove={onPointerMoveCoords}
             onMouseLeave={() => setCoordenadas(null)}
-            onClick={() => seleccionarCampo(null)}
+            onClick={() => {
+              seleccionarCampo(null);
+              setOcrMenu(null);
+              setOcrDestacada(null);
+            }}
           >
             <div
               ref={contenedorRef}
-              className="relative select-none self-start shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+              className={`relative select-none self-start shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${
+                modoTabla ? 'cursor-crosshair' : ''
+              }`}
               style={{ width: `${zoom}%`, maxWidth: 680 }}
+              onPointerDown={onPointerDownTabla}
+              onPointerMove={onPointerMoveTabla}
+              onPointerUp={onPointerUpTabla}
             >
               {imagenRef && imagenRefVisual ? (
                 <img
@@ -1285,64 +1849,150 @@ export default function EditorTab() {
                 />
               ) : null}
 
-              {/* Capa OCR — overlay con lo que el OCR reconoció en ESTA página.
-                  Cajas de línea (borde teal + etiqueta con texto y confianza)
-                  y sub-cajas por palabra (relleno tenue). Colores por confianza:
-                  ≥85% teal · 60–85% ámbar · <60% rosa. Solo se pinta cuando el
-                  resultado cacheado corresponde a la página/referencia actual. */}
+              {/* Rect de arrastre del modo Detectar tabla */}
+              {arrastreTabla ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute z-[30] border-2 border-dashed border-teal-400 bg-teal-400/10"
+                  style={{
+                    left: `${Math.min(arrastreTabla.x0, arrastreTabla.x1) * 100}%`,
+                    top: `${Math.min(arrastreTabla.y0, arrastreTabla.y1) * 100}%`,
+                    width: `${Math.abs(arrastreTabla.x1 - arrastreTabla.x0) * 100}%`,
+                    height: `${Math.abs(arrastreTabla.y1 - arrastreTabla.y0) * 100}%`,
+                  }}
+                />
+              ) : null}
+
+              {/* Capa OCR — resaltado suave de lo que el OCR reconoció en ESTA
+                  página. SIN cajas ni etiquetas flotantes: solo un velo de color
+                  redondeado sobre el texto reconocido (tipo marcador). Colores
+                  por confianza: ≥85% teal · 60–85% ámbar · <60% rosa. En modo
+                  Mapear, el hover muestra el texto reconocido vía tooltip y el
+                  clic abre el menú para que el usuario ELIJA qué hacer con esa
+                  línea. Solo se pinta cuando el resultado cacheado corresponde
+                  a la página/referencia actual. */}
               {verOcr && imagenRef && ocrEstado === 'listo' && ocrCapa && ocrCapa.key === ocrCapaKey
                 ? ocrCapa.lines.map((l, i) => {
+                    // Línea eliminada por el usuario (ruido): no se resalta.
+                    if (ocrExcluidasVigentes.has(i)) return null;
                     const [lx0, ly0, lx1, ly1] = l.bbox;
                     const confMedia =
                       l.palabras.length > 0
                         ? l.palabras.reduce((acc, w) => acc + (w.conf >= 0 ? w.conf : 0), 0) / l.palabras.length
                         : null;
                     const colorL = confMedia === null ? '#2dd4bf' : confMedia >= 0.85 ? '#2dd4bf' : confMedia >= 0.6 ? '#fbbf24' : '#fb7185';
+                    const destacada = ocrDestacada === i;
                     return (
                       <div
                         key={`ocr-l-${i}`}
-                        aria-hidden
-                        className="pointer-events-none absolute z-[2]"
+                        aria-hidden={!mapearOcr}
+                        className={`absolute z-[2] rounded-[3px] transition ${
+                          mapearOcr
+                            ? 'cursor-pointer hover:z-[8] hover:brightness-110 hover:ring-2 hover:ring-white/70'
+                            : 'pointer-events-none'
+                        } ${destacada ? 'z-[8] ring-2 ring-white shadow-[0_0_14px_rgba(255,255,255,0.45)]' : ''}`}
                         style={{
                           left: `${(lx0 / ocrCapa.dims.w) * 100}%`,
                           top: `${(ly0 / ocrCapa.dims.h) * 100}%`,
                           width: `${((lx1 - lx0) / ocrCapa.dims.w) * 100}%`,
                           height: `${((ly1 - ly0) / ocrCapa.dims.h) * 100}%`,
-                          border: '1px solid',
-                          borderColor: colorL,
-                          backgroundColor: `${colorL}1a`,
+                          backgroundColor: `${colorL}${destacada ? '59' : '24'}`,
                         }}
-                      >
-                        {verOcr && ocrCapa.lines.length <= 60 ? (
-                          <span
-                            className="absolute -top-[11px] left-0 flex max-w-full items-center gap-1 whitespace-nowrap rounded-sm px-1 font-mono text-[8px] font-semibold leading-[11px] text-slate-950"
-                            style={{ backgroundColor: colorL }}
-                          >
-                            <span className="max-w-[280px] truncate">{l.texto}</span>
-                            {confMedia !== null ? <span className="opacity-70">{Math.round(confMedia * 100)}%</span> : null}
-                          </span>
-                        ) : null}
-                        {l.palabras.map((w, j) => {
-                          const [wx0, wy0, wx1, wy1] = w.bbox;
-                          const colorW = w.conf >= 0 && w.conf < 0.6 ? '#fb7185' : colorL;
-                          return (
-                            <span
-                              key={`ocr-w-${i}-${j}`}
-                              className="absolute"
-                              style={{
-                                left: `${((wx0 - lx0) / (lx1 - lx0 || 1)) * 100}%`,
-                                top: `${((wy0 - ly0) / (ly1 - ly0 || 1)) * 100}%`,
-                                width: `${((wx1 - wx0) / (lx1 - lx0 || 1)) * 100}%`,
-                                height: `${((wy1 - wy0) / (ly1 - ly0 || 1)) * 100}%`,
-                                backgroundColor: `${colorW}30`,
-                                boxShadow: `inset 0 0 0 1px ${colorW}55`,
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
+                        title={
+                          mapearOcr
+                            ? `${l.texto.trim() || '(sin texto)'}${confMedia !== null ? ` · ${Math.round(confMedia * 100)}%` : ''}`
+                            : undefined
+                        }
+                        onClick={(e) => {
+                          if (!mapearOcr) return;
+                          e.stopPropagation();
+                          abrirMenuOcr(i);
+                        }}
+                        role={mapearOcr ? 'button' : undefined}
+                        aria-label={mapearOcr ? `Línea OCR ${i + 1}: ${l.texto.slice(0, 60)} — acciones de mapeo` : undefined}
+                      />
                     );
                   })
+                : null}
+
+              {/* Menú contextual de mapeo sobre un resaltado OCR — acciones para
+                  convertir lo reconocido en estructura del molde. */}
+              {ocrMenu && mapearOcr && ocrCapaVigente && ocrCapaVigente.lines[ocrMenu.idx]
+                ? (() => {
+                    const l = ocrCapaVigente.lines[ocrMenu.idx];
+                    const abajo = ocrMenu.topPct > 50;
+                    return (
+                      <div
+                        className="absolute z-[40] w-56 rounded-lg border border-teal-500/60 bg-slate-950/95 p-1.5 shadow-2xl backdrop-blur"
+                        style={{
+                          left: `${Math.min(ocrMenu.leftPct, 60)}%`,
+                          top: `${ocrMenu.topPct}%`,
+                          transform: abajo ? 'translateY(calc(-100% - 10px))' : 'translateY(10px)',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        role="menu"
+                        aria-label="Acciones de mapeo para la línea OCR"
+                      >
+                        <p className="truncate rounded bg-slate-900 px-1.5 py-1 font-mono text-[9px] text-teal-300">
+                          «{l.texto.slice(0, 44)}»
+                        </p>
+                        <div className="mt-1 space-y-0.5">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-slate-200 transition hover:bg-slate-800"
+                            onClick={() => crearCampoDesdeOcr(l, 'fija')}
+                          >
+                            <Plus className="h-3.5 w-3.5 text-emerald-400" aria-hidden /> Crear campo (zona fija)
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-slate-200 transition hover:bg-slate-800"
+                            onClick={() => crearCampoDesdeOcr(l, 'anclada')}
+                          >
+                            <Link2 className="h-3.5 w-3.5 text-sky-400" aria-hidden /> Crear campo anclado aquí
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-slate-200 transition hover:bg-slate-800"
+                            onClick={() => usarLineaComoAncla(l)}
+                          >
+                            <Crosshair className="h-3.5 w-3.5 text-amber-400" aria-hidden /> Ancla del campo activo
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-slate-200 transition hover:bg-slate-800"
+                            onClick={() => ajustarZonaActivaAOcr(l)}
+                          >
+                            <Magnet className="h-3.5 w-3.5 text-violet-400" aria-hidden /> Ajustar zona del activo
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-slate-200 transition hover:bg-slate-800"
+                            onClick={() => {
+                              navigator.clipboard.writeText(l.texto).then(() => toast({ title: 'Texto OCR copiado' }));
+                              cerrarMenuOcr();
+                            }}
+                          >
+                            <Copy className="h-3.5 w-3.5 text-slate-400" aria-hidden /> Copiar texto
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-rose-300 transition hover:bg-rose-950/60"
+                            onClick={() => eliminarLineaOcr(ocrMenu.idx)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden /> Eliminar línea OCR
+                          </button>
+                        </div>
+                        <p className="px-1.5 pt-1 font-mono text-[8px] text-slate-500">Esc o clic fuera para cerrar</p>
+                      </div>
+                    );
+                  })()
                 : null}
 
               {verOcr && ocrEstado === 'cargando' && imagenRef ? (
@@ -1481,6 +2131,7 @@ export default function EditorTab() {
                       color={hexTipo(c.tipo)}
                       activo={c.id === campoSeleccionadoId}
                       verEtiquetas={verEtiquetas}
+                      inerte={modoTabla}
                       rx={rect.x}
                       ry={rect.y}
                       rw={rect.w}
@@ -1509,6 +2160,7 @@ export default function EditorTab() {
                   <span className="inline-flex items-center gap-1.5 text-teal-300" title="Resultado de la capa OCR para esta página">
                     <ScanLine className="h-3 w-3" aria-hidden />
                     OCR: {ocrCapa.lines.length} líneas
+                    {ocrExcluidasVigentes.size > 0 ? ` · ${ocrExcluidasVigentes.size} eliminadas` : ''}
                     {ocrCapa.conf !== null ? ` · conf ${(ocrCapa.conf * 100).toFixed(0)}%` : ''}
                     {` · ${ocrCapa.ms} ms`}
                   </span>
@@ -1517,6 +2169,14 @@ export default function EditorTab() {
                     <AlertTriangle className="h-3 w-3" aria-hidden /> OCR: error
                   </span>
                 ) : null
+              ) : null}
+              {mapearOcr && ocrCapaVigente ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded bg-teal-950 px-1.5 py-0.5 font-mono text-[10px] text-teal-300 ring-1 ring-teal-600/50"
+                  title="Modo mapeo: clic sobre los resaltados OCR del lienzo para mapear la estructura"
+                >
+                  MAPEO
+                </span>
               ) : null}
               {campoSel ? (
                 <span>
@@ -1554,14 +2214,21 @@ export default function EditorTab() {
 
         {/* -------- Derecha: propiedades / JSON -------- */}
         <aside className="flex max-h-[780px] flex-col overflow-hidden rounded-xl border border-slate-800 bg-slate-900 lg:col-span-3">
-          <Tabs defaultValue="propiedades" className="flex min-h-0 flex-1 flex-col gap-0">
+          <Tabs
+            value={pestanaDerecha}
+            onValueChange={(v) => setPestanaDerecha(v as 'propiedades' | 'json' | 'ocr')}
+            className="flex min-h-0 flex-1 flex-col gap-0"
+          >
             <div className="border-b border-slate-800 p-2">
-              <TabsList className="grid w-full grid-cols-2 bg-slate-950">
+              <TabsList className="grid w-full grid-cols-3 bg-slate-950">
                 <TabsTrigger value="propiedades" className="font-mono text-[11px] data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
                   Propiedades
                 </TabsTrigger>
+                <TabsTrigger value="ocr" className="font-mono text-[11px] data-[state=active]:bg-teal-700 data-[state=active]:text-white">
+                  OCR
+                </TabsTrigger>
                 <TabsTrigger value="json" className="font-mono text-[11px] data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
-                  JSON en vivo
+                  JSON
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -1619,7 +2286,10 @@ export default function EditorTab() {
                     <p className="truncate text-[11px] text-slate-400">{campoSel.etiqueta}</p>
                   </div>
 
-                  <Accordion type="multiple" defaultValue={['general']} className="space-y-2">
+                  {/* 'anclas' abierto por defecto: el flujo de mapeo con la capa
+                      OCR edita anclas constantemente y las sugerencias deben ser
+                      visibles sin un clic extra. */}
+                  <Accordion type="multiple" defaultValue={['general', 'anclas']} className="space-y-2">
                     {/* General & Tipo */}
                     <AccordionItem value="general" className="rounded-lg border border-slate-800 bg-slate-950/60 px-3">
                       <AccordionTrigger className="py-2.5 font-mono text-[11px] font-bold uppercase tracking-wider text-slate-200 hover:no-underline">
@@ -1732,6 +2402,32 @@ export default function EditorTab() {
                             className="h-8 border-slate-700 bg-slate-900 text-xs text-slate-100"
                             aria-label="Texto del ancla"
                           />
+                          {sugerenciasAncla.length > 0 ? (
+                            <div className="space-y-1 rounded-md border border-teal-700/50 bg-teal-950/20 p-2">
+                              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-teal-300">
+                                Sugerencias capa OCR
+                              </span>
+                              <div className="space-y-1">
+                                {sugerenciasAncla.map((s) => (
+                                  <button
+                                    key={`sug-ancla-${s.i}`}
+                                    type="button"
+                                    className="flex w-full items-center justify-between gap-2 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-left transition hover:border-teal-500 hover:bg-slate-800"
+                                    onClick={() => aplicarSugerenciaAncla(s)}
+                                    title="Aplicar este texto como ancla (fija texto + rect de la línea reconocida)"
+                                  >
+                                    <span className="truncate text-[11px] text-slate-200">{s.l.texto}</span>
+                                    <span className="shrink-0 font-mono text-[9px] text-teal-400">
+                                      {Math.round(s.score * 100)}%
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                              <p className="font-mono text-[8px] leading-3 text-slate-500">
+                                Similitud difusa con el texto del ancla (o cercanía al rect esperado). Un clic fija texto + rect.
+                              </p>
+                            </div>
+                          ) : null}
                           <Input
                             placeholder="Ancla de respaldo (opcional)"
                             value={campoSel.ancla_respaldo ?? ''}
@@ -1862,6 +2558,179 @@ export default function EditorTab() {
               )}
             </TabsContent>
 
+            <TabsContent value="ocr" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+              {!ocrCapaVigente ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
+                  <ScanLine className="h-8 w-8 text-teal-400" aria-hidden />
+                  <p className="max-w-[240px] text-xs leading-5 text-slate-400">
+                    Ejecuta la capa OCR sobre la página {pagina} para ver, buscar y mapear la estructura reconocida
+                    del documento.
+                  </p>
+                  <Button
+                    size="sm"
+                    disabled={!imagenRef || ocrEstado === 'cargando'}
+                    onClick={() => {
+                      setVerOcr(true);
+                      setMapearOcr(true);
+                      void Promise.resolve().then(ejecutarOcrCapa);
+                    }}
+                  >
+                    {ocrEstado === 'cargando' ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <ScanLine className="mr-2 h-4 w-4" aria-hidden />
+                    )}
+                    {ocrEstado === 'cargando' ? `Analizando… ${ocrProgreso}%` : 'Analizar página'}
+                  </Button>
+                  {ocrEstado === 'error' && ocrError ? (
+                    <p className="max-w-[260px] font-mono text-[10px] leading-4 text-rose-400">{ocrError.slice(0, 120)}</p>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="border-b border-slate-800 p-2">
+                    <div className="relative">
+                      <SearchIcon />
+                      <Input
+                        value={busquedaOcr}
+                        onChange={(e) => setBusquedaOcr(e.target.value)}
+                        placeholder="Filtrar líneas reconocidas…"
+                        aria-label="Filtrar líneas OCR"
+                        className="h-8 border-slate-700 bg-slate-900 pl-8 text-xs text-slate-100"
+                      />
+                    </div>
+                    <p className="mt-1.5 px-0.5 font-mono text-[9px] text-slate-500">
+                      {lineasOcrFiltradas.length === ocrCapaVigente.lines.length
+                        ? `${ocrCapaVigente.lines.length} líneas`
+                        : `${lineasOcrFiltradas.length} de ${ocrCapaVigente.lines.length} líneas`}
+                      {ocrCapaVigente.conf !== null ? ` · conf ${(ocrCapaVigente.conf * 100).toFixed(0)}%` : ''}
+                    </p>
+                    {ocrExcluidasVigentes.size > 0 || nVaciasPendientes > 0 ? (
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 px-0.5">
+                        {ocrExcluidasVigentes.size > 0 ? (
+                          <button
+                            type="button"
+                            onClick={restaurarLineasOcr}
+                            title="Devuelve todas las líneas eliminadas a la capa OCR"
+                            className="inline-flex items-center gap-1 rounded border border-teal-700/60 bg-teal-950/60 px-1.5 py-0.5 font-mono text-[9px] text-teal-300 transition hover:bg-teal-900/60"
+                          >
+                            <RotateCw className="h-3 w-3" aria-hidden /> Restaurar ({ocrExcluidasVigentes.size})
+                          </button>
+                        ) : null}
+                        {nVaciasPendientes > 0 ? (
+                          <button
+                            type="button"
+                            onClick={eliminarVaciasOcr}
+                            title="Elimina de la capa todas las líneas sin texto reconocido"
+                            className="inline-flex items-center gap-1 rounded border border-rose-800/60 bg-rose-950/50 px-1.5 py-0.5 font-mono text-[9px] text-rose-300 transition hover:bg-rose-900/50"
+                          >
+                            <Trash2 className="h-3 w-3" aria-hidden /> Quitar vacías ({nVaciasPendientes})
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="scroll-fino min-h-0 flex-1 overflow-y-auto p-1.5">
+                    {lineasOcrFiltradas.length === 0 ? (
+                      <p className="p-3 text-center text-xs text-slate-500">Ninguna línea coincide con la búsqueda.</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {lineasOcrFiltradas.map(({ l, i }) => {
+                          const confMediaFila =
+                            l.palabras.length > 0
+                              ? l.palabras.reduce((acc, w) => acc + (w.conf >= 0 ? w.conf : 0), 0) / l.palabras.length
+                              : null;
+                          const activa = ocrDestacada === i;
+                          return (
+                            <div
+                              key={`ocr-fila-${i}`}
+                              className={`group rounded-md border px-2 py-1.5 transition ${
+                                activa
+                                  ? 'border-teal-500/70 bg-teal-950/40'
+                                  : 'border-transparent hover:border-slate-700 hover:bg-slate-800/60'
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                className="block w-full text-left"
+                                onClick={() => {
+                                  setOcrDestacada(i);
+                                  setVerOcr(true);
+                                }}
+                                aria-label={`Destacar la línea ${i + 1} en el lienzo`}
+                              >
+                                <span className="line-clamp-2 text-[11px] leading-4 text-slate-200">{l.texto}</span>
+                                <span className="mt-0.5 flex items-center gap-2 font-mono text-[9px] text-slate-500">
+                                  <span>#{i + 1}</span>
+                                  {confMediaFila !== null ? (
+                                    <span
+                                      className={
+                                        confMediaFila >= 0.85
+                                          ? 'text-teal-400'
+                                          : confMediaFila >= 0.6
+                                            ? 'text-amber-400'
+                                            : 'text-rose-400'
+                                      }
+                                    >
+                                      {Math.round(confMediaFila * 100)}%
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </button>
+                              <div className="mt-1 flex items-center gap-0.5 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
+                                <button
+                                  type="button"
+                                  title="Crear campo (zona fija) con el rect de esta caja"
+                                  aria-label="Crear campo zona fija aquí"
+                                  className="rounded p-1 text-slate-400 transition hover:bg-slate-700 hover:text-emerald-300"
+                                  onClick={() => crearCampoDesdeOcr(l, 'fija')}
+                                >
+                                  <Plus className="h-3.5 w-3.5" aria-hidden />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Crear campo anclado a esta línea (ancla_relativa)"
+                                  aria-label="Crear campo anclado aquí"
+                                  className="rounded p-1 text-slate-400 transition hover:bg-slate-700 hover:text-sky-300"
+                                  onClick={() => crearCampoDesdeOcr(l, 'anclada')}
+                                >
+                                  <Link2 className="h-3.5 w-3.5" aria-hidden />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Usar esta línea como ancla del campo activo"
+                                  aria-label="Usar como ancla del campo activo"
+                                  className="rounded p-1 text-slate-400 transition hover:bg-slate-700 hover:text-amber-300"
+                                  onClick={() => usarLineaComoAncla(l)}
+                                >
+                                  <Crosshair className="h-3.5 w-3.5" aria-hidden />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Ajustar la zona del campo activo al rect de esta caja"
+                                  aria-label="Ajustar zona del campo activo a esta caja"
+                                  className="rounded p-1 text-slate-400 transition hover:bg-slate-700 hover:text-violet-300"
+                                  onClick={() => ajustarZonaActivaAOcr(l)}
+                                >
+                                  <Magnet className="h-3.5 w-3.5" aria-hidden />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="border-t border-slate-800 p-2">
+                    <p className="font-mono text-[9px] leading-4 text-slate-500">
+                      Activa «Mapear» en la barra del lienzo para cliquear los resaltados OCR directamente. Las acciones
+                      sobre el campo activo exigen que sea de esta página.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
             <TabsContent value="json" className="mt-0 min-h-0 flex-1 space-y-2 overflow-y-auto scroll-fino p-3">
               <div className="flex gap-2">
                 <Button
@@ -1906,6 +2775,183 @@ export default function EditorTab() {
           </Tabs>
         </aside>
       </div>
+
+      {/* Diálogo: revisión de la tabla detectada antes de generar campos.
+          Textos editables (anclas/etiquetas), renglones y columnas
+          excluibles con checkbox; opciones de generación arriba. */}
+      <Dialog
+        open={tablaDialog !== null}
+        onOpenChange={(v) => {
+          if (!v) {
+            setTablaDialog(null);
+            setTablaDetectada(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Tabla detectada — revisa antes de generar</DialogTitle>
+            <DialogDescription>
+              {tablaDetectada
+                ? `${tablaDetectada.filas.length} renglón(es) × ${tablaDetectada.filas[0]?.length ?? 0} columna(s) · ${tablaDetectada.nLineas} líneas OCR${tablaDetectada.truncada ? ' · RENGLONES RECORTADOS (límite 40)' : ''}. `
+                : ''}
+              Los textos son editables: corrige lo que el OCR haya leído mal — se usan para anclas y etiquetas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 py-1 text-xs">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="tabla-encabezado"
+                checked={tablaOpts.encabezado}
+                onCheckedChange={(v) => setTablaOpts((o) => ({ ...o, encabezado: Boolean(v) }))}
+              />
+              <Label htmlFor="tabla-encabezado" className="text-[11px] text-slate-300">
+                Fila 1 = encabezado
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="tabla-anclar"
+                checked={tablaOpts.anclar}
+                onCheckedChange={(v) => setTablaOpts((o) => ({ ...o, anclar: Boolean(v) }))}
+              />
+              <Label htmlFor="tabla-anclar" className="text-[11px] text-slate-300">
+                Anclar cada fila a su etiqueta
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="tabla-digitos"
+                checked={tablaOpts.digitos}
+                disabled={tablaOpts.tipoCelda !== 'texto'}
+                onCheckedChange={(v) => setTablaOpts((o) => ({ ...o, digitos: Boolean(v) }))}
+              />
+              <Label htmlFor="tabla-digitos" className="text-[11px] text-slate-300">
+                Solo dígitos
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-400">Tipo de celda:</span>
+              <Select
+                value={tablaOpts.tipoCelda}
+                onValueChange={(v) => setTablaOpts((o) => ({ ...o, tipoCelda: v as TipoCampo }))}
+              >
+                <SelectTrigger
+                  className="h-7 w-32 border-slate-700 bg-slate-950 text-[11px] text-slate-200"
+                  aria-label="Tipo de celda de la tabla"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="texto">Texto / dígitos</SelectItem>
+                  <SelectItem value="checkbox">Checkbox OMR</SelectItem>
+                  <SelectItem value="presencia">Presencia / sello</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="tabla-prefijo" className="text-[11px] text-slate-400">
+                Prefijo:
+              </Label>
+              <Input
+                id="tabla-prefijo"
+                value={tablaOpts.prefijo}
+                onChange={(e) => setTablaOpts((o) => ({ ...o, prefijo: e.target.value }))}
+                className="h-7 w-24 border-slate-700 bg-slate-950 text-[11px] text-slate-200"
+              />
+            </div>
+          </div>
+          <div className="scroll-fino max-h-72 overflow-auto rounded-lg border border-slate-800">
+            {tablaDialog && tablaDetectada ? (
+              <table className="w-full border-collapse text-[11px]">
+                <thead>
+                  <tr className="sticky top-0 z-10 bg-slate-900">
+                    <th className="w-8 border-b border-slate-800 px-1 py-1">
+                      <span className="sr-only">Incluir renglón</span>
+                    </th>
+                    {tablaDialog.colsOn.map((on, c) => (
+                      <th key={`tc-${c}`} className="border-b border-slate-800 px-1 py-1 text-left">
+                        <label className="flex items-center gap-1 font-mono text-[9px] font-semibold text-slate-400">
+                          <Checkbox
+                            checked={on}
+                            onCheckedChange={(v) =>
+                              setTablaDialog((d) =>
+                                d ? { ...d, colsOn: d.colsOn.map((x, i) => (i === c ? Boolean(v) : x)) } : d,
+                              )
+                            }
+                            aria-label={`Incluir columna ${c + 1}`}
+                            className="h-3 w-3"
+                          />
+                          C{c + 1}
+                        </label>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tablaDetectada.filas.map((_, f) => {
+                    const esHeader = tablaOpts.encabezado && f === 0;
+                    return (
+                      <tr key={`tf-${f}`} className={esHeader ? 'bg-amber-950/30' : 'odd:bg-slate-950/60'}>
+                        <td className="border-b border-slate-900 px-1 py-0.5 align-middle">
+                          <Checkbox
+                            checked={tablaDialog.filasOn[f]}
+                            disabled={esHeader}
+                            onCheckedChange={(v) =>
+                              setTablaDialog((d) =>
+                                d ? { ...d, filasOn: d.filasOn.map((x, i) => (i === f ? Boolean(v) : x)) } : d,
+                              )
+                            }
+                            aria-label={`Incluir renglón ${f + 1}`}
+                            className="h-3 w-3"
+                          />
+                        </td>
+                        {tablaDialog.textos[f].map((tx, c) => (
+                          <td key={`tf-${f}c-${c}`} className="border-b border-slate-900 px-0.5 py-0.5">
+                            <Input
+                              value={tx}
+                              onChange={(e) =>
+                                setTablaDialog((d) =>
+                                  d
+                                    ? {
+                                        ...d,
+                                        textos: d.textos.map((rf, i) =>
+                                          i === f ? rf.map((xc, j) => (j === c ? e.target.value : xc)) : rf,
+                                        ),
+                                      }
+                                    : d,
+                                )
+                              }
+                              aria-label={`Celda renglón ${f + 1} columna ${c + 1}`}
+                              className={`h-6 border-slate-800 bg-slate-950 px-1.5 font-mono text-[10px] text-slate-200 ${
+                                esHeader ? 'font-semibold text-amber-300' : ''
+                              }`}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTablaDialog(null);
+                setTablaDetectada(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={generarCamposTabla} disabled={!tablaDetectada} className="bg-teal-600 text-white hover:bg-teal-500">
+              <Table className="mr-1.5 h-4 w-4" aria-hidden /> Generar campos de tabla
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

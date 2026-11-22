@@ -164,7 +164,12 @@ export async function ocrLines(
             .map(
               (w): PalabraOcr => ({
                 texto: (w.text ?? '').trim(),
-                conf: typeof w.confidence === 'number' ? w.confidence : -1,
+                // tesseract.js reporta confianza de palabra en escala 0-100; se
+                // normaliza a 0-1 para que TODOS los consumidores (overlay del
+                // editor, lista «Estructura OCR», umbrales de color) compartan
+                // la misma escala que la conf de página y de ocrTextoUnico
+                // (antes: mezcla 0-100/0-1 → etiquetas "8783%" y colores mal).
+                conf: typeof w.confidence === 'number' ? w.confidence / 100 : -1,
                 bbox: [w.bbox.x0, w.bbox.y0, w.bbox.x1, w.bbox.y1],
               }),
             )

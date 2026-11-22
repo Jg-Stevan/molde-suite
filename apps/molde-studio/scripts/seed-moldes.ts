@@ -172,10 +172,10 @@ const MOLDES: {
       const d = new Date();
       return { y: d.getFullYear(), m: d.getMonth(), d: d.getDate(), hh: 14, mm: 22 };
     })(),
-    imagenRef: '/actas/nairobi-p1.png',
+    imagenRef: '/actas-e14/referencia-p1.png',
     paginasRef: [
-      { pagina: 1, imagen: '/actas/nairobi-p1.png' },
-      { pagina: 2, imagen: '/actas/nairobi-p2.png' },
+      { pagina: 1, imagen: '/actas-e14/referencia-p1.png' },
+      { pagina: 2, imagen: '/actas-e14/referencia-p2.png' },
     ],
     meta: {
       precision: 99.4,

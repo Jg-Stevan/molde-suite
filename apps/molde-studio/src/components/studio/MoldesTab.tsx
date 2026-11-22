@@ -11,6 +11,7 @@ import {
   Copy,
   Download,
   FileJson,
+  FileText,
   FlaskConical,
   Loader2,
   MoreVertical,
@@ -20,6 +21,7 @@ import {
   Search,
   Trash2,
   Upload,
+  X,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +47,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { importarMoldeE14, pareceMoldeE14 } from '@/lib/molde/importar-e14';
+import { renderDocumento } from '@/lib/ocr/pdf-client';
 import {
   MOLDE_UNIVERSAL_VERSION,
   UMBRAL_APROBADO,
@@ -156,6 +159,11 @@ export default function MoldesTab() {
   const [creando, setCreando] = useState(false);
   const [importando, setImportando] = useState(false);
   const fileJsonRef = useRef<HTMLInputElement>(null);
+  // Creación enriquecida: referencia multipágina (PDF/imagen) y molde .json
+  // opcional para prellenar campos desde el diálogo «Crear desde cero».
+  const [refNuevo, setRefNuevo] = useState<{ paginas: { pagina: number; imagen: string }[]; nombre: string } | null>(null);
+  const [procesandoRef, setProcesandoRef] = useState(false);
+  const [jsonMoldeNuevo, setJsonMoldeNuevo] = useState<{ molde: MoldeUniversal; nombre: string } | null>(null);
 
   const statsPorId = useMemo(() => {
     const map = new Map<string, StatsMolde>();
@@ -211,27 +219,117 @@ export default function MoldesTab() {
     if (!nombreNuevo.trim()) return;
     setCreando(true);
     try {
+      // Base: molde .json cargado (conserva campos y metas; ids intactos, igual
+      // que «Importar JSON») o molde universal vacío. Nombre/categoría del
+      // formulario tienen precedencia sobre lo que traiga el JSON.
+      const base: MoldeUniversal = jsonMoldeNuevo
+        ? { ...jsonMoldeNuevo.molde }
+        : {
+            tipo: 'universal',
+            version: MOLDE_UNIVERSAL_VERSION,
+            nombre: nombreNuevo.trim(),
+            documento: documentoNuevo.trim() || undefined,
+            idioma: 'spa',
+            campos: [],
+          };
       const molde: MoldeUniversal = {
-        tipo: 'universal',
-        version: MOLDE_UNIVERSAL_VERSION,
+        ...base,
         nombre: nombreNuevo.trim(),
-        documento: documentoNuevo.trim() || undefined,
-        idioma: 'spa',
-        campos: [],
+        documento: documentoNuevo.trim() || base.documento,
       };
+      // Referencia multipágina: si el usuario subió un PDF/imagen, sus páginas
+      // rasterizadas viajan dentro del JSON (paginasRef), igual que el seed E-14.
+      if (refNuevo && refNuevo.paginas.length > 0) molde.paginasRef = refNuevo.paginas;
       const r = await repo.crearMolde({ json: molde });
       if (r.ok) {
         await cargarMoldes();
         setDialogNuevo(false);
         setNombreNuevo('');
         setDocumentoNuevo('');
-        toast({ title: 'Molde creado', description: 'Ábrelo en el editor para dibujar sus zonas.' });
+        setRefNuevo(null);
+        setJsonMoldeNuevo(null);
+        const detalles = [
+          molde.campos.length > 0 ? `${molde.campos.length} campo(s) desde el JSON` : null,
+          molde.paginasRef?.length ? `${molde.paginasRef.length} página(s) de referencia listas` : null,
+        ].filter(Boolean);
+        toast({
+          title: 'Molde creado',
+          description: detalles.length > 0 ? detalles.join(' · ') : 'Ábrelo en el editor para dibujar sus zonas.',
+        });
       } else {
         toast({ title: 'Error al crear', description: r.error, variant: 'destructive' });
       }
     } finally {
       setCreando(false);
     }
+  }
+
+  /** Procesa la referencia del diálogo de creación: rasteriza TODAS las
+      páginas del PDF (o la imagen suelta) y las sube para paginasRef. */
+  async function procesarReferenciaNueva(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    setProcesandoRef(true);
+    try {
+      const doc = await renderDocumento(f);
+      if (doc.canvases.length === 0) throw new Error('El documento no tiene páginas');
+      const base = f.name.replace(/\.[a-z0-9]+$/i, '');
+      const paginas: { pagina: number; imagen: string }[] = [];
+      for (let i = 0; i < doc.canvases.length; i++) {
+        const blob = await new Promise<Blob | null>((res) => doc.canvases[i].toBlob(res, 'image/png'));
+        if (!blob) throw new Error(`No se pudo rasterizar la página ${i + 1}`);
+        const archivo = new File([blob], `${base}-p${i + 1}.png`, { type: 'image/png' });
+        const subida = await repo.subirArchivo(archivo, archivo.name);
+        if (!subida.ok) throw new Error(subida.error);
+        paginas.push({ pagina: i + 1, imagen: subida.data.url });
+      }
+      setRefNuevo({ paginas, nombre: f.name });
+      toast({
+        title: `Referencia lista: ${paginas.length} página${paginas.length === 1 ? '' : 's'}`,
+        description: 'Se asociarán al molde al crearlo.',
+      });
+    } catch (err) {
+      toast({ title: 'Error al procesar el documento', description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setProcesandoRef(false);
+    }
+  }
+
+  /** Carga un molde .json en el diálogo de creación (universal v3 o E-14,
+      que se convierte). Prellena nombre/categoría si el usuario no escribió. */
+  function leerMoldeJsonNuevo(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(String(reader.result ?? '')) as unknown;
+        let universal: MoldeUniversal | null = null;
+        if (esMoldeUniversal(obj)) {
+          universal = obj;
+        } else if (pareceMoldeE14(obj)) {
+          universal = importarMoldeE14(obj as never);
+          toast({ title: 'Molde E-14 detectado', description: 'Se convirtió al formato universal.' });
+        }
+        if (!universal) {
+          toast({
+            title: 'Formato no reconocido',
+            description: 'Se espera un molde universal (tipo "universal") o un molde E-14 (motor + campos).',
+            variant: 'destructive',
+          });
+          return;
+        }
+        setJsonMoldeNuevo({ molde: universal, nombre: f.name });
+        if (!nombreNuevo.trim()) setNombreNuevo(universal.nombre);
+        if (!documentoNuevo.trim() && universal.documento) setDocumentoNuevo(universal.documento);
+        toast({ title: 'Molde JSON cargado', description: `${universal.nombre} · ${universal.campos.length} campo(s)` });
+      } catch {
+        toast({ title: 'JSON inválido', description: 'Revisa la sintaxis del archivo.', variant: 'destructive' });
+      }
+    };
+    reader.readAsText(f);
   }
 
   async function importar() {
@@ -639,13 +737,23 @@ export default function MoldesTab() {
       )}
 
       {/* Diálogo: nuevo molde */}
-      <Dialog open={dialogNuevo} onOpenChange={setDialogNuevo}>
+      <Dialog
+        open={dialogNuevo}
+        onOpenChange={(v) => {
+          setDialogNuevo(v);
+          if (!v) {
+            setRefNuevo(null);
+            setJsonMoldeNuevo(null);
+            setProcesandoRef(false);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Crear molde desde cero</DialogTitle>
             <DialogDescription>
-              Define el nombre y el tipo de documento. Después dibujarás las zonas sobre el escaneo de
-              referencia en el Editor Visual.
+              Define el nombre y el tipo de documento. Opcionalmente adjunta el PDF del escaneo (todas sus
+              páginas quedan como referencia) y/o un molde .json para prellenar los campos.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -667,12 +775,79 @@ export default function MoldesTab() {
                 placeholder="Ej: fiscal & comercial, acta_e14, legal & notarial..."
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nuevo-ref">Escaneo de referencia — PDF o imagen (opcional)</Label>
+              <Input
+                id="nuevo-ref"
+                type="file"
+                accept="application/pdf,image/png,image/jpeg,image/webp"
+                onChange={procesarReferenciaNueva}
+                disabled={procesandoRef}
+                aria-label="Documento de referencia del nuevo molde"
+              />
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                Si subes un PDF multipágina, TODAS sus páginas quedan como referencia del molde (página 1 del PDF
+                → página 1 del molde y así sucesivamente); cada una tendrá su capa OCR en el editor.
+              </p>
+              {procesandoRef ? (
+                <p className="flex items-center gap-2 text-[11px] font-medium text-teal-600 dark:text-teal-400">
+                  <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> Rasterizando páginas y subiendo…
+                </p>
+              ) : refNuevo ? (
+                <div className="flex items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span className="truncate">{refNuevo.nombre}</span>
+                    <span className="shrink-0 opacity-80">· {refNuevo.paginas.length} página(s)</span>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Quitar documento de referencia"
+                    onClick={() => setRefNuevo(null)}
+                    className="shrink-0 rounded p-0.5 transition hover:bg-emerald-100 dark:hover:bg-emerald-900/60"
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nuevo-json">Molde .json (opcional)</Label>
+              <Input
+                id="nuevo-json"
+                type="file"
+                accept=".json,application/json"
+                onChange={leerMoldeJsonNuevo}
+                aria-label="Archivo JSON del molde"
+              />
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                Prellena campos y metas desde un JSON exportado (formato universal v3 o molde E-14, que se
+                convierte automáticamente). El nombre y la categoría que escribas arriba tienen precedencia.
+              </p>
+              {jsonMoldeNuevo ? (
+                <div className="flex items-center justify-between gap-2 rounded-md border border-teal-200 bg-teal-50 px-2 py-1.5 text-[11px] font-medium text-teal-700 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-300">
+                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                    <FileJson className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span className="truncate">{jsonMoldeNuevo.nombre}</span>
+                    <span className="shrink-0 opacity-80">· {jsonMoldeNuevo.molde.campos.length} campo(s)</span>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Quitar molde JSON"
+                    onClick={() => setJsonMoldeNuevo(null)}
+                    className="shrink-0 rounded p-0.5 transition hover:bg-teal-100 dark:hover:bg-teal-900/60"
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogNuevo(false)}>
               Cancelar
             </Button>
-            <Button onClick={crearNuevo} disabled={creando || !nombreNuevo.trim()}>
+            <Button onClick={crearNuevo} disabled={creando || procesandoRef || !nombreNuevo.trim()}>
               {creando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Crear molde
             </Button>
           </DialogFooter>
