@@ -80,7 +80,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { alinearAnclas, editDistancePonderada, normTxt, rectEditor, sugerirUmbralClustering } from '@/lib/molde/universal-engine';
 import type { LineaOcr } from '@/lib/molde/types';
-import { detectarTabla, type TablaDetectada } from '@/lib/molde/tabla-detect';
+import { detectarTablaCompleta, type TablaDetectada } from '@/lib/molde/tabla-detect';
 import { auditarCamposPagina, type InformePagina } from '@/lib/molde/auditoria';
 import { ocrLines, setOcrProgress } from '@/lib/ocr/ocr-client';
 import { escalarCanvas, renderDocumento } from '@/lib/ocr/pdf-client';
@@ -1014,13 +1014,24 @@ export default function EditorTab() {
     setArrastreTabla((a) => (a ? { ...a, x1: p.x, y1: p.y } : a));
   }
 
-  function onPointerUpTabla() {
+  async function onPointerUpTabla() {
     if (!arrastreTabla || !ocrCapaVigente) return;
     const { x0, y0, x1, y1 } = arrastreTabla;
     setArrastreTabla(null);
     const zona = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
     if (zona.w < 0.02 || zona.h < 0.02) return;
-    const t = detectarTabla(ocrCapaVigente.lines, zona, ocrCapaVigente.dims);
+    // FASE A1 (blueprint DLA): vía IMAGEN primero (port SPARTAN — retícula
+    // desde reglas impresas con las aperturas H/V del motor); las columnas
+    // OMR vacías ahora se detectan. Sin señal de bordes, cae a la vía por
+    // palabras OCR (columnasPorOcupacion/Voto), intacta. El canvas llega del
+    // caché de referencias (mismo canvas de 1000 px que usa la capa OCR).
+    const canvasZona = imagenRef ? await canvasDe(imagenRef).catch(() => undefined) : undefined;
+    const t = detectarTablaCompleta(
+      ocrCapaVigente.lines,
+      zona,
+      ocrCapaVigente.dims,
+      canvasZona,
+    );
     if (!t || t.filas.length < 1) {
       toast({
         title: 'No se detectó una tabla',

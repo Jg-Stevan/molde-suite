@@ -182,6 +182,8 @@ export type CamposActa = {
   rechazo: Acta["rechazo"];
   /** Clasificación de cabecera (SPEC-cabecera-clasificacion §4/§6). */
   clasificacion?: ClasificacionE14 | null;
+  /** FASE 0 (blueprint DLA): evaluación del molde activo tras el gate. */
+  evaluacionMolde?: import("@jg-stevan/scanner-core/dominio/types").ResumenMoldeActa | null;
 };
 
 /**
@@ -203,6 +205,8 @@ export type PasosCaptura = {
   decodeArchivoMemo: typeof decodeArchivoMemo;
   quadIdentidad: Quad;
   esperarWorkerCaliente: typeof esperarWorkerCaliente;
+  /** FASE A3 (blueprint DLA): deskew residual activado por flag del operador. */
+  deskewHabilitado: boolean;
 };
 /** Etapa CALIDAD: warp/crop → métricas → score bruto (§4.1). */
 export type PasosCalidad = {
@@ -216,6 +220,15 @@ export type PasosOcr = {
   reconocerRapidOcrCascada: typeof reconocerRapidOcrCascada;
   ocrBanda: typeof ocrBanda;
   ocrBandaInferior: typeof ocrBandaInferior;
+  /**
+   * FASE B3 (blueprint DLA): banda OCR DINÁMICA desde regiones de layout
+   * (PP-DocLayout ONNX). Opcional: null/ausente = bandas fijas 16%/20% de
+   * siempre (Nivel 1). Devuelve el texto de la banda o null sin señal.
+   */
+  ocrBandaDinamica?: (
+    fotoProcesada: string,
+    parte: "sup" | "inf",
+  ) => Promise<string | null>;
 };
 /** Etapa GATE: señales, clasificación y desenlace (§4.2 — la política vive
  *  además en politica/gate.ts desde 7.2; estas piezas llegan inyectadas). */
@@ -243,4 +256,13 @@ export type PasosGate = {
   TECHO_ESCUDO_FONDO: typeof TECHO_ESCUDO_FONDO;
 };
 
-export type PasosPipelineL2 = PasosCaptura & PasosCalidad & PasosOcr & PasosGate;
+/**
+ * FASE 0 (blueprint DLA): etapa MOLDE — evaluación del molde activo tras el
+ * gate. OPCIONAL (null cuando no hay molde registrado o el flag está off):
+ * el resultado viaja ADITIVO en `acta.evaluacionMolde` sin tocar score/status.
+ */
+export type PasosMolde = {
+  evaluarMolde: (fotoProcesada: string) => Promise<import("@jg-stevan/scanner-core/dominio/types").ResumenMoldeActa | null>;
+};
+
+export type PasosPipelineL2 = PasosCaptura & PasosCalidad & PasosOcr & PasosGate & PasosMolde;

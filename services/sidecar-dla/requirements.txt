@@ -1,0 +1,18 @@
+# Sidecar DLA (Nivel 3) — dependencias
+# Instalar dentro del venv del sidecar: pip install -r requirements.txt
+
+# Núcleo del servicio (FastAPI en 127.0.0.1:3070)
+fastapi
+uvicorn[standard]
+python-multipart
+
+# OCR local. Opcionales en runtime: /salud reporta honestamente si están
+# disponibles; sin ellos los endpoints correspondientes responden 503
+# con un mensaje claro (nunca se inventan resultados).
+rapidocr-onnxruntime
+
+# Opcionales adicionales (descomentar solo si se necesitan):
+# pdf2image      # rasterizar PDFs en /ocr (requiere poppler instalado en el sistema)
+# pypdf          # fallback de lectura básica de PDF (reportado por /salud)
+# chandra-ocr    # NO confirmado: el nombre exacto del paquete en PyPI debe
+#                # verificarse antes de confiar (ver README.md, sección chandra-ocr)

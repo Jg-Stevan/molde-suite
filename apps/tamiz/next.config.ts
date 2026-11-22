@@ -61,7 +61,7 @@ const nextConfig: NextConfig = {
   turbopack: { root: path.resolve(__dirname, "..", "..") },
   // El motor vive en el PAQUETE (@jg-stevan/scanner-core, TypeScript fuente
   // vía bun workspaces) — se transpila junto a la app.
-  transpilePackages: ["@jg-stevan/scanner-core"],
+  transpilePackages: ["@jg-stevan/scanner-core", "@jg-stevan/dla-onnx"],
   // NOTA (eliminación del módulo masiva): la API route del ledger remoto
   // (src/app/api/e14/envios) se retiró con la cola MASIVA.
   ...(isStatic
