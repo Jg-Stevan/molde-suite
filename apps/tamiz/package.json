@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@jg-stevan/dla-onnx": "workspace:*",
     "@jg-stevan/scanner-core": "workspace:*",
     "next": "^16.1.1",
     "react": "^19.0.0",

@@ -76,7 +76,11 @@ export async function correrPipelineL2(
   // §D8.3: los assets de SIMULACIÓN corren as-is ("original"); el flujo
   // normal nace en B/N adaptativo ("bw").
   const filtro: PageFilter = opciones.fuente === 'SIMULACION' ? 'original' : 'bw';
-  const warp = await processImage(fotoOriginal, quad, filtro, 0);
+  // FASE A3 (blueprint DLA): warp de perspectiva real cuando el quad está
+  // sesgado + deskew residual por perfil de proyección (flag del operador).
+  const warp = await processImage(fotoOriginal, quad, filtro, 0, {
+    deskew: pasos.deskewHabilitado,
+  });
   marcar(parcial, 'proceso', t0);
 
   // ---- CALIDAD ----
@@ -93,8 +97,15 @@ export async function correrPipelineL2(
   if (ocrTexto.length < 60) {
     ocrTexto = await pasos.reconocerRapidOcrCascada(warp.processed);
   }
-  const banda = await pasos.ocrBanda(warp.processed);
-  const bandaInf = await pasos.ocrBandaInferior(warp.processed);
+  // FASE B3 (blueprint DLA): banda DINÁMICA desde regiones de layout cuando
+  // el paso inyectado la provee (flag + modelo); caída a las bandas fijas
+  // 16%/20% de siempre sin señal (Nivel 1 intacto).
+  const banda =
+    (await pasos.ocrBandaDinamica?.(warp.processed, "sup")) ??
+    (await pasos.ocrBanda(warp.processed));
+  const bandaInf =
+    (await pasos.ocrBandaDinamica?.(warp.processed, "inf")) ??
+    (await pasos.ocrBandaInferior(warp.processed));
   marcar(parcial, 'ocr', t0);
   emitir(pasos.conRampa('OCR', 1));
 
@@ -169,6 +180,18 @@ export async function correrPipelineL2(
     opciones.intento ?? 1,
     opciones.maxIntentos ?? 3,
   );
+
+  // FASE 0 (blueprint DLA): evaluación del MOLDE ACTIVO tras el gate (paso
+  // inyectado — Tamiz ejecuta el motor universal compartido cuando hay molde
+  // registrado). ADITIVO: no toca score/status/rechazo; su veredicto viaja en
+  // `acta.evaluacionMolde`. Fallo del paso → null honesto (el escaneo sigue).
+  let evaluacionMolde: CamposActa['evaluacionMolde'] = null;
+  try {
+    evaluacionMolde = await pasos.evaluarMolde(warp.processed);
+  } catch {
+    evaluacionMolde = null;
+  }
+
   void origenDeteccion;
   return pasos.construirActa(opciones as OpcionesEscaneo, parcial, {
     ...campos,
@@ -176,5 +199,6 @@ export async function correrPipelineL2(
     status: gate.status,
     rechazo: gate.rechazo,
     clasificacion: gate.clasificacion,
+    evaluacionMolde,
   });
 }

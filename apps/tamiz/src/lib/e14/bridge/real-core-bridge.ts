@@ -63,6 +63,11 @@ import { IMAGENES_SIMULADAS } from "../simulacion-imagenes";
 // KIT e14-ocr-tessbest-v1 (GO-B): presupuesto del ESCANEO por tier — el
 // default lo resuelve `presupuestoEscaneoEfectivo()` (adaptacion/plan.ts).
 import { presupuestoEscaneoEfectivo } from "../adaptacion/plan";
+import { leerFlags } from "../flags";
+// FASE 0 (blueprint DLA): evaluación del molde activo tras el gate (paso inyectado).
+import { evaluarMoldeEnActa } from "../molde/evaluacion";
+// FASE B3 (blueprint DLA): bandas OCR dinámicas desde regiones de layout (ONNX).
+import { ocrBandaDinamicaSiDisponible } from "./ocr-dinamico";
 // FASE F (plan post-v2.3) — el CUERPO de §5 vive en pipeline.ts (move-only) y
 // recibe por inyección los helpers que este módulo comparte con el recorte.
 import { correrPipelineL2 } from "../pipeline";
@@ -272,6 +277,8 @@ export class RealCoreBridge implements E14Bridge {
       decodeArchivoMemo,
       quadIdentidad: QUAD_IDENTITY,
       esperarWorkerCaliente,
+      // FASE A3 (blueprint DLA): kill-switch del operador (Panel DEV).
+      deskewHabilitado: leerFlags().deskew,
       calidadDeActa,
       scoreDeCalidad,
       contrasteEfectivoDe,
@@ -290,6 +297,12 @@ export class RealCoreBridge implements E14Bridge {
       DETALLE_BAJO,
       TECHO_SIN_SENAL,
       TECHO_ESCUDO_FONDO,
+      // FASE 0 (blueprint DLA): evaluación del molde activo tras el gate —
+      // null honesto sin molde registrado o con el flag apagado.
+      evaluarMolde: (fotoProcesada) => evaluarMoldeEnActa(fotoProcesada),
+      // FASE B3 (blueprint DLA): bandas OCR dinámicas (PP-DocLayout) cuando
+      // el flag + modelo están; undefined = bandas fijas de siempre.
+      ocrBandaDinamica: ocrBandaDinamicaSiDisponible,
     };
   }
 
@@ -655,6 +668,8 @@ export class RealCoreBridge implements E14Bridge {
       // SPEC-cabecera-clasificacion §6: clasificación de cabecera (AUTO →
       // archivada en su mesa al envío; SUGERIDA/MANUAL → panel de corrección §5).
       clasificacion: campos.clasificacion ?? undefined,
+      // FASE 0 (blueprint DLA): veredicto por molde (ADITIVO — sin score/status).
+      evaluacionMolde: campos.evaluacionMolde ?? null,
       // e64-qr T-2.1 — señal de la CAPA 0 QR de cámara (ADITIVA AL FINAL,
       // contrato D57): qrCam definido = el decodificador corrió ("leido" con
       // payload / "sin-payload" con null); undefined (timeout — el
