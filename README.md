@@ -2,6 +2,8 @@
 
 Suite de herramientas para **digitalización documental guiada por moldes**: un editor para crear y calibrar el *molde* de cada tipo de documento, y un digitalizador automático que usa ese molde para identificar, verificar y aceptar (o rechazar) documentos capturados con cámara o importados como archivo.
 
+El proyecto es una **plataforma genérica de validación documental**, no una app de un formulario concreto. Un molde declara los **requisitos de validez** de un tipo de documento (campos obligatorios y opcionales, anclas/zonas, patrones, HTR, reglas de layout y validaciones semánticas/aritméticas); el motor es **agnóstico al tipo de documento**. El **acta E-14** es el caso de referencia y el banco de pruebas que calibra el motor por su complejidad (multipágina, manuscritos, firmas, aritmética), **no el alcance del producto**: otros documentos se añaden como moldes adicionales. Todo es offline-first: sin backend, sin cuentas y sin subir documentos.
+
 ## Las dos aplicaciones
 
 | App | Carpeta | Qué es |
@@ -23,7 +25,7 @@ Molde Studio                       Tamiz
                                    └─────────────────────────────┘
 ```
 
-Molde Studio crea y calibra el molde de cada tipo de documento (zonas, campos, anclas). Tamiz lo consume en su vista **PLANTILLAS** (con plantilla base integrada) y lo usa para decidir si un documento escaneado encaja: identificación de cabecera, campos obligatorios y opcionales, y el *gate* de calidad/OCR que produce el estado del documento en el historial.
+Molde Studio crea y calibra el molde de cada tipo de documento (zonas, campos, anclas). Tamiz lo consume en su vista **PLANTILLAS** (con plantilla base integrada) y lo usa para decidir si un documento escaneado encaja: identificación de cabecera, campos obligatorios y opcionales, y el *gate* de calidad/OCR y de estructura (reglas de layout con cajas) que produce el estado del documento en el historial.
 
 ## Estructura del monorepo
 
