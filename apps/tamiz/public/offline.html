@@ -1,0 +1,57 @@
+<!doctype html>
+<!-- Página de respaldo offline (Service Worker de Tamiz). Mínima y sin
+     dependencias: se sirve desde el cache cuando la red no responde. -->
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tamiz — sin conexión</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0a0c0f;
+        color: #e5e7eb;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        text-align: center;
+        padding: 24px;
+      }
+      main {
+        max-width: 320px;
+      }
+      h1 {
+        color: #10b981;
+        font-size: 20px;
+        margin: 0 0 8px;
+      }
+      p {
+        font-size: 14px;
+        line-height: 1.5;
+        margin: 0 0 16px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      button {
+        background: #10b981;
+        color: #0a0c0f;
+        font-weight: 700;
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 20px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Sin conexión</h1>
+      <p>Tamiz ya está en tu celular; vuelve a abrir la app.</p>
+      <button type="button" onclick="window.location.reload()">Reintentar</button>
+    </main>
+  </body>
+</html>

@@ -30,15 +30,17 @@ export const metadata: Metadata = {
   applicationName: "Digitalizador de Documentos",
   formatDetection: { telephone: false },
   // §12 PWA (SPEC-e14-cyber-neon): pantalla completa sin barras del
-  // navegador — standalone + manifest (Next prefija el basePath al servir).
-  // KIT H6 (PWA completa): SW network-first del lab + iconos + apple-touch.
+  // navegador — standalone + manifest (Next emite <link rel="manifest">).
+  // F5 (PLAN-AGENTE-LAYOUT): public/manifest.webmanifest + SW offline-first
+  // (public/sw.js). theme-color vive en `viewport.themeColor` (Next lo emite
+  // como <meta name="theme-color">). Iconos SVG vectoriales del tamiz "T"
+  // (sizes "any" — el navegador escala; sin PNG fantasma de 404).
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icon-192.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/icon-512.svg", type: "image/svg+xml", sizes: "any" },
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,

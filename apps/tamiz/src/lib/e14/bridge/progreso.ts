@@ -9,11 +9,21 @@ export const PESOS: Record<EtapaAnalisis, number> = {
   RECORTANDO: 1.5,
   REALZANDO: 1,
   CALIDAD: 0.5,
+  // PLAN-AGENTE-LAYOUT F4: el gate estructural es UNA inferencia S + evaluador
+  // puro — peso pequeño entre CALIDAD y OCR (el OCR domina como siempre).
+  LAYOUT: 0.5,
   OCR: 3,
 };
 
 /** Orden canónico de las etapas. */
-export const ORDEN_ETAPAS: EtapaAnalisis[] = ['DETECTANDO', 'RECORTANDO', 'REALZANDO', 'CALIDAD', 'OCR'];
+export const ORDEN_ETAPAS: EtapaAnalisis[] = [
+  'DETECTANDO',
+  'RECORTANDO',
+  'REALZANDO',
+  'CALIDAD',
+  'LAYOUT',
+  'OCR',
+];
 
 const total = ORDEN_ETAPAS.reduce((acc, e) => acc + PESOS[e], 0);
 

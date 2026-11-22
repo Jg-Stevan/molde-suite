@@ -1,0 +1,162 @@
+{
+  "source": "Chandra/Datalab",
+  "page": 0,
+  "image": {
+    "w": 676,
+    "h": 2048
+  },
+  "blocks": [
+    {
+      "type": "Picture",
+      "x": 0.2416,
+      "y": 0.0158,
+      "w": 0.4902,
+      "h": 0.02816,
+      "text": "A standard 1D barcode consisting of a series of vertical black bars of varying widths on a white background."
+    },
+    {
+      "type": "Text",
+      "x": 0.37955,
+      "y": 0.04396,
+      "w": 0.21989,
+      "h": 0.01099,
+      "text": "712005322010102"
+    },
+    {
+      "type": "Text",
+      "x": 0.72969,
+      "y": 0.04693,
+      "w": 0.21289,
+      "h": 0.0119,
+      "text": "Ver: 01 Pag: 1 de 2"
+    },
+    {
+      "type": "Picture",
+      "x": 0.03782,
+      "y": 0.06181,
+      "w": 0.22199,
+      "h": 0.07303,
+      "text": "A standard black and white square QR code with three large position detection patterns in the corners. QR code: Black an"
+    },
+    {
+      "type": "SectionHeader",
+      "x": 0.30952,
+      "y": 0.05998,
+      "w": 0.35994,
+      "h": 0.02701,
+      "text": "ACTA DE ESCRUTINIO DE LOS JURADOS DE VOTACIÓN"
+    },
+    {
+      "type": "Text",
+      "x": 0.29972,
+      "y": 0.087,
+      "w": 0.38025,
+      "h": 0.0158,
+      "text": "CÓNSUL/EMBAJADOR"
+    },
+    {
+      "type": "Text",
+      "x": 0.27661,
+      "y": 0.10394,
+      "w": 0.42297,
+      "h": 0.02885,
+      "text": "ELECCIÓN PRESIDENCIA Y VICEPRESIDENCIA DE LA REPÚBLICA JUNIO 21 DE 2026"
+    },
+    {
+      "type": "Text",
+      "x": 0.72969,
+      "y": 0.06181,
+      "w": 0.16527,
+      "h": 0.02312,
+      "text": "E-14"
+    },
+    {
+      "type": "Picture",
+      "x": 0.76471,
+      "y": 0.09592,
+      "w": 0.08964,
+      "h": 0.02701,
+      "text": ""
+    },
+    {
+      "type": "Text",
+      "x": 0.71289,
+      "y": 0.12179,
+      "w": 0.19678,
+      "h": 0.01511,
+      "text": "REGISTRADURÍA NACIONAL DEL ESTADO CIVIL"
+    },
+    {
+      "type": "Text",
+      "x": 0.05462,
+      "y": 0.14698,
+      "w": 0.62815,
+      "h": 0.05288,
+      "text": "CONSULADO: 88 - CONSULADOS PAÍS: 515 - KENIA ZONA: 05 PUESTO: 83 MESA: 001 LUGAR: MIERCOLES NAIROBI - CONSULADO"
+    },
+    {
+      "type": "Text",
+      "x": 0.27031,
+      "y": 0.21085,
+      "w": 0.43137,
+      "h": 0.01603,
+      "text": "X 3 - 2 8 - 2 3 - 1 9 X"
+    },
+    {
+      "type": "Table",
+      "x": 0.03431,
+      "y": 0.23489,
+      "w": 0.90546,
+      "h": 0.11493,
+      "text": "NIVELACIÓN DE LA MESA TOTAL VOTANTES FORMULARIO E-11 • • 9 TOTAL VOTOS EN LA URNA • • 9 TOTAL VOTOS INCINERADOS"
+    },
+    {
+      "type": "Table",
+      "x": 0.03431,
+      "y": 0.36996,
+      "w": 0.90546,
+      "h": 0.16987,
+      "text": "CANDIDATO AGRUPACIÓN VOTACIÓN • • 4 IVÁN CEPEDA CASTRO AÍDA QUILCUÉ VIVAS"
+    },
+    {
+      "type": "Table",
+      "x": 0.03431,
+      "y": 0.54785,
+      "w": 0.90546,
+      "h": 0.14515,
+      "text": "• • 4 ABELARDO DE LA ESPRIELLA JOSÉ MANUEL RESTREPO"
+    },
+    {
+      "type": "Table",
+      "x": 0.03431,
+      "y": 0.71291,
+      "w": 0.90546,
+      "h": 0.12706,
+      "text": "VOTOS EN BLANCO • • 1 VOTOS NULOS VOTOS NO MARCADOS SUMA TOTAL (CANDIDATOS + EN BLANCO + NULOS + NO MARCADOS) • • 9"
+    },
+    {
+      "type": "PageFooter",
+      "x": 0.06443,
+      "y": 0.97779,
+      "w": 0.13725,
+      "h": 0.01007,
+      "text": "No Form: 200532"
+    },
+    {
+      "type": "PageFooter",
+      "x": 0.40196,
+      "y": 0.97596,
+      "w": 0.15476,
+      "h": 0.01282,
+      "text": "KIT 200,532"
+    },
+    {
+      "type": "PageFooter",
+      "x": 0.80742,
+      "y": 0.97779,
+      "w": 0.08894,
+      "h": 0.01007,
+      "text": "Civ 1063"
+    }
+  ]
+}

@@ -50,11 +50,13 @@ export const PRESETS: Record<'casillas' | 'layout' | 'manuscrito', PresetOnnx> =
     clases: ['marcada', 'vacia'],
     entrada: '0-1',
   },
-  // PP-DocLayout (variante S cuantizada): regiones de página.
+  // PP-DocLayout stock (S 480px / plus-L 800px): [N,6] en coords originales.
+  // Pool 0.2 del benchmark estructural (el evaluador aplica minScore 0.2);
+  // el NMS clase-agnóstico 0.5 se aplica en la app para ambas variantes.
   layout: {
     tamEntrada: 800,
     decodificador: 'detr',
-    confMin: 0.5,
+    confMin: 0.2,
     entrada: '0-1',
   },
   // D-FINE (dfine-egret-x-rukopys): presencia de manuscrito (NO HTR).

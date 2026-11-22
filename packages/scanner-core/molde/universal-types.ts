@@ -136,6 +136,89 @@ export interface ValidacionMolde {
   descripcion?: string;
 }
 
+// ---- Layout estructural (PLAN-AGENTE-LAYOUT §4.1 — extensión retrocompatible) ----
+// Reglas DECLARATIVAS sobre la estructura conocida del documento: zonas donde
+// el detector de layout (PP-DocLayout) debe encontrar N bloques de ciertas
+// clases. Un molde SIN `layout` se comporta exactamente como siempre (Tamiz
+// se salta la etapa); un molde CON `layout` agrega un gate estructural ANTES
+// del OCR ("un documento equivocado no debe gastar un OCR completo").
+// ADR-0001 (docs/adr/0001-reglas-layout-aditivas.md): `pagina` y las
+// restricciones de tamaño (minW/maxW/minH/maxH) son campos ADITIVOS sobre el
+// contrato del plan — necesarios para expresar las reglas E-14 validadas.
+
+/** Clases canónicas del detector de layout (semántica compartida S/plus-L).
+ *  Los alias de otros exportes (p. ej. "Picture", "Table") se NORMALIZAN a
+ *  estas clases antes de evaluar reglas — jamás se comparan índices numéricos
+ *  (los índices cambian entre exportaciones del ONNX). */
+export type ClaseLayout =
+  | 'text'
+  | 'image'
+  | 'table'
+  | 'doc_title'
+  | 'paragraph_title'
+  | 'figure_title'
+  | 'number'
+  | 'header'
+  | 'footer'
+  | 'seal'
+  | 'formula';
+
+/** Una regla estructural: zona de la página + qué debe haber dentro. */
+export interface ReglaLayout {
+  id: string;
+  etiqueta: string;
+  /** Página 1-indexada a la que aplica la regla (default 1). */
+  pagina?: number;
+  /** Rectángulo normalizado 0-1 sobre la página. */
+  zona: RectNorm;
+  /** Margen de pertenencia (fracción de W/H que se agranda la zona). Default 0.02. */
+  tolerancia?: number;
+  /** Clases canónicas aceptadas dentro de la zona. */
+  clases: ClaseLayout[];
+  /** Score mínimo del pool de detecciones. Default 0.2. */
+  minScore?: number;
+  /** Restricciones de tamaño de la caja (fracciones 0-1 de la página). */
+  minW?: number;
+  maxW?: number;
+  minH?: number;
+  maxH?: number;
+  /** Conteo esperado de bloques (defaults: 1 y 1). */
+  minimo?: number;
+  maximo?: number;
+  /** Modo ESTRICTO: con candidatos fuertes sobrantes en la zona (tras NMS
+   *  interno, no duplicados) el estado pasa a 'sobrante'. Default false — el
+   *  prototipo validado (19/19) IGNORA los sobrantes y toma el top-N por
+   *  score (las zonas con títulos contienen ruido extra que no es fallo). */
+  estricto?: boolean;
+  /** Regla obligatoria: si falta, el gate estructural RECHAZA temprano. */
+  obligatorio: boolean;
+  /** Enlace opcional con CampoUniversal para el OCR de la zona. */
+  campoId?: string;
+  /** Parte un contenedor fusionado (títulos en una sola caja, tablas juntas)
+   *  por cortes relativos DENTRO del contenedor (fracciones 0-1 del eje y).
+   *  N cortes → N+1 partes. */
+  dividir?: {
+    eje: 'y';
+    cortes: number[];
+    /** Una etiqueta por parte (opcional). */
+    etiquetas?: string[];
+    /** Un campo por parte (opcional). */
+    campoIds?: string[];
+  };
+  nota?: string;
+}
+
+/** Extensión opcional del molde con reglas estructurales (v3.1.0). */
+export interface LayoutMolde {
+  version: 1;
+  /** Modelo preferido para evaluar el gate ('s' rápido / 'plusL' fino).
+   *  La decisión S vs plus-L quedó en la Fase 0 del plan (spike con métricas). */
+  modeloPreferido: 's' | 'plusL';
+  reglas: ReglaLayout[];
+  /** Huella opcional para identificación rápida (clases mínimas esperadas). */
+  firma?: { clases: ClaseLayout[]; minCoincidencias: number };
+}
+
 export interface MoldeUniversal {
   tipo: 'universal';
   version: string;
@@ -149,6 +232,9 @@ export interface MoldeUniversal {
   campos: CampoUniversal[];
   /** Validaciones aritméticas de cierre entre campos (Fase 2.2). */
   validaciones?: ValidacionMolde[];
+  /** Reglas estructurales opcionales (v3.1.0 — retrocompatible: sin layout,
+   *  el motor y Tamiz se comportan exactamente como en v3.0.0). */
+  layout?: LayoutMolde;
   /**
    * Metadatos de PRESENTACIÓN de la tarjeta en la Biblioteca (diseño Stitch).
    * G-1: `precision` fue eliminado — el score mostrado es SIEMPRE el calculado
@@ -168,7 +254,7 @@ export interface MoldeUniversal {
   };
 }
 
-export const MOLDE_UNIVERSAL_VERSION = '3.0.0';
+export const MOLDE_UNIVERSAL_VERSION = '3.1.0';
 
 /** Colores por tipo de campo (Tailwind) — ontología de visión del diseño Stitch. */
 export const COLOR_TIPO: Record<TipoCampo, string> = {
@@ -285,6 +371,133 @@ function esRectValido(z: unknown): z is RectNorm {
   );
 }
 
+const CLASES_LAYOUT_VALIDAS = new Set<string>([
+  'text', 'image', 'table', 'doc_title', 'paragraph_title', 'figure_title',
+  'number', 'header', 'footer', 'seal', 'formula',
+]);
+
+/** Validación de la extensión opcional `layout` (v3.1.0 — PLAN-AGENTE-LAYOUT
+ *  §4.1): zonas finitas en 0-1, cortes crecientes en (0,1), minimo <= maximo,
+ *  clases canónicas y `campoId` que exista en molde.campos. Un layout
+ *  malformado NO invalida el molde completo: se reporta en `erroresMolde`. */
+function erroresLayout(l: unknown, idsCampos: Set<string>): string[] {
+  const errores: string[] = [];
+  if (typeof l !== 'object' || l === null) {
+    errores.push('layout debe ser un objeto');
+    return errores;
+  }
+  const ly = l as Record<string, unknown>;
+  if (ly.version !== 1) errores.push('layout.version debe ser 1');
+  if (ly.modeloPreferido !== 's' && ly.modeloPreferido !== 'plusL') {
+    errores.push('layout.modeloPreferido debe ser "s" o "plusL"');
+  }
+  if (!Array.isArray(ly.reglas)) {
+    errores.push('layout.reglas debe ser un arreglo');
+    return errores;
+  }
+  ly.reglas.forEach((r, i) => {
+    const donde = `layout.reglas #${i + 1}${typeof (r as Record<string, unknown>).id === 'string' ? ` (${(r as Record<string, unknown>).id})` : ''}`;
+    if (typeof r !== 'object' || r === null) {
+      errores.push(`${donde}: debe ser un objeto`);
+      return;
+    }
+    const g = r as Record<string, unknown>;
+    if (typeof g.id !== 'string' || !g.id.trim()) errores.push(`${donde}: id requerido`);
+    if (typeof g.etiqueta !== 'string' || !g.etiqueta.trim()) errores.push(`${donde}: etiqueta requerida`);
+    if (g.pagina !== undefined && (typeof g.pagina !== 'number' || !Number.isInteger(g.pagina) || g.pagina < 1)) {
+      errores.push(`${donde}: pagina debe ser entero >= 1`);
+    }
+    if (!esRectValido(g.zona)) {
+      errores.push(`${donde}: zona inválida (x/y/w/h finitos)`);
+    } else {
+      const z = g.zona as RectNorm;
+      const fuera =
+        z.x < 0 || z.y < 0 || z.w <= 0 || z.h <= 0 ||
+        z.x + z.w > 1 + 1e-9 || z.y + z.h > 1 + 1e-9;
+      if (fuera) errores.push(`${donde}: zona fuera de la página (0-1)`);
+    }
+    if (
+      !Array.isArray(g.clases) || g.clases.length === 0 ||
+      !g.clases.every((c) => typeof c === 'string' && CLASES_LAYOUT_VALIDAS.has(c))
+    ) {
+      errores.push(`${donde}: clases debe incluir clases canónicas válidas`);
+    }
+    if (
+      g.minScore !== undefined &&
+      (typeof g.minScore !== 'number' || !Number.isFinite(g.minScore) || g.minScore < 0 || g.minScore > 1)
+    ) {
+      errores.push(`${donde}: minScore debe ser número en [0,1]`);
+    }
+    for (const k of ['minW', 'maxW', 'minH', 'maxH'] as const) {
+      const v = g[k];
+      if (v !== undefined && (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1)) {
+        errores.push(`${donde}: ${k} debe ser número en [0,1]`);
+      }
+    }
+    const minimo = typeof g.minimo === 'number' ? g.minimo : 1;
+    const maximo = typeof g.maximo === 'number' ? g.maximo : 1;
+    if (minimo < 0 || maximo < 0 || minimo > maximo) {
+      errores.push(`${donde}: minimo <= maximo requerido (${minimo} vs ${maximo})`);
+    }
+    if (g.obligatorio !== undefined && typeof g.obligatorio !== 'boolean') {
+      errores.push(`${donde}: obligatorio debe ser booleano`);
+    }
+    if (g.estricto !== undefined && typeof g.estricto !== 'boolean') {
+      errores.push(`${donde}: estricto debe ser booleano`);
+    }
+    if (g.campoId !== undefined && (typeof g.campoId !== 'string' || !idsCampos.has(g.campoId))) {
+      errores.push(`${donde}: campoId "${String(g.campoId)}" no existe en molde.campos`);
+    }
+    if (g.dividir !== undefined) {
+      const d = g.dividir as Record<string, unknown>;
+      if (typeof d !== 'object' || d === null || d.eje !== 'y') {
+        errores.push(`${donde}: dividir.eje debe ser "y"`);
+      } else {
+        const cortes = d.cortes;
+        if (
+          !Array.isArray(cortes) || cortes.length === 0 ||
+          !cortes.every((c) => typeof c === 'number' && Number.isFinite(c) && c > 0 && c < 1)
+        ) {
+          errores.push(`${donde}: dividir.cortes debe ser cortes finitos en (0,1)`);
+        } else {
+          for (let k = 1; k < cortes.length; k++) {
+            if (cortes[k] <= cortes[k - 1]) {
+              errores.push(`${donde}: dividir.cortes debe ser creciente`);
+              break;
+            }
+          }
+          const partes = cortes.length + 1;
+          for (const k of ['etiquetas', 'campoIds'] as const) {
+            const v = d[k];
+            if (v !== undefined && (!Array.isArray(v) || v.length !== partes)) {
+              errores.push(`${donde}: dividir.${k} debe tener ${partes} elementos (una por parte)`);
+            }
+          }
+          if (Array.isArray(d.campoIds)) {
+            for (const cid of d.campoIds) {
+              if (typeof cid === 'string' && cid && !idsCampos.has(cid)) {
+                errores.push(`${donde}: dividir.campoIds "${cid}" no existe en molde.campos`);
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+  const firma = ly.firma;
+  if (firma !== undefined) {
+    const f = firma as Record<string, unknown>;
+    if (
+      typeof f !== 'object' || f === null ||
+      !Array.isArray(f.clases) || !f.clases.every((c) => typeof c === 'string' && CLASES_LAYOUT_VALIDAS.has(c)) ||
+      typeof f.minCoincidencias !== 'number' || !Number.isFinite(f.minCoincidencias) || f.minCoincidencias < 1
+    ) {
+      errores.push('layout.firma inválida (clases canónicas + minCoincidencias >= 1)');
+    }
+  }
+  return errores;
+}
+
 /**
  * Validación de estructura de un molde universal. Endurecida (N-4): además de
  * la forma, valida por campo que `zona` sea un rect finito, `umbral` un número
@@ -297,6 +510,7 @@ export function esMoldeUniversal(obj: unknown): obj is MoldeUniversal {
   const m = obj as Record<string, unknown>;
   if (m.tipo !== 'universal') return false;
   if (typeof m.nombre !== 'string' || !Array.isArray(m.campos)) return false;
+  if (m.layout !== undefined && erroresLayout(m.layout, idsCamposDe(m.campos)).length > 0) return false;
   return m.campos.every((c) => {
     const f = c as Record<string, unknown>;
     if (
@@ -344,6 +558,7 @@ export function erroresMolde(obj: unknown): string[] {
     errores.push('falta el arreglo campos');
     return errores;
   }
+  if (m.layout !== undefined) errores.push(...erroresLayout(m.layout, idsCamposDe(m.campos)));
   m.campos.forEach((c, i) => {
     const f = c as Record<string, unknown>;
     const donde = `campo #${i + 1}${typeof f.id === 'string' ? ` (${f.id})` : ''}`;
@@ -368,6 +583,16 @@ export function erroresMolde(obj: unknown): string[] {
     }
   });
   return errores;
+}
+
+/** IDs de campos del molde (para validar campoId/campoIds de las reglas). */
+function idsCamposDe(campos: unknown[]): Set<string> {
+  const ids = new Set<string>();
+  for (const c of campos) {
+    const id = (c as Record<string, unknown> | null)?.id;
+    if (typeof id === 'string') ids.add(id);
+  }
+  return ids;
 }
 
 /** ID corto y legible para nuevos campos: 'campo_ab12cd'. */

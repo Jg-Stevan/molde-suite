@@ -93,6 +93,107 @@ function razonDeAdvertencia(acta: Acta): string | null {
     : "REVISAR CALIDAD";
 }
 
+// ── PLAN-AGENTE-LAYOUT F4 (ADITIVO) — tarjeta «Estructura del documento» ──
+// Diagnóstico compacto del gate estructural (etapa LAYOUT). El overlay de las
+// cajas detectadas vive ahora en la FOTO del acta, controlado por el ojo
+// (apagado por defecto) — esta tarjeta conserva el diagnóstico y las reglas.
+// Solo se monta con `acta.estructura` (molde con layout + modelo
+// configurado): sin estructura el render es byte a byte el de siempre.
+
+type EstructuraActaVista = NonNullable<Acta["estructura"]>;
+type EstadoReglaEstructura = EstructuraActaVista["reglas"][number]["estado"];
+
+/** Paleta por estado (ok=emerald · faltante=rose · baja_confianza=amber ·
+ *  sobrante=orange) — clases de chip + colores inline del overlay (Tailwind
+ *  no compone nombres dinámicos: mapa estático). */
+const ESTADO_ESTRUCTURA_TONO: Record<
+  EstadoReglaEstructura,
+  { chip: string; borde: string; relleno: string }
+> = {
+  ok: {
+    chip: "bg-emerald-500/10 text-emerald-400 border-emerald-500/40",
+    borde: "#10b981",
+    relleno: "rgba(16,185,129,0.12)",
+  },
+  faltante: {
+    chip: "bg-rose-500/10 text-rose-400 border-rose-500/40",
+    borde: "#f43f5e",
+    relleno: "rgba(244,63,94,0.14)",
+  },
+  baja_confianza: {
+    chip: "bg-amber-500/10 text-amber-400 border-amber-500/40",
+    borde: "#f59e0b",
+    relleno: "rgba(245,158,11,0.14)",
+  },
+  sobrante: {
+    chip: "bg-orange-500/10 text-orange-400 border-orange-500/40",
+    borde: "#f97316",
+    relleno: "rgba(249,115,22,0.14)",
+  },
+};
+
+/** Tope de rects del overlay (señal visual, no auditoría — memoria/DOM). */
+const MAX_CAJAS_OVERLAY = 20;
+
+function TarjetaEstructura({ estructura }: { estructura: EstructuraActaVista }) {
+  const nOk = estructura.reglas.filter((r) => r.estado === "ok").length;
+  const nProblemas = estructura.reglas.length - nOk;
+  // Línea 2 (solo !ok): la PRIMERA regla con problema — faltante/baja_
+  // confianza primero; si el veredicto vino por sobrante, esa.
+  const primeraProblema =
+    estructura.reglas.find(
+      (r) => r.estado === "faltante" || r.estado === "baja_confianza",
+    ) ?? estructura.reglas.find((r) => r.estado !== "ok");
+
+  return (
+    <section
+      aria-label="Estructura del documento"
+      className="rounded-xl bg-[#10161f] border border-slate-800 p-3 flex flex-col gap-2"
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-slate-300 shrink-0">
+          Estructura del documento
+        </span>
+        <span className="font-mono text-[10px] text-slate-400 tabular-nums text-right">
+          Modelo {estructura.modelo} · {estructura.ms} ms · {nOk} reglas ok /{" "}
+          {nProblemas} con problemas
+        </span>
+      </div>
+      {!estructura.ok && primeraProblema && (
+        <p
+          role="status"
+          className="font-mono text-[10px] font-bold uppercase tracking-wider text-rose-400"
+        >
+          Rechazada por: {primeraProblema.etiqueta}
+        </p>
+      )}
+      {estructura.ok && estructura.requiere_revision && (
+        <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-400">
+          Reglas opcionales con problemas — continúa a revisión
+        </p>
+      )}
+      <ul className="flex flex-wrap gap-1.5">
+        {estructura.reglas.map((r) => {
+          const tono = ESTADO_ESTRUCTURA_TONO[r.estado];
+          return (
+            <li key={r.reglaId}>
+              <span
+                title={r.motivo ?? r.estado}
+                className={`inline-flex items-center gap-1.5 rounded-md border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide ${tono.chip}`}
+              >
+                <span className="max-w-[180px] truncate">{r.etiqueta}</span>
+                <span className="opacity-80">
+                  {r.estado.replace("_", " ")}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 export function ReviewView() {
   const acta = useE14Store((s) => s.actaActual);
   // KIT consenso-frankfurt-v1 (FASE 5, §6.1): el selector paginaObjetivo fue
@@ -111,6 +212,9 @@ export function ReviewView() {
   // el acta solo cambia por store.aplicarRecorte al APLICAR).
   const [editando, setEditando] = useState(false);
   const [visorAbierto, setVisorAbierto] = useState(false);
+  // Mantenedor 2026-11-22: el ojo de ZONAS arranca APAGADO (no se muestran
+  // las cajas) y se resetea al cambiar de acta.
+  const [zonasVisibles, setZonasVisibles] = useState(false);
   // G4 (KIT camara-visor-v1): mismo patrón de feedback — 1.5 s en el botón
   // «Imagen» («DESCARGADA ✓» / «NO SE PUDO»), sin toast flotante.
   const [imagenDesc, setImagenDesc] = useState<"ok" | "err" | null>(null);
@@ -128,6 +232,20 @@ export function ReviewView() {
       acta?.status === "RECHAZADA" ? defaultQuad() : (acta?.quadDetectado ?? defaultQuad()),
     [acta?.status, acta?.quadDetectado],
   );
+
+  // Overlay de ZONAS (mantenedor 2026-11-22): cajas aplanadas del gate
+  // estructural con el estado de su regla (máx 20) — se dibujan SOBRE la foto
+  // procesada SOLO cuando el ojo está activo.
+  const cajasZonas = useMemo(
+    () =>
+      (acta?.estructura?.reglas ?? [])
+        .flatMap((r) => r.cajas.map((c) => ({ ...c, estado: r.estado })))
+        .slice(0, MAX_CAJAS_OVERLAY),
+    [acta?.estructura],
+  );
+  useEffect(() => {
+    setZonasVisibles(false);
+  }, [acta?.id]);
 
   // L5: Esc cierra el visor (el cierre por toque lo resuelve el
   // ZoomableVisor dentro del modal — ver §4 del sync-visor).
@@ -238,6 +356,96 @@ export function ReviewView() {
   // §D4: cualquier foto (procesada u original de respaldo) = acta real.
   const esReal = Boolean(fotoVisible);
 
+  // ── Foto del acta + OJO de zonas (mantenedor 2026-11-22) ──
+  // Por defecto se ve el visor normal (sin zonas). Al activar el ojo se
+  // sustituye por la imagen plana con las cajas normalizadas del gate
+  // estructural (alineación exacta con la foto PROCESADA; con la original
+  // de respaldo las coordenadas no aplican → el ojo no se ofrece).
+  const puedeVerZonas = cajasZonas.length > 0 && !mostrandoOriginal;
+  const contenidoFoto = fotoVisible ? (
+    <div className="w-full flex-1 min-h-[160px] lg:min-h-[240px] relative flex flex-col mt-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono text-[9px] font-bold tracking-[0.18em] uppercase text-slate-400 truncate">
+          {zonasVisibles ? "Zonas detectadas" : "Foto procesada"}
+        </span>
+        {puedeVerZonas && (
+          <button
+            type="button"
+            aria-pressed={zonasVisibles}
+            aria-label={
+              zonasVisibles ? "Ocultar zonas detectadas" : "Mostrar zonas detectadas"
+            }
+            title={zonasVisibles ? "Ocultar zonas detectadas" : "Mostrar zonas detectadas"}
+            data-testid="toggle-zonas"
+            onClick={(e) => {
+              e.stopPropagation();
+              setZonasVisibles((v) => !v);
+            }}
+            onKeyDown={(e) => e.stopPropagation()}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 transition-colors ${
+              zonasVisibles
+                ? "border-[#10b981]/60 bg-[#10b981]/15 text-[#10b981]"
+                : "border-slate-700 bg-[#090d12] text-slate-300 hover:text-white"
+            }`}
+          >
+            <StitchEyeIcon className="h-4 w-4" />
+            <span className="font-mono text-[9px] font-bold uppercase tracking-wide">
+              Zonas
+            </span>
+          </button>
+        )}
+      </div>
+      <div className="w-full flex justify-center mt-1.5">
+        {zonasVisibles && puedeVerZonas ? (
+          <div className="relative w-fit max-w-full overflow-hidden rounded-lg border border-slate-800">
+            <img
+              src={fotoVisible}
+              alt="Foto procesada del documento con las zonas detectadas"
+              className="block h-auto w-auto max-h-[46vh] max-w-full lg:max-h-[60vh]"
+            />
+            {cajasZonas.map((c, i) => {
+              const tono = ESTADO_ESTRUCTURA_TONO[c.estado];
+              return (
+                <div
+                  key={i}
+                  aria-hidden
+                  data-testid="zona-box"
+                  className="absolute border-2 rounded-[2px]"
+                  style={{
+                    left: `${c.x * 100}%`,
+                    top: `${c.y * 100}%`,
+                    width: `${c.w * 100}%`,
+                    height: `${c.h * 100}%`,
+                    borderColor: tono.borde,
+                    backgroundColor: tono.relleno,
+                  }}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          // Foto acotada por alto (sin desborde sobre la fila del ojo) y el
+          // contenedor se ajusta al tamaño REAL de la imagen para que las
+          // cajas del ojo queden alineadas. Tocar la tarjeta abre el visor.
+          <div className="relative w-fit max-w-full overflow-hidden rounded-lg border border-brand-border bg-black/40">
+            <img
+              src={fotoVisible}
+              alt={altFoto}
+              className="block h-auto w-auto max-h-[46vh] max-w-full lg:max-h-[60vh]"
+              draggable={false}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  ) : (
+    <div className="mt-2 rounded-xl border border-slate-800 bg-[#090d12] h-48 flex items-center justify-center">
+      <span className="font-mono text-[10px] tracking-widest text-slate-400 uppercase">
+        FOTO NO DISPONIBLE
+      </span>
+    </div>
+  );
+
   // ── CAPA 0 QR (C-10): el indicador «QR ✓ capa 0 qr» de REVISIÓN se
   // RETIRÓ a pedido del mantenedor (2026-11-17) — el estado del QR vive
   // en el CHECK LIST («Código QR (capa 0)» en Campos Obligatorios).
@@ -308,10 +516,9 @@ export function ReviewView() {
   // KIT visor-accion-score-v1 (FASE A+B) — fila de acciones calculada FUERA
   // del flujo: vive en la ZONA FIJA de abajo (nunca scrollea; pegada a los
   // CTAs/BottomNav del shell — page.tsx intocable). FASE A: el botón
-  // «Pantalla completa» sale (redundante — tocar la foto abre el visor vía
-  // ZoomableVisor mode="card" onOpenFullscreen y la tarjeta ENVIADA es
-  // táctil); el modal fullscreen SIGUE existiendo con el mismo punto de
-  // entrada.
+  // «Pantalla completa» sale (redundante — tocar la tarjeta/foto abre el
+  // visor y la tarjeta ENVIADA es táctil); el modal fullscreen SIGUE
+  // existiendo con el mismo punto de entrada.
   // ENVIADA → el aviso de envío ocupa la zona fija: queda pegado ENCIMA de
   // «SEGUIR ESCANEANDO» (los CTAs del shell viven debajo), siempre visible
   // sin scrollear ni tapar la foto.
@@ -447,6 +654,11 @@ export function ReviewView() {
             los MISMOS datos del checklist, nueva piel. */}
         <VerificacionDocumental acta={acta} />
 
+        {/* PLAN-AGENTE-LAYOUT F4 (ADITIVO): diagnóstico del gate estructural
+            — SOLO se monta con acta.estructura (molde con layout + modelo
+            configurado). Cajas normalizadas sobre la foto PROCESADA. */}
+        {acta.estructura && <TarjetaEstructura estructura={acta.estructura} />}
+
         {/* Wrapper RELATIVO de la tarjeta del documento: la foto vive aquí
             con sus esquinas AR del color del estado (mock). */}
         <div className="relative flex-1 min-h-0 flex flex-col">
@@ -480,22 +692,7 @@ export function ReviewView() {
             <div className="scanner-corner-tr" style={cornerColor ? { borderColor: cornerColor } : undefined} />
             <div className="scanner-corner-bl" style={cornerColor ? { borderColor: cornerColor } : undefined} />
             <div className="scanner-corner-br" style={cornerColor ? { borderColor: cornerColor } : undefined} />
-            {fotoVisible ? (
-              <div className="w-full flex-1 min-h-[160px] lg:min-h-[240px] relative flex items-center justify-center mt-2">
-                <ZoomableVisor
-                  mode="card"
-                  src={fotoVisible}
-                  alt={altFoto}
-                  onOpenFullscreen={() => setVisorAbierto(true)}
-                />
-              </div>
-            ) : (
-              <div className="mt-2 rounded-xl border border-slate-800 bg-[#090d12] h-48 flex items-center justify-center">
-                <span className="font-mono text-[10px] tracking-widest text-slate-400 uppercase">
-                  FOTO NO DISPONIBLE
-                </span>
-              </div>
-            )}
+            {contenidoFoto}
           </div>
         ) : (
           <div
@@ -527,22 +724,7 @@ export function ReviewView() {
             <div className="scanner-corner-tr" style={cornerColor ? { borderColor: cornerColor } : undefined} />
             <div className="scanner-corner-bl" style={cornerColor ? { borderColor: cornerColor } : undefined} />
             <div className="scanner-corner-br" style={cornerColor ? { borderColor: cornerColor } : undefined} />
-            {fotoVisible ? (
-              <div className="w-full flex-1 min-h-[160px] lg:min-h-[240px] relative flex items-center justify-center mt-2">
-                <ZoomableVisor
-                  mode="card"
-                  src={fotoVisible}
-                  alt={altFoto}
-                  onOpenFullscreen={() => setVisorAbierto(true)}
-                />
-              </div>
-            ) : (
-              <div className="mt-2 rounded-xl border border-slate-800 bg-[#090d12] h-48 flex items-center justify-center">
-                <span className="font-mono text-[10px] tracking-widest text-slate-400 uppercase">
-                  FOTO NO DISPONIBLE
-                </span>
-              </div>
-            )}
+            {contenidoFoto}
           </div>
         )}
         </div>

@@ -24,12 +24,15 @@ const ETAPAS = [
   "VALIDACIÓN COMPLETADA CON ÉXITO",
 ];
 
-/** Pesos por etapa del pipeline (§7 AnalyzingView): el OCR domina. */
+/** Pesos por etapa del pipeline (§7 AnalyzingView): el OCR domina.
+ *  PLAN-AGENTE-LAYOUT F4: LAYOUT entra entre CALIDAD y OCR con peso pequeño
+ *  (una inferencia S + evaluador puro — la etapa es rápida). */
 const PESOS: Record<EtapaAnalisis, number> = {
   DETECTANDO: 0.15,
   RECORTANDO: 0.15,
   REALZANDO: 0.2,
   CALIDAD: 0.15,
+  LAYOUT: 0.05,
   OCR: 0.35,
 };
 const ORDEN_ETAPAS: readonly EtapaAnalisis[] = [
@@ -37,6 +40,7 @@ const ORDEN_ETAPAS: readonly EtapaAnalisis[] = [
   "RECORTANDO",
   "REALZANDO",
   "CALIDAD",
+  "LAYOUT",
   "OCR",
 ];
 

@@ -9,6 +9,8 @@
       "name": "docutemplate-studio",
       "version": "0.2.1",
       "dependencies": {
+        "@jg-stevan/dla-onnx": "workspace:*",
+        "@jg-stevan/layout-core": "workspace:*",
         "@jg-stevan/scanner-core": "workspace:*",
         "@prisma/client": "^6.11.1",
         "@radix-ui/react-accordion": "^1.2.11",
@@ -57,6 +59,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@jg-stevan/dla-onnx": "workspace:*",
+        "@jg-stevan/layout-core": "workspace:*",
         "@jg-stevan/scanner-core": "workspace:*",
         "next": "^16.1.1",
         "react": "^19.0.0",
@@ -65,11 +68,13 @@
         "zustand": "^5.0.6",
       },
       "devDependencies": {
+        "@tailwindcss/postcss": "^4",
         "@types/node": "^24",
         "@types/react": "^19",
         "@types/react-dom": "^19",
         "eslint": "^9",
         "eslint-config-next": "^16.1.1",
+        "tailwindcss": "^4",
         "typescript": "^5",
       },
     },
@@ -78,6 +83,13 @@
       "version": "0.1.0",
       "dependencies": {
         "onnxruntime-web": "^1.20.1",
+      },
+    },
+    "packages/layout-core": {
+      "name": "@jg-stevan/layout-core",
+      "version": "0.1.0",
+      "dependencies": {
+        "@jg-stevan/scanner-core": "workspace:*",
       },
     },
     "packages/scanner-core": {
@@ -219,6 +231,8 @@
     "@isaacs/nonrecursive-glob-match": ["@isaacs/nonrecursive-glob-match@1.1.0", "", {}, "sha512-GPm/Dbvk5RLmhRnxXIa7nTpK0xtl4E0wj0MslsuNiJ1FIROU+2+9lgUC/dgF7Ey4QCWhfEsgxilMRMCdHPfDfw=="],
 
     "@jg-stevan/dla-onnx": ["@jg-stevan/dla-onnx@workspace:packages/dla-onnx"],
+
+    "@jg-stevan/layout-core": ["@jg-stevan/layout-core@workspace:packages/layout-core"],
 
     "@jg-stevan/scanner-core": ["@jg-stevan/scanner-core@workspace:packages/scanner-core"],
 

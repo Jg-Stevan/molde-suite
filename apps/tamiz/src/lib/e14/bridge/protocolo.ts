@@ -7,7 +7,12 @@
  * las sub-interfaces de pasos inyectables (FASE F / 7.8 ISP).
  * Move-only: byte a byte con el original (solo cambian las rutas de import).
  */
-import type { Acta, ActaStatus, ProgresoAnalisis } from "@jg-stevan/scanner-core/dominio/types";
+import type {
+  Acta,
+  ActaStatus,
+  EstructuraActa,
+  ProgresoAnalisis,
+} from "@jg-stevan/scanner-core/dominio/types";
 import type { OpcionesEscaneo } from "@jg-stevan/scanner-core/dominio/bridge";
 import type {
   PageFilter,
@@ -53,6 +58,9 @@ export const DETALLE_SIN_VOTOS = "DOCUMENTO SIN DATOS VISIBLES";
 // techos del score, umbral de rechazo) viven en politica/umbrales.ts desde
 // 7.1 (C3 — única fuente de verdad); el copy BAJO queda aquí.
 export const DETALLE_BAJO = "NO SE RECONOCE INFORMACIÓN DEL DOCUMENTO — REPITA LA FOTO";
+// PLAN-AGENTE-LAYOUT F4: rechazo temprano por el gate estructural (etapa
+// LAYOUT entre CALIDAD y OCR). El detalle lleva la regla exacta y su motivo.
+export const DETALLE_ESTRUCTURA = "EL DOCUMENTO NO CORRESPONDE A LA PLANTILLA DEL MOLDE ACTIVO";
 
 /**
  * §D1 (SPEC-e14-score-ocr): SEÑAL DE CONTENIDO del acta — se calcula DESPUÉS
@@ -184,6 +192,9 @@ export type CamposActa = {
   clasificacion?: ClasificacionE14 | null;
   /** FASE 0 (blueprint DLA): evaluación del molde activo tras el gate. */
   evaluacionMolde?: import("@jg-stevan/scanner-core/dominio/types").ResumenMoldeActa | null;
+  /** PLAN-AGENTE-LAYOUT F4: veredicto del gate estructural (etapa LAYOUT).
+   *  null = molde sin layout o modelo no configurado (etapa saltada). */
+  estructura?: EstructuraActa | null;
 };
 
 /**
@@ -265,4 +276,24 @@ export type PasosMolde = {
   evaluarMolde: (fotoProcesada: string) => Promise<import("@jg-stevan/scanner-core/dominio/types").ResumenMoldeActa | null>;
 };
 
-export type PasosPipelineL2 = PasosCaptura & PasosCalidad & PasosOcr & PasosGate & PasosMolde;
+/**
+ * PLAN-AGENTE-LAYOUT F4: etapa LAYOUT — gate estructural ANTES del OCR.
+ * null/ausente = molde sin layout o modelo no configurado (la etapa se salta).
+ */
+export type PasosEstructura = {
+  evaluarEstructuraActa?: (fotoProcesada: string) => Promise<EstructuraActa | null>;
+};
+
+export type PasosPipelineL2 =
+  PasosCaptura &
+  PasosCalidad &
+  PasosOcr &
+  PasosGate &
+  PasosMolde &
+  PasosEstructura;
+
+// PLAN-AGENTE-LAYOUT F4: la forma de `EstructuraActa` vive en scanner-core
+// (ÚNICA fuente de verdad — `Acta.estructura` y este contrato la comparten);
+// se re-exporta aquí para que los consumidores del protocolo la resuelvan
+// desde el mismo módulo que `CamposActa`/`PasosEstructura`.
+export type { EstructuraActa };

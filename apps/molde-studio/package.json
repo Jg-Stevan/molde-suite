@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
-    "build": "next build && mkdir -p .next/standalone/apps/molde-studio/.next && cp -r .next/static .next/standalone/apps/molde-studio/.next/ && cp -r public .next/standalone/apps/molde-studio/",
+    "build": "next build && mkdir -p .next/standalone/apps/molde-studio/.next && cp -R .next/static .next/standalone/apps/molde-studio/.next/ && cp -R public .next/standalone/apps/molde-studio/",
     "build:static": "next build",
     "start": "NODE_ENV=production bun .next/standalone/apps/molde-studio/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
@@ -43,6 +43,8 @@
     "tailwindcss-animate": "^1.0.7",
     "tesseract.js": "^7.0.0",
     "zustand": "^5.0.6",
+    "@jg-stevan/dla-onnx": "workspace:*",
+    "@jg-stevan/layout-core": "workspace:*",
     "@jg-stevan/scanner-core": "workspace:*"
   },
   "devDependencies": {

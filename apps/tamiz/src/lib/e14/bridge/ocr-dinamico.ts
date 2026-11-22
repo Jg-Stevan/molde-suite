@@ -7,6 +7,7 @@
 
 import { leerFlags } from "../flags";
 import { logger } from "../../logger";
+import "../dla/config";
 
 let avisadoSinModelo = false;
 
