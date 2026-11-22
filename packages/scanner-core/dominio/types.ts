@@ -83,6 +83,30 @@ export interface ResumenMoldeActa {
   tiempos: { render_ms: number; ocr_ms: number; motor_ms: number };
 }
 
+/**
+ * PLAN-AGENTE-LAYOUT F4: resultado del gate estructural (etapa LAYOUT entre
+ * CALIDAD y OCR). Tamiz ejecuta `evaluarEstructura` (@jg-stevan/layout-core)
+ * sobre las regiones de PP-DocLayout cuando el molde activo declara `layout`;
+ * el veredicto viaja ADITIVO en `acta.estructura` (el rechazo temprano usa su
+ * contenido: regla obligatoria faltante → RECHAZADA/INCOMPLETA antes del OCR).
+ */
+export interface EstructuraActa {
+  modelo: "s" | "plusL";
+  ms: number;
+  ok: boolean;
+  requiere_revision: boolean;
+  obligatorias_faltantes: string[];
+  /** Resumen por regla para el overlay y el diagnóstico. */
+  reglas: {
+    reglaId: string;
+    etiqueta: string;
+    estado: "ok" | "faltante" | "sobrante" | "baja_confianza";
+    motivo?: string;
+    /** Cajas normalizadas 0-1 de la página para el overlay. */
+    cajas: { x: number; y: number; w: number; h: number }[];
+  }[];
+}
+
 /** El documento escaneado: foto + calidad + OCR + clasificación + desenlace. */
 export interface Acta {
   id: string;
@@ -115,6 +139,9 @@ export interface Acta {
   diagnostico?: DiagnosticoActa | null;
   /** FASE 0 (blueprint DLA): evaluación por molde tras el gate (opcional). */
   evaluacionMolde?: ResumenMoldeActa | null;
+  /** PLAN-AGENTE-LAYOUT F4: veredicto del gate estructural (opcional —
+   *  null/ausente = molde sin layout o modelo no configurado, etapa saltada). */
+  estructura?: EstructuraActa | null;
   hashSha256?: string;
   qrPayload?: string | null;
   qrEstado?: "leido" | "sin-payload";
@@ -143,7 +170,14 @@ export interface Mesa {
   paginas: MesaPagina[];
 }
 
-export type EtapaAnalisis = "DETECTANDO" | "RECORTANDO" | "REALZANDO" | "CALIDAD" | "OCR";
+/** PLAN-AGENTE-LAYOUT F4: etapa LAYOUT (gate estructural) entre CALIDAD y OCR. */
+export type EtapaAnalisis =
+  | "DETECTANDO"
+  | "RECORTANDO"
+  | "REALZANDO"
+  | "CALIDAD"
+  | "LAYOUT"
+  | "OCR";
 
 export interface ProgresoAnalisis {
   etapa: EtapaAnalisis;

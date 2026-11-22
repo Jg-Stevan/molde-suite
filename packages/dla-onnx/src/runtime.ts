@@ -7,7 +7,17 @@
 import { PRESETS, type Deteccion, type PresetKey, type RespuestaWorker } from './tipos';
 
 /** URLs de modelos (build-time). Ausentes = señal apagada (honesto). */
+const urlsExplicitas = new Map<PresetKey, string>();
+
+/** Fija una URL desde la app (Turbopack no inlinea env en paquetes workspace). */
+export function configurarModelo(key: PresetKey, url: string | null | undefined): void {
+  if (url) urlsExplicitas.set(key, url);
+  else urlsExplicitas.delete(key);
+}
+
 export function urlModelo(key: PresetKey): string | null {
+  const explicita = urlsExplicitas.get(key);
+  if (explicita) return explicita;
   const env =
     typeof process !== 'undefined'
       ? (process.env as Record<string, string | undefined>)

@@ -23,6 +23,7 @@ import {
   Download,
   Eye,
   EyeOff,
+  FileDown,
   FileUp,
   GripVertical,
   Link2,
@@ -52,6 +53,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import LayoutAssistant from '@/components/studio/LayoutAssistant';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -312,7 +314,7 @@ export default function EditorTab() {
     digitos: boolean;
     prefijo: string;
   }>({ encabezado: true, anclar: true, tipoCelda: 'texto', digitos: true, prefijo: 'Tabla' });
-  const [pestanaDerecha, setPestanaDerecha] = useState<'propiedades' | 'diag' | 'json' | 'ocr'>('propiedades');
+  const [pestanaDerecha, setPestanaDerecha] = useState<'propiedades' | 'diag' | 'ocr' | 'layout' | 'json'>('propiedades');
   const [ocultos, setOcultos] = useState<Set<string>>(new Set());
   const [coordenadas, setCoordenadas] = useState<{ x: number; y: number } | null>(null);
   const [cropPreview, setCropPreview] = useState<string | null>(null);
@@ -1387,6 +1389,41 @@ export default function EditorTab() {
     URL.revokeObjectURL(a.href);
   }
 
+  // F6 (PLAN-AGENTE-LAYOUT): exporte con SOBRE + checksum. Retrocompatible:
+  // el botón de arriba sigue exportando el MOLDE PLANO; este produce
+  // { tipo, version, nombre, checksum: <sha256 hex del cuerpo>, molde } —
+  // Tamiz recalcula el SHA-256 del cuerpo al importar (importarMoldeDesdeTexto)
+  // y rechaza si no coincide ("archivo corrompido o alterado").
+  async function descargarJsonConChecksum() {
+    if (!molde) return;
+    try {
+      const cuerpo = JSON.stringify(molde);
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cuerpo));
+      const checksum = Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+      const sobre = {
+        tipo: 'universal' as const,
+        version: molde.version,
+        nombre: molde.nombre,
+        checksum,
+        molde,
+      };
+      const blob = new Blob([JSON.stringify(sobre, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${molde.nombre.replace(/\s+/g, '_')}.molde.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast({
+        title: 'Descargado con checksum',
+        description: 'Tamiz verificará el SHA-256 del molde al importarlo.',
+      });
+    } catch {
+      toast({ title: 'No se pudo calcular el checksum', variant: 'destructive' });
+    }
+  }
+
   const jsonVivo = JSON.stringify(molde, null, 2);
   const campoSelOtraPagina = Boolean(campoSel && campoSel.pagina !== pagina);
   const dimsPx =
@@ -2277,11 +2314,11 @@ export default function EditorTab() {
         <aside className="flex max-h-[780px] flex-col overflow-hidden rounded-xl border border-slate-800 bg-slate-900 lg:col-span-3">
           <Tabs
             value={pestanaDerecha}
-            onValueChange={(v) => setPestanaDerecha(v as 'propiedades' | 'diag' | 'json' | 'ocr')}
+            onValueChange={(v) => setPestanaDerecha(v as 'propiedades' | 'diag' | 'ocr' | 'layout' | 'json')}
             className="flex min-h-0 flex-1 flex-col gap-0"
           >
             <div className="border-b border-slate-800 p-2">
-              <TabsList className="grid w-full grid-cols-4 bg-slate-950">
+              <TabsList className="grid w-full grid-cols-5 bg-slate-950">
                 <TabsTrigger value="propiedades" className="font-mono text-[11px] data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
                   Propiedades
                 </TabsTrigger>
@@ -2290,6 +2327,9 @@ export default function EditorTab() {
                 </TabsTrigger>
                 <TabsTrigger value="ocr" className="font-mono text-[11px] data-[state=active]:bg-teal-700 data-[state=active]:text-white">
                   OCR
+                </TabsTrigger>
+                <TabsTrigger value="layout" className="font-mono text-[11px] data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+                  Layout
                 </TabsTrigger>
                 <TabsTrigger value="json" className="font-mono text-[11px] data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
                   JSON
@@ -3002,6 +3042,49 @@ export default function EditorTab() {
               )}
             </TabsContent>
 
+            <TabsContent value="layout" className="mt-0 min-h-0 flex-1 overflow-y-auto scroll-fino">
+              {molde ? (
+                <LayoutAssistant
+                  /* Re-sincronización del borrador POR CLAVE: la key es la firma
+                     del layout persistido — si el layout cambia afuera (guardar,
+                     quitar, aplicar JSON) el asistente se remonta y adopta el
+                     nuevo estado; un push de campos nuevos NO cambia la key y NO
+                     borra el borrador en curso (prohibido setState en efectos). */
+                  key={molde.layout ? JSON.stringify(molde.layout) : 'sin-layout'}
+                  molde={molde}
+                  imagenUrl={imagenRefVisual}
+                  pagina={pagina}
+                  onGuardarLayout={(layout) => {
+                    // getState(): componer con el molde MÁS reciente — el asistente
+                    // puede llamar onCamposNuevos + onGuardarLayout en el mismo
+                    // evento y el closure `molde` quedaría desactualizado.
+                    const actual = useStudio.getState().molde;
+                    if (!actual) return;
+                    setMoldeActual({ ...actual, layout });
+                    toast({
+                      title: 'Layout guardado en el molde',
+                      description: `${layout.reglas.length} reglas estructurales (versión ${layout.version}). Recuerda guardar la plantilla.`,
+                    });
+                  }}
+                  onQuitarLayout={() => {
+                    const actual = useStudio.getState().molde;
+                    if (!actual) return;
+                    const resto = { ...actual };
+                    delete resto.layout;
+                    setMoldeActual(resto);
+                    toast({ title: 'Layout eliminado del molde' });
+                  }}
+                  onCamposNuevos={(nuevos) => {
+                    const actual = useStudio.getState().molde;
+                    if (!actual) return;
+                    setMoldeActual({ ...actual, campos: [...actual.campos, ...nuevos] });
+                  }}
+                />
+              ) : (
+                <p className="p-3 text-xs text-slate-400">Abre o crea un molde para configurar su layout estructural.</p>
+              )}
+            </TabsContent>
+
             <TabsContent value="json" className="mt-0 min-h-0 flex-1 space-y-2 overflow-y-auto scroll-fino p-3">
               <div className="flex gap-2">
                 <Button
@@ -3019,6 +3102,16 @@ export default function EditorTab() {
                   onClick={descargarJson}
                 >
                   <Download className="mr-1.5 h-3.5 w-3.5" /> Descargar
+                </Button>
+                {/* F6: exporte con sobre + SHA-256 (Tamiz verifica al importar). */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full border-slate-700 bg-slate-950 text-xs text-slate-200 hover:bg-slate-800"
+                  onClick={descargarJsonConChecksum}
+                  disabled={!molde}
+                >
+                  <FileDown className="mr-1.5 h-3.5 w-3.5" /> Descargar .molde.json (con checksum)
                 </Button>
               </div>
               <pre className="scroll-fino max-h-72 overflow-auto rounded-lg border border-slate-800 bg-slate-950 p-3 font-mono text-[10px] leading-relaxed text-slate-300">

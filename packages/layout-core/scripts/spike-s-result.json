@@ -1,0 +1,277 @@
+{
+  "fecha": "2026-11-22",
+  "fuente": "fixtures grabados del banco de pruebas (phone-mwrf3lq0 plus-L pool 0.2; phone-mwrgw19y S thr 0.2 NMS 0.5)",
+  "pagina": {
+    "W": 676,
+    "H": 2048
+  },
+  "gt": 19,
+  "cronometro": "post-proceso estructural, mediana de 200 corridas en bun/desktop (sin inferencia; sin celular real en esta entrega)",
+  "corridas": [
+    {
+      "nombre": "plus-L + estructura E-14 (control, pool 0.2)",
+      "modelo": "plusL",
+      "tp": 19,
+      "fp": 0,
+      "preds": 19,
+      "P": 1,
+      "R": 1,
+      "F1": 1,
+      "msMedianaPost": 0.326,
+      "gateOk": true,
+      "requiereRevision": false,
+      "obligatoriasMal": [],
+      "estados": [
+        {
+          "id": "footer",
+          "estado": "ok",
+          "cajas": 3
+        },
+        {
+          "id": "barcode",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "barcode_text",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "version",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "qr",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "title",
+          "estado": "ok",
+          "cajas": 3
+        },
+        {
+          "id": "e14",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "registraduria_logo",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "registraduria_text",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "consulado",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "xline",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "nivelacion",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "candidatos",
+          "estado": "ok",
+          "cajas": 2
+        },
+        {
+          "id": "votos",
+          "estado": "ok",
+          "cajas": 1
+        }
+      ]
+    },
+    {
+      "nombre": "S + estructura E-14 baseline (reglas plus-L)",
+      "modelo": "s",
+      "tp": 8,
+      "fp": 0,
+      "preds": 8,
+      "P": 1,
+      "R": 0.421,
+      "F1": 0.593,
+      "msMedianaPost": 0.161,
+      "gateOk": false,
+      "requiereRevision": false,
+      "obligatoriasMal": [
+        "barcode_text(faltante)",
+        "title(faltante)",
+        "e14(faltante)",
+        "nivelacion(faltante)",
+        "candidatos(faltante)",
+        "votos(faltante)"
+      ],
+      "estados": [
+        {
+          "id": "footer",
+          "estado": "ok",
+          "cajas": 3
+        },
+        {
+          "id": "barcode",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "barcode_text",
+          "estado": "faltante",
+          "cajas": 0
+        },
+        {
+          "id": "version",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "qr",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "title",
+          "estado": "faltante",
+          "cajas": 0
+        },
+        {
+          "id": "e14",
+          "estado": "faltante",
+          "cajas": 0
+        },
+        {
+          "id": "registraduria_logo",
+          "estado": "faltante",
+          "cajas": 0
+        },
+        {
+          "id": "registraduria_text",
+          "estado": "faltante",
+          "cajas": 0
+        },
+        {
+          "id": "consulado",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "xline",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "nivelacion",
+          "estado": "faltante",
+          "cajas": 0
+        },
+        {
+          "id": "candidatos",
+          "estado": "faltante",
+          "cajas": 0
+        },
+        {
+          "id": "votos",
+          "estado": "faltante",
+          "cajas": 0
+        }
+      ]
+    },
+    {
+      "nombre": "S + estructura SPIKE (títulos partidos, text como tabla)",
+      "modelo": "s",
+      "tp": 16,
+      "fp": 0,
+      "preds": 16,
+      "P": 1,
+      "R": 0.842,
+      "F1": 0.914,
+      "msMedianaPost": 0.242,
+      "gateOk": true,
+      "requiereRevision": true,
+      "obligatoriasMal": [],
+      "estados": [
+        {
+          "id": "footer",
+          "estado": "ok",
+          "cajas": 3
+        },
+        {
+          "id": "barcode",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "barcode_text",
+          "estado": "faltante",
+          "cajas": 0
+        },
+        {
+          "id": "qr",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "title",
+          "estado": "ok",
+          "cajas": 3
+        },
+        {
+          "id": "e14",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "version",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "registraduria_text",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "registraduria_logo",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "consulado",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "xline",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "nivelacion",
+          "estado": "ok",
+          "cajas": 1
+        },
+        {
+          "id": "candidatos",
+          "estado": "faltante",
+          "cajas": 0
+        },
+        {
+          "id": "votos",
+          "estado": "ok",
+          "cajas": 1
+        }
+      ]
+    }
+  ]
+}

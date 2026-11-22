@@ -1,0 +1,23 @@
+{
+  "comentario": "Reglas estructurales E-14 página 1 — port DECLARATIVA del prototipo validado (docs/investigacion/pp-doclayout/estructura-e14.js). Zonas normalizadas 0-1. 14 reglas producen los 19 bloques del GT de Chandra: 3 footer + barcode + barcode_text + version + qr + 3 title + e14 + registraduria_logo + registraduria_text + consulado + xline + nivelacion + 2 candidatos (dividir 0.541) + votos. PROHIBIDO hardcodear esto en el motor: vive como FIXTURE/regla de molde.",
+  "version": 1,
+  "modeloPreferido": "plusL",
+  "W": 676,
+  "H": 2048,
+  "reglas": [
+    { "id": "footer", "etiqueta": "Pie de página", "zona": { "x": 0, "y": 0.95, "w": 1, "h": 0.05 }, "clases": ["footer"], "minimo": 3, "maximo": 3, "obligatorio": false },
+    { "id": "barcode", "etiqueta": "Código de barras", "zona": { "x": 0.2, "y": 0, "w": 0.6, "h": 0.045 }, "clases": ["header", "image", "paragraph_title"], "minW": 0.3, "obligatorio": true },
+    { "id": "barcode_text", "etiqueta": "Número del código", "zona": { "x": 0.25, "y": 0.043, "w": 0.5, "h": 0.017 }, "clases": ["text", "header", "paragraph_title", "doc_title"], "minW": 0.15, "maxH": 0.03, "obligatorio": true },
+    { "id": "version", "etiqueta": "Versión / paginación", "zona": { "x": 0.7, "y": 0, "w": 0.3, "h": 0.065 }, "clases": ["text", "header"], "maxW": 0.3, "maxH": 0.04, "obligatorio": false },
+    { "id": "qr", "etiqueta": "QR", "zona": { "x": 0, "y": 0.05, "w": 0.35, "h": 0.1 }, "clases": ["image"], "minW": 0.1, "minH": 0.05, "obligatorio": false },
+    { "id": "title", "etiqueta": "Título (3 líneas)", "zona": { "x": 0.25, "y": 0.055, "w": 0.5, "h": 0.085 }, "clases": ["doc_title", "paragraph_title", "text"], "minW": 0.2, "maxH": 0.04, "minimo": 3, "maximo": 3, "obligatorio": true },
+    { "id": "e14", "etiqueta": "Rótulo E-14", "zona": { "x": 0.7, "y": 0.055, "w": 0.25, "h": 0.035 }, "clases": ["text", "image", "header", "doc_title"], "minW": 0.1, "maxW": 0.25, "minH": 0.02, "maxH": 0.05, "obligatorio": true },
+    { "id": "registraduria_logo", "etiqueta": "Logo Registraduría", "zona": { "x": 0.72, "y": 0.09, "w": 0.16, "h": 0.035 }, "clases": ["image"], "minW": 0.08, "maxW": 0.2, "minH": 0.02, "maxH": 0.04, "obligatorio": false },
+    { "id": "registraduria_text", "etiqueta": "Texto Registraduría", "zona": { "x": 0.7, "y": 0.118, "w": 0.22, "h": 0.022 }, "clases": ["text", "header"], "minW": 0.12, "maxH": 0.02, "obligatorio": false },
+    { "id": "consulado", "etiqueta": "Consulado / embajador", "zona": { "x": 0.05, "y": 0.14, "w": 0.65, "h": 0.065 }, "clases": ["text"], "minW": 0.3, "minH": 0.03, "obligatorio": true },
+    { "id": "xline", "etiqueta": "Línea central", "zona": { "x": 0.25, "y": 0.205, "w": 0.5, "h": 0.03 }, "clases": ["figure_title", "text", "number"], "minW": 0.25, "maxH": 0.02, "obligatorio": false },
+    { "id": "nivelacion", "etiqueta": "Tabla de nivelación", "zona": { "x": 0.03, "y": 0.23, "w": 0.92, "h": 0.13 }, "clases": ["table"], "minW": 0.5, "obligatorio": true },
+    { "id": "candidatos", "etiqueta": "Tablas de candidatos", "zona": { "x": 0.03, "y": 0.36, "w": 0.92, "h": 0.34 }, "clases": ["image", "table", "content"], "minW": 0.5, "minH": 0.25, "minimo": 2, "maximo": 2, "obligatorio": true, "dividir": { "eje": "y", "cortes": [0.541], "etiquetas": ["Candidatos 1", "Candidatos 2"] } },
+    { "id": "votos", "etiqueta": "Tabla de votos", "zona": { "x": 0.03, "y": 0.7, "w": 0.92, "h": 0.16 }, "clases": ["table"], "minW": 0.5, "obligatorio": true }
+  ]
+}

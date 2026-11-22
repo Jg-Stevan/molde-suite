@@ -101,6 +101,21 @@ export async function detectDocumentEdgesDetail(
   const x1 = der / W;
   const y0 = arr / H;
   const y1 = aba / H;
+  // Guardia de plausibilidad: la heurística de gradientes puede engancharse a
+  // un recuadro INTERNO del documento (tablas, tarjetas de candidatos) en vez
+  // de al papel completo. Si el rect cubre <30% del área es más probable que
+  // sea un elemento interno: identidad (la foto entera es el documento).
+  if ((x1 - x0) * (y1 - y0) < 0.3) {
+    return {
+      quad: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+        { x: 0, y: 1 },
+      ],
+      origen: 'identidad',
+    };
+  }
   // Si el "documento" detectado cubre casi toda la imagen → identidad.
   if (x1 - x0 > 0.92 && y1 - y0 > 0.92) {
     return {

@@ -170,10 +170,9 @@ function crearCaptura(
         set({ vista: 'escanear', progresoAnalisis: null, analisisResuelto: false });
         return;
       }
-      if (actaActual.status === 'RECHAZADA') {
-        set({ vista: 'escanear', progresoAnalisis: null, analisisResuelto: false });
-        return;
-      }
+      // RECHAZADA también va a REVISIÓN: el veredicto y su motivo (incluido
+      // el corte temprano del gate estructural) deben llegar al operador —
+      // volver a ESCANEAR en silencio ocultaba la regla que faltó.
       set({ vista: 'revision', progresoAnalisis: null, analisisResuelto: false });
     },
 

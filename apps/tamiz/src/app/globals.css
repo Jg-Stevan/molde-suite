@@ -1,4 +1,11 @@
+@import "tailwindcss";
+
 /* Tamiz — tokens y utilidades del diseño Stitch oscuro. */
+
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jbmono), ui-monospace, monospace;
+}
 
 :root {
   --color-brand-green: #10b981;

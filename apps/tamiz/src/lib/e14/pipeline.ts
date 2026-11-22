@@ -13,6 +13,9 @@ import { defaultQuad, type PageFilter } from '@jg-stevan/scanner-core/core/types
 import type { Acta, ProgresoAnalisis } from '@jg-stevan/scanner-core/dominio/types';
 import type { OpcionesEscaneo } from '@jg-stevan/scanner-core/dominio/bridge';
 import type { CamposActa, OpcionesEscaneoConTimeout, ParcialPipeline, PasosPipelineL2 } from './bridge/protocolo';
+// PLAN-AGENTE-LAYOUT F4: copy canónico del rechazo estructural (el detalle
+// viaja con la regla exacta y su motivo — ver DETALLE_* en protocolo.ts).
+import { DETALLE_ESTRUCTURA } from './bridge/protocolo';
 import type { EntradaPipeline } from './bridge/captura';
 
 function marcar(parcial: ParcialPipeline, fase: string, t0: number): void {
@@ -61,10 +64,19 @@ export async function correrPipelineL2(
   emitir(pasos.conRampa('DETECTANDO', 0.6));
   let quad = pasos.quadIdentidad;
   let origenDeteccion: string | null = null;
+  // Un ARCHIVO subido ya ES el documento (escaneo/recorte previo): volver a
+  // recortarlo con la heurística de gradientes engancha recuadros internos del
+  // formulario (p. ej. la tabla de nivelación del E-14) y el pipeline —gate y
+  // OCR— termina viendo solo un fragmento. La detección queda para la cámara.
+  const esArchivoSubido = 'archivo' in entrada;
   try {
-    const detalle = await detectDocumentEdgesDetail(fotoOriginal);
-    quad = detalle.quad;
-    origenDeteccion = detalle.origen;
+    if (esArchivoSubido) {
+      origenDeteccion = 'archivo-identidad';
+    } else {
+      const detalle = await detectDocumentEdgesDetail(fotoOriginal);
+      quad = detalle.quad;
+      origenDeteccion = detalle.origen;
+    }
   } catch {
     quad = defaultQuad(); // degradación honesta: la foto entera es el documento
   }
@@ -89,6 +101,48 @@ export async function correrPipelineL2(
   const calidad = await pasos.calidadDeActa(warp.processed);
   const scoreVisual = pasos.scoreDeCalidad(calidad);
   marcar(parcial, 'calidad', t0);
+
+  // ---- LAYOUT (PLAN-AGENTE-LAYOUT F4): gate estructural ANTES del OCR ----
+  // Molde sin layout, flag DLA apagada o modelo no configurado → null (etapa
+  // saltada, retrocompatible con moldes v3.0.0). Regla obligatoria faltante →
+  // corte temprano RECHAZADA/INCOMPLETA con la regla y el motivo exactos: un
+  // documento equivocado no debe gastar un OCR completo.
+  let estructura: CamposActa['estructura'] = null;
+  t0 = performance.now();
+  emitir(pasos.conRampa('LAYOUT', 0.4));
+  try {
+    estructura = (await pasos.evaluarEstructuraActa?.(warp.processed)) ?? null;
+  } catch {
+    estructura = null; // fallo honesto: el escaneo continúa sin gate
+  }
+  marcar(parcial, 'layout', t0);
+  emitir(pasos.conRampa('LAYOUT', 1));
+
+  if (estructura && !estructura.ok && estructura.obligatorias_faltantes.length > 0) {
+    // Primera regla con problema (faltante/baja_confianza) — el detalle lleva
+    // la etiqueta EXACTA y su motivo para que el operador sepa qué faltó.
+    const primera = estructura.reglas.find(
+      (r) => r.estado === 'faltante' || r.estado === 'baja_confianza',
+    );
+    const detalleRegla = primera
+      ? `${DETALLE_ESTRUCTURA} — FALTA: ${primera.etiqueta.toUpperCase()} (${primera.motivo ?? primera.estado})`
+      : DETALLE_ESTRUCTURA;
+    return pasos.construirActa(opciones as OpcionesEscaneo, parcial, {
+      // Acta MÍNIMA del rechazo temprano: el OCR NUNCA corrió (ese es el
+      // ahorro del gate) — sin texto ni clasificación. Lo fotográfico ya
+      // conocido viaja para el diagnóstico y el overlay en REVISIÓN.
+      quadDetectado: quad,
+      calidad,
+      fotoProcesada: warp.processed,
+      filtro,
+      ocrTexto: '',
+      score: 0,
+      status: 'RECHAZADA',
+      rechazo: { tipo: 'INCOMPLETA', detalle: detalleRegla },
+      clasificacion: null,
+      estructura,
+    });
+  }
 
   // ---- OCR ----
   t0 = performance.now();
@@ -200,5 +254,8 @@ export async function correrPipelineL2(
     rechazo: gate.rechazo,
     clasificacion: gate.clasificacion,
     evaluacionMolde,
+    // PLAN-AGENTE-LAYOUT F4: veredicto del gate estructural (ADITIVO —
+    // null = etapa saltada). El overlay de REVISIÓN lo consume.
+    estructura,
   });
 }

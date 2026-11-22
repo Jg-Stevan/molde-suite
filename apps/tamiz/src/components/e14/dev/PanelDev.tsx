@@ -8,8 +8,12 @@ import { estadoPuente, hubEnUso } from '@/lib/e14/puente/envio';
 import { sesionActual } from '@/lib/e14/rastreo/motor';
 import { alternarModoDev, useModoDev } from './puente';
 // FASE 0 (blueprint DLA): molde activo (motor universal compartido) + flags DLA.
-import { activarMolde, desactivarMolde, moldeActivo } from '@/lib/e14/molde/registry';
+// F6: la importación/activación de moldes vive en PanelMoldes (archivo, JSON,
+// QR y biblioteca IndexedDB); F5 agrega PanelModelos (S/plus-L/storage).
+import { desactivarMolde, moldeActivo } from '@/lib/e14/molde/registry';
 import { leerFlags } from '@/lib/e14/flags';
+import { PanelMoldes } from '../PanelMoldes';
+import { PanelModelos } from '../PanelModelos';
 import type { MoldeUniversal } from '@jg-stevan/scanner-core/molde/universal-types';
 
 interface Props {
@@ -21,32 +25,18 @@ export function PanelDev({ onClose }: Props) {
   const modoDev = useModoDev();
   const [puente, setPuente] = useState(estadoPuente());
   useEffect(() => setPuente(estadoPuente()), []);
-  // FASE 0 (blueprint DLA): molde activo — import JSON, estado y apagado.
+  // FASE 0 (blueprint DLA): molde activo — estado y apagado. La IMPORTACIÓN
+  // vive en PanelMoldes; este panel solo refleja el molde activo.
   const [molde, setMolde] = useState<MoldeUniversal | null>(moldeActivo());
-  const [avisoMolde, setAvisoMolde] = useState<string | null>(null);
-  async function onImportarMolde(e: React.ChangeEvent<HTMLInputElement>) {
-    const archivo = e.target.files?.[0];
-    e.target.value = '';
-    if (!archivo) return;
-    try {
-      const texto = await archivo.text();
-      const res = activarMolde(JSON.parse(texto) as unknown);
-      if (res.ok) {
-        setMolde(moldeActivo());
-        setAvisoMolde(`MOLDE ACTIVO: ${res.nombre}`);
-      } else {
-        setAvisoMolde(`MOLDE RECHAZADO: ${res.errores[0] ?? 'estructura inválida'}`);
-      }
-    } catch (err) {
-      setAvisoMolde(`JSON ILEGIBLE: ${(err as Error).message.slice(0, 60)}`);
-    }
+  function refrescarMolde() {
+    setMolde(moldeActivo());
   }
   return (
     <div className="fixed inset-0 z-[70] flex items-start justify-end bg-black/40 p-4" role="presentation">
       <div
         role="dialog"
         aria-label="Panel de diagnóstico"
-        className="mt-12 w-80 rounded-2xl border border-brand-border bg-brand-surface p-4 text-white"
+        className="mt-12 max-h-[85vh] w-80 overflow-y-auto rounded-2xl border border-brand-border bg-brand-surface p-4 text-white"
       >
         <div className="flex items-center justify-between pb-3">
           <p className="font-mono text-xs font-bold text-brand-green">DIAGNÓSTICO</p>
@@ -100,22 +90,14 @@ export function PanelDev({ onClose }: Props) {
               </dd>
             </div>
           </dl>
-          {avisoMolde ? (
-            <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-white/60" role="status">
-              {avisoMolde}
-            </p>
-          ) : null}
-          <label className="mt-2 block w-full cursor-pointer rounded-lg border border-brand-border px-3 py-2 text-center font-mono text-[10px] font-bold text-white/80 hover:border-brand-green">
-            IMPORTAR MOLDE .JSON
-            <input type="file" accept="application/json,.json" className="hidden" onChange={onImportarMolde} />
-          </label>
+          {/* F6: importar (archivo/JSON/QR) + biblioteca guardada en IndexedDB. */}
+          <PanelMoldes onCambio={refrescarMolde} />
           {molde ? (
             <button
               type="button"
               onClick={() => {
                 desactivarMolde();
                 setMolde(null);
-                setAvisoMolde('MOLDE DESACTIVADO');
               }}
               className="mt-1.5 w-full rounded-lg border border-brand-border px-3 py-2 font-mono text-[10px] font-bold text-white/80 hover:border-brand-green"
             >
@@ -123,6 +105,8 @@ export function PanelDev({ onClose }: Props) {
             </button>
           ) : null}
         </div>
+        {/* F5 (PLAN-AGENTE-LAYOUT): estado de modelos S/plus-L + almacenamiento. */}
+        <PanelModelos />
         <button
           type="button"
           onClick={alternarModoDev}

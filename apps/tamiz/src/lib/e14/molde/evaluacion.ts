@@ -30,6 +30,7 @@ import type { MoldeUniversal } from '@jg-stevan/scanner-core/molde/universal-typ
 import type { ResumenMoldeActa } from '@jg-stevan/scanner-core/dominio/types';
 import { proveedorOcrTamiz } from './ocr-proveedor';
 import { moldeActivo } from './registry';
+import '../dla/config';
 import { leerFlags } from '../flags';
 import { logger } from '../../logger';
 

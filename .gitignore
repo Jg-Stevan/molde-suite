@@ -14,6 +14,10 @@ next-env.d.ts
 *.pem
 
 # datos locales y materiales de trabajo (no se publican)
+# Modelos ONNX (stock, grandes) se sirven desde public/models en local; jamás al repo.
+*.onnx
+# Previews de investigación: capturas de actas reales (no se publican).
+docs/investigacion/**/previews/
 # FIX F2 (causa raíz — conversación de mejora): estos patrones deben estar
 # ANCLADOS a la raíz (/upload/). El patrón suelto «upload/» matchea CUALQUIER
 # directorio llamado upload a cualquier profundidad — incluido

@@ -1,0 +1,23 @@
+{
+  "name": "@jg-stevan/layout-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PLAN-AGENTE-LAYOUT F2: motor de layout estructural agnóstico de UI (sin React, sin Next, sin DOM para el evaluador). Registro declarativo de los modelos PP-DocLayout (S y plus-L) con su contrato de preproceso, NMS clase-agnóstico, evaluador de reglas estructurales declarativas (evaluarEstructura) y matcher de métricas contra GT (IoU/contención). La detección real (ORT Web) vive en @jg-stevan/dla-onnx; este paquete es la LÓGICA compartida por Studio (autoría) y Tamiz (gate).",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tipos": "./src/tipos.ts",
+    "./geom": "./src/geom.ts",
+    "./clases": "./src/clases.ts",
+    "./nms": "./src/nms.ts",
+    "./modelos": "./src/modelos.ts",
+    "./evaluar": "./src/evaluar.ts",
+    "./matcher": "./src/matcher.ts"
+  },
+  "dependencies": {
+    "@jg-stevan/scanner-core": "workspace:*"
+  },
+  "scripts": {
+    "test": "bun test",
+    "spike-s": "bun run scripts/spike-s.ts"
+  }
+}

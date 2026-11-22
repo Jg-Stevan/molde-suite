@@ -233,10 +233,21 @@ export function VerificacionDocumental({ acta }: { acta: Acta }) {
   // cuando todo está OK, desplegado en advertencia/rechazo). El toque del
   // operador fija el override; se resetea al cambiar el acta.
   const [overrideOpcionales, setOverrideOpcionales] = useState<boolean | null>(null);
+  // Tarjeta completa colapsable (mantenedor 2026-11-22): oculta por defecto
+  // cuando el acta se guarda automáticamente (todo OK). Se despliega sola en
+  // rechazo/advertencia O si el gate estructural reporta zonas faltantes,
+  // para mostrar lo faltante. El toque del header fija el override.
+  const hayZonasFaltantes = (acta.estructura?.reglas ?? []).some(
+    (r) => r.estado === "faltante",
+  );
+  const abiertaPorDefecto = tono !== "ok" || hayZonasFaltantes;
+  const [overrideAbierta, setOverrideAbierta] = useState<boolean | null>(null);
   const actaId = acta.id ?? null;
   useEffect(() => {
     setOverrideOpcionales(null);
+    setOverrideAbierta(null);
   }, [actaId]);
+  const abierta = overrideAbierta ?? abiertaPorDefecto;
   const opcionalesAbiertos = overrideOpcionales ?? (tono !== "ok");
 
   // Porcentaje global del gate (mock: badge del header).
@@ -252,35 +263,59 @@ export function VerificacionDocumental({ acta }: { acta: Acta }) {
       data-testid="verificacion-documental"
       className={`bg-[#10161f] rounded-2xl border ${piel.borde} ${piel.glow} p-3.5 lg:p-4 flex flex-col gap-2.5 shadow-sm`}
     >
-      {/* Header: icono del gate + título + badge de porcentaje. */}
-      <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-800/80">
+      {/* Header: icono del gate + título + badge de porcentaje + chevron.
+          Es el control de colapso de TODA la tarjeta (mock 2026-11-22). */}
+      <button
+        type="button"
+        onClick={() => setOverrideAbierta(!abierta)}
+        aria-expanded={abierta}
+        aria-controls="verificacion-detalle"
+        data-testid="verificacion-toggle"
+        className="flex items-center justify-between gap-2 pb-1 border-b border-slate-800/80 w-full text-left cursor-pointer select-none"
+      >
         <div className="flex items-center gap-2.5 min-w-0">
           <IconoGate tono={tono} />
           <h2 className="text-[12px] font-bold text-white uppercase tracking-wide truncate">
             Verificación Documental
           </h2>
         </div>
-        <span
-          data-testid="checklist-counter"
-          aria-label={`${pct} por ciento · ${PALABRA_TONO[tono]}`}
-          className={`shrink-0 font-mono text-[9px] font-bold px-2 py-1 rounded-lg border ${piel.texto}`}
-        >
-          {pct}% {PALABRA_TONO[tono]}
+        <span className="flex items-center gap-2 shrink-0">
+          <span
+            data-testid="checklist-counter"
+            aria-label={`${pct} por ciento · ${PALABRA_TONO[tono]}`}
+            className={`font-mono text-[9px] font-bold px-2 py-1 rounded-lg border ${piel.texto}`}
+          >
+            {pct}% {PALABRA_TONO[tono]}
+          </span>
+          <span
+            aria-hidden
+            className={`font-mono text-[10px] text-slate-400 transition-transform duration-150 ${abierta ? "rotate-180" : ""}`}
+          >
+            ▼
+          </span>
         </span>
-      </div>
+      </button>
 
-      {/* Sección 1 — Campos Obligatorios (siempre desplegada). */}
-      <SeccionVerificacion titulo="Campos Obligatorios" abierta items={obligatorios} />
+      {abierta && (
+        <div
+          id="verificacion-detalle"
+          data-testid="verificacion-detalle"
+          className="flex flex-col gap-2.5"
+        >
+          {/* Sección 1 — Campos Obligatorios (siempre desplegada). */}
+          <SeccionVerificacion titulo="Campos Obligatorios" abierta items={obligatorios} />
 
-      {/* Sección 2 — Campos Opcionales (desplegable, regla del mock). */}
-      {opcionales.length > 0 && (
-        <SeccionVerificacion
-          titulo={opcionalesAbiertos ? "Campos Opcionales" : "Campos Opcionales (desplegables)"}
-          desplegable
-          abierta={opcionalesAbiertos}
-          onToggle={() => setOverrideOpcionales(!opcionalesAbiertos)}
-          items={opcionales}
-        />
+          {/* Sección 2 — Campos Opcionales (desplegable, regla del mock). */}
+          {opcionales.length > 0 && (
+            <SeccionVerificacion
+              titulo={opcionalesAbiertos ? "Campos Opcionales" : "Campos Opcionales (desplegables)"}
+              desplegable
+              abierta={opcionalesAbiertos}
+              onToggle={() => setOverrideOpcionales(!opcionalesAbiertos)}
+              items={opcionales}
+            />
+          )}
+        </div>
       )}
     </section>
   );

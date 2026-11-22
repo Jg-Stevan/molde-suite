@@ -17,6 +17,17 @@ import { readFileSync } from "node:fs";
  */
 const isStatic = process.env.BUILD_STATIC === "1";
 
+// Los paquetes de workspace leen process.env en runtime; Turbopack no los
+// inlinea dentro de node_modules del workspace. `env` los fija en build.
+const dlaEnv = Object.fromEntries(
+  [
+    "NEXT_PUBLIC_DLA_MODELO_LAYOUT",
+    "NEXT_PUBLIC_DLA_MODELO_CASILLAS",
+    "NEXT_PUBLIC_DLA_MODELO_MANUSCRITO",
+    "NEXT_PUBLIC_DLA_MODELO_PLUSL",
+  ].flatMap((k) => (process.env[k] ? [[k, process.env[k] as string]] : [])),
+) as Record<string, string>;
+
 // ─── Ola 6 §6.5 (F9) — BUILD_ID DETERMINISTA ────────────────────────────
 // Dos builds del mismo árbol producían IDs distintos (`2X4OpCXG…` vs
 // `neH5n_ko…`): el BUILD_ID vive embebido en el HTML prerenderizado y sin
@@ -61,7 +72,8 @@ const nextConfig: NextConfig = {
   turbopack: { root: path.resolve(__dirname, "..", "..") },
   // El motor vive en el PAQUETE (@jg-stevan/scanner-core, TypeScript fuente
   // vía bun workspaces) — se transpila junto a la app.
-  transpilePackages: ["@jg-stevan/scanner-core", "@jg-stevan/dla-onnx"],
+  transpilePackages: ["@jg-stevan/scanner-core", "@jg-stevan/dla-onnx", "@jg-stevan/layout-core"],
+  env: dlaEnv,
   // NOTA (eliminación del módulo masiva): la API route del ledger remoto
   // (src/app/api/e14/envios) se retiró con la cola MASIVA.
   ...(isStatic

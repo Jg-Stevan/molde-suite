@@ -68,6 +68,8 @@ import { leerFlags } from "../flags";
 import { evaluarMoldeEnActa } from "../molde/evaluacion";
 // FASE B3 (blueprint DLA): bandas OCR dinámicas desde regiones de layout (ONNX).
 import { ocrBandaDinamicaSiDisponible } from "./ocr-dinamico";
+// PLAN-AGENTE-LAYOUT F4: gate estructural del molde activo (etapa LAYOUT).
+import { evaluarEstructuraDelActa } from "./estructura";
 // FASE F (plan post-v2.3) — el CUERPO de §5 vive en pipeline.ts (move-only) y
 // recibe por inyección los helpers que este módulo comparte con el recorte.
 import { correrPipelineL2 } from "../pipeline";
@@ -303,6 +305,9 @@ export class RealCoreBridge implements E14Bridge {
       // FASE B3 (blueprint DLA): bandas OCR dinámicas (PP-DocLayout) cuando
       // el flag + modelo están; undefined = bandas fijas de siempre.
       ocrBandaDinamica: ocrBandaDinamicaSiDisponible,
+      // PLAN-AGENTE-LAYOUT F4: gate estructural ANTES del OCR (etapa LAYOUT)
+      // — null honesto sin molde con layout / flag / modelo (etapa saltada).
+      evaluarEstructuraActa: evaluarEstructuraDelActa,
     };
   }
 
@@ -670,6 +675,9 @@ export class RealCoreBridge implements E14Bridge {
       clasificacion: campos.clasificacion ?? undefined,
       // FASE 0 (blueprint DLA): veredicto por molde (ADITIVO — sin score/status).
       evaluacionMolde: campos.evaluacionMolde ?? null,
+      // PLAN-AGENTE-LAYOUT F4: veredicto del gate estructural (ADITIVO —
+      // null = etapa saltada; el rechazo temprano lo lleva RECHAZADA).
+      estructura: campos.estructura ?? null,
       // e64-qr T-2.1 — señal de la CAPA 0 QR de cámara (ADITIVA AL FINAL,
       // contrato D57): qrCam definido = el decodificador corrió ("leido" con
       // payload / "sin-payload" con null); undefined (timeout — el
