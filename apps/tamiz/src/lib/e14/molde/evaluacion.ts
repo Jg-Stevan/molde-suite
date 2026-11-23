@@ -72,7 +72,8 @@ function banderasAgregadas(resultado: ResultadoUniversal): string[] {
 }
 
 /** Filas por campo para el checklist universal (Etapa B) — la presentación
- *  (destacado/obligatorio) viaja desde la DEFINICIÓN del molde por id. */
+ *  (destacado/obligatorio/grupo/orden) viaja desde la DEFINICIÓN del molde
+ *  por id. */
 function filasDeCampos(molde: MoldeUniversal, resultado: ResultadoUniversal): ResumenMoldeCampo[] {
   const defPorId = new Map(molde.campos.map((c) => [c.id, c]));
   return resultado.paginas.flatMap((p) => p.campos).map((c): ResumenMoldeCampo => {
@@ -87,6 +88,10 @@ function filasDeCampos(molde: MoldeUniversal, resultado: ResultadoUniversal): Re
       rect: c.rect,
       ...(def?.destacado ? { destacado: true } : {}),
       ...(def?.obligatorio ? { obligatorio: true } : {}),
+      // FASE 4 (v3.2.0 — interfaz táctica): grupo/orden para la presentación
+      // agrupada del checklist (Encabezado → Identificación → Cuerpo → Cierre).
+      ...(def?.grupo ? { grupo: def.grupo } : {}),
+      ...(def?.orden !== undefined ? { orden: def.orden } : {}),
     };
   });
 }

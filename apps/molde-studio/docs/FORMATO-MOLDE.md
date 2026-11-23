@@ -4,6 +4,12 @@ Contrato entre Molde Studio (crea/calibra) y el motor de verificación (ejecuta)
 Este documento describe el formato completo tras la Fase 2 del plan de
 implementación (motor de lectura honesto) y define las métricas de salida.
 
+**v3.2.0** agrega la estrategia `ancla_relacional` (el faro), los campos de
+presentación `grupo`/`orden` (interfaz táctica, importador Chandra) y el
+endurecimiento de firmas (`min_trazos`/`firma_esperada` + métricas de firma) —
+ADITIVO: los moldes v3.0/3.1 (`zona_fija` / `ancla_relativa`) conservan su
+semántica exacta y siguen validando sin cambios.
+
 ## Estructura
 
 ```jsonc
@@ -37,8 +43,14 @@ implementación (motor de lectura honesto) y define las métricas de salida.
 | `etiqueta` | string | legible |
 | `pagina` | int ≥ 1 | 1-indexada |
 | `tipo` | `texto \| presencia \| firma \| checkbox` | texto = OCR; los demás = tinta |
-| `estrategia` | `zona_fija \| ancla_relativa` | ancla_relativa exige `ancla.texto` no vacío (N-4) |
-| `zona` | `{x,y,w,h}` 0–1 | zona_fija: absoluto; ancla_relativa: `{x,y}` = offset desde el ancla (`x_absoluto: true` → x absoluto) |
+| `estrategia` | `zona_fija \| ancla_relativa \| ancla_relacional` | ancla_relativa exige `ancla.texto` no vacío (N-4). **ancla_relacional** (v3.2.0) exige además `zona_busqueda` (el faro) y `relacion` válida — sin faro el molde es inválido (regla del dueño: no hay búsqueda global) |
+| `zona` | `{x,y,w,h}` 0–1 | zona_fija: absoluto; ancla_relativa: `{x,y}` = offset desde el ancla (`x_absoluto: true` → x absoluto); **ancla_relacional**: finura sobre el candidato resuelto — `{x,y}` = offset, `{w,h}` = tamaño FINAL (0 = heredar del candidato) |
+| `zona_busqueda` | `{x,y,w,h}` 0–1? | **v3.2.0, SOLO ancla_relacional — EL FARO**: zona aproximada donde vive el ancla. El motor filtra las líneas OCR por su CENTRO dentro del faro (+1% margen `FARO_MARGEN`) y resuelve la caja relativa dentro de ese contexto. Lo que queda fuera NO existe para el campo |
+| `relacion` | `{direccion, que, orden, indice?}`? | **v3.2.0, SOLO ancla_relacional**: `direccion` = `arriba\|abajo\|izquierda\|derecha`; `que` = `zona` (banda adyacente del borde del ancla al borde del faro — recomendado, casos firma y valores «al lado») \| `linea` (línea OCR vecina del faro) \| `caja` (recuadro impreso hueco del faro); `orden` = `mas_cercano` \| `indice` (el N-ésimo, 1-indexado; si excede los candidatos → `relacion_sin_candidato`, jamás «el último que haya») |
+| `min_trazos` | int ≥ 1? | **v3.2.0, campos de tinta (firma/presencia)**: mínimo de trazos (componentes conexos de tinta, `metricasFirma`). Menos trazos → bandera `trazos_insuficientes` + requiere_revision (jamás ok silencioso) |
+| `firma_esperada` | bool? | **v3.2.0**: declara firma esperada aunque el `tipo` no sea `firma`; con cero trazos medidos → bandera `firma_ausente`. Con `tipo: 'firma'` se aplica por defecto |
+| `grupo` | string? | **v3.2.0, presentación**: grupo de lectura del campo (Encabezado → Identificación → Cuerpo económico → Cierre/firmas) — lo genera el importador Chandra; Datos Variables (Studio) y el checklist (Tamiz) se agrupan por él |
+| `orden` | int? | **v3.2.0, presentación**: índice de lectura 1-based del campo (orden de bloques de Chandra); ordena dentro del grupo |
 | `ancla` | `{texto, rect?, rectRespaldo?}` | `rect` = posición de referencia para dibujar/fallback. `rectRespaldo` lo escribe `alinearAnclas` cuando solo matcheó el respaldo — NUNCA sobrescribe `rect` (N-2) |
 | `ancla_respaldo` | string? | texto alternativo |
 | `umbral` | 0–1 | densidad de tinta; en campos de texto se usa para `zona_vacia` |
@@ -78,6 +90,36 @@ implementación (motor de lectura honesto) y define las métricas de salida.
 | `requiere_revision` | lectura dudosa: umbral al borde (banda 0.6×–1.4×), confianza baja/ausente en obligatorio, manuscrito (`htr`) obligatorio, o validación de cierre fallida |
 
 Banderas: `ancla_no_encontrada`, `ancla_respaldo`, `sin_rect`, `zona_invalida` (molde malformado — la corrida sobrevive, N-4), `umbral_al_borde`, `ocr_vacio`, `zona_vacia`, `realce_retry`, `patron_no_cumple`, `patron_invalido`, `valor_limpiado`, `conf_baja`, `sin_confianza_ocr`, `htr_manual`, `validacion_fallida`, `pagina_faltante`, `posible_pagina_equivocada` (3.3), `rotacion_180_corregida` (3.3).
+
+Banderas **v3.2.0 (modo relacional)**: `ancla_fuera_de_zona` (el texto del ancla existe PERO fuera del faro — el mapa está mal puesto o el documento es otra variante; el campo cae al rect de referencia, la búsqueda global NO resuelve), `relacion_sin_candidato` (nada en la dirección pedida dentro del faro → fallback de referencia), `relacion_ambigua` (2 candidatos a <10% de distancia — **jamás pick silencioso**: el campo termina en `requiere_revision`).
+
+Banderas **v3.2.0 (firmas)**: `firma_ausente` (firma esperada — `tipo: 'firma'` o `firma_esperada: true` — sin NINGÚN trazo significativo), `trazos_insuficientes` (trazos < `min_trazos`) — ambas solo endurecen: un `ok` con estas banderas degrada a `requiere_revision`; jamás convierten un vacío en ok. El resultado del campo incluye `firma: { trazos, densidad, extension }` para el forense.
+
+## Importación desde Chandra (datalab-convert) — flujo v3.2.0
+
+El humano entrega la SALIDA de Chandra (`{ children: [Page…], metadata }`) y
+su matriz de obligatorios; el importador (Biblioteca → «Importar JSON /
+Chandra») TRANSLADA el mapa — no lo inventa:
+
+| Bloque Chandra | → MoldeUniversal | Relación/faro |
+| --- | --- | --- |
+| `Page.bbox` | Denominador para normalizar todos los bboxes | px → `RectNorm` |
+| `SectionHeader` (h1) | Campo texto `zona_fija` (cabecera rígida, drift <1% entre variantes) + grupo «Encabezado» | — |
+| `Form` (tabla con `<b>` etiquetas) | Un campo texto por celda con `<b>` etiqueta; rect de celda ESTIMADO por retícula uniforme (marcado «≈») | faro = celda ampliada; `relacion.direccion: 'abajo'` (etiqueta arriba, valor `<br/>` abajo) o `'derecha'` en línea única |
+| `Text` «Etiqueta: <b>valor</b>» | Campo texto, ancla = prefijo antes de «:» (o la propia negrilla) | faro = bloque ampliado ~2%; banda DERECHA del ancla |
+| `Text` «_____ + <b>Firma/Fecha…</b>» | Campo `firma` (o texto con `realce`) | banda ARRIBA de la etiqueta — calibración v1.3.0 del dueño |
+| `Table` de firmas (Recibo) | Un campo `firma` por `<td>` con faro PROPIO por celda — dos firmas, sin ambigüedad | banda ARRIBA de la etiqueta dentro de la celda |
+| párrafo multi-valor («D. <b>Nombre</b>, con DNI <b>DNI</b>…») | Un campo por `<b>`: ancla = prefijo anterior («con DNI», «de la empresa»…), nombres semánticos de la matriz (Receptor/Pagador · Nombre/DNI/Cargo/Empresa/CIF) | banda DERECHA con anchura de lectura ESTIMADA (ajustar con «Probar faro») |
+| `PageFooter` | IGNORADO (metadato de variante) — listado en la revisión | — |
+| bloques no reconocidos | «no mapeado» — nunca descartados en silencio (§8 del plan) | — |
+| `metadata.failed_pages` / `inference_failed` | Aviso en la importación — honesto, no se inventan zonas | — |
+
+Los obligatorios llegan PRECARGADOS con las matrices del dueño (Comprobante:
+críticos N.º Operación / Número de Documento / Firma / Fecha de entrega;
+Recibo: críticos Fecha / nombres+DNI / La suma de / ambas Firmas; B2B
+condicional) y el humano los confirma en la tabla. Cada campo importado lleva
+`grupo` + `orden` → Verificación (Datos Variables) y el checklist de Tamiz se
+presentan AGRUPADOS y ordenados, críticos arriba de cada grupo.
 
 ## Métricas de una corrida (G-2/G-5)
 

@@ -231,7 +231,12 @@ export function auditarCamposPagina(
       estrategia: campo.estrategia,
       nivel: 'ok',
       problemas: [],
-      anclaTexto: campo.estrategia === 'ancla_relativa' ? campo.ancla?.texto ?? null : null,
+      // v3.2.0: la auditoría lista también las anclas del modo relacional —
+      // sus simulaciones corren resolverRectCampo, que despacha al faro.
+      anclaTexto:
+        campo.estrategia === 'ancla_relativa' || campo.estrategia === 'ancla_relacional'
+          ? campo.ancla?.texto ?? null
+          : null,
       anclaEncontrada: false,
       anclaScore: null,
       anclaConf: null,

@@ -110,6 +110,13 @@ export interface ResumenMoldeCampo {
   /** Presentación (G-7): el valor se resalta en la lista. */
   destacado?: boolean;
   obligatorio?: boolean;
+  /**
+   * FASE 4 (v3.2.0 — interfaz táctica): grupo de lectura + índice de orden
+   * del campo en el documento (derivados del importador Chandra). Opcionales
+   * y retrocompatibles: sin ellos el checklist se presenta como siempre.
+   */
+  grupo?: string;
+  orden?: number;
 }
 
 /**

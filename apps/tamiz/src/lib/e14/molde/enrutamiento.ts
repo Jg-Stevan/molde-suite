@@ -143,12 +143,17 @@ export async function sembrarMoldeDemo(): Promise<void> {
 // PREFILTRO por anclas — una sola pasada de OCR compartida entre candidatos.
 // ────────────────────────────────────────────────────────────────────────────
 
-/** Anclas únicas declaradas por el molde (página 1: el escaneo es 1 página). */
+/** Anclas únicas declaradas por el molde (página 1: el escaneo es 1 página).
+ *  v3.2.0: incluye el modo relacional — esto es IDENTIFICACIÓN del documento
+ *  (¿qué molde aplica?), no resolución de zonas: la doctrina del faro gobierna
+ *  la resolución de campos (universal-engine), aquí solo reconocemos el papel. */
 function anclasDeMolde(molde: MoldeUniversal): string[] {
   const set = new Set<string>();
   for (const c of molde.campos) {
     if (c.pagina !== 1) continue;
-    if (c.estrategia === 'ancla_relativa' && c.ancla?.texto) set.add(c.ancla.texto);
+    if ((c.estrategia === 'ancla_relativa' || c.estrategia === 'ancla_relacional') && c.ancla?.texto) {
+      set.add(c.ancla.texto);
+    }
   }
   return [...set];
 }

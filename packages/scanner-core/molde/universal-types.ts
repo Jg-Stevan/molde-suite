@@ -8,6 +8,13 @@
 //   la zona se posiciona como offset (dx, dy) desde la esquina superior
 //   izquierda del ancla encontrado. `ancla.rect` guarda la posición esperada
 //   en el escaneo de referencia (para dibujar y para el fallback).
+// - Estrategia "ancla_relacional" (v3.2.0 — corrección del dueño #2, «EL MOLDE
+//   ES EL MAPA»): el molde declara `zona_busqueda` (EL FARO, OBLIGATORIA) y el
+//   motor busca el ancla SOLO dentro de esa zona; la caja final se resuelve
+//   RELATIVAMENTE al contexto local (banda adyacente, línea OCR o caja impresa
+//   del faro) por direccion + orden + distancia. Cero búsquedas globales: lo
+//   que queda fuera del faro NO existe para el campo (el «El abajo firmante
+//   acepta…» de un párrafo legal jamás compite).
 // - `validaciones` (opcional): igualdades aritméticas de cierre entre campos
 //   (p. ej. la suma total == suma de componentes). Si una validación falla,
 //   los campos implicados quedan en `requiere_revision` (Fase 2.2 del plan).
@@ -20,7 +27,38 @@ export interface RectNorm {
 }
 
 export type TipoCampo = 'texto' | 'presencia' | 'firma' | 'checkbox';
-export type EstrategiaCampo = 'zona_fija' | 'ancla_relativa';
+/** v3.2.0 agrega `ancla_relacional` (ADITIVO: zona_fija y ancla_relativa
+ *  conservan su semántica exacta — retrocompatibilidad de los moldes v3.0/3.1). */
+export type EstrategiaCampo = 'zona_fija' | 'ancla_relativa' | 'ancla_relacional';
+
+/**
+ * FASE 2 (v3.2.0 — corrección del dueño #2): relación que resuelve la caja
+ * final a partir del CONTEXTO LOCAL del ancla, siempre DENTRO de
+ * `zona_busqueda`. Nunca sobre la página completa.
+ */
+export interface RelacionAncla {
+  /** Dirección del candidato respecto al ancla encontrada (o de referencia). */
+  direccion: 'arriba' | 'abajo' | 'izquierda' | 'derecha';
+  /**
+   * Qué candidato se resuelve dentro del faro:
+   *  - 'zona': la banda adyacente al ancla en la dirección pedida (del borde
+   *    del ancla hasta el borde del faro) — el caso calibrado de firmas
+   *    («la línea de firma es la banda ARRIBA de la etiqueta») y de valores
+   *    «al lado» de la etiqueta. Default recomendado.
+   *  - 'linea': una línea OCR del faro en la dirección pedida (valores en la
+   *    línea vecina, no en la misma línea del ancla).
+   *  - 'caja': un recuadro impreso hueco detectado dentro del faro (cuyo
+   *    centro cae en la dirección pedida). Para cajas que CONTIENEN al ancla
+   *    usa 'zona' con faro = la caja.
+   */
+  que: 'linea' | 'caja' | 'zona';
+  /** 'mas_cercano' (default) o 'indice' (el N-ésimo más cercano). */
+  orden: 'mas_cercano' | 'indice';
+  /** Índice 1-indexado del candidato cuando `orden` = 'indice'. Si excede los
+   *  candidatos encontrados NO se toma el último: cae a referencia con
+   *  bandera `relacion_sin_candidato` (honesto, no se inventa). */
+  indice?: number;
+}
 
 export interface AnclaUniversal {
   /** Texto a buscar por OCR (se normaliza: mayúsculas, sin acentos ni signos). */
@@ -113,6 +151,44 @@ export interface CampoUniversal {
     ventana_si: RectNorm;
     ventana_no: RectNorm;
   };
+  /**
+   * FASE 2 (v3.2.0 — corrección del dueño #2, «EL MOLDE ES EL MAPA»): SOLO
+   * para `ancla_relacional`. EL FARO (obligatoria en esa estrategia): zona
+   * aproximada 0-1 donde vive el ancla. El motor busca el ancla SOLO dentro
+   * del faro (+ margen de tolerancia ~1%) y resuelve la caja relativa dentro
+   * de ese contexto pequeño. Sin faro NO hay estrategia: el validador rechaza
+   * el molde (no existen búsquedas globales de anclas, por diseño).
+   */
+  zona_busqueda?: RectNorm;
+  /** FASE 2: relación con el contexto local que produce el rect final
+   *  (ver RelacionAncla). Requerida en `ancla_relacional` (validada). */
+  relacion?: RelacionAncla;
+  /**
+   * FASE 3 (v3.2.0 — endurecimiento de firmas): mínimo de TRAZOS (componentes
+   * conexos de tinta, medidos con `metricasFirma` — la misma factorización que
+   * ya usaba `clasificarMarcaSobreCrop`) esperados en un campo de tinta
+   * (firma/presencia). Si el medidor encuentra MENOS, bandera
+   * `trazos_insuficientes` + requiere_revision (jamás un ok silencioso).
+   * Opcional; sin él el motor no añade exigencia nueva.
+   */
+  min_trazos?: number;
+  /**
+   * FASE 3: el campo declara esperar FIRMA (trazo humano). Con `obligatorio`
+   * y cero trazos medidos el motor añade la bandera diagnóstica
+   * `firma_ausente` (la zona se resolvió pero no hay rúbrica). Opcional: con
+   * `tipo: 'firma'` el motor ya la aplica por defecto.
+   */
+  firma_esperada?: boolean;
+  /**
+   * FASE 4 (importador Chandra — interfaz táctica): grupo de lectura del
+   * campo (Encabezado → Identificación → Cuerpo económico → Cierre/firmas).
+   * Opcional y retrocompatible: moldes sin `grupo` se presentan igual que
+   * siempre (lista plana). Solo presentación — cero lógica de negocio.
+   */
+  grupo?: string;
+  /** FASE 4: índice de lectura (1-based) del campo dentro del documento,
+   * derivado del orden de bloques de la salida Chandra. Opcional. */
+  orden?: number;
   obligatorio: boolean;
   nota?: string;
 }
@@ -254,7 +330,9 @@ export interface MoldeUniversal {
   };
 }
 
-export const MOLDE_UNIVERSAL_VERSION = '3.1.0';
+/** v3.2.0: estrategia `ancla_relacional` con `zona_busqueda` (el faro) —
+ * cambio ADITIVO sobre 3.1.0; los moldes v3.0/3.1 quedan intactos. */
+export const MOLDE_UNIVERSAL_VERSION = '3.2.0';
 
 /** Colores por tipo de campo (Tailwind) — ontología de visión del diseño Stitch. */
 export const COLOR_TIPO: Record<TipoCampo, string> = {
@@ -317,6 +395,18 @@ export interface ResultadoCampoUniversal {
     nInterior: number;
     cajaEncontrada: boolean;
   } | null;
+  /**
+   * FASE 3 (v3.2.0): métricas de firma (factorización `metricasFirma` de
+   * marca.ts — densidad de tinta, Nº de trazos/componentes conexos y
+   * extensión relativa del trazo). Presente SOLO en campos de tinta con
+   * firma esperada (`tipo: 'firma'` o `firma_esperada: true`). Para la
+   * verificación forense y el diagnóstico `firma_ausente`.
+   */
+  firma?: {
+    trazos: number;
+    densidad: number;
+    extension: number;
+  } | null;
 }
 
 export interface ResultadoPaginaUniversal {
@@ -375,6 +465,38 @@ const CLASES_LAYOUT_VALIDAS = new Set<string>([
   'text', 'image', 'table', 'doc_title', 'paragraph_title', 'figure_title',
   'number', 'header', 'footer', 'seal', 'formula',
 ]);
+
+/** Validación de `relacion` (v3.2.0 — solo estrategia ancla_relacional). */
+function esRelacionValida(r: unknown): boolean {
+  if (typeof r !== 'object' || r === null) return false;
+  const q = r as Record<string, unknown>;
+  if (
+    q.direccion !== 'arriba' && q.direccion !== 'abajo' &&
+    q.direccion !== 'izquierda' && q.direccion !== 'derecha'
+  ) {
+    return false;
+  }
+  if (q.que !== 'linea' && q.que !== 'caja' && q.que !== 'zona') return false;
+  if (q.orden !== 'mas_cercano' && q.orden !== 'indice') return false;
+  if (
+    q.orden === 'indice' &&
+    (typeof q.indice !== 'number' || !Number.isFinite(q.indice) || q.indice < 1)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** Rect finito y dentro de la página (0-1) — el faro no puede vivir fuera. */
+function esRectEnPagina(z: unknown): z is RectNorm {
+  if (!esRectValido(z)) return false;
+  const r = z as RectNorm;
+  return (
+    r.w > 0 && r.h > 0 &&
+    r.x >= 0 && r.y >= 0 &&
+    r.x + r.w <= 1 + 1e-9 && r.y + r.h <= 1 + 1e-9
+  );
+}
 
 /** Validación de la extensión opcional `layout` (v3.1.0 — PLAN-AGENTE-LAYOUT
  *  §4.1): zonas finitas en 0-1, cortes crecientes en (0,1), minimo <= maximo,
@@ -539,6 +661,14 @@ export function esMoldeUniversal(obj: unknown): obj is MoldeUniversal {
       if (!ancla || typeof ancla.texto !== 'string' || !ancla.texto.trim()) return false;
       if (ancla.rect !== undefined && !esRectValido(ancla.rect)) return false;
     }
+    // v3.2.0 (regla del dueño #2): ancla_relacional SIN faro = molde inválido.
+    if (f.estrategia === 'ancla_relacional') {
+      const ancla = f.ancla as Record<string, unknown> | undefined;
+      if (!ancla || typeof ancla.texto !== 'string' || !ancla.texto.trim()) return false;
+      if (ancla.rect !== undefined && !esRectValido(ancla.rect)) return false;
+      if (!esRectEnPagina(f.zona_busqueda)) return false;
+      if (f.relacion !== undefined && !esRelacionValida(f.relacion)) return false;
+    }
     if (f.obligatorio !== undefined && typeof f.obligatorio !== 'boolean') return false;
     return true;
   });
@@ -579,6 +709,23 @@ export function erroresMolde(obj: unknown): string[] {
       const ancla = f.ancla as Record<string, unknown> | undefined;
       if (!ancla || typeof ancla.texto !== 'string' || !ancla.texto.trim()) {
         errores.push(`${donde}: estrategia ancla_relativa exige ancla.texto no vacío`);
+      }
+    }
+    if (f.estrategia === 'ancla_relacional') {
+      const ancla = f.ancla as Record<string, unknown> | undefined;
+      if (!ancla || typeof ancla.texto !== 'string' || !ancla.texto.trim()) {
+        errores.push(`${donde}: estrategia ancla_relacional exige ancla.texto no vacío`);
+      }
+      // Regla del dueño #2 («EL MOLDE ES EL MAPA»): sin faro no hay búsqueda.
+      if (!esRectEnPagina(f.zona_busqueda)) {
+        errores.push(
+          `${donde}: estrategia ancla_relacional exige zona_busqueda (el faro) válida y dentro de la página — sin faro NO hay búsqueda (nunca global)`,
+        );
+      }
+      if (f.relacion !== undefined && !esRelacionValida(f.relacion)) {
+        errores.push(
+          `${donde}: relacion inválida (direccion arriba|abajo|izquierda|derecha · que linea|caja|zona · orden mas_cercano|indice · indice >= 1)`,
+        );
       }
     }
   });
