@@ -75,13 +75,28 @@ export async function ocrTextoUnico(
   opts?: { whitelist?: string; psm?: '6' | '7' | '8' | '13' },
 ): Promise<{ texto: string; conf: number | null }> {
   const worker = await getWorker();
-  if (opts?.psm || opts?.whitelist !== undefined) {
+  // BUG CORREGIDO (worker compartido): el PSM/whitelist fijado para el recorte
+  // quedaba vigente para toda la sesión — el OCR de PÁGINA COMPLETA de la
+  // PÁGINA SIGUIENTE del motor universal corría en modo "una línea" (psm 7)
+  // y todas sus anclas fallaban (también afectaba moldes multipágina E-14).
+  // tesseract.js v7 no expone getParameters, así que la restauración es
+  // explícita al estado que el OCR de página completa espera: PSM AUTO ('3',
+  // el default de createWorker) sin whitelist — el mismo valor que asumen
+  // ocrLines (aquí) y el OCR de bandas de E-14 (lib/e14/ocr/tesseract.ts).
+  const cambio = Boolean(opts?.psm || opts?.whitelist !== undefined);
+  if (cambio) {
     await worker.setParameters({
       tessedit_pageseg_mode: opts?.psm ?? '7',
       tessedit_char_whitelist: opts?.whitelist ?? '',
     });
   }
   const ret = await worker.recognize(canvas, {}, { text: true, blocks: false });
+  if (cambio) {
+    await worker.setParameters({
+      tessedit_pageseg_mode: '3',
+      tessedit_char_whitelist: '',
+    });
+  }
   const conf = (ret.data as unknown as { confidence?: number }).confidence;
   return {
     texto: (ret.data.text ?? '').trim(),

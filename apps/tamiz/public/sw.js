@@ -30,7 +30,9 @@ self.addEventListener('install', (event) => {
     (async () => {
       const cache = await caches.open(CACHE_SHELL);
       await Promise.allSettled(
-        ['/', '/offline.html'].map((url) => cache.add(new Request(url, { cache: 'reload' }))),
+        // '/generico/' incluido: sin esto, una recarga offline del modo genérico
+        // responde con `/` (la home E-14) en vez de la página capturada.
+        ['/', '/offline.html', '/generico/'].map((url) => cache.add(new Request(url, { cache: 'reload' }))),
       );
       await self.skipWaiting();
     })(),
