@@ -19,9 +19,11 @@
 // de documentos (esas viven en memoria/dataURLs de la app, sin URL cacheable).
 
 import { MODELOS_LAYOUT } from '@jg-stevan/layout-core';
+import { rutaPublica } from '@/lib/rutas';
 
-/** Clave canónica en Cache Storage (coincide con el patrón /models/ del SW). */
-const CLAVE_CACHE = '/models/pp_doclayout_plus_l.onnx';
+/** Clave en Cache Storage: la URL real servida (respeta la subruta del deploy)
+ *  y coincide con el patrón /models/ del SW. */
+const CLAVE_CACHE = rutaPublica('/models/pp_doclayout_plus_l.onnx');
 const CACHE_MODELOS = 'tamiz-modelos-v1';
 
 const MODELO_PLUS_L = MODELOS_LAYOUT.plusL;
@@ -29,7 +31,7 @@ const MODELO_PLUS_L = MODELOS_LAYOUT.plusL;
 /** URL de origen del binario: build-time env o la ruta canónica servida
  *  junto a la app (desarrollo: apps/tamiz/public/models/). */
 export function urlPlusL(): string {
-  return process.env.NEXT_PUBLIC_DLA_MODELO_PLUSL ?? '/models/pp_doclayout_plus_l.onnx';
+  return process.env.NEXT_PUBLIC_DLA_MODELO_PLUSL ?? rutaPublica('/models/pp_doclayout_plus_l.onnx');
 }
 
 /** Progreso de descarga para la barra de UI. total/pct null = el servidor no

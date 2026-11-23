@@ -1,11 +1,8 @@
-name: Desplegar Molde Studio a GitHub Pages
+name: Desplegar Molde Suite a GitHub Pages
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'apps/molde-studio/**'
-      - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -27,20 +24,32 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - name: Instalar dependencias
-        working-directory: apps/molde-studio
+      - name: Instalar dependencias (workspace raíz)
         run: bun install --frozen-lockfile
-      - name: Compilar version estatica (sin backend, datos en IndexedDB)
+      - name: Generar cliente Prisma — apps/molde-studio
+        working-directory: apps/molde-studio
+        run: bun run db:generate
+      - name: Compilar Molde Studio (/molde-suite/studio/)
         working-directory: apps/molde-studio
         run: |
           rm -rf src/app/api
-          NEXT_PUBLIC_STATIC=1 NEXT_PUBLIC_BASE_PATH=/molde-suite bun run build:static
+          NEXT_PUBLIC_STATIC=1 NEXT_PUBLIC_BASE_PATH=/molde-suite/studio bun run build:static
+      - name: Compilar Tamiz (/molde-suite/tamiz/)
+        working-directory: apps/tamiz
+        run: BUILD_STATIC=1 NEXT_PUBLIC_BASE_PATH=/molde-suite/tamiz bun run build
+      - name: Armar sitio (hub + dos apps)
+        run: |
+          mkdir -p _site/studio _site/tamiz
+          cp -R apps/molde-studio/out/. _site/studio/
+          cp -R apps/tamiz/out/. _site/tamiz/
+          cp index.html _site/index.html
+          touch _site/.nojekyll
       - name: Configurar Pages
         uses: actions/configure-pages@v5
       - name: Subir artefacto
         uses: actions/upload-pages-artifact@v3
         with:
-          path: apps/molde-studio/out
+          path: _site
   deploy:
     runs-on: ubuntu-latest
     needs: build
