@@ -19,12 +19,15 @@ const isStatic = process.env.BUILD_STATIC === "1";
 
 // Los paquetes de workspace leen process.env en runtime; Turbopack no los
 // inlinea dentro de node_modules del workspace. `env` los fija en build.
+// NEXT_PUBLIC_BASE_PATH entra aquí para que el código de workspace (y el
+// propio SW/manifest) resuelva assets bajo subruta (GitHub Pages).
 const dlaEnv = Object.fromEntries(
   [
     "NEXT_PUBLIC_DLA_MODELO_LAYOUT",
     "NEXT_PUBLIC_DLA_MODELO_CASILLAS",
     "NEXT_PUBLIC_DLA_MODELO_MANUSCRITO",
     "NEXT_PUBLIC_DLA_MODELO_PLUSL",
+    "NEXT_PUBLIC_BASE_PATH",
   ].flatMap((k) => (process.env[k] ? [[k, process.env[k] as string]] : [])),
 ) as Record<string, string>;
 
@@ -80,6 +83,9 @@ const nextConfig: NextConfig = {
     ? {
         output: "export" as const,
         trailingSlash: true,
+        // Subruta del build estático (GitHub Pages: /molde-suite/tamiz).
+        // Sin la variable (Cloudflare, raíz del dominio) queda en undefined.
+        basePath: process.env.NEXT_PUBLIC_BASE_PATH || undefined,
       }
     : { output: "standalone" as const }),
   allowedDevOrigins: [

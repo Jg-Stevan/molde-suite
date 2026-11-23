@@ -20,8 +20,19 @@
 
 const CACHE_SHELL = 'tamiz-shell-v1';
 const CACHE_MODELOS = 'tamiz-modelos-v1';
-/** Nombres de cache VIVOS — todo lo demás se borra en activate. */
+/** Nombres de cache VIVOS — los caches viejos de Tamiz se borran en activate. */
 const CACHES_VIVOS = [CACHE_SHELL, CACHE_MODELOS];
+
+/** Base del despliegue derivada del scope real del SW: '' en la raíz
+ *  (Cloudflare/local) o '/molde-suite/tamiz' en la subruta de GitHub Pages.
+ *  El SW no pasa por el router de Next: sus rutas se prefijan aquí. */
+function rutaBase() {
+  return new URL(self.registration.scope).pathname.replace(/\/+$/, '');
+}
+
+function rutaPublica(ruta) {
+  return `${rutaBase()}${ruta}`;
+}
 
 /** Instalación: respaldo mínimo del shell. allSettled para que un 404
  *  momentáneo no bloquee la instalación del SW. */
@@ -32,7 +43,9 @@ self.addEventListener('install', (event) => {
       await Promise.allSettled(
         // '/generico/' incluido: sin esto, una recarga offline del modo genérico
         // responde con `/` (la home E-14) en vez de la página capturada.
-        ['/', '/offline.html', '/generico/'].map((url) => cache.add(new Request(url, { cache: 'reload' }))),
+        ['/', '/offline.html', '/generico/'].map((url) =>
+          cache.add(new Request(rutaPublica(url), { cache: 'reload' })),
+        ),
       );
       await self.skipWaiting();
     })(),
@@ -46,7 +59,8 @@ self.addEventListener('activate', (event) => {
       const nombres = await caches.keys();
       await Promise.all(
         nombres
-          .filter((n) => !CACHES_VIVOS.includes(n))
+          // Solo caches de Tamiz: el origen de GitHub Pages aloja más sitios.
+          .filter((n) => n.startsWith('tamiz-') && !CACHES_VIVOS.includes(n))
           .map((n) => caches.delete(n)),
       );
       await self.clients.claim();
@@ -75,8 +89,8 @@ function esCdnTesseract(url) {
  *  y WebAssembly (ONNX Runtime — chunk local o CDN). */
 function esEstatico(url) {
   return (
-    url.pathname.startsWith('/_next/static/') ||
-    url.pathname.startsWith('/tesseract/') ||
+    url.pathname.startsWith(rutaPublica('/_next/static/')) ||
+    url.pathname.startsWith(rutaPublica('/tesseract/')) ||
     esCdnTesseract(url) ||
     /\.(woff2?|ttf|otf|wasm)$/i.test(url.pathname)
   );
@@ -85,7 +99,7 @@ function esEstatico(url) {
 /** Modelos de layout: archivos versionados bajo /models/ (inmutables por
  *  convención — el nombre lleva el contenido; el sha256 se verifica en la app). */
 function esModelo(url) {
-  return url.pathname.startsWith('/models/');
+  return url.pathname.startsWith(rutaPublica('/models/'));
 }
 
 // ── Estrategias ────────────────────────────────────────────────────────────
@@ -99,8 +113,8 @@ async function manejarNavegacion(request) {
     const cache = await caches.open(CACHE_SHELL);
     return (
       (await cache.match(request)) ||
-      (await cache.match('/')) ||
-      (await cache.match('/offline.html')) ||
+      (await cache.match(rutaPublica('/'))) ||
+      (await cache.match(rutaPublica('/offline.html'))) ||
       new Response('Sin conexión — Tamiz ya está en tu celular.', {
         status: 503,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -137,7 +151,7 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   if (request.headers.has('range')) return; // rango (video/partial): passthrough
   const url = new URL(request.url);
-  if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname.startsWith(rutaPublica('/api/'))) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(manejarNavegacion(request));

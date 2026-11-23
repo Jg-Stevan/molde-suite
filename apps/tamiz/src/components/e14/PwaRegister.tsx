@@ -4,6 +4,7 @@
 // desplegado queda en silencio (no rompe el arranque).
 
 import { useEffect, useState } from 'react';
+import { rutaPublica } from '@/lib/rutas';
 
 export function PwaRegister() {
   const [actualizacion, setActualizacion] = useState(false);
@@ -11,7 +12,7 @@ export function PwaRegister() {
     if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
     let registro: ServiceWorkerRegistration | undefined;
     navigator.serviceWorker
-      .register('/sw.js')
+      .register(rutaPublica('/sw.js'), { scope: rutaPublica('/') })
       .then((r) => {
         registro = r;
         r.addEventListener('updatefound', () => setActualizacion(true));

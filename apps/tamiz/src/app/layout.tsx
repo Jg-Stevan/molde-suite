@@ -5,6 +5,7 @@ import "./globals.css";
 // LCP/CLS — IIFE JS plano (sin imports) que corre en <head> ANTES de
 // hidratar (requisito del plan: instalación temprana).
 import { SCRIPT_LCP_CLS } from "@/lib/e14/obs/lcp-cls";
+import { rutaPublica } from "@/lib/rutas";
 
 /** Estructura (SPEC-e14-redesign-stitch §1): Inter (TODO el texto,
  *  400–800) + JetBrains Mono (scores, chips, códigos, horas, banner).
@@ -35,11 +36,11 @@ export const metadata: Metadata = {
   // (public/sw.js). theme-color vive en `viewport.themeColor` (Next lo emite
   // como <meta name="theme-color">). Iconos SVG vectoriales del tamiz "T"
   // (sizes "any" — el navegador escala; sin PNG fantasma de 404).
-  manifest: "/manifest.webmanifest",
+  manifest: rutaPublica("/manifest.webmanifest"),
   icons: {
     icon: [
-      { url: "/icon-192.svg", type: "image/svg+xml", sizes: "any" },
-      { url: "/icon-512.svg", type: "image/svg+xml", sizes: "any" },
+      { url: rutaPublica("/icon-192.svg"), type: "image/svg+xml", sizes: "any" },
+      { url: rutaPublica("/icon-512.svg"), type: "image/svg+xml", sizes: "any" },
     ],
   },
   appleWebApp: {
