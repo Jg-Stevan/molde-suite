@@ -11,6 +11,15 @@ El proyecto es una **plataforma genérica de validación documental**, no una ap
 | **Molde Studio** | `apps/molde-studio/` | Editor de moldes y plantillas de documentos: diseño visual sobre documentos escaneados, calibración asistida por OCR y generación del molde `.json` que describe cada tipo de documento. App completa (Next.js 16 + Prisma + SQLite). |
 | **Tamiz** | `apps/tamiz/` | El **digitalizador automático**: escaneo inmersivo (cámara / importación / simulación), análisis con detección de bordes, calidad y OCR, verificación documental contra el molde e historial de escaneos con estados **ÓPTIMA / ADVERTENCIA / RECHAZADA**. Ejecutable (decisión D8-B: núcleo mínimo `packages/scanner-core` + módulos de runtime propios). |
 
+## Apps publicadas (GitHub Pages)
+
+- **Hub:** https://jg-stevan.github.io/molde-suite/
+- **Molde Studio:** https://jg-stevan.github.io/molde-suite/studio/
+- **Tamiz:** https://jg-stevan.github.io/molde-suite/tamiz/
+- **Tamiz — modo genérico:** https://jg-stevan.github.io/molde-suite/tamiz/generico/
+
+El despliegue lo hace [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) en cada push a `main`: compila las dos apps y publica el hub con los enlaces.
+
 ## Flujo entre las apps
 
 El molde `.json` es el contrato entre las dos aplicaciones:
