@@ -5,6 +5,7 @@ import reciboPago from './moldes/recibo_pago.molde.json';
 import e22Resolucion from './moldes/e22_resolucion.molde.json';
 import e24Cuadro from './moldes/e24_cuadro.molde.json';
 import e26ActaParcial from './moldes/e26_acta_parcial.molde.json';
+import e14Acta from './moldes/e14_acta.molde.json';
 
 /**
  * Catálogo empaquetado: los moldes viajan en el build, así el celular no
@@ -17,6 +18,12 @@ const CANDIDATOS: unknown[] = [
   e22Resolucion,
   e24Cuadro,
   e26ActaParcial,
+  // Acta E-14 Exterior (Cónsul/Embajador · Transmisión): el caso de referencia
+  // del proyecto, ahora también en el catálogo universal para que el modo
+  // genérico la valide con el mismo motor que los demás documentos. La copia
+  // del Studio (templates/e14) conserva paginasRef; esta va sin ellas,
+  // consistente con los otros moldes empaquetados.
+  e14Acta,
 ];
 
 export const PROBLEMAS_MOLDES: string[] = [];
