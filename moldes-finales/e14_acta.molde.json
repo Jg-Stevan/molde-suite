@@ -1,0 +1,1018 @@
+{
+  "tipo": "universal",
+  "version": "3.0.0",
+  "nombre": "Acta E-14 Exterior (Cónsul/Embajador · Transmisión)",
+  "descripcion": "Molde del Acta E-14 de escrutinio exterior (variantes CÓNSUL/EMBAJADOR y TRANSMISIÓN) calibrado sobre el escaneo de referencia (Nairobi 515). Datos variables: Divipol completo, totales de nivelación, votación de candidatos, votos en blanco/nulos/no marcados, suma total, constancias, recuento y firmas de los 4 jurados. Obligatorios: Divipol completo (consulado, país, zona, puesto, mesa, lugar), lectura manuscrita de la SUMA TOTAL y firma del jurado 1. Estrategia ancla_relativa + x_absoluto para adaptarse automáticamente a escaneos y fotos (con fallback de anclas orden-insensible para fotos rotadas).",
+  "documento": "acta_e14",
+  "idioma": "es",
+  "campos": [
+    {
+      "id": "divipol_consulado",
+      "etiqueta": "Divipol · Consulado",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.198,
+        "y": 0.0005,
+        "w": 0.42,
+        "h": 0.011
+      },
+      "ancla": {
+        "texto": "CONSULADO",
+        "rect": {
+          "x": 0.062,
+          "y": 0.15092470277410833,
+          "w": 0.187,
+          "h": 0.00726552179656539
+        }
+      },
+      "umbral": 0.02,
+      "patron": "\\d{2}",
+      "realce": true,
+      "obligatorio": true,
+      "nota": "Valor impreso tras \"CONSULADO:\" (código de 2 dígitos + nombre). Zona relativa al ancla para adaptarse a fotos."
+    },
+    {
+      "id": "divipol_pais",
+      "etiqueta": "Divipol · País",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.08,
+        "y": 0.001,
+        "w": 0.36,
+        "h": 0.011
+      },
+      "ancla": {
+        "texto": "PAIS",
+        "rect": {
+          "x": 0.062,
+          "y": 0.16281373844121533,
+          "w": 0.069,
+          "h": 0.009247027741083224
+        }
+      },
+      "ancla_respaldo": "PAÍS",
+      "umbral": 0.02,
+      "patron": "\\d{3}",
+      "realce": true,
+      "obligatorio": true,
+      "nota": "Código (3 dígitos) + nombre del país tras \"PAÍS:\"."
+    },
+    {
+      "id": "divipol_zona",
+      "etiqueta": "Divipol · Zona",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.097,
+        "y": 0.0005,
+        "w": 0.052,
+        "h": 0.009
+      },
+      "ancla": {
+        "texto": "ZONA",
+        "rect": {
+          "x": 0.06,
+          "y": 0.178665785997358,
+          "w": 0.085,
+          "h": 0.006935270805812417
+        }
+      },
+      "ancla_respaldo": "ZONA PUESTO",
+      "umbral": 0.02,
+      "patron": "\\d{2}",
+      "realce": true,
+      "obligatorio": true,
+      "nota": "Dos dígitos tras \"ZONA:\". El respaldo cubre el caso en que la foto fusiona \"ZONA: 05\" en una sola palabra."
+    },
+    {
+      "id": "divipol_puesto",
+      "etiqueta": "Divipol · Puesto",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.134,
+        "y": 0.0005,
+        "w": 0.05,
+        "h": 0.009
+      },
+      "ancla": {
+        "texto": "PUESTO",
+        "rect": {
+          "x": 0.207,
+          "y": 0.178335535006605,
+          "w": 0.122,
+          "h": 0.00726552179656539
+        }
+      },
+      "umbral": 0.02,
+      "patron": "\\d{2}",
+      "realce": true,
+      "obligatorio": true,
+      "nota": "Dos dígitos tras \"PUESTO:\" (misma línea que ZONA y MESA)."
+    },
+    {
+      "id": "divipol_mesa",
+      "etiqueta": "Divipol · Mesa",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.096,
+        "y": 0.0005,
+        "w": 0.13,
+        "h": 0.009
+      },
+      "ancla": {
+        "texto": "MESA",
+        "rect": {
+          "x": 0.391,
+          "y": 0.178335535006605,
+          "w": 0.085,
+          "h": 0.00726552179656539
+        }
+      },
+      "umbral": 0.02,
+      "patron": "\\d{3}",
+      "realce": true,
+      "obligatorio": true,
+      "nota": "Tres dígitos tras \"MESA:\". La proximidad al rect esperado evita confundirla con \"NIVELACIÓN DE LA MESA\"."
+    },
+    {
+      "id": "divipol_lugar",
+      "etiqueta": "Divipol · Lugar",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.113,
+        "y": 0.001,
+        "w": 0.62,
+        "h": 0.011
+      },
+      "ancla": {
+        "texto": "LUGAR",
+        "rect": {
+          "x": 0.062,
+          "y": 0.19187582562747688,
+          "w": 0.103,
+          "h": 0.007595772787318362
+        }
+      },
+      "umbral": 0.02,
+      "realce": true,
+      "obligatorio": true,
+      "nota": "Texto libre tras \"LUGAR:\" (ciudad / sede del consulado)."
+    },
+    {
+      "id": "suma_total",
+      "etiqueta": "Suma total de votos (manuscrito)",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.6865233708959101,
+        "y": -0.00985879131658064,
+        "w": 0.2370817032137136,
+        "h": 0.03479789061245426
+      },
+      "ancla": {
+        "texto": "SUMA TOTAL",
+        "rect": {
+          "x": 0.146,
+          "y": 0.8177014531043593,
+          "w": 0.199,
+          "h": 0.006935270805812417
+        }
+      },
+      "x_absoluto": true,
+      "umbral": 0.02,
+      "patron": "^[0-9]{1,3}( [0-9]{1,3}){0,2}$",
+      "whitelist": "0123456789",
+      "realce": true,
+      "obligatorio": true,
+      "nota": "OBLIGATORIO leer el número manuscrito de la SUMA TOTAL. Columna fija (x absoluto), alto offset del ancla. Realce + whitelist de dígitos."
+    },
+    {
+      "id": "total_votantes_e11",
+      "etiqueta": "Total votantes formulario E-11",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.6818485856056213,
+        "y": -0.01215828561963269,
+        "w": 0.2537805893841912,
+        "h": 0.033770478849952885
+      },
+      "ancla": {
+        "texto": "TOTAL VOTANTES",
+        "rect": {
+          "x": 0.124,
+          "y": 0.2645310435931308,
+          "w": 0.232,
+          "h": 0.0066050198150594455
+        }
+      },
+      "x_absoluto": true,
+      "umbral": 0.015,
+      "obligatorio": false,
+      "nota": "Opcional: presencia de tinta manuscrita en la fila."
+    },
+    {
+      "id": "total_votos_urna",
+      "etiqueta": "Total votos en la urna",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.6843702607996324,
+        "y": -0.008717884951417574,
+        "w": 0.25546121036305147,
+        "h": 0.027664994626984168
+      },
+      "ancla": {
+        "texto": "TOTAL VOTOS EN LA URNA",
+        "rect": {
+          "x": 0.187,
+          "y": 0.29689564068692204,
+          "w": 0.349,
+          "h": 0.0066050198150594455
+        }
+      },
+      "x_absoluto": true,
+      "umbral": 0.015,
+      "obligatorio": false
+    },
+    {
+      "id": "total_votos_incinerados",
+      "etiqueta": "Total votos incinerados",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.684368824678309,
+        "y": -0.00977065670549174,
+        "w": 0.25630223891314335,
+        "h": 0.026440311740445685
+      },
+      "ancla": {
+        "texto": "TOTAL VOTOS INCINERADOS",
+        "rect": {
+          "x": 0.177,
+          "y": 0.32926023778071334,
+          "w": 0.368,
+          "h": 0.006274768824306473
+        }
+      },
+      "x_absoluto": true,
+      "umbral": 0.012,
+      "obligatorio": false
+    },
+    {
+      "id": "votos_candidato_1",
+      "etiqueta": "Votación candidato 1 ( Iván Cepeda )",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.6919522179719484,
+        "y": -0.08263829787234044,
+        "w": 0.23945775451311993,
+        "h": 0.08287943262411349
+      },
+      "ancla": {
+        "texto": "IVAN CEPEDA CASTRO",
+        "rect": {
+          "x": 0.258,
+          "y": 0.5079260237780714,
+          "w": 0.263,
+          "h": 0.00891677675033025
+        }
+      },
+      "x_absoluto": true,
+      "umbral": 0.012,
+      "obligatorio": false,
+      "nota": "Columna de votación arriba del nombre; banda ajustada a los dígitos (evita dilución y el logo impreso)."
+    },
+    {
+      "id": "votos_candidato_2",
+      "etiqueta": "Votación candidato 2 ( Abelardo )",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.6899349036977385,
+        "y": -0.07931205673758865,
+        "w": 0.24362257566606269,
+        "h": 0.0715886524822695
+      },
+      "ancla": {
+        "texto": "ABELARDO DE LA ESPRIELLA",
+        "rect": {
+          "x": 0.217,
+          "y": 0.6647952443857331,
+          "w": 0.34,
+          "h": 0.00726552179656539
+        }
+      },
+      "x_absoluto": true,
+      "umbral": 0.012,
+      "obligatorio": false
+    },
+    {
+      "id": "votos_en_blanco",
+      "etiqueta": "Votos en blanco",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.6857699030296303,
+        "y": -0.011356446291300844,
+        "w": 0.2463123280316757,
+        "h": 0.03309219858156028
+      },
+      "ancla": {
+        "texto": "VOTOS EN BLANCO",
+        "rect": {
+          "x": 0.233,
+          "y": 0.7291941875825627,
+          "w": 0.248,
+          "h": 0.0066050198150594455
+        }
+      },
+      "x_absoluto": true,
+      "umbral": 0.015,
+      "obligatorio": false
+    },
+    {
+      "id": "votos_nulos",
+      "etiqueta": "Votos nulos",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.6857700825447957,
+        "y": -0.009801418439716313,
+        "w": 0.246312328032,
+        "h": 0.02825531914893617
+      },
+      "ancla": {
+        "texto": "VOTOS NULOS",
+        "rect": {
+          "x": 0.263,
+          "y": 0.7612285336856011,
+          "w": 0.186,
+          "h": 0.0066050198150594455
+        }
+      },
+      "x_absoluto": true,
+      "umbral": 0.012,
+      "obligatorio": false
+    },
+    {
+      "id": "votos_no_marcados",
+      "etiqueta": "Votos no marcados",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.6771800550298639,
+        "y": -0.010510638297872342,
+        "w": 0.2634923777574659,
+        "h": 0.026836879432624115
+      },
+      "ancla": {
+        "texto": "VOTOS NO MARCADOS",
+        "rect": {
+          "x": 0.209,
+          "y": 0.7919418758256275,
+          "w": 0.293,
+          "h": 0.0066050198150594455
+        }
+      },
+      "x_absoluto": true,
+      "umbral": 0.012,
+      "obligatorio": false
+    },
+    {
+      "id": "constancias_presencia",
+      "etiqueta": "Constancias de los jurados (manuscrito)",
+      "pagina": 2,
+      "tipo": "presencia",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.05,
+        "y": 0.01,
+        "w": 0.9,
+        "h": 0.39
+      },
+      "ancla": {
+        "texto": "CONSTANCIAS DE LOS JURADOS",
+        "rect": {
+          "x": 0.191,
+          "y": 0.2393,
+          "w": 0.42,
+          "h": 0.007
+        }
+      },
+      "x_absoluto": true,
+      "umbral": 0.0015,
+      "obligatorio": false,
+      "nota": "Presencia de escritura en la mitad superior del recuadro de constancias (donde se concentra el manuscrito)."
+    },
+    {
+      "id": "recuento_marca",
+      "etiqueta": "Marca recuento de votos (SÍ/NO)",
+      "pagina": 2,
+      "tipo": "checkbox",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.475,
+        "y": -0.004,
+        "w": 0.07,
+        "h": 0.018
+      },
+      "ancla": {
+        "texto": "HUBO RECUENTO",
+        "rect": {
+          "x": 0.054,
+          "y": 0.6715,
+          "w": 0.21,
+          "h": 0.0057
+        }
+      },
+      "ancla_respaldo": "RECUENTO",
+      "x_absoluto": true,
+      "umbral": 0.06,
+      "obligatorio": false,
+      "nota": "Celdas SÍ/NO. El respaldo 'RECUENTO' cubre fotos donde la línea se lee revuelta (SÍ NO RECUENTO DE VOTOS? ¿HUBO)."
+    },
+    {
+      "id": "firma_jurado_1",
+      "etiqueta": "Firma jurado 1",
+      "pagina": 2,
+      "tipo": "firma",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.145,
+        "y": 0.006,
+        "w": 0.452147506878733,
+        "h": 0.05
+      },
+      "ancla": {
+        "texto": "FIRMA JURADO 1",
+        "rect": {
+          "x": 0.178,
+          "y": 0.8376,
+          "w": 0.157,
+          "h": 0.005
+        }
+      },
+      "ancla_respaldo": "FIRMAS JURADO 1",
+      "desambiguadores": [
+        "JURADO 3"
+      ],
+      "umbral": 0.02,
+      "obligatorio": true,
+      "nota": "OBLIGATORIO: casilla izquierda superior; zona bajo la etiqueta impresa (evita que el texto impreso dispare el umbral). O2 (informe de verificación §6.3): exige «JURADO 3» (casilla inferior de la MISMA columna, a ~0.07 normalizado) cerca del hit — si el match difuso cayera en la banda de la derecha (J2), el contexto no aparece y el hit se rechaza (segunda defensa contra P1)."
+    },
+    {
+      "id": "firma_jurado_2",
+      "etiqueta": "Firma jurado 2",
+      "pagina": 2,
+      "tipo": "firma",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.14285249312126702,
+        "y": 0.006,
+        "w": 0.45,
+        "h": 0.05
+      },
+      "ancla": {
+        "texto": "FIRMA JURADO 2",
+        "rect": {
+          "x": 0.625,
+          "y": 0.8386,
+          "w": 0.159,
+          "h": 0.0046
+        }
+      },
+      "ancla_respaldo": "FIRMAS JURADO 2",
+      "desambiguadores": [
+        "JURADO 4"
+      ],
+      "umbral": 0.02,
+      "obligatorio": false,
+      "nota": "O2: exige «JURADO 4» (misma columna, fila inferior) cerca del hit."
+    },
+    {
+      "id": "firma_jurado_3",
+      "etiqueta": "Firma jurado 3",
+      "pagina": 2,
+      "tipo": "firma",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.145,
+        "y": 0.006,
+        "w": 0.45,
+        "h": 0.05
+      },
+      "ancla": {
+        "texto": "FIRMA JURADO 3",
+        "rect": {
+          "x": 0.177,
+          "y": 0.9059,
+          "w": 0.159,
+          "h": 0.0049
+        }
+      },
+      "ancla_respaldo": "FIRMAS JURADO 3",
+      "desambiguadores": [
+        "JURADO 1"
+      ],
+      "umbral": 0.02,
+      "obligatorio": false,
+      "nota": "O2 (lección Frankfurt J1≡J3): exige «JURADO 1» (misma columna, fila superior) cerca del hit — un hit de J3 que en realidad sea la etiqueta de J4 queda sin contexto y se rechaza."
+    },
+    {
+      "id": "firma_jurado_4",
+      "etiqueta": "Firma jurado 4",
+      "pagina": 2,
+      "tipo": "firma",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.145,
+        "y": 0.006,
+        "w": 0.452147506878733,
+        "h": 0.05
+      },
+      "ancla": {
+        "texto": "FIRMA JURADO 4",
+        "rect": {
+          "x": 0.624,
+          "y": 0.9062,
+          "w": 0.163,
+          "h": 0.0053
+        }
+      },
+      "ancla_respaldo": "FIRMAS JURADO 4",
+      "desambiguadores": [
+        "JURADO 2"
+      ],
+      "umbral": 0.02,
+      "obligatorio": false,
+      "nota": "Zona bajo la etiqueta: si la etiqueta no aparece por OCR cae al rect de referencia (el umbral de score evita snap-earse a la etiqueta del jurado 2). O2: exige «JURADO 2» (misma columna, fila superior) cerca del hit como segunda defensa."
+    }
+  ],
+  "meta": {
+    "precision": 82,
+    "docs": 3,
+    "unidadDocs": "actas de prueba",
+    "estado": "validando",
+    "validacion": "Nairobi (plantilla) + Barcelona (transmisión) + El Cairo (foto con flash)",
+    "etiquetas": {
+      "texto": "Divipol y suma",
+      "firma": "Firmas",
+      "presencia": "Presencia",
+      "checkbox": "OMR"
+    },
+    "etiquetaCampos": "Campos Mapeados",
+    "orden": 0
+  },
+  "layout": {
+    "version": 1,
+    "modeloPreferido": "s",
+    "reglas": [
+      {
+        "id": "layout_v2_1_1",
+        "etiqueta": "Pie 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.4065004156891411,
+          "y": 0.9767376184463501,
+          "w": 0.15026160245816383,
+          "h": 0.010947048664093018
+        },
+        "clases": [
+          "footer"
+        ],
+        "obligatorio": true
+      },
+      {
+        "id": "layout_v2_2_2",
+        "etiqueta": "Pie 2",
+        "pagina": 1,
+        "zona": {
+          "x": 0.024399486519175874,
+          "y": 0.978034257888794,
+          "w": 0.17879052133955195,
+          "h": 0.010260999202728271
+        },
+        "clases": [
+          "footer"
+        ],
+        "obligatorio": true
+      },
+      {
+        "id": "layout_v2_3_1",
+        "etiqueta": "Imagen 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.03777713888495631,
+          "y": 0,
+          "w": 0.9035492959107168,
+          "h": 0.8541638215538114
+        },
+        "clases": [
+          "image"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_4_1",
+        "etiqueta": "Texto 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.2533296664085614,
+          "y": 0.5064437389373779,
+          "w": 0.2687889866574982,
+          "h": 0.02549886703491211
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_5_3",
+        "etiqueta": "Pie 3",
+        "pagina": 1,
+        "zona": {
+          "x": 0.812375672470183,
+          "y": 0.9772412776947021,
+          "w": 0.12708106407752404,
+          "h": 0.011297464370727539
+        },
+        "clases": [
+          "footer"
+        ],
+        "obligatorio": true
+      },
+      {
+        "id": "layout_v2_6_2",
+        "etiqueta": "Texto 2",
+        "pagina": 1,
+        "zona": {
+          "x": 0.1876524976019323,
+          "y": 0.3701494634151459,
+          "w": 0.14332183296158468,
+          "h": 0.012156128883361816
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_7_3",
+        "etiqueta": "Cabecera 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.2821924333741679,
+          "y": 0.058252498507499695,
+          "w": 0.41264031765729015,
+          "h": 0.07515107095241547
+        },
+        "clases": [
+          "header",
+          "text",
+          "paragraph_title",
+          "doc_title",
+          "number"
+        ],
+        "obligatorio": true
+      },
+      {
+        "id": "layout_v2_8_4",
+        "etiqueta": "Texto 4",
+        "pagina": 1,
+        "zona": {
+          "x": 0.21620417487691845,
+          "y": 0.661828339099884,
+          "w": 0.34137879320855674,
+          "h": 0.02464425563812256
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_9_1",
+        "etiqueta": "paragraph_title 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.24456642647466717,
+          "y": 0.01616508699953556,
+          "w": 0.4905846048388961,
+          "h": 0.028051847591996193
+        },
+        "clases": [
+          "paragraph_title"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_a_2",
+        "etiqueta": "Imagen 2",
+        "pagina": 1,
+        "zona": {
+          "x": 0.04066711346778644,
+          "y": 0.05938722938299179,
+          "w": 0.2228163290305956,
+          "h": 0.07709189504384995
+        },
+        "clases": [
+          "image"
+        ],
+        "obligatorio": true
+      },
+      {
+        "id": "layout_v2_b_5",
+        "etiqueta": "Texto 5",
+        "pagina": 1,
+        "zona": {
+          "x": 0.46755128217166697,
+          "y": 0.3708072006702423,
+          "w": 0.16362762451171875,
+          "h": 0.010670125484466553
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_c_1",
+        "etiqueta": "doc_title 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.04668998718261719,
+          "y": 0.5594404339790344,
+          "w": 0.8853707511044113,
+          "h": 0.08252829313278198
+        },
+        "clases": [
+          "doc_title"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_d_6",
+        "etiqueta": "Texto 6",
+        "pagina": 1,
+        "zona": {
+          "x": 0.05768440743169841,
+          "y": 0.14761190116405487,
+          "w": 0.456406768257096,
+          "h": 0.016065046191215515
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_e_7",
+        "etiqueta": "Texto 7",
+        "pagina": 1,
+        "zona": {
+          "x": 0.7217963404909393,
+          "y": 0.09662524610757828,
+          "w": 0.18270738590398483,
+          "h": 0.03897906094789505
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_f_8",
+        "etiqueta": "Texto 8",
+        "pagina": 1,
+        "zona": {
+          "x": 0.04384657617151384,
+          "y": 0.7128020524978638,
+          "w": 0.8904209983419384,
+          "h": 0.12853044271469116
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_g_9",
+        "etiqueta": "Texto 9",
+        "pagina": 1,
+        "zona": {
+          "x": 0.7457267716086122,
+          "y": 0.37075191736221313,
+          "w": 0.12626778867823132,
+          "h": 0.011422187089920044
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_h_a",
+        "etiqueta": "Texto 10",
+        "pagina": 1,
+        "zona": {
+          "x": 0.0560052860418015,
+          "y": 0.17562924325466156,
+          "w": 0.4585121425651234,
+          "h": 0.02421686053276062
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_i_b",
+        "etiqueta": "Texto 11",
+        "pagina": 1,
+        "zona": {
+          "x": 0.05323718708647779,
+          "y": 0.1466885507106781,
+          "w": 0.6119376244629628,
+          "h": 0.055081307888031006
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_j_1",
+        "etiqueta": "Número 1",
+        "pagina": 1,
+        "zona": {
+          "x": 0.034921324464696396,
+          "y": 0.0141191016882658,
+          "w": 0.032520299832496415,
+          "h": 0.012229688465595245
+        },
+        "clases": [
+          "number"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_k_c",
+        "etiqueta": "Texto 12",
+        "pagina": 1,
+        "zona": {
+          "x": 0.2708582229162814,
+          "y": 0.213121697306633,
+          "w": 0.43174048429410133,
+          "h": 0.014565497636795044
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_l_d",
+        "etiqueta": "Texto 13",
+        "pagina": 1,
+        "zona": {
+          "x": 0.054117710632685376,
+          "y": 0.21440881490707397,
+          "w": 0.8850396286101031,
+          "h": 0.14126357436180115
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_m_e",
+        "etiqueta": "Texto 14",
+        "pagina": 1,
+        "zona": {
+          "x": 0.7389776466866217,
+          "y": 0.0663084015250206,
+          "w": 0.13670963084203958,
+          "h": 0.017115004360675812
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_n_f",
+        "etiqueta": "Texto 15",
+        "pagina": 1,
+        "zona": {
+          "x": 0.7228022468160595,
+          "y": 0.6138404011726379,
+          "w": 0.17699445916350776,
+          "h": 0.013980507850646973
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_o_g",
+        "etiqueta": "Texto 16",
+        "pagina": 1,
+        "zona": {
+          "x": 0.046342499862761184,
+          "y": 0.4049021601676941,
+          "w": 0.8754494345399755,
+          "h": 0.08258664608001709
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_p_h",
+        "etiqueta": "Texto 17",
+        "pagina": 1,
+        "zona": {
+          "x": 0.7429658788195729,
+          "y": 0.04792523384094238,
+          "w": 0.19374210876825998,
+          "h": 0.011691790074110031
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_q_3",
+        "etiqueta": "Imagen 3",
+        "pagina": 1,
+        "zona": {
+          "x": 0.6874379716681306,
+          "y": 0.2428104728460312,
+          "w": 0.22470986631495007,
+          "h": 0.10809962451457977
+        },
+        "clases": [
+          "image"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_r_i",
+        "etiqueta": "Texto 18",
+        "pagina": 1,
+        "zona": {
+          "x": 0.038010741126607864,
+          "y": 0.05611923709511757,
+          "w": 0.9097462349389431,
+          "h": 0.07465499266982079
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      },
+      {
+        "id": "layout_v2_s_j",
+        "etiqueta": "Texto 19",
+        "pagina": 1,
+        "zona": {
+          "x": 0.46020932169355583,
+          "y": 0.36995014548301697,
+          "w": 0.42283819977348375,
+          "h": 0.01503223180770874
+        },
+        "clases": [
+          "text"
+        ],
+        "obligatorio": false
+      }
+    ]
+  }
+}
