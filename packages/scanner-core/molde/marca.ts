@@ -17,7 +17,8 @@
 // integración en evaluarCampo (universal-engine) discipula el resultado:
 // tinta y forma en desacuerdo → `forma_discrepa` + requiere_revision.
 
-import { adaptiveThresholdInv, binarizeNoLines, connectedComponents, grayFromImageData, type BinImage } from './imageproc';
+import { adaptiveThresholdInv, binarizeNoLines, connectedComponents, grayFromImageData, inkRatio, type BinImage, type CompStats } from './imageproc';
+import type { RectNorm } from './universal-types';
 
 export type EstadoMarca = 'vacia' | 'marcada' | 'borrosa';
 
@@ -103,23 +104,17 @@ export function clasificarMarcaBin(bin: BinImage): MetricaMarca {
   }
   const { labels, stats } = connectedComponents(data, zw, zh);
 
-  // 1) Caja impresa hueca: componente dominante con tres señales simultáneas:
-  //    (a) cubre gran parte de la zona (lineal), (b) fill BAJO (borde delgado,
-  //    interior vacío) y (c) PERÍMETRO denso de tinta — un rectángulo impreso
-  //    tiene sus 4 bordes completos; un bloque de texto deja huecos entre
-  //    palabras y no pasa (a) ni (c). Triple condición = pocos falsos positivos.
+  // 1) Caja impresa hueca: componente dominante con tres señales simultáneas
+  //    (cobertura lineal, fill bajo, perímetro completo). FASE 2: el criterio
+  //    vive en `senalCajaHueca` (factorización — mismos umbrales, mismo orden,
+  //    mismo puntaje: comportamiento equivalente).
   let cajaIdx = -1;
   let mejorPuntaje = 0;
   for (let i = 0; i < stats.length; i++) {
-    const s = stats[i];
-    const cobertura = Math.max(s.w / zw, s.h / zh); // cobertura lineal dominante
-    const fill = s.area / Math.max(1, s.w * s.h);
-    if (cobertura < 0.45) continue; // la caja debe dominar la zona
-    if (fill > 0.4) continue; // un bloque sólido no es una caja hueca
-    if (densidadBorde(bin, labels, i, s) < 0.45) continue; // perímetro completo
-    const puntaje = cobertura * (1 - fill);
-    if (puntaje > mejorPuntaje) {
-      mejorPuntaje = puntaje;
+    const senal = senalCajaHueca(bin, labels, stats, i, zw, zh);
+    if (!senal) continue;
+    if (senal.puntaje > mejorPuntaje) {
+      mejorPuntaje = senal.puntaje;
       cajaIdx = i;
     }
   }
@@ -205,6 +200,142 @@ export function clasificarMarcaSobreCrop(crop: HTMLCanvasElement): MetricaMarca 
   const bin = binarizeNoLines(gray, crop.width, crop.height, 0.083);
   return clasificarMarcaBin(bin);
 }
+
+// ---- FASE 2 (v3.2.0 — faro): exposición de la detección de cajas huecas ----
+// La detección de recuadro impreso hueco YA EXISTÍA dentro de clasificarMarcaBin
+// (cobertura ≥ 0.45 · fill ≤ 0.4 · perímetro ≥ 0.45): aquí SOLO se factoriza y
+// se expone como lista — cero matemática nueva, la misma que funciona.
+
+export interface SenalCajaHueca {
+  cobertura: number;
+  fill: number;
+  densidadBorde: number;
+  /** Cobertura × (1 − fill) — el mismo puntaje que usa clasificarMarcaBin. */
+  puntaje: number;
+}
+
+/**
+ * ¿El componente `i` es una caja impresa hueca plausible? Triple condición
+ * extraída VERBATIM del bucle de clasificarMarcaBin: (a) cobertura lineal
+ * dominante ≥ 0.45, (b) fill ≤ 0.4 (borde delgado, interior vacío), (c)
+ * perímetro denso ≥ 0.45 (los 4 bordes completos — un bloque de texto deja
+ * huecos y no pasa). Devuelve las señales para el puntaje, null si no pasa.
+ */
+export function senalCajaHueca(
+  bin: BinImage,
+  labels: Int32Array,
+  stats: CompStats[],
+  i: number,
+  zw: number,
+  zh: number,
+): SenalCajaHueca | null {
+  const s = stats[i];
+  const cobertura = Math.max(s.w / zw, s.h / zh); // cobertura lineal dominante
+  const fill = s.area / Math.max(1, s.w * s.h);
+  if (cobertura < 0.45) return null; // la caja debe dominar la zona
+  if (fill > 0.4) return null; // un bloque sólido no es una caja hueca
+  const densidad = densidadBorde(bin, labels, i, s);
+  if (densidad < 0.45) return null; // perímetro completo
+  return { cobertura, fill, densidadBorde: densidad, puntaje: cobertura * (1 - fill) };
+}
+
+/**
+ * TODOS los recuadros impresos huecos de una imagen binaria (bbox en px,
+ * ordenados por puntaje descendente). Misma detección que ya funcionaba en
+ * clasificarMarcaBin — expuesta para la resolución relacional (que='caja').
+ */
+export function cajasHuecasEnBin(
+  bin: BinImage,
+): { x: number; y: number; w: number; h: number; puntaje: number }[] {
+  const { w, h, data } = bin;
+  if (w < 10 || h < 10) return [];
+  const { labels, stats } = connectedComponents(data, w, h);
+  const cajas: { x: number; y: number; w: number; h: number; puntaje: number }[] = [];
+  for (let i = 0; i < stats.length; i++) {
+    const senal = senalCajaHueca(bin, labels, stats, i, w, h);
+    if (!senal) continue;
+    cajas.push({ x: stats[i].x, y: stats[i].y, w: stats[i].w, h: stats[i].h, puntaje: senal.puntaje });
+  }
+  return cajas.sort((a, b) => b.puntaje - a.puntaje);
+}
+
+/**
+ * Recuadros huecos dentro de un CROP del canvas de página (gris →
+ * binarizeNoLines → componentes — el MISMO pre-proceso de
+ * clasificarMarcaSobreCrop, coherente con la forma del motor).
+ * Devuelve rects NORMALIZADOS respecto al canvas COMPLETO (0-1 de la página).
+ * `limite` (opcional, normalizado a la página) recorta el análisis al faro:
+ * fuera del faro no se busca nada (regla del dueño #2).
+ */
+export function detectarCajasHuecas(canvas: HTMLCanvasElement, limite?: RectNorm): RectNorm[] {
+  const W = canvas.width;
+  const H = canvas.height;
+  // Ventana de análisis: el faro cuando viene, o la página entera.
+  const vx0 = limite ? Math.max(0, Math.floor(limite.x * W)) : 0;
+  const vy0 = limite ? Math.max(0, Math.floor(limite.y * H)) : 0;
+  const vx1 = limite ? Math.min(W, Math.ceil((limite.x + limite.w) * W)) : W;
+  const vy1 = limite ? Math.min(H, Math.ceil((limite.y + limite.h) * H)) : H;
+  const vw = vx1 - vx0;
+  const vh = vy1 - vy0;
+  if (vw < 10 || vh < 10) return [];
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  const img = ctx.getImageData(vx0, vy0, vw, vh);
+  const gray = grayFromImageData(img);
+  const bin = binarizeNoLines(gray, vw, vh, 0.083);
+  const cajas = cajasHuecasEnBin(bin);
+  // Normalización al canvas completo (el desplazamiento de la ventana cuenta).
+  return cajas.map((c) => ({
+    x: (vx0 + c.x) / W,
+    y: (vy0 + c.y) / H,
+    w: c.w / W,
+    h: c.h / H,
+  }));
+}
+
+// ---- FASE 3 (v3.2.0 — endurecimiento de firmas): métricas de firma ----
+// Factorización de lo EXISTENTE (mismo pre-proceso de clasificarMarcaSobreCrop:
+// gris → binarizeNoLines → componentes conexos): densidad de tinta (la medida
+// que el motor ya usaba), NÚMERO DE TRAZOS (componentes conexos de tinta con
+// área significativa — una rúbrica real deja 1-6 componentes; el ruido del
+// papel queda fuera por el piso de área) y EXTENSIÓN (fracción del crop que
+// ocupa el bbox de los trazos — firma real extensa vs un punto).
+
+export interface MetricasFirma {
+  /** Densidad de tinta del crop (inkRatio — la MISMA medida que medirTinta). */
+  densidad: number;
+  /** Nº de componentes conexos de tinta con área significativa (trazos). */
+  trazos: number;
+  /** Fracción del área del crop ocupada por el bbox de los trazos (0-1). */
+  extension: number;
+}
+
+/**
+ * Métricas de firma sobre un CROP (factorización — cero matemática nueva).
+ * Piso de área por trazo: max(8 px, 0.02% del área) — elimina el grano del
+ * papel y el polvo del escáner sin tocar rúbricas finas. El bbox de trazos da
+ * la extensión (una firma real cruza el ancho de su banda; un punto no).
+ */
+export function metricasFirma(crop: HTMLCanvasElement): MetricasFirma {
+  const w = crop.width;
+  const h = crop.height;
+  if (w < 4 || h < 4) return { densidad: 0, trazos: 0, extension: 0 };
+  const ctx = crop.getContext('2d', { willReadFrequently: true })!;
+  const img = ctx.getImageData(0, 0, w, h);
+  const gray = grayFromImageData(img);
+  const bin = binarizeNoLines(gray, w, h, 0.083);
+  const densidad = inkRatio(bin, [0, 0, w, h]);
+  const { stats } = connectedComponents(bin.data, bin.w, bin.h);
+  const pisoArea = Math.max(8, Math.round(w * h * 0.0002));
+  const trazos = stats.filter((s) => s.area >= pisoArea);
+  if (!trazos.length) return { densidad, trazos: 0, extension: 0 };
+  const x0 = Math.min(...trazos.map((s) => s.x));
+  const y0 = Math.min(...trazos.map((s) => s.y));
+  const x1 = Math.max(...trazos.map((s) => s.x + s.w));
+  const y1 = Math.max(...trazos.map((s) => s.y + s.h));
+  const extension = ((x1 - x0) * (y1 - y0)) / (w * h);
+  return { densidad, trazos: trazos.length, extension };
+}
+
 
 // ---- Diferencial SÍ/NO (v2 B3 recuperado) ----
 

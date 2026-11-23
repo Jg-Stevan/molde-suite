@@ -31,3 +31,16 @@
 Termina una lección con `resultado: exitoso` en `lessons/<tipo>/` y añade la
 fila aquí con: plantilla, tipo, estado, receta (herramientas de MOLDE-SPEC §2
 que funcionaron) y límites (dónde NO probarla).
+
+## Nueva vía de entrada (v3.2.0): importador Chandra
+
+Los moldes NUEVOS ya no parten de cero: el humano entrega la SALIDA de Chandra
+(datalab-convert) del documento + su matriz de obligatorios, y el importador
+(Studio → Biblioteca → «Importar JSON / Chandra») la traduce a MoldeUniversal
+v3.2.0 con faros (`zona_busqueda`), relaciones (`relacion`), `grupo`/`orden` y
+obligatorios precargados. Esos moldes entran al índice con estado
+**validando** — solo pasan a «validada» cuando Verificación ≥ 98 contra TODAS
+las variantes (los pilotos actuales: `comprobante_entrega`, `recibo_pago`,
+imágenes `pag-01..03` en `apps/molde-studio/public/moldes-genericos/`).
+Reglas del dueño: sin botón generador, sin auto-calibración, sin búsqueda
+global — el faro manda (MOLDE-SPEC §7).

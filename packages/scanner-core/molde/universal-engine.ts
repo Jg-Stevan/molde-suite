@@ -24,12 +24,13 @@ import {
   inkRatio,
 } from './imageproc';
 import { canvasJpeg, proveedorOcr, type LineaOcr } from './ocr-tipos';
-import { clasificarMarcaSobreCrop, diferencialSiNo } from './marca';
+import { clasificarMarcaSobreCrop, diferencialSiNo, detectarCajasHuecas, metricasFirma } from './marca';
 import {
   hexTipo,
   type CampoUniversal,
   type MoldeUniversal,
   type RectNorm,
+  type RelacionAncla,
   type ResultadoCampoUniversal,
   type ResultadoPaginaUniversal,
   type ResultadoUniversal,
@@ -227,6 +228,19 @@ export interface RectResuelto {
    * cayó a respaldo/referencia. Bandera para la verificación forense.
    */
   desambiguacion_fallida?: boolean;
+  /**
+   * FASE 2 (v3.2.0 — faro): banderas del modo relacional para el forense:
+   * `ancla_fuera_de_zona` (el texto existe PERO fuera del faro — el mapa está
+   * mal puesto o el documento es otra variante), `relacion_sin_candidato`
+   * (nada en la dirección pedida → fallback de referencia).
+   */
+  banderasRelacionales?: string[];
+  /**
+   * FASE 2: empate ambiguo entre candidatos relacionales (2 a <10% de
+   * distancia) — el motor NUNCA escoge en silencio: `relacion_ambigua` y el
+   * campo termina en requiere_revision.
+   */
+  ambiguo?: boolean;
 }
 
 /**
@@ -274,15 +288,331 @@ function desambiguado(
   return true;
 }
 
+// ---- FASE 2 (v3.2.0 — corrección del dueño #2, «EL MOLDE ES EL MAPA») ----
+// Anclas RELACIONALES: el molde declara `zona_busqueda` (EL FARO) y la relación
+// con el contexto local. El motor busca el ancla SOLO dentro del faro y resuelve
+// la caja final DENTRO de ese contexto pequeño. Fuera del faro no hay nada —
+// jamás una búsqueda global (la palabra "firmante" de un párrafo legal no puede
+// robarle el hit a la etiqueta impresa "FIRMA DEL COMPRADOR").
+
+/** Margen de tolerancia del faro (fracción de página): los centros al borde
+ * (±1%) cuentan como dentro — tolera el edge del OCR y el pequeño desplazamiento
+ * de la etiqueta entre variantes del mismo documento. Exportado para el editor
+ * (previsualización del faro con EXACTAMENTE la misma regla que el motor). */
+export const FARO_MARGEN = 0.01;
+
+/** ¿El punto (cx, cy) cae dentro del rect (+ margen)? */
+function puntoEnRect(cx: number, cy: number, r: RectNorm, margen: number): boolean {
+  return (
+    cx >= r.x - margen && cx <= r.x + r.w + margen &&
+    cy >= r.y - margen && cy <= r.y + r.h + margen
+  );
+}
+
+/**
+ * EL FARO: filtra las líneas OCR al contexto declarado en el molde. Solo las
+ * líneas cuyo CENTRO cae dentro de `zona_busqueda` (+ FARO_MARGEN) existen para
+ * el campo. Exportado para que el editor filtre sus sugerencias de ancla con la
+ * MISMA regla que corre en producción.
+ */
+export function lineasEnFaro(
+  lineas: LineaOcr[],
+  canvasW: number,
+  canvasH: number,
+  faro: RectNorm,
+): LineaOcr[] {
+  return lineas.filter((l) => {
+    const cx = (l.bbox[0] + l.bbox[2]) / 2 / canvasW;
+    const cy = (l.bbox[1] + l.bbox[3]) / 2 / canvasH;
+    return puntoEnRect(cx, cy, faro, FARO_MARGEN);
+  });
+}
+
+/** Banda adyacente al ancla dentro del faro (relacion.que = 'zona'): del borde
+ * del ancla hacia el borde del faro en la dirección pedida. Geometría pura del
+ * MAPA declarado — no inventa nada que el molde no haya definido. */
+function bandaAdyacente(ancla: RectNorm, faro: RectNorm, direccion: RelacionAncla['direccion']): RectNorm {
+  switch (direccion) {
+    case 'arriba':
+      return { x: faro.x, y: faro.y, w: faro.w, h: Math.max(0.004, ancla.y - faro.y) };
+    case 'abajo':
+      return {
+        x: faro.x,
+        y: Math.min(0.999, ancla.y + ancla.h),
+        w: faro.w,
+        h: Math.max(0.004, faro.y + faro.h - (ancla.y + ancla.h)),
+      };
+    case 'izquierda':
+      return { x: faro.x, y: ancla.y, w: Math.max(0.004, ancla.x - faro.x), h: ancla.h };
+    case 'derecha':
+      return {
+        x: Math.min(0.999, ancla.x + ancla.w),
+        y: ancla.y,
+        w: Math.max(0.004, faro.x + faro.w - (ancla.x + ancla.w)),
+        h: ancla.h,
+      };
+  }
+}
+
+/** Distancia (gap entre caras) del candidato al ancla según la dirección, o
+ * null si su centro NO cae en el lado pedido (no es candidato válido). */
+function distanciaRelacional(
+  cand: RectNorm,
+  ancla: RectNorm,
+  direccion: RelacionAncla['direccion'],
+): number | null {
+  const cyCand = cand.y + cand.h / 2;
+  const cxCand = cand.x + cand.w / 2;
+  switch (direccion) {
+    case 'arriba':
+      if (cyCand >= ancla.y) return null;
+      return Math.max(0, ancla.y - (cand.y + cand.h));
+    case 'abajo':
+      if (cyCand <= ancla.y + ancla.h) return null;
+      return Math.max(0, cand.y - (ancla.y + ancla.h));
+    case 'izquierda':
+      if (cxCand >= ancla.x) return null;
+      return Math.max(0, ancla.x - (cand.x + cand.w));
+    case 'derecha':
+      if (cxCand <= ancla.x + ancla.w) return null;
+      return Math.max(0, cand.x - (ancla.x + ancla.w));
+  }
+}
+
+/** ¿Los dos rects se solapan? (para excluir la propia línea del ancla como
+ * candidata relacional). */
+function rectsSeSolapan(a: RectNorm, b: RectNorm): boolean {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+interface CandidatoRelacional {
+  rect: RectNorm;
+  distancia: number;
+}
+
+/** Umbral de empate ambiguo (10% de la distancia del elegido, con piso
+ * absoluto para distancias ~0). Exportado para la auditoría. */
+const UMBRAL_EMPATE_RELACIONAL = 0.1;
+
+/**
+ * Elección del candidato por `orden` + distancia. Honestidad (regla del
+ * dueño): un empate ambiguo NO se resuelve en silencio — se marca y el campo
+ * va a revisión. Con orden='indice' que excede los candidatos → null (honesto:
+ * no se toma "el último que haya").
+ */
+function elegirCandidatoRelacional(
+  candidatos: CandidatoRelacional[],
+  relacion: RelacionAncla,
+): { elegido: RectNorm; ambiguo: boolean } | null {
+  if (!candidatos.length) return null;
+  const ordenados = [...candidatos].sort((a, b) => a.distancia - b.distancia);
+  if (relacion.orden === 'indice') {
+    const idx = Math.max(1, Math.round(relacion.indice ?? 1)) - 1;
+    if (idx >= ordenados.length) return null; // el N-ésimo pedido NO existe
+    return { elegido: ordenados[idx].rect, ambiguo: false };
+  }
+  const elegido = ordenados[0];
+  const piso = elegido.distancia * (1 + UMBRAL_EMPATE_RELACIONAL) + 0.001;
+  const ambiguo = ordenados.length > 1 && ordenados[1].distancia <= piso;
+  return { elegido: elegido.rect, ambiguo };
+}
+
+/** Ajuste fino del candidato con `zona` (finura sobre el candidato, semántica
+ * del plan v2 §3.1): x/y = offset; w/h = tamaño FINAL — 0 = heredar el del
+ * candidato (así el molde puede solo ensanchar una banda sin recalcular todo). */
+function aplicarFinura(candidato: RectNorm, zona: RectNorm): RectNorm {
+  return {
+    x: candidato.x + zona.x,
+    y: candidato.y + zona.y,
+    w: zona.w > 0 ? zona.w : candidato.w,
+    h: zona.h > 0 ? zona.h : candidato.h,
+  };
+}
+
+/** Clamp del rect final a la página (defensivo — rectAPx ya tolera degenerados,
+ * pero el rect del overlay no debe salir del 0-1). */
+function clampRect(r: RectNorm): RectNorm {
+  const x = Math.min(Math.max(r.x, 0), 0.999);
+  const y = Math.min(Math.max(r.y, 0), 0.999);
+  return {
+    x,
+    y,
+    w: Math.min(Math.max(r.w, 0.002), 1 - x),
+    h: Math.min(Math.max(r.h, 0.002), 1 - y),
+  };
+}
+
+/**
+ * Resuelve el rect de un campo `ancla_relacional` (v3.2.0). Pipeline:
+ *
+ *  1. FILTRAR EL MUNDO POR EL FARO: solo líneas OCR con centro dentro de
+ *     `zona_busqueda` (+1%). El resto de la página NO existe para este campo.
+ *  2. BUSCAR EL ANCLA SOLO EN EL FARO: `buscarAncla()` (el fuzzy existente,
+ *     con penalización de dígitos y desambiguadores) sobre las líneas filtradas.
+ *     Si el texto aparece dos veces en el documento, el faro desambigua por
+ *     posición sin necesitar `desambiguadores`.
+ *  3. RESOLVER LA CAJA RELATIVA EN EL CONTEXTO PEQUEÑO: candidatos SIEMPRE
+ *     dentro del faro (linea = líneas OCR del faro; caja = recuadros huecos
+ *     impresos detectados con la detección existente de marca.ts; zona = banda
+ *     adyacente geométrica), elegidos por `direccion` + `orden` + distancia.
+ *  4. RECT FINAL = candidato + ajuste fino de `zona`.
+ *  5. HONESTIDAD: ancla no aparece DENTRO del faro → bandera
+ *     `ancla_fuera_de_zona` si aparece fuera (diagnóstico: el faro está mal
+ *     puesto o el documento es otra variante) → cae a `ancla.rect` de
+ *     referencia (fallback, nunca inventa). Sin candidato en la dirección
+ *     pedida → `relacion_sin_candidato` + fallback. Empate ambiguo →
+ *     `relacion_ambigua` → requiere_revision, jamás pick silencioso.
+ *
+ * `canvas` (opcional) solo se necesita con relacion.que = 'caja'.
+ */
+export function resolverRectRelacional(
+  campo: CampoUniversal,
+  lineas: LineaOcr[],
+  canvasW: number,
+  canvasH: number,
+  canvas?: HTMLCanvasElement,
+): RectResuelto | null {
+  const faro = campo.zona_busqueda;
+  const ancla = campo.ancla;
+  if (!faro || !ancla?.texto) return null; // sin faro no hay estrategia (validador lo rechaza antes)
+  const relacion: RelacionAncla = campo.relacion ?? { direccion: 'arriba', que: 'zona', orden: 'mas_cercano' };
+  const banderas: string[] = [];
+
+  // 1+2. Faro primero: la búsqueda nunca ve la página completa.
+  const lineasFaro = lineasEnFaro(lineas, canvasW, canvasH, faro);
+
+  /** Fallback de referencia (la posición guardada del escaneo de referencia).
+   *  Con que='zona' la banda ES computable desde la referencia (geometría del
+   *  mapa); con linea/caja sin candidato, semántica ancla_relativa (offset). */
+  const fallbackReferencia = (): RectResuelto | null => {
+    if (!ancla.rect) return null;
+    const base = relacion.que === 'zona'
+      ? bandaAdyacente(ancla.rect, faro, relacion.direccion)
+      : ancla.rect;
+    return {
+      rect: clampRect(aplicarFinura(base, campo.zona)),
+      fuente: 'referencia',
+      ancla_encontrada: hitUsado !== null,
+      banderasRelacionales: banderas.length ? [...banderas] : undefined,
+    };
+  };
+
+  let hitUsado: HitAncla | null = null;
+  let fuenteAncla: 'ancla' | 'respaldo' = 'ancla';
+  const hit = buscarAncla(ancla.texto, lineasFaro, canvasW, canvasH, ancla.rect);
+  if (hit && hit.score >= ANCLA_SCORE_MIN && desambiguado(campo, hit, lineasFaro, canvasW, canvasH)) {
+    hitUsado = hit;
+  } else if (campo.ancla_respaldo) {
+    const hit2 = buscarAncla(campo.ancla_respaldo, lineasFaro, canvasW, canvasH, ancla.rect);
+    if (hit2 && hit2.score >= ANCLA_SCORE_MIN && desambiguado(campo, hit2, lineasFaro, canvasW, canvasH)) {
+      hitUsado = hit2;
+      fuenteAncla = 'respaldo';
+      banderas.push('ancla_respaldo');
+    }
+  }
+
+  // Diagnóstico honesto: ¿el texto del ancla existe FUERA del faro? La búsqueda
+  // global NO resuelve el campo (regla del dueño), pero la bandera señala el
+  // faro mal puesto (o la variante equivocada) en el forense.
+  if (!hitUsado) {
+    const hitFuera = buscarAncla(ancla.texto, lineas, canvasW, canvasH, ancla.rect);
+    if (hitFuera && hitFuera.score >= ANCLA_SCORE_MIN) banderas.push('ancla_fuera_de_zona');
+    return fallbackReferencia();
+  }
+
+  const rectAncla = hitUsado.rect;
+  const score = hitUsado.score;
+
+  // 3. Candidatos SIEMPRE dentro del faro.
+  if (relacion.que === 'zona') {
+    // Banda adyacente: geometría pura del mapa (ancla → borde del faro).
+    const banda = bandaAdyacente(rectAncla, faro, relacion.direccion);
+    return {
+      rect: clampRect(aplicarFinura(banda, campo.zona)),
+      fuente: fuenteAncla,
+      ancla_encontrada: true,
+      score,
+      banderasRelacionales: banderas.length ? [...banderas] : undefined,
+    };
+  }
+
+  if (relacion.que === 'linea') {
+    const candidatos: CandidatoRelacional[] = [];
+    for (const l of lineasFaro) {
+      const r: RectNorm = {
+        x: l.bbox[0] / canvasW,
+        y: l.bbox[1] / canvasH,
+        w: (l.bbox[2] - l.bbox[0]) / canvasW,
+        h: (l.bbox[3] - l.bbox[1]) / canvasH,
+      };
+      if (rectsSeSolapan(r, rectAncla)) continue; // la propia línea del ancla no es candidata
+      const d = distanciaRelacional(r, rectAncla, relacion.direccion);
+      if (d === null) continue;
+      candidatos.push({ rect: r, distancia: d });
+    }
+    const sel = elegirCandidatoRelacional(candidatos, relacion);
+    if (!sel) {
+      banderas.push('relacion_sin_candidato');
+      return fallbackReferencia();
+    }
+    return {
+      rect: clampRect(aplicarFinura(sel.elegido, campo.zona)),
+      fuente: fuenteAncla,
+      ancla_encontrada: true,
+      score,
+      banderasRelacionales: banderas.length ? [...banderas] : undefined,
+      ambiguo: sel.ambiguo || undefined,
+    };
+  }
+
+  // relacion.que === 'caja': recuadros huecos del faro (detección existente de
+  // marca.ts, expuesta — cero detección nueva). Sin canvas no hay candidatos:
+  // degradación honesta a referencia (jamás se inventa la caja).
+  if (!canvas) {
+    banderas.push('relacion_sin_candidato');
+    return fallbackReferencia();
+  }
+  const cajas = detectarCajasHuecas(canvas, faro);
+  const candidatos: CandidatoRelacional[] = [];
+  for (const c of cajas) {
+    if (rectsSeSolapan(c, rectAncla)) continue;
+    const d = distanciaRelacional(c, rectAncla, relacion.direccion);
+    if (d === null) continue;
+    candidatos.push({ rect: c, distancia: d });
+  }
+  const selCaja = elegirCandidatoRelacional(candidatos, relacion);
+  if (!selCaja) {
+    banderas.push('relacion_sin_candidato');
+    return fallbackReferencia();
+  }
+  return {
+    rect: clampRect(aplicarFinura(selCaja.elegido, campo.zona)),
+    fuente: fuenteAncla,
+    ancla_encontrada: true,
+    score,
+    banderasRelacionales: banderas.length ? [...banderas] : undefined,
+    ambiguo: selCaja.ambiguo || undefined,
+  };
+}
+
 /** Resuelve el rectángulo final de un campo sobre una página OCR-izada. */
 export function resolverRectCampo(
   campo: CampoUniversal,
   lineas: LineaOcr[],
   canvasW: number,
   canvasH: number,
+  /**
+   * FASE 2: canvas de la página (opcional) — solo lo consume la estrategia
+   * `ancla_relacional` con relacion.que = 'caja' (detección de recuadros).
+   * Los caminos existentes (zona_fija / ancla_relativa) NO lo tocan.
+   */
+  canvas?: HTMLCanvasElement,
 ): RectResuelto | null {
   if (campo.estrategia === 'zona_fija') {
     return { rect: { ...campo.zona }, fuente: 'fija', ancla_encontrada: true };
+  }
+  if (campo.estrategia === 'ancla_relacional') {
+    return resolverRectRelacional(campo, lineas, canvasW, canvasH, canvas);
   }
   const ancla = campo.ancla;
   if (!ancla?.texto) return null;
@@ -326,6 +656,18 @@ export function resolverRectCampo(
 /** Rect resuelto SIN OCR (para dibujar en el editor): usa la referencia guardada. */
 export function rectEditor(campo: CampoUniversal): RectNorm | null {
   if (campo.estrategia === 'zona_fija') return { ...campo.zona };
+  // FASE 2 (v3.2.0): el relacional dibuja la resolución DE REFERENCIA — con
+  // que='zona' la banda es geometría del mapa (ancla.rect → borde del faro);
+  // con linea/caja sin OCR, semántica de offset sobre ancla.rect (igual que
+  // ancla_relativa). Sin ancla.rect → null (el lienzo lo marca NO EVALUABLE).
+  if (campo.estrategia === 'ancla_relacional') {
+    if (!campo.ancla?.rect || !campo.zona_busqueda) return null;
+    const relacion = campo.relacion ?? { direccion: 'arriba' as const, que: 'zona' as const, orden: 'mas_cercano' as const };
+    const base = relacion.que === 'zona'
+      ? bandaAdyacente(campo.ancla.rect, campo.zona_busqueda, relacion.direccion)
+      : campo.ancla.rect;
+    return aplicarFinura(base, campo.zona);
+  }
   if (!campo.ancla?.rect) return campo.ancla?.texto ? null : { ...campo.zona };
   return {
     x: campo.x_absoluto ? campo.zona.x : campo.ancla.rect.x + campo.zona.x,
@@ -470,10 +812,12 @@ async function evaluarCampo(
     fuente: null,
     banderas: [],
   };
-  const resuelto = resolverRectCampo(campo, lineas, canvas.width, canvas.height);
+  const resuelto = resolverRectCampo(campo, lineas, canvas.width, canvas.height, canvas);
   if (!resuelto) {
     base.banderas.push('sin_rect');
-    if (campo.estrategia === 'ancla_relativa') base.banderas.push('ancla_no_encontrada');
+    if (campo.estrategia === 'ancla_relativa' || campo.estrategia === 'ancla_relacional') {
+      base.banderas.push('ancla_no_encontrada');
+    }
     return base;
   }
   base.rect = resuelto.rect;
@@ -482,6 +826,9 @@ async function evaluarCampo(
   if (resuelto.fuente === 'respaldo') base.banderas.push('ancla_respaldo');
   // Opción 1.2: el match textual existió pero el contexto exigido no apareció.
   if (resuelto.desambiguacion_fallida) base.banderas.push('desambiguacion_fallida');
+  // FASE 2 (v3.2.0 — faro): banderas del modo relacional + empate ambiguo.
+  if (resuelto.banderasRelacionales?.length) base.banderas.push(...resuelto.banderasRelacionales);
+  if (resuelto.ambiguo) base.banderas.push('relacion_ambigua');
 
   const rec = recortar(canvas, resuelto.rect);
   if (!rec) {
@@ -542,10 +889,47 @@ async function evaluarCampo(
       (diligenciado && marca.estado === 'vacia') || (!diligenciado && marca.estado === 'marcada');
     if (formaDiscrepa) base.banderas.push('forma_discrepa');
     if (enBandaAlta || enBandaBaja) base.banderas.push('umbral_al_borde');
-    if (enBandaAlta || enBandaBaja || formaDiscrepa) {
+
+    // ---- FASE 3 (v3.2.0 — endurecimiento de firmas) ----
+    // Métricas de firma = FACTORIZACIÓN de lo existente (metricasFirma en
+    // marca.ts, mismo pre-proceso que clasificarMarcaSobreCrop). Solo en
+    // campos con firma esperada (costo cero para presencia/checkbox). La
+    // señal es DIAGNÓSTICO, no veredicto: el estado sigue decidido por tinta
+    // + forma; las banderas nuevas solo endurecen (ok → revisión), jamás
+    // convierten un no_encontrado en ok.
+    const esFirma = campo.tipo === 'firma' || campo.firma_esperada === true;
+    let trazosInsuficientes = false;
+    if (esFirma) {
+      const mf = metricasFirma(rec.crop);
+      base.firma = { trazos: mf.trazos, densidad: mf.densidad, extension: mf.extension };
+      if (mf.trazos === 0) {
+        // Firma esperada sin NINGÚN trazo: la zona se resolvió pero no hay
+        // rúbrica (diagnóstico forense; si es obligatoria ya cae en
+        // obligatorios_faltantes por el estado).
+        base.banderas.push('firma_ausente');
+      }
+      if (campo.min_trazos !== undefined && mf.trazos < campo.min_trazos) {
+        // Exigencia declarada por el molde: menos trazos de los mínimos.
+        // Jamás un ok silencioso (mismo principio del empate relacional).
+        base.banderas.push('trazos_insuficientes');
+        trazosInsuficientes = true;
+      }
+    }
+
+    if (
+      enBandaAlta ||
+      enBandaBaja ||
+      formaDiscrepa ||
+      trazosInsuficientes
+    ) {
       base.estado = 'requiere_revision';
     } else {
       base.estado = diligenciado ? 'ok' : 'no_encontrado';
+    }
+    // FASE 2 (v3.2.0): empate relacional ambiguo — la tinta se midió sobre una
+    // zona que el motor NO escogió con certeza. Jamás permanece en 'ok'.
+    if (base.estado === 'ok' && base.banderas.includes('relacion_ambigua')) {
+      base.estado = 'requiere_revision';
     }
     return base;
   }
@@ -645,6 +1029,11 @@ async function evaluarCampo(
   }
   if (campo.htr && campo.obligatorio) {
     // HTR obligatorio: lectura disponible pero jamás definitiva.
+    base.estado = 'requiere_revision';
+    return base;
+  }
+  // FASE 2 (v3.2.0): empate relacional ambiguo — nunca un pick silencioso.
+  if (base.banderas.includes('relacion_ambigua')) {
     base.estado = 'requiere_revision';
     return base;
   }
@@ -858,7 +1247,11 @@ export async function evaluarDocumentoUniversal(
     // aparecen, se evalúa la página volteada y se marca
     // `rotacion_180_corregida`; si no, queda candidata a
     // `posible_pagina_equivocada` (se confirma si otra página sí ancló).
-    const conAnclas = camposPagina.filter((c) => c.estrategia === 'ancla_relativa' && c.ancla?.texto);
+    const conAnclas = camposPagina.filter(
+      (c) =>
+        (c.estrategia === 'ancla_relativa' || c.estrategia === 'ancla_relacional') &&
+        c.ancla?.texto,
+    );
     if (conAnclas.length > 0 && p >= 1 && !probarLineas(ocr.lines, conAnclas, canvas)) {
       const flipCanvas = voltear180(canvas);
       const tFlip = performance.now();
@@ -1017,16 +1410,23 @@ export async function alinearAnclas(
   const detalles: Record<string, 'ancla' | 'respaldo' | 'no'> = {};
   let encontradas = 0;
   const campos = molde.campos.map((c) => {
-    if (c.estrategia !== 'ancla_relativa' || !c.ancla?.texto) return c;
+    const esRelacional = c.estrategia === 'ancla_relacional';
+    if (c.estrategia !== 'ancla_relativa' && !esRelacional) return c;
+    if (!c.ancla?.texto) return c;
     if (pagina !== undefined && c.pagina !== pagina) return c;
-    const hit = buscarAncla(c.ancla.texto, lines, canvas.width, canvas.height, c.ancla.rect);
+    // FASE 2 (v3.2.0): el relacional alinea SOLO dentro de su faro — la
+    // alineación jamás viola el mapa (cero búsquedas globales, regla del dueño).
+    const lineasBusqueda = esRelacional && c.zona_busqueda
+      ? lineasEnFaro(lines, canvas.width, canvas.height, c.zona_busqueda)
+      : lines;
+    const hit = buscarAncla(c.ancla.texto, lineasBusqueda, canvas.width, canvas.height, c.ancla.rect);
     if (hit && hit.score >= ANCLA_SCORE_MIN) {
       encontradas++;
       detalles[c.id] = 'ancla';
       return { ...c, ancla: { ...c.ancla, rect: hit.rect } };
     }
     if (c.ancla_respaldo) {
-      const hit2 = buscarAncla(c.ancla_respaldo, lines, canvas.width, canvas.height, c.ancla.rect);
+      const hit2 = buscarAncla(c.ancla_respaldo, lineasBusqueda, canvas.width, canvas.height, c.ancla.rect);
       if (hit2 && hit2.score >= ANCLA_SCORE_MIN) {
         encontradas++;
         detalles[c.id] = 'respaldo';

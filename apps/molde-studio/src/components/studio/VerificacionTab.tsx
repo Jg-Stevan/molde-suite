@@ -42,6 +42,9 @@ import { useToast } from '@/hooks/use-toast';
 import { setOcrProgress } from '@/lib/ocr/ocr-client';
 import { renderArchivos, renderDocumento } from '@/lib/ocr/pdf-client';
 import { evaluarDocumentoUniversal } from '@/lib/molde/universal-engine';
+// FASE 1 (plan v2 — reutilización pura): normalización de páginas compuesta
+// con las funciones EXISTENTES de scanner-core (processImage con deskew ON).
+import { normalizarPagina } from '@/lib/molde/normalizar';
 import {
   UMBRAL_APROBADO,
   type CampoUniversal,
@@ -221,6 +224,40 @@ export default function VerificacionTab() {
   /** Corrida en re-ejecución (guarda anti doble-disparo entre efectos/handlers). */
   const reejecutandoRef = useRef<string | null>(null);
 
+  // ---- FASE 1 (plan v2 — deskew por reutilización) ----
+  // Normalizar imágenes antes de evaluar: el Studio calibra y prueba sobre la
+  // MISMA condición que Tamiz verá en campo (warp + deskew residuales de
+  // scanner-core). Kill-switch A/B (toggle, ON por defecto — §2.3 del plan).
+  const [normalizarActivo, setNormalizarActivo] = useState(true);
+  /** Ángulo deskew por página de la ÚLTIMA corrida ejecutada en esta sesión
+   *  (métrica informativa del chip forense — §2.1.4 del plan). */
+  const [deskewPorPagina, setDeskewPorPagina] = useState<(number | null)[] | null>(null);
+
+  /** FASE 1: normaliza cada página con el facade de reutilización. Con el
+   *  toggle apagado devuelve las páginas tal cual (A/B honesto, sin ocultar
+   *  que no se aplicó). */
+  const normalizarCanvases = useCallback(
+    async (canvases: HTMLCanvasElement[]): Promise<{ canvases: HTMLCanvasElement[]; deskew: (number | null)[] }> => {
+      if (!normalizarActivo) return { canvases, deskew: canvases.map(() => null) };
+      const salida: HTMLCanvasElement[] = [];
+      const deskew: (number | null)[] = [];
+      for (let i = 0; i < canvases.length; i++) {
+        setProgresoMsg(`Normalizando página ${i + 1}/${canvases.length} (deskew)...`);
+        try {
+          const n = await normalizarPagina(canvases[i]);
+          salida.push(n.canvas);
+          deskew.push(n.deskewGrados);
+        } catch {
+          // Degradación honesta: la página sin normalizar sigue a evaluación.
+          salida.push(canvases[i]);
+          deskew.push(null);
+        }
+      }
+      return { canvases: salida, deskew };
+    },
+    [normalizarActivo],
+  );
+
   // ---- Corridas desactualizadas vs versión guardada del molde ----
   // Cada corrida guardada es una INSTANTÁNEA: se evaluó con la versión del
   // molde vigente en el momento de correrse y sus rects quedaron guardados en
@@ -294,6 +331,34 @@ export default function VerificacionTab() {
   const datosVariables = campos.filter((c) => c.tipo === 'texto' && typeof c.valor === 'string' && c.valor.trim());
   const anclas = campos.filter((c) => c.rect && c.fuente);
   const recortes = campos.filter((c) => c.crop);
+
+  // ---- FASE 4 (v3.2.0 — interfaz táctica): Datos Variables AGRUPADOS por
+  // `grupo` del molde y ordenados por `orden` (Encabezado → Identificación →
+  // Cuerpo económico → Cierre/firmas). Cero lógica de negocio: SOLO
+  // presentación. Retrocompatible: moldes sin `grupo` → lista plana de
+  // siempre (null = sin agrupar).
+  const defsPorId = useMemo(
+    () => new Map((molde?.campos ?? []).map((c) => [c.id, c])),
+    [molde],
+  );
+  const datosVariablesAgrupados = useMemo(() => {
+    if (!datosVariables.some((c) => (defsPorId.get(c.id)?.grupo ?? '').trim() !== '')) return null;
+    const grupos = new Map<string, typeof datosVariables>();
+    for (const c of datosVariables) {
+      const g = (defsPorId.get(c.id)?.grupo ?? '').trim() || 'General';
+      if (!grupos.has(g)) grupos.set(g, []);
+      grupos.get(g)!.push(c);
+    }
+    return [...grupos.entries()].map(([grupo, items]) => ({
+      grupo,
+      items: [...items].sort((a, b) => {
+        const oa = defsPorId.get(a.id)?.orden ?? Number.MAX_SAFE_INTEGER;
+        const ob = defsPorId.get(b.id)?.orden ?? Number.MAX_SAFE_INTEGER;
+        if (oa !== ob) return oa - ob;
+        return a.etiqueta.localeCompare(b.etiqueta);
+      }),
+    }));
+  }, [datosVariables, defsPorId]);
 
   // Umbrales por campo (definidos en el molde) para las tarjetas forenses.
   // N-11: si la definición del campo no está disponible (molde cambió, corrida
@@ -436,9 +501,12 @@ export default function VerificacionTab() {
         setProgresoMsg(`Renderizando ${ordenados.length} páginas (${ordenados.map((f) => f.name).join(' → ')})...`);
         try {
           const doc = await renderArchivos(ordenados);
+          // FASE 1: normalizar (deskew) antes de evaluar — misma condición que Tamiz.
+          const norm = await normalizarCanvases(doc.canvases);
+          setDeskewPorPagina(norm.deskew);
           const nombreCorrida = `${ordenados[0].name} (+${ordenados.length - 1})`;
           const res = await evaluarDocumentoUniversal(
-            doc.canvases,
+            norm.canvases,
             molde,
             nombreCorrida,
             (msg) => setProgresoMsg(msg),
@@ -498,8 +566,11 @@ export default function VerificacionTab() {
           setProgresoMsg(`Renderizando ${f.name}...`);
           try {
             const doc = await renderDocumento(f);
+            // FASE 1: normalizar (deskew) antes de evaluar — misma condición que Tamiz.
+            const norm = await normalizarCanvases(doc.canvases);
+            setDeskewPorPagina(norm.deskew);
             const res = await evaluarDocumentoUniversal(
-              doc.canvases,
+              norm.canvases,
               molde,
               f.name,
               (msg) => setProgresoMsg(msg),
@@ -637,8 +708,11 @@ export default function VerificacionTab() {
         // F3 (telemetría): el render YA se medía en renderMsPorPagina pero se
         // descartaba — ahora llega a tiempos.render_ms del reporte.
         const renderMsTotal = doc.renderMsPorPagina.reduce((a, b) => a + b, 0);
+        // FASE 1: normalizar (deskew) antes de evaluar — misma condición que Tamiz.
+        const norm = await normalizarCanvases(doc.canvases);
+        setDeskewPorPagina(norm.deskew);
         const res = await evaluarDocumentoUniversal(
-          doc.canvases,
+          norm.canvases,
           molde,
           corrida.archivo,
           (msg) => setProgresoMsg(msg),
@@ -686,7 +760,7 @@ export default function VerificacionTab() {
         setProgresoMsg(null);
       }
     },
-    [molde, moldeId, procesando, toast, cargarPruebas, setPruebaId, cargar],
+    [molde, moldeId, procesando, toast, cargarPruebas, setPruebaId, cargar, normalizarCanvases],
   );
 
   // "Probar Plantilla" (Editor) pidió re-ejecución automática: cuando la
@@ -833,6 +907,27 @@ export default function VerificacionTab() {
                 Comparar Molde
               </span>
               <div className="inline-flex flex-wrap items-center gap-1 rounded-lg bg-surface-lowest p-0.5 dark:bg-slate-900">
+                {/* FASE 1 (plan v2): kill-switch A/B de la normalización — ON por defecto.
+                    Apagar = correr SIN deskew para comparar el efecto en el score. */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={normalizarActivo}
+                  title="FASE 1 — normalizar imágenes antes de evaluar (deskew por REUTILIZACIÓN de scanner-core: processImage + anguloDeskew/corregirDeskew). Apágalo para comparar A/B sin corrección."
+                  disabled={procesando}
+                  onClick={() => setNormalizarActivo((v) => !v)}
+                  className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2 font-mono text-[10px] font-bold transition-all disabled:opacity-50 ${
+                    normalizarActivo
+                      ? 'border-teal-600/60 bg-teal-950/40 text-teal-300'
+                      : 'border-outline-variant bg-transparent text-on-surface-variant'
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${normalizarActivo ? 'bg-teal-400' : 'bg-outline-variant'}`}
+                    aria-hidden
+                  />
+                  deskew {normalizarActivo ? 'ON' : 'OFF'}
+                </button>
                 <button
                   type="button"
                   title="Añadir foto de comparación (foto o PDF)"
@@ -905,6 +1000,21 @@ export default function VerificacionTab() {
                 <span className="px-1 font-mono text-[11px] font-bold text-on-surface">
                   Pág. {paginaIdx + 1} de {paginasVisibles.length}
                 </span>
+                {/* FASE 1 (plan v2 §2.1.4): chip informativo del ángulo aplicado por la
+                    normalización de esta página (métrica honesta — null = no se aplicó). */}
+                {(() => {
+                  const d = deskewPorPagina?.[paginaIdx] ?? null;
+                  if (d === null || d === undefined) return null;
+                  return (
+                    <span
+                      className="ml-1 rounded bg-teal-950/70 px-1.5 py-0.5 font-mono text-[10px] font-bold text-teal-300 ring-1 ring-teal-600/50"
+                      title="Ángulo corregido por la normalización FASE 1 (anguloDeskew + corregirDeskew de scanner-core reutilizados — cero matemática nueva)"
+                    >
+                      deskew {d > 0 ? '+' : ''}
+                      {d.toFixed(1)}°
+                    </span>
+                  );
+                })()}
                 <button
                   type="button"
                   aria-label="Página siguiente"
@@ -1293,6 +1403,36 @@ export default function VerificacionTab() {
                           <p className="px-2 py-6 text-center text-xs text-on-surface-variant">
                             Sin lecturas de texto en esta corrida.
                           </p>
+                        ) : datosVariablesAgrupados ? (
+                          // FASE 4 (v3.2.0): presentación táctica por GRUPO y
+                          // ORDEN del documento (derivados del import Chandra).
+                          datosVariablesAgrupados.map((g) => (
+                            <div key={g.grupo} className="py-1">
+                              <p className="px-2 pb-1 pt-2 font-mono text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">
+                                {g.grupo}
+                              </p>
+                              {g.items.map((c) => {
+                                // G-7: el resaltado lo decide el molde (campo
+                                // `destacado`), no una heurística de facturas.
+                                const destacado = destacados.has(c.id);
+                                return (
+                                  <div
+                                    key={`${c.pagina}-${c.id}`}
+                                    className="flex items-center justify-between gap-2 rounded px-2 py-1.5 transition-colors hover:bg-surface-container-low dark:hover:bg-slate-800/60"
+                                  >
+                                    <span className="text-xs font-medium text-on-surface-variant">{c.etiqueta}:</span>
+                                    <span
+                                      className={`truncate text-right font-mono text-xs font-bold ${
+                                        destacado ? 'text-brand dark:text-indigo-300' : 'text-on-surface'
+                                      }`}
+                                    >
+                                      {c.valor}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ))
                         ) : (
                           datosVariables.map((c) => {
                             // G-7: el resaltado lo decide el molde (campo

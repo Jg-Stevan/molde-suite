@@ -432,10 +432,13 @@ export default function LayoutAssistant({
         id: `layout_${c.id}`,
         etiqueta: c.etiqueta,
         pagina,
-        // ancla_relativa: la posición esperada vive en ancla.rect (si existe);
-        // zona_fija (o ancla sin rect): la zona del campo tal cual.
+        // ancla_relativa / ancla_relacional (v3.2.0): la posición esperada vive
+        // en ancla.rect (si existe); zona_fija (o ancla sin rect): la zona del
+        // campo tal cual.
         zona:
-          c.estrategia === 'ancla_relativa' && c.ancla?.rect ? c.ancla.rect : c.zona,
+          (c.estrategia === 'ancla_relativa' || c.estrategia === 'ancla_relacional') && c.ancla?.rect
+            ? c.ancla.rect
+            : c.zona,
         clases: ['text'],
         obligatorio: c.obligatorio,
         campoId: c.id,

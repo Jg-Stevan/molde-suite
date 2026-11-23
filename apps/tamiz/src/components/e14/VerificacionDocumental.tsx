@@ -288,12 +288,42 @@ export function VerificacionDocumental({
   const molde = acta.evaluacionMolde?.enrutado ? acta.evaluacionMolde : null;
   // Filas del motor universal → items del checklist (derivación barata; el
   // compilador de React memoiza automáticamente).
-  const obligatoriosMolde = (molde?.campos ?? [])
+  const filasMolde = useMemo(() => molde?.campos ?? [], [molde]);
+  const obligatoriosMolde = filasMolde
     .filter((c) => c.obligatorio)
     .map(itemDeFilaMolde);
-  const opcionalesMolde = (molde?.campos ?? [])
+  const opcionalesMolde = filasMolde
     .filter((c) => !c.obligatorio)
     .map(itemDeFilaMolde);
+
+  // ── FASE 4 (v3.2.0 — interfaz táctica): cuando el molde declara `grupo`
+  // (importador Chandra), el checklist se presenta AGRUPADO por sección de
+  // lectura (Encabezado → Identificación → Cuerpo → Cierre) y ordenado por
+  // `orden`, con los CRÍTICOS (obligatorios) arriba de cada grupo. Cero
+  // lógica de negocio: solo presentación. Retrocompatible: sin grupo en el
+  // molde → secciones Obligatorios/Opcionales de siempre.
+  const gruposTacticos = useMemo(() => {
+    if (!filasMolde.some((c) => (c.grupo ?? '').trim() !== '')) return null;
+    const map = new Map<string, ResumenMoldeCampo[]>();
+    for (const c of filasMolde) {
+      const g = (c.grupo ?? '').trim() || 'General';
+      if (!map.has(g)) map.set(g, []);
+      map.get(g)!.push(c);
+    }
+    return [...map.entries()].map(([titulo, camposGrupo]) => ({
+      titulo,
+      items: [...camposGrupo]
+        .sort((a, b) => {
+          // Críticos (obligatorios) arriba; luego por orden de lectura.
+          if (Boolean(a.obligatorio) !== Boolean(b.obligatorio)) return a.obligatorio ? -1 : 1;
+          const oa = a.orden ?? Number.MAX_SAFE_INTEGER;
+          const ob = b.orden ?? Number.MAX_SAFE_INTEGER;
+          if (oa !== ob) return oa - ob;
+          return a.etiqueta.localeCompare(b.etiqueta);
+        })
+        .map(itemDeFilaMolde),
+    }));
+  }, [filasMolde]);
 
   // ── P4 — SIN PLANTILLA: rechazada sin clasificación NI texto útil
   // (ILEGIBLE: ni código de barras ni cabecera detectados → nada que
@@ -422,25 +452,43 @@ export function VerificacionDocumental({
               <p className="font-mono text-[9.5px] font-bold tracking-widest text-slate-300 uppercase shrink-0">
                 Molde: {molde.moldeNombre.toUpperCase()} · {molde.ok}/{molde.total} campos ok
               </p>
-              {/* Campos Obligatorios del molde (P4: solo faltantes si el
-                  veredicto no está OK; badge con conteo completo). */}
-              {obligatoriosMolde.length > 0 && (
-                <SeccionVerificacion
-                  titulo="Campos Obligatorios"
-                  items={obligatoriosMolde}
-                  soloFaltantes={soloFaltantes}
-                />
-              )}
-              {/* Campos informativos del molde (desplegable, regla del mock). */}
-              {opcionalesMolde.length > 0 && (
-                <SeccionVerificacion
-                  titulo="Campos Opcionales"
-                  items={opcionalesMolde}
-                  soloFaltantes={soloFaltantes}
-                  desplegable
-                  abierta={opcionalesAbiertos}
-                  onToggle={() => setOverrideOpcionales(!opcionalesAbiertos)}
-                />
+              {gruposTacticos ? (
+                <>
+                  {/* FASE 4 (v3.2.0 — interfaz táctica): checklist AGRUPADO por
+                      `grupo`/`orden` del molde (importador Chandra), críticos
+                      arriba de cada grupo. */}
+                  {gruposTacticos.map((g) => (
+                    <SeccionVerificacion
+                      key={g.titulo}
+                      titulo={g.titulo}
+                      items={g.items}
+                      soloFaltantes={soloFaltantes}
+                    />
+                  ))}
+                </>
+              ) : (
+                <>
+                  {/* Campos Obligatorios del molde (P4: solo faltantes si el
+                      veredicto no está OK; badge con conteo completo). */}
+                  {obligatoriosMolde.length > 0 && (
+                    <SeccionVerificacion
+                      titulo="Campos Obligatorios"
+                      items={obligatoriosMolde}
+                      soloFaltantes={soloFaltantes}
+                    />
+                  )}
+                  {/* Campos informativos del molde (desplegable, regla del mock). */}
+                  {opcionalesMolde.length > 0 && (
+                    <SeccionVerificacion
+                      titulo="Campos Opcionales"
+                      items={opcionalesMolde}
+                      soloFaltantes={soloFaltantes}
+                      desplegable
+                      abierta={opcionalesAbiertos}
+                      onToggle={() => setOverrideOpcionales(!opcionalesAbiertos)}
+                    />
+                  )}
+                </>
               )}
             </>
           ) : sinPlantilla ? (

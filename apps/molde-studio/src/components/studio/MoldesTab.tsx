@@ -18,8 +18,10 @@ import {
   Pencil,
   Plus,
   ReceiptText,
+  ScanSearch,
   Search,
   Trash2,
+  TriangleAlert,
   Upload,
   X,
 } from 'lucide-react';
@@ -45,8 +47,24 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { importarMoldeE14, pareceMoldeE14 } from '@/lib/molde/importar-e14';
+// FASE 4 (plan v2 — corrección del dueño #3): importador de la SALIDA CHANDRA
+// (datalab-convert) → borrador de molde universal. El humano define el mapa,
+// la máquina lo ejecuta: aquí solo se traduce y se presenta para revisión.
+import {
+  importarChandra,
+  pareceChandra,
+  type ResultadoImportacionChandra,
+} from '@/lib/molde/importar-chandra';
 import { renderDocumento } from '@/lib/ocr/pdf-client';
 import {
   MOLDE_UNIVERSAL_VERSION,
@@ -159,6 +177,19 @@ export default function MoldesTab() {
   const [creando, setCreando] = useState(false);
   const [importando, setImportando] = useState(false);
   const fileJsonRef = useRef<HTMLInputElement>(null);
+  // ---- FASE 4: modo «Salida Chandra (datalab-convert)» del diálogo de
+  // importación — pegar/adjuntar el JSON → tabla de revisión (tipo,
+  // obligatorio, grupo, orden) → crear molde. Sin botón generador: el humano
+  // entrega el mapa y lo confirma aquí.
+  const [modoImport, setModoImport] = useState<'json' | 'chandra'>('json');
+  const [chandraParse, setChandraParse] = useState<ResultadoImportacionChandra | null>(null);
+  const [chandraPagina, setChandraPagina] = useState(0);
+  const [chandraTotalPaginas, setChandraTotalPaginas] = useState(1);
+  /** Incluir/excluir campos del borrador (tabla de revisión). */
+  const [chandraIncluir, setChandraIncluir] = useState<Record<string, boolean>>({});
+  /** Obligatoriedad AJUSTADA por el humano (precarga la matriz del dueño). */
+  const [chandraOblig, setChandraOblig] = useState<Record<string, boolean>>({});
+  const [chandraNombre, setChandraNombre] = useState('');
   // Creación enriquecida: referencia multipágina (PDF/imagen) y molde .json
   // opcional para prellenar campos desde el diálogo «Crear desde cero».
   const [refNuevo, setRefNuevo] = useState<{ paginas: { pagina: number; imagen: string }[]; nombre: string } | null>(null);
@@ -332,18 +363,56 @@ export default function MoldesTab() {
     reader.readAsText(f);
   }
 
+  /** FASE 4: analiza el JSON pegado/adjunto. Molde universal o E-14 → crea
+      directo (comportamiento de siempre). Salida Chandra → tabla de revisión
+      (el humano confirma obligatorios y campos antes de crear). */
+  function analizarImport(): boolean {
+    const texto = jsonImport.trim();
+    if (!texto) return false;
+    let obj: unknown;
+    try {
+      obj = JSON.parse(texto);
+    } catch {
+      toast({ title: 'JSON inválido', description: 'Revisa la sintaxis.', variant: 'destructive' });
+      return false;
+    }
+    // FASE 4 — detección de la SALIDA CHANDRA (datalab-convert): children con
+    // bloques Page. El humano confirma en la tabla antes de crear el molde.
+    if (pareceChandra(obj)) {
+      try {
+        const r = importarChandra(obj, { pagina: chandraPagina, nombre: chandraNombre.trim() || undefined });
+        setChandraParse(r);
+        setChandraTotalPaginas(Math.max(1, (obj as { children?: unknown[] }).children?.length ?? 1));
+        const incluir: Record<string, boolean> = {};
+        const oblig: Record<string, boolean> = {};
+        r.campos.forEach((c) => {
+          incluir[c.campo.id] = true;
+          oblig[c.campo.id] = c.campo.obligatorio === true;
+        });
+        setChandraIncluir(incluir);
+        setChandraOblig(oblig);
+        if (!chandraNombre.trim() && r.titulo) setChandraNombre(r.titulo);
+        const fallos = r.paginasFallidas.length ? ` · ${r.paginasFallidas.length} pág. con fallo de inferencia` : '';
+        toast({
+          title: `Chandra detectado — ${r.campos.length} campo(s) mapeado(s)${fallos}`,
+          description: 'Revisa la tabla (obligatorios precargados con tu matriz) y crea el molde.',
+        });
+        return false; // se queda en el diálogo para la revisión
+      } catch (e) {
+        toast({ title: 'No se pudo importar la salida Chandra', description: (e as Error).message, variant: 'destructive' });
+        return false;
+      }
+    }
+    return true; // formato de molde: sigue el flujo de creación directa
+  }
+
   async function importar() {
     const texto = jsonImport.trim();
     if (!texto) return;
     setImportando(true);
     try {
-      let obj: unknown;
-      try {
-        obj = JSON.parse(texto);
-      } catch {
-        toast({ title: 'JSON inválido', description: 'Revisa la sintaxis.', variant: 'destructive' });
-        return;
-      }
+      if (!analizarImport()) return;
+      const obj: unknown = JSON.parse(texto);
       let universal: MoldeUniversal | null = null;
       if (esMoldeUniversal(obj)) {
         universal = obj;
@@ -356,7 +425,7 @@ export default function MoldesTab() {
       } else {
         toast({
           title: 'Formato no reconocido',
-          description: 'Se espera un molde universal (tipo "universal") o un molde E-14 (motor + campos).',
+          description: 'Se espera un molde universal (tipo "universal"), un molde E-14, o la salida Chandra (datalab-convert).',
           variant: 'destructive',
         });
         return;
@@ -373,6 +442,69 @@ export default function MoldesTab() {
     } finally {
       setImportando(false);
     }
+  }
+
+  /** FASE 4: crea el molde desde la tabla de revisión Chandra (solo campos
+      incluidos; obligatoriedad ajustada por el humano). */
+  async function crearDesdeChandra() {
+    if (!chandraParse) return;
+    setImportando(true);
+    try {
+      const campos = chandraParse.campos
+        .filter((c) => chandraIncluir[c.campo.id] !== false)
+        .map((c) => ({ ...c.campo, obligatorio: chandraOblig[c.campo.id] ?? c.campo.obligatorio }));
+      if (!campos.length) {
+        toast({ title: 'Sin campos incluidos', description: 'Marca al menos un campo en la tabla de revisión.', variant: 'destructive' });
+        return;
+      }
+      const molde: MoldeUniversal = { ...chandraParse.molde, nombre: chandraNombre.trim() || chandraParse.molde.nombre, campos };
+      const r = await repo.crearMolde({ json: molde });
+      if (r.ok) {
+        await cargarMoldes();
+        setDialogImportar(false);
+        setChandraParse(null);
+        setJsonImport('');
+        setChandraNombre('');
+        toast({
+          title: 'Molde creado desde Chandra',
+          description: `${molde.nombre} · ${campos.length} campo(s). Valídalo contra TODAS las variantes en Verificación.`,
+        });
+      } else {
+        toast({ title: 'Error al crear el molde', description: r.error, variant: 'destructive' });
+      }
+    } finally {
+      setImportando(false);
+    }
+  }
+
+  /** FASE 4: cambia la PÁGINA (variante) de referencia y re-parsea el mismo
+      JSON — el mapa de la otra variante, sin volver a pegar nada. */
+  function reparsearChandra(pagina: number) {
+    setChandraPagina(pagina);
+    if (!jsonImport.trim()) return;
+    try {
+      const obj: unknown = JSON.parse(jsonImport);
+      if (!pareceChandra(obj)) return;
+      const r = importarChandra(obj, { pagina, nombre: chandraNombre.trim() || undefined });
+      setChandraParse(r);
+      const incluir: Record<string, boolean> = {};
+      const oblig: Record<string, boolean> = {};
+      r.campos.forEach((c) => {
+        incluir[c.campo.id] = true;
+        oblig[c.campo.id] = c.campo.obligatorio === true;
+      });
+      setChandraIncluir(incluir);
+      setChandraOblig(oblig);
+    } catch (e) {
+      toast({ title: 'No se pudo re-importar', description: (e as Error).message, variant: 'destructive' });
+    }
+  }
+
+  function abrirDialogoImportar() {
+    setDialogImportar(true);
+    setChandraParse(null);
+    setChandraPagina(0);
+    setModoImport('json');
   }
 
   async function duplicar(id: string) {
@@ -469,12 +601,12 @@ export default function MoldesTab() {
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button
-            onClick={() => setDialogImportar(true)}
+            onClick={() => abrirDialogoImportar()}
             className="gap-2 rounded-lg border border-slate-200 bg-surface-low px-3.5 py-2 text-xs font-medium text-on-surface shadow-2xs hover:bg-surface-high dark:border-slate-800 dark:bg-slate-800"
             variant="secondary"
           >
             <Upload className="h-4 w-4 text-brand dark:text-indigo-400" aria-hidden />
-            Importar JSON
+            Importar JSON / Chandra
           </Button>
           <Button onClick={() => setDialogNuevo(true)} className="gap-2 rounded-lg px-3.5 py-2 text-xs font-medium shadow-xs">
             <Plus className="h-4 w-4" aria-hidden />
@@ -854,38 +986,252 @@ export default function MoldesTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo: importar JSON */}
+      {/* Diálogo: importar JSON / SALIDA CHANDRA (FASE 4) */}
       <Dialog open={dialogImportar} onOpenChange={setDialogImportar}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Importar molde JSON</DialogTitle>
+            <DialogTitle>Importar molde</DialogTitle>
             <DialogDescription>
-              Acepta el formato universal v3 o el molde E-14 v2 anterior (se convierte automáticamente al
-              formato universal).
+              Acepta un molde universal v3, un molde E-14 v2 anterior (se convierte) o la
+              SALIDA CHANDRA (datalab-convert): el humano define el mapa, la máquina lo ejecuta.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <Input
-              ref={fileJsonRef}
-              type="file"
-              accept=".json,application/json"
-              onChange={leerArchivoJson}
-              aria-label="Cargar archivo JSON"
-            />
-            <Textarea
-              value={jsonImport}
-              onChange={(e) => setJsonImport(e.target.value)}
-              placeholder={'Pega aquí el JSON del molde: { "tipo": "universal", ... }'}
-              className="min-h-56 font-mono text-xs"
-            />
-          </div>
+
+          {!chandraParse ? (
+            <div className="space-y-3 py-2">
+              {/* Modo (cosmético — la detección por contenido manda) */}
+              <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-800 dark:bg-slate-900">
+                <button
+                  type="button"
+                  onClick={() => setModoImport('json')}
+                  aria-pressed={modoImport === 'json'}
+                  className={`inline-flex h-7 items-center gap-1.5 rounded-md px-3 font-mono text-[11px] font-bold transition ${
+                    modoImport === 'json'
+                      ? 'bg-slate-900 text-white dark:bg-slate-700'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <FileJson className="h-3.5 w-3.5" aria-hidden /> Molde JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModoImport('chandra')}
+                  aria-pressed={modoImport === 'chandra'}
+                  className={`inline-flex h-7 items-center gap-1.5 rounded-md px-3 font-mono text-[11px] font-bold transition ${
+                    modoImport === 'chandra'
+                      ? 'bg-slate-900 text-white dark:bg-slate-700'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <ScanSearch className="h-3.5 w-3.5" aria-hidden /> Salida Chandra (datalab-convert)
+                </button>
+              </div>
+              <Input
+                ref={fileJsonRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={leerArchivoJson}
+                aria-label="Cargar archivo JSON"
+              />
+              <Textarea
+                value={jsonImport}
+                onChange={(e) => setJsonImport(e.target.value)}
+                placeholder={
+                  modoImport === 'chandra'
+                    ? '{ "children": [ { "block_type": "Page", "bbox": [0,0,1624,2100], "children": [...] } ], "metadata": {...} }'
+                    : 'Pega aquí el JSON del molde: { "tipo": "universal", ... }'
+                }
+                className="min-h-56 font-mono text-xs"
+              />
+              {modoImport === 'chandra' ? (
+                <p className="rounded-lg border border-cyan-600/40 bg-cyan-950/20 px-3 py-2 text-[11px] leading-4 text-cyan-200">
+                  El importador traduce los bloques de Chandra a campos con FARO (zona_busqueda) + relación
+                  (banda arriba/abajo/derecha), agrupa por sección (grupo/orden) y PRECARGA los obligatorios con
+                  tu matriz. Revisa la tabla antes de crear — nada se inventa: los rects estimados se marcan.
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="scroll-fino flex max-h-[62vh] flex-col gap-3 overflow-y-auto pr-1">
+              {/* Avisos del importador (honestos — §8 del plan) */}
+              {chandraParse.avisos.map((a, i) => (
+                <p
+                  key={i}
+                  className={`flex items-start gap-1.5 rounded-lg border px-3 py-2 text-[11px] leading-4 ${
+                    a.nivel === 'warn'
+                      ? 'border-amber-500/40 bg-amber-950/20 text-amber-200'
+                      : 'border-slate-600/40 bg-slate-800/40 text-slate-300'
+                  }`}
+                >
+                  <TriangleAlert className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${a.nivel === 'warn' ? 'text-amber-400' : 'text-slate-400'}`} aria-hidden />
+                  {a.mensaje}
+                </p>
+              ))}
+
+              {/* Nombre + variante de referencia */}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="min-w-56 flex-1 space-y-1">
+                  <Label htmlFor="chandra-nombre">Nombre del molde</Label>
+                  <Input
+                    id="chandra-nombre"
+                    value={chandraNombre}
+                    onChange={(e) => setChandraNombre(e.target.value)}
+                    placeholder={chandraParse.titulo ?? 'Nombre del molde'}
+                  />
+                </div>
+                {chandraTotalPaginas > 1 ? (
+                  <div className="w-56 space-y-1">
+                    <Label>Variante de referencia (página)</Label>
+                    <Select
+                      value={String(chandraPagina)}
+                      onValueChange={(v) => reparsearChandra(parseInt(v, 10))}
+                    >
+                      <SelectTrigger aria-label="Página de referencia">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: chandraTotalPaginas }, (_, i) => (
+                          <SelectItem key={i} value={String(i)}>
+                            Página {i + 1} de {chandraTotalPaginas}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* TABLA DE REVISIÓN: campo · zona · tipo · grupo · orden · obligatorio */}
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-700 font-mono text-[10px] uppercase tracking-wider text-slate-400">
+                    <th className="py-1.5 pr-2 font-semibold">Incluir</th>
+                    <th className="py-1.5 pr-2 font-semibold">Campo</th>
+                    <th className="py-1.5 pr-2 font-semibold">Tipo</th>
+                    <th className="py-1.5 pr-2 font-semibold">Zona (faro x,y · rect)</th>
+                    <th className="py-1.5 pr-2 font-semibold">Grupo</th>
+                    <th className="py-1.5 pr-2 font-semibold">Ord.</th>
+                    <th className="py-1.5 pr-2 font-semibold">Nivel (matriz)</th>
+                    <th className="py-1.5 font-semibold">Obligatorio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chandraParse.campos.map((c) => {
+                    const incl = chandraIncluir[c.campo.id] !== false;
+                    return (
+                      <tr
+                        key={c.campo.id}
+                        className={`border-b border-slate-800/60 ${incl ? '' : 'opacity-40'}`}
+                      >
+                        <td className="py-1.5 pr-2">
+                          <Switch
+                            checked={incl}
+                            aria-label={`Incluir ${c.campo.etiqueta}`}
+                            onCheckedChange={(v) => setChandraIncluir((m) => ({ ...m, [c.campo.id]: v }))}
+                          />
+                        </td>
+                        <td className="py-1.5 pr-2 font-medium text-slate-100">
+                          {c.campo.etiqueta}
+                          {c.estimado ? (
+                            <span
+                              className="ml-1 rounded bg-slate-800 px-1 font-mono text-[9px] text-slate-400"
+                              title="Algunos rects son ESTIMADOS (retícula uniforme) — ajustar en el editor con «Probar faro»"
+                            >
+                              ≈
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="py-1.5 pr-2 font-mono text-[10px] text-slate-400">{c.campo.tipo}</td>
+                        <td className="py-1.5 pr-2 font-mono text-[9px] text-slate-400">
+                          [{c.campo.zona_busqueda?.x.toFixed(2)}, {c.campo.zona_busqueda?.y.toFixed(2)}] · [x{' '}
+                          {(c.campo.ancla?.rect?.x ?? 0).toFixed(2)}, y {(c.campo.ancla?.rect?.y ?? 0).toFixed(2)}]
+                        </td>
+                        <td className="py-1.5 pr-2 text-[10px] text-slate-300">{c.campo.grupo ?? '—'}</td>
+                        <td className="py-1.5 pr-2 font-mono text-[10px] text-slate-400">{c.campo.orden ?? '—'}</td>
+                        <td className="py-1.5 pr-2">
+                          <span
+                            className={`rounded px-1.5 py-0.5 font-mono text-[9px] font-bold ${
+                              c.nivel.startsWith('Crít')
+                                ? 'bg-red-950/60 text-red-300'
+                                : c.nivel.startsWith('Oblig')
+                                  ? 'bg-amber-950/60 text-amber-300'
+                                  : c.nivel.startsWith('Oper')
+                                    ? 'bg-cyan-950/60 text-cyan-300'
+                                    : 'bg-slate-800 text-slate-400'
+                            }`}
+                          >
+                            {c.nivel}
+                          </span>
+                        </td>
+                        <td className="py-1.5">
+                          <Switch
+                            checked={chandraOblig[c.campo.id] ?? false}
+                            aria-label={`Obligatorio ${c.campo.etiqueta}`}
+                            onCheckedChange={(v) => setChandraOblig((m) => ({ ...m, [c.campo.id]: v }))}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Bloques no mapeados / ignorados — NUNCA silenciosos (§8) */}
+              {chandraParse.noMapeados.length ? (
+                <div className="rounded-lg border border-rose-600/40 bg-rose-950/20 px-3 py-2 text-[11px] text-rose-200">
+                  <p className="font-bold">Bloques NO mapeados ({chandraParse.noMapeados.length}) — revisa si falta un campo:</p>
+                  <ul className="mt-1 list-inside list-disc font-mono text-[10px] text-rose-300">
+                    {chandraParse.noMapeados.map((b, i) => (
+                      <li key={i}>
+                        {b.blockType}: {b.resumen || '(sin texto)'}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {chandraParse.ignorados.length ? (
+                <div className="rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2 text-[11px] text-slate-400">
+                  <p className="font-bold">Bloques ignorados (metadatos de variante): {chandraParse.ignorados.length}</p>
+                  <ul className="mt-1 list-inside list-disc font-mono text-[10px]">
+                    {chandraParse.ignorados.map((b, i) => (
+                      <li key={i}>
+                        {b.blockType}: {b.resumen || '(sin texto)'}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogImportar(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={importar} disabled={importando || !jsonImport.trim()}>
-              {importando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Importar
-            </Button>
+            {chandraParse ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setChandraParse(null)}
+                >
+                  Volver al JSON
+                </Button>
+                <Button
+                  onClick={() => void crearDesdeChandra()}
+                  disabled={importando || !chandraParse.campos.some((c) => chandraIncluir[c.campo.id] !== false)}
+                >
+                  {importando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Crear molde ({chandraParse.campos.filter((c) => chandraIncluir[c.campo.id] !== false).length} campos)
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setDialogImportar(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={() => void importar()} disabled={importando || !jsonImport.trim()}>
+                  {importando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {modoImport === 'chandra' ? 'Analizar Chandra' : 'Importar'}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

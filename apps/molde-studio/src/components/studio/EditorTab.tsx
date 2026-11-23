@@ -39,6 +39,7 @@ import {
   RotateCw,
   Save,
   ScanLine,
+  ScanSearch,
   ShieldAlert,
   ShieldCheck,
   SquareDashedMousePointer,
@@ -80,7 +81,15 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { alinearAnclas, editDistancePonderada, normTxt, rectEditor, sugerirUmbralClustering } from '@/lib/molde/universal-engine';
+import {
+  alinearAnclas,
+  editDistancePonderada,
+  lineasEnFaro,
+  normTxt,
+  rectEditor,
+  resolverRectRelacional,
+  sugerirUmbralClustering,
+} from '@/lib/molde/universal-engine';
 import type { LineaOcr } from '@/lib/molde/types';
 import { detectarTablaCompleta, type TablaDetectada } from '@/lib/molde/tabla-detect';
 import { auditarCamposPagina, type InformePagina } from '@/lib/molde/auditoria';
@@ -93,8 +102,10 @@ import {
   hexTipo,
   nuevoIdCampo,
   type CampoUniversal,
+  type EstrategiaCampo,
   type MoldeUniversal,
   type RectNorm,
+  type RelacionAncla,
   type ResultadoUniversal,
   type TipoCampo,
 } from '@/lib/molde/universal-types';
@@ -319,6 +330,15 @@ export default function EditorTab() {
   const [coordenadas, setCoordenadas] = useState<{ x: number; y: number } | null>(null);
   const [cropPreview, setCropPreview] = useState<string | null>(null);
   const [cropDims, setCropDims] = useState<{ w: number; h: number } | null>(null);
+  // ---- FASE 2 (v3.2.0 — faro): previsualización en vivo del rect relacional ----
+  // Corre resolverRectRelacional (LA MISMA función del motor) contra la capa
+  // OCR de la página de referencia y pinta el rect resuelto en el lienzo.
+  const [pruebaRelacional, setPruebaRelacional] = useState<{
+    rect: RectNorm;
+    fuente: string;
+    banderas: string[];
+    score?: number;
+  } | null>(null);
   const contenedorRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ campoId: string; modo: 'mover' | 'redimensionar'; x0: number; y0: number; zona0: RectNorm } | null>(null);
   const inputImagenRef = useRef<HTMLInputElement>(null);
@@ -427,9 +447,16 @@ export default function EditorTab() {
 
   useEffect(() => {
     // F5.3: el recorte se calcula en callback (patrón .then aceptado por
-    // react-hooks/set-state-in-effect: nunca setState síncrono en el efecto).
+    // react-hooks/set-state-in-effect).
     void Promise.resolve().then(recortarPreview);
   }, [recortarPreview]);
+
+  // FASE 2 (v3.2.0 — faro): la previsualización del rect relacional caduca al
+  // cambiar de campo (el rect de OTRO campo pintado en el lienzo sería un
+  // engaño). Antes del early return: reglas de hooks (orden fijo).
+  useEffect(() => {
+    void Promise.resolve().then(() => setPruebaRelacional(null));
+  }, [campoSeleccionadoId]);
 
   // FIX: el pointerup puede ocurrir FUERA del viewport (soltar el mouse sobre
   // otro panel, dedo que sale del área táctil, pointercancel del sistema) y
@@ -650,11 +677,20 @@ export default function EditorTab() {
     );
   }, [ocrCapaVigente, busquedaOcr, ocrExcluidasVigentes]);
 
-  // Sugerencias de ancla para el campo activo (ancla_relativa): top-3 líneas
-  // por similitud difusa con el texto del ancla — o por cercanía espacial al
-  // rect esperado cuando el texto está vacío. Un clic fija texto + rect.
+  // Sugerencias de ancla para el campo activo (ancla_relativa / ancla_relacional):
+  // top-3 líneas por similitud difusa con el texto del ancla — o por cercanía
+  // espacial al rect esperado cuando el texto está vacío. Un clic fija texto + rect.
+  // FASE 2: en relacional las sugerencias SOLO salen del FARO (lineasEnFaro,
+  // la misma regla que corre el motor) — sugerir un ancla fuera del faro sería
+  // sugerir una zona que el motor jamás buscará.
   const sugerenciasAncla = useMemo(() => {
-    if (!campoSel || campoSel.estrategia !== 'ancla_relativa' || !ocrCapaVigente) return [];
+    if (
+      !campoSel ||
+      (campoSel.estrategia !== 'ancla_relativa' && campoSel.estrategia !== 'ancla_relacional') ||
+      !ocrCapaVigente
+    ) {
+      return [];
+    }
     const dims = ocrCapaVigente.dims;
     const objetivo = normTxt(campoSel.ancla?.texto ?? '');
     const objetivoOrden = normTxt(
@@ -663,9 +699,19 @@ export default function EditorTab() {
     const base = campoSel.ancla?.rect ?? rectEditor(campoSel);
     const centro = base ? { x: base.x + base.w / 2, y: base.y + base.h / 2 } : null;
     // Las líneas eliminadas (ruido) nunca se sugieren como ancla.
-    const candidatas = ocrCapaVigente.lines
+    const todas = ocrCapaVigente.lines
       .map((l, i) => ({ l, i }))
       .filter(({ i }) => !ocrExcluidasVigentes.has(i));
+    // FASE 2: el faro acota las sugerencias al contexto declarado.
+    const candidatas =
+      campoSel.estrategia === 'ancla_relacional' && campoSel.zona_busqueda
+        ? (() => {
+            const enFaro = new Set(
+              lineasEnFaro(todas.map(({ l }) => l), dims.w, dims.h, campoSel.zona_busqueda!),
+            );
+            return todas.filter(({ l }) => enFaro.has(l));
+          })()
+        : todas;
     const puntuadas = candidatas.map(({ l, i }) => {
       const t = normTxt(l.texto);
       let score: number;
@@ -761,7 +807,20 @@ export default function EditorTab() {
     });
   }
 
-  function nuevoCampo(estrategia: 'zona_fija' | 'ancla_relativa') {
+  /** FASE 2 (v3.2.0): faro por defecto generoso alrededor de una posición —
+   *  el FARO es la zona aproximada (el mapa), la finura va en `zona`. */
+  function faroDesdeRect(r: RectNorm): RectNorm {
+    const x = Math.max(0, Math.min(0.98, r.x - 0.06));
+    const y = Math.max(0, Math.min(0.95, r.y - 0.05));
+    return {
+      x,
+      y,
+      w: Math.min(1 - x, Math.max(0.2, r.w + 0.12)),
+      h: Math.min(1 - y, Math.max(0.08, r.h + 0.1)),
+    };
+  }
+
+  function nuevoCampo(estrategia: EstrategiaCampo) {
     if (!molde) return;
     const c: CampoUniversal = {
       id: nuevoIdCampo(),
@@ -769,8 +828,24 @@ export default function EditorTab() {
       pagina,
       tipo: 'presencia',
       estrategia,
-      zona: estrategia === 'zona_fija' ? { x: 0.35, y: 0.4, w: 0.25, h: 0.04 } : { x: 0.1, y: 0.02, w: 0.2, h: 0.04 },
-      ancla: estrategia === 'ancla_relativa' ? { texto: '' } : undefined,
+      zona:
+        estrategia === 'zona_fija'
+          ? { x: 0.35, y: 0.4, w: 0.25, h: 0.04 }
+          : estrategia === 'ancla_relacional'
+            ? { x: 0, y: -0.045, w: 0.2, h: 0.045 } // finura: banda ARRIBA de la etiqueta (caso firma)
+            : { x: 0.1, y: 0.02, w: 0.2, h: 0.04 },
+      ancla:
+        estrategia === 'zona_fija'
+          ? undefined
+          : { texto: '' },
+      // FASE 2: el relacional nace CON faro (sin faro el validador rechaza el
+      // molde — no hay búsqueda global) y con relación de banda adyacente.
+      ...(estrategia === 'ancla_relacional'
+        ? {
+            zona_busqueda: { x: 0.08, y: 0.72, w: 0.55, h: 0.14 },
+            relacion: { direccion: 'arriba', que: 'zona', orden: 'mas_cercano' } as RelacionAncla,
+          }
+        : {}),
       umbral: 0.03,
       obligatorio: false,
     };
@@ -782,6 +857,49 @@ export default function EditorTab() {
     if (!molde) return;
     setMoldeActual({ ...molde, campos: molde.campos.filter((c) => c.id !== id) });
     if (campoSeleccionadoId === id) setCampoSeleccionado(null);
+  }
+
+  // ---- FASE 2 (v3.2.0 — faro): previsualización en vivo del rect relacional ----
+  // Corre resolverRectRelacional (LA MISMA función que ejecuta la corrida)
+  // contra la capa OCR vigente de la página de referencia. Honestidad: muestra
+  // fuente, score y banderas — un fallback o una ambigüedad se ven, no se ocultan.
+  async function probarFaroRelacional() {
+    if (!campoSel || campoSel.estrategia !== 'ancla_relacional') return;
+    if (!ocrCapaVigente || !imagenRef) {
+      toast({
+        title: 'Falta la capa OCR de la página de referencia',
+        description: 'Activa «Ver OCR» en la toolbar del lienzo y espera a que corra sobre el escaneo de referencia.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      const base = await canvasDe(imagenRef);
+      const vivas = ocrCapaVigente.lines.filter((_, i) => !ocrExcluidasVigentes.has(i));
+      const r = resolverRectRelacional(campoSel, vivas, base.width, base.height, base);
+      if (!r) {
+        setPruebaRelacional(null);
+        toast({
+          title: 'El faro no resolvió rect',
+          description: 'Falta ancla.rect de referencia o zona_busqueda — sin faro no hay resolución.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setPruebaRelacional({
+        rect: r.rect,
+        fuente: r.fuente,
+        score: r.score,
+        banderas: [...(r.banderasRelacionales ?? []), ...(r.ambiguo ? ['relacion_ambigua'] : [])],
+      });
+      const detalles = r.banderasRelacionales?.length ? ` · ${r.banderasRelacionales.join(', ')}` : '';
+      toast({
+        title: `Faro resuelto (fuente: ${r.fuente}${r.score !== undefined ? `, score ${Math.round(r.score * 100)}%` : ''})${detalles}`,
+        description: `Rect final: x ${r.rect.x.toFixed(3)}, y ${r.rect.y.toFixed(3)}, w ${r.rect.w.toFixed(3)}, h ${r.rect.h.toFixed(3)}`,
+      });
+    } catch (e) {
+      toast({ title: 'Error probando el faro', description: (e as Error).message, variant: 'destructive' });
+    }
   }
 
   function duplicarCampo(id: string) {
@@ -1708,12 +1826,16 @@ export default function EditorTab() {
                   <Plus className="h-4 w-4" aria-hidden /> Añadir campo
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-44">
+              <DropdownMenuContent align="start" className="w-48">
                 <DropdownMenuItem onClick={() => nuevoCampo('zona_fija')}>
                   <Plus className="mr-2 h-3.5 w-3.5 text-slate-400" /> Zona fija
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => nuevoCampo('ancla_relativa')}>
                   <Crosshair className="mr-2 h-3.5 w-3.5 text-amber-400" /> Con ancla OCR
+                </DropdownMenuItem>
+                {/* FASE 2 (v3.2.0): ancla relacional — el molde es el faro. */}
+                <DropdownMenuItem onClick={() => nuevoCampo('ancla_relacional')}>
+                  <ScanSearch className="mr-2 h-3.5 w-3.5 text-cyan-400" /> Relacional (faro)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -2189,6 +2311,45 @@ export default function EditorTab() {
                 })()
               ) : null}
 
+              {/* FASE 2 (v3.2.0 — faro): zona de búsqueda del campo relacional ACTIVO.
+                  Cian punteado = «aquí SOLO busca el motor» (el mapa del humano). */}
+              {verAnclas && campoSel && campoSel.estrategia === 'ancla_relacional' && campoSel.zona_busqueda ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute z-[5] border-2 border-dashed border-cyan-400/90"
+                  style={{
+                    left: `${CLAMP(campoSel.zona_busqueda.x) * 100}%`,
+                    top: `${CLAMP(campoSel.zona_busqueda.y) * 100}%`,
+                    width: `${campoSel.zona_busqueda.w * 100}%`,
+                    height: `${campoSel.zona_busqueda.h * 100}%`,
+                  }}
+                >
+                  <span className="absolute -top-5 left-0 max-w-full truncate rounded bg-cyan-600 px-1.5 py-0.5 font-mono text-[9px] font-bold text-white">
+                    FARO · zona_busqueda
+                  </span>
+                </div>
+              ) : null}
+
+              {/* FASE 2: rect RESUELTO por la previsualización del faro (resolverRectRelacional
+                  contra la capa OCR de referencia) — dashed sólido cian con fuente/banderas. */}
+              {pruebaRelacional && campoSel && campoSel.estrategia === 'ancla_relacional' ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute z-[7] border-2 border-cyan-300 bg-cyan-400/10"
+                  style={{
+                    left: `${CLAMP(pruebaRelacional.rect.x) * 100}%`,
+                    top: `${CLAMP(pruebaRelacional.rect.y) * 100}%`,
+                    width: `${pruebaRelacional.rect.w * 100}%`,
+                    height: `${pruebaRelacional.rect.h * 100}%`,
+                  }}
+                >
+                  <span className="absolute -bottom-5 left-0 max-w-full truncate rounded bg-cyan-500 px-1.5 py-0.5 font-mono text-[9px] font-bold text-white">
+                    RESUELTO · {pruebaRelacional.fuente}
+                    {pruebaRelacional.banderas.length ? ` · ${pruebaRelacional.banderas.join(',')}` : ''}
+                  </span>
+                </div>
+              ) : null}
+
               {/* Zonas del molde — memoizadas (P2): solo re-renderiza la zona
                   cuyo rect o estado activo cambió */}
               {imagenRef &&
@@ -2432,12 +2593,30 @@ export default function EditorTab() {
                             <Label className="text-[11px] text-slate-400">Estrategia</Label>
                             <Select
                               value={campoSel.estrategia}
-                              onValueChange={(v) =>
+                              onValueChange={(v) => {
+                                const nueva = v as EstrategiaCampo;
+                                // FASE 2 (v3.2.0): al pasar a relacional el campo nace CON faro
+                                // (sin faro el validador rechaza — no hay búsqueda global) y con
+                                // relación de banda adyacente. Faro por defecto: generoso alrededor
+                                // del ancla de referencia si existe (el mapa del humano se respeta).
+                                if (nueva === 'ancla_relacional' && campoSel.estrategia !== 'ancla_relacional') {
+                                  actualizarCampo(campoSel.id, {
+                                    estrategia: nueva,
+                                    ancla: campoSel.ancla ?? { texto: '' },
+                                    zona_busqueda:
+                                      campoSel.zona_busqueda ??
+                                      (campoSel.ancla?.rect
+                                        ? faroDesdeRect(campoSel.ancla.rect)
+                                        : { x: 0.08, y: 0.72, w: 0.55, h: 0.14 }),
+                                    relacion: campoSel.relacion ?? { direccion: 'arriba', que: 'zona', orden: 'mas_cercano' },
+                                  });
+                                  return;
+                                }
                                 actualizarCampo(campoSel.id, {
-                                  estrategia: v as 'zona_fija' | 'ancla_relativa',
-                                  ancla: v === 'ancla_relativa' ? campoSel.ancla ?? { texto: '' } : campoSel.ancla,
-                                })
-                              }
+                                  estrategia: nueva,
+                                  ancla: nueva === 'zona_fija' ? campoSel.ancla : campoSel.ancla ?? { texto: '' },
+                                });
+                              }}
                             >
                               <SelectTrigger className="h-8 border-slate-700 bg-slate-900 font-mono text-xs text-slate-100">
                                 <SelectValue />
@@ -2445,6 +2624,7 @@ export default function EditorTab() {
                               <SelectContent>
                                 <SelectItem value="zona_fija">zona_fija</SelectItem>
                                 <SelectItem value="ancla_relativa">ancla_relativa</SelectItem>
+                                <SelectItem value="ancla_relacional">ancla_relacional</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -2486,12 +2666,12 @@ export default function EditorTab() {
                     </AccordionItem>
 
                     {/* Anclas OCR */}
-                    {campoSel.estrategia === 'ancla_relativa' ? (
+                    {campoSel.estrategia === 'ancla_relativa' || campoSel.estrategia === 'ancla_relacional' ? (
                       <AccordionItem value="anclas" className="rounded-lg border border-amber-600/50 bg-amber-950/10 px-3">
                         <AccordionTrigger className="py-2.5 font-mono text-[11px] font-bold uppercase tracking-wider text-amber-300 hover:no-underline">
                           <span className="flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full bg-amber-500 ring-2 ring-amber-400/40" aria-hidden />
-                            Anclas OCR (Relativa)
+                            Anclas OCR ({campoSel.estrategia === 'ancla_relacional' ? 'Relacional' : 'Relativa'})
                           </span>
                         </AccordionTrigger>
                         <AccordionContent className="space-y-2 pb-3">
@@ -2576,6 +2756,221 @@ export default function EditorTab() {
                       </AccordionItem>
                     ) : null}
 
+                    {/* FASE 2 (v3.2.0 — «EL MOLDE ES EL MAPA»): FARO + RELACIÓN */}
+                    {campoSel.estrategia === 'ancla_relacional' ? (
+                      <AccordionItem value="faro" className="rounded-lg border border-cyan-600/50 bg-cyan-950/10 px-3">
+                        <AccordionTrigger className="py-2.5 font-mono text-[11px] font-bold uppercase tracking-wider text-cyan-300 hover:no-underline">
+                          <span className="flex items-center gap-2">
+                            <ScanSearch className="h-3.5 w-3.5" aria-hidden />
+                            Faro y relación
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="space-y-3 pb-3">
+                          <p className="text-[10px] leading-4 text-slate-400">
+                            EL FARO es la zona aproximada donde vive el ancla: el motor busca SOLO dentro
+                            (nunca global — el «El abajo firmante acepta…» del párrafo legal jamás compite)
+                            y resuelve la caja relativa en ese contexto pequeño.
+                          </p>
+
+                          {/* zona_busqueda (EL FARO) */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <Label className="font-mono text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+                                zona_busqueda (faro)
+                              </Label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!campoSel.ancla?.rect) {
+                                    toast({
+                                      title: 'Sin ancla de referencia',
+                                      description: 'Captura primero el ancla (clic sobre la capa OCR o Alinear anclas) para expandir el faro desde ella.',
+                                      variant: 'destructive',
+                                    });
+                                    return;
+                                  }
+                                  actualizarCampo(campoSel.id, { zona_busqueda: faroDesdeRect(campoSel.ancla.rect) });
+                                }}
+                                className="rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 font-mono text-[9px] font-bold text-cyan-300 transition hover:bg-slate-800"
+                                title="Expande un faro generoso alrededor del ancla de referencia (el faro es generoso, la caja relativa es fina)"
+                              >
+                                Faro desde el ancla
+                              </button>
+                            </div>
+                            {campoSel.zona_busqueda ? (
+                              <div className="grid grid-cols-4 gap-1.5">
+                                {(['x', 'y', 'w', 'h'] as const).map((k) => (
+                                  <div key={k} className="space-y-0.5">
+                                    <span className="font-mono text-[9px] uppercase text-slate-500">{k}</span>
+                                    <Input
+                                      type="number"
+                                      step={0.005}
+                                      aria-label={`Faro ${k}`}
+                                      value={campoSel.zona_busqueda![k]}
+                                      onChange={(e) =>
+                                        actualizarCampo(campoSel.id, {
+                                          zona_busqueda: {
+                                            ...campoSel.zona_busqueda!,
+                                            [k]: parseFloat(e.target.value) || 0,
+                                          },
+                                        })
+                                      }
+                                      className="h-7 border-slate-700 bg-slate-900 px-1 font-mono text-[11px] text-slate-100"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="rounded border border-rose-600/50 bg-rose-950/20 px-2 py-1 font-mono text-[10px] text-rose-300">
+                                SIN FARO: el validador rechaza el molde (sin faro NO hay búsqueda).
+                              </p>
+                            )}
+                          </div>
+
+                          {/* relacion */}
+                          <div className="space-y-1">
+                            <Label className="font-mono text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+                              relacion (caja relativa)
+                            </Label>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <div className="space-y-0.5">
+                                <span className="font-mono text-[9px] uppercase text-slate-500">direccion</span>
+                                <Select
+                                  value={campoSel.relacion?.direccion ?? 'arriba'}
+                                  onValueChange={(v) =>
+                                    actualizarCampo(campoSel.id, {
+                                      relacion: {
+                                        ...(campoSel.relacion ?? { que: 'zona', orden: 'mas_cercano' }),
+                                        direccion: v as RelacionAncla['direccion'],
+                                      },
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="h-7 border-slate-700 bg-slate-900 px-1 font-mono text-[10px] text-slate-100">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="arriba">arriba</SelectItem>
+                                    <SelectItem value="abajo">abajo</SelectItem>
+                                    <SelectItem value="izquierda">izquierda</SelectItem>
+                                    <SelectItem value="derecha">derecha</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-0.5">
+                                <span className="font-mono text-[9px] uppercase text-slate-500">que</span>
+                                <Select
+                                  value={campoSel.relacion?.que ?? 'zona'}
+                                  onValueChange={(v) =>
+                                    actualizarCampo(campoSel.id, {
+                                      relacion: {
+                                        ...(campoSel.relacion ?? { direccion: 'arriba', orden: 'mas_cercano' }),
+                                        que: v as RelacionAncla['que'],
+                                      },
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="h-7 border-slate-700 bg-slate-900 px-1 font-mono text-[10px] text-slate-100">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="zona">zona (banda)</SelectItem>
+                                    <SelectItem value="linea">linea OCR</SelectItem>
+                                    <SelectItem value="caja">caja impresa</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-0.5">
+                                <span className="font-mono text-[9px] uppercase text-slate-500">orden</span>
+                                <Select
+                                  value={campoSel.relacion?.orden ?? 'mas_cercano'}
+                                  onValueChange={(v) =>
+                                    actualizarCampo(campoSel.id, {
+                                      relacion: {
+                                        ...(campoSel.relacion ?? { direccion: 'arriba', que: 'zona' }),
+                                        orden: v as RelacionAncla['orden'],
+                                      },
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="h-7 border-slate-700 bg-slate-900 px-1 font-mono text-[10px] text-slate-100">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="mas_cercano">mas_cercano</SelectItem>
+                                    <SelectItem value="indice">indice</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            {campoSel.relacion?.orden === 'indice' ? (
+                              <div className="space-y-0.5">
+                                <span className="font-mono text-[9px] uppercase text-slate-500">indice (1 = más cercano)</span>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  step={1}
+                                  aria-label="Índice del candidato"
+                                  value={campoSel.relacion.indice ?? 1}
+                                  onChange={(e) =>
+                                    actualizarCampo(campoSel.id, {
+                                      relacion: {
+                                        ...campoSel.relacion!,
+                                        indice: Math.max(1, Math.round(parseFloat(e.target.value) || 1)),
+                                      },
+                                    })
+                                  }
+                                  className="h-7 border-slate-700 bg-slate-900 px-1 font-mono text-[11px] text-slate-100"
+                                />
+                              </div>
+                            ) : null}
+                            <p className="font-mono text-[9px] leading-3 text-slate-500">
+                              zona (banda) = del borde del ancla al borde del faro · linea = línea vecina del OCR del faro ·
+                              caja = recuadro impreso hueco del faro. La finura fina va en «zona» de Coordenadas
+                              (w/h en 0 = heredar del candidato). Empate ambiguo = revisión, jamás pick silencioso.
+                            </p>
+                          </div>
+
+                          {/* Previsualización en vivo contra la capa OCR */}
+                          <div className="space-y-1.5">
+                            <button
+                              type="button"
+                              onClick={() => void probarFaroRelacional()}
+                              disabled={ocrEstado !== 'listo' || !ocrCapaVigente}
+                              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-cyan-600/60 bg-cyan-950/40 py-1.5 font-mono text-[10px] font-bold text-cyan-200 transition hover:bg-cyan-900/40 disabled:cursor-not-allowed disabled:opacity-40"
+                              title="Corre resolverRectRelacional (LA MISMA función del motor) contra la capa OCR de la página de referencia y pinta el rect resuelto"
+                            >
+                              <ScanSearch className="h-3.5 w-3.5" aria-hidden /> Probar faro (OCR de referencia)
+                            </button>
+                            {ocrEstado !== 'listo' ? (
+                              <p className="font-mono text-[9px] text-slate-500">
+                                Activa «Ver OCR» en la toolbar del lienzo para habilitar la prueba.
+                              </p>
+                            ) : null}
+                            {pruebaRelacional ? (
+                              <div className="rounded-md border border-cyan-700/50 bg-cyan-950/20 p-2">
+                                <p className="font-mono text-[10px] font-bold text-cyan-300">
+                                  {pruebaRelacional.fuente}
+                                  {pruebaRelacional.score !== undefined
+                                    ? ` · score ${Math.round(pruebaRelacional.score * 100)}%`
+                                    : ''}
+                                </p>
+                                <p className="font-mono text-[9px] leading-3 text-slate-400">
+                                  x {pruebaRelacional.rect.x.toFixed(3)} · y {pruebaRelacional.rect.y.toFixed(3)} · w{' '}
+                                  {pruebaRelacional.rect.w.toFixed(3)} · h {pruebaRelacional.rect.h.toFixed(3)}
+                                </p>
+                                {pruebaRelacional.banderas.length ? (
+                                  <p className="font-mono text-[9px] leading-3 text-amber-300">
+                                    {pruebaRelacional.banderas.join(' · ')}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ) : null}
+
                     {/* Coordenadas */}
                     <AccordionItem value="coords" className="rounded-lg border border-slate-800 bg-slate-950/60 px-3">
                       <AccordionTrigger className="py-2.5 font-mono text-[11px] font-bold uppercase tracking-wider text-slate-200 hover:no-underline">
@@ -2583,9 +2978,11 @@ export default function EditorTab() {
                       </AccordionTrigger>
                       <AccordionContent className="space-y-2 pb-3">
                         <p className="text-[10px] text-slate-500">
-                          {campoSel.estrategia === 'ancla_relativa'
-                            ? 'x/y = offset desde el ancla · w/h = tamaño de la zona'
-                            : 'Rectángulo absoluto sobre la página (0–1)'}
+                          {campoSel.estrategia === 'ancla_relacional'
+                            ? 'Finura sobre el candidato: x/y = offset · w/h = tamaño final (0 = heredar del candidato)'
+                            : campoSel.estrategia === 'ancla_relativa'
+                              ? 'x/y = offset desde el ancla · w/h = tamaño de la zona'
+                              : 'Rectángulo absoluto sobre la página (0–1)'}
                         </p>
                         <div className="grid grid-cols-4 gap-1.5">
                           {(['x', 'y', 'w', 'h'] as const).map((k) => (

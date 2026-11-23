@@ -18,8 +18,11 @@ Manual maestro para agentes de IA (y humanos) que crean o modifican moldes de
 | Herramienta | Úsala cuando | NO la uses cuando |
 |---|---|---|
 | Ancla de texto difusa (`ancla_relativa`) | Etiquetas legibles y únicas en el documento | Etiquetas se repiten o difieren en 1 dígito entre sí |
+| Ancla relacional con faro (`ancla_relacional`, v3.2.0) | El texto del ancla aparece MÁS DE UNA VEZ en el documento (ej. DOS cajas «Firma», «FIRMA» vs el párrafo «El abajo firmante acepta…») y la posición aproximada es conocida: declaras `zona_busqueda` (EL FARO) y el motor busca SOLO dentro; la caja final se resuelve RELATIVAMENTE al contexto local (`relacion`: banda adyacente / línea / caja del faro) | No conoces la posición aproximada del ancla (sin faro el validador rechaza el molde — por diseño: nunca hay búsqueda global). Para cajas que CONTIENEN al ancla usa `que: "zona"` con el faro sobre la caja |
 | Ancla + `desambiguadores` | Etiquetas vecinas parecidas ("JURADO 2"/"JURADO 4") — exige contexto cercano | No hay texto de contexto cerca de la etiqueta |
+| Ancla + FARO (combinación recomendada en v3.2.0) | Dos etiquetas idénticas en páginas/columnas distintas: el faro IZQUIERDO halla la firma izquierda, el derecho la derecha — sin `desambiguadores` | — |
 | `ancla_respaldo` | La etiqueta principal se pierde por OCR con frecuencia | — |
+| Importador Chandra (datalab-convert → MoldeUniversal, v3.2.0) | El humano YA tiene la salida de Chandra del documento y su matriz de obligatorios: pégala en Biblioteca → «Importar JSON / Chandra» → revisa la tabla (tipo, obligatorio, grupo, orden) → crear | NO sustituye al editor: los rects ESTIMADOS (retícula de celdas) y las anchuras de lectura iniciales se ajustan en el editor con «Probar faro» antes de validar |
 | Rect de referencia (`ancla.rect`) | Siempre (fallback cuando el OCR pierde la etiqueta) | Como estrategia única en documentos con variantes de layout |
 | `zona_fija` | Documentos 100% rígidos (mismo layout exacto siempre) | Fotos de celular con desplazamientos |
 | Grupo de campos con restricciones (pendiente — ver PLAN-DESARROLLO.md Fase 4) | Varios campos comparten banda/columna uniforme | Campos dispersos |
@@ -59,6 +62,45 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
 - Banderas relevantes al diseñar: `ancla_no_encontrada`, `ancla_colision`,
   `desambiguacion_fallida`, `umbral_al_borde`, `pagina_faltante`,
   `posible_pagina_equivocada`, `rotacion_180_corregida`.
+- **v3.2.0 — faro (ancla_relacional)**: `ancla_fuera_de_zona` (el texto existe
+  PERO fuera del faro — el mapa está mal puesto o la variante es otra; cae a
+  referencia), `relacion_sin_candidato` (nada en la dirección pedida →
+  fallback), `relacion_ambigua` (empate a <10% → requiere_revision, jamás
+  pick silencioso).
+- **v3.2.0 — firmas**: `metricasFirma` (densidad + Nº de trazos + extensión)
+  viaja en el resultado (`firma.trazos/densidad/extension`). Bandera
+  `firma_ausente` (firma esperada sin NINGÚN trazo) y `trazos_insuficientes`
+  (menos trazos que `min_trazos`) → el ok se degrada a revisión. Una firma
+  obligatoria sin rúbrica cae en `obligatorios_faltantes` como siempre.
+- **v3.2.0 — grupo/orden**: campos con `grupo`/`orden` (importador Chandra)
+  se presentan agrupados y ordenados en Verificación (Datos Variables) y en el
+  checklist de Tamiz (críticos arriba de cada grupo). Solo presentación.
 - Las coordenadas son normalizadas 0-1; el motor renderiza a 1000 px de ancho.
 - `desambiguadores: string[]` por campo: textos que deben aparecer por OCR a
   ≤0.3 (normalizado) del ancla para que el hit se acepte.
+
+## 7. Flujo Chandra (v3.2.0 — el humano define el mapa)
+
+1. El humano corre Chandra sobre el documento y export datalab-convert
+   (un JSON con 1+ páginas/variantes).
+2. Studio → Biblioteca → «Importar JSON / Chandra» → pegar/adjuntar el JSON →
+   «Analizar Chandra».
+3. Revisar la TABLA: tipo, zona (faro · rect), grupo, orden, nivel de la
+   matriz (Crítico/Obligatorio/Operativo/Condicional/Opcional precargado con
+   las matrices del dueño) y el toggle obligatorio — LA DECISIÓN FINAL ES DEL
+   HUMANO.
+4. «Crear molde (N campos)» → el molde queda en la Biblioteca y se ajusta en
+   el editor (faro + «Probar faro») y se valida en Verificación contra TODAS
+   las variantes (score ≥ 98 y sin requiere_revision).
+5. Regla cruzada: los campos de TINTA nacen `ancla_relacional` con faro — la
+   zona de densidad se MUEVE con la etiqueta. Los rects marcados «≈» son
+   estimados (retícula uniforme de celdas de Form/Table) — el faro los corrige.
+6. Cancelado definitivamente (corrección del dueño #3): el botón «Generar
+   borrador», `borrador.ts` y `sidecar-client.ts`. Ningún flujo nuevo depende
+   del sidecar Python (queda como está para quien lo use).
+
+Reglas mínimas de rechazo (sin firma, sin fecha, sin trazabilidad) =
+`obligatorio: true` en esos campos — el motor ya degrada la corrida a revisión
+si falta un obligatorio. Límite documentado: la concordancia cifra↔letras del
+importe (Recibo) NO es validable con el parser aritmético actual; queda como
+mejora futura (`regla: "cifra_en_letras"`, fuera de alcance de v2).
