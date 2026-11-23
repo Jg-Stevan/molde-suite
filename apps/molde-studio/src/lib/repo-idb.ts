@@ -164,19 +164,36 @@ const SEMILLAS_GENERICAS = [
 async function sembrarGenericosSiToca(): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    if (localStorage.getItem(FLAG_SEMILLA_GENERICOS)) return;
     const existentes = await pedir<MoldeRegistro[]>('moldes', 'readonly', (s) => s.getAll());
-    const idsExistentes = new Set(existentes.map((m) => m.id));
+    const porId = new Map(existentes.map((m) => [m.id, m]));
     const now = ahora();
+    // Siembras anteriores (sin referencias): se les añade paginasRef sin tocar
+    // el resto del molde, que puede tener ediciones del usuario.
     for (const { id, json } of SEMILLAS_GENERICAS) {
-      if (idsExistentes.has(id)) continue;
+      const reg = porId.get(id);
+      if (!reg) continue;
+      try {
+        const guardado = JSON.parse(reg.json) as { paginasRef?: unknown };
+        if (guardado.paginasRef) continue;
+        guardado.paginasRef = json.paginasRef;
+        reg.json = JSON.stringify(guardado);
+        reg.imagenRef = reg.imagenRef ?? json.paginasRef?.[0]?.imagen ?? null;
+        reg.updatedAt = now;
+        await pedir('moldes', 'readwrite', (s) => s.put(reg));
+      } catch {
+        /* json corrupto: no tocar */
+      }
+    }
+    if (localStorage.getItem(FLAG_SEMILLA_GENERICOS)) return;
+    for (const { id, json } of SEMILLAS_GENERICAS) {
+      if (porId.has(id)) continue;
       const reg: MoldeRegistro = {
         id,
         nombre: json.nombre,
         descripcion: json.descripcion ?? null,
         documento: json.documento ?? null,
         json: JSON.stringify(json),
-        imagenRef: null,
+        imagenRef: json.paginasRef?.[0]?.imagen ?? null,
         createdAt: now,
         updatedAt: now,
       };

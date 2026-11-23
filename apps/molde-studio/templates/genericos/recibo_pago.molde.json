@@ -333,5 +333,19 @@
       "firma": "Firma",
       "checkbox": "Casilla"
     }
-  }
+  },
+  "paginasRef": [
+    {
+      "pagina": 1,
+      "imagen": "/moldes-genericos/recibo_pago/pag-01.png"
+    },
+    {
+      "pagina": 2,
+      "imagen": "/moldes-genericos/recibo_pago/pag-02.png"
+    },
+    {
+      "pagina": 3,
+      "imagen": "/moldes-genericos/recibo_pago/pag-03.png"
+    }
+  ]
 }

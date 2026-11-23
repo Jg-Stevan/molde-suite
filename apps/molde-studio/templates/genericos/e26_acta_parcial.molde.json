@@ -1113,5 +1113,31 @@
       "firma": "Firma",
       "checkbox": "Casilla"
     }
-  }
+  },
+  "paginasRef": [
+    {
+      "pagina": 1,
+      "imagen": "/moldes-genericos/e26_acta_parcial/pag-01.png"
+    },
+    {
+      "pagina": 2,
+      "imagen": "/moldes-genericos/e26_acta_parcial/pag-02.png"
+    },
+    {
+      "pagina": 3,
+      "imagen": "/moldes-genericos/e26_acta_parcial/pag-03.png"
+    },
+    {
+      "pagina": 4,
+      "imagen": "/moldes-genericos/e26_acta_parcial/pag-04.png"
+    },
+    {
+      "pagina": 5,
+      "imagen": "/moldes-genericos/e26_acta_parcial/pag-05.png"
+    },
+    {
+      "pagina": 6,
+      "imagen": "/moldes-genericos/e26_acta_parcial/pag-06.png"
+    }
+  ]
 }
