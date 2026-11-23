@@ -1,0 +1,4 @@
+probe line1 backslash-s: \\s
+probe line2 backslash-d: \\d
+probe line3 accents: é ñ Ó N° LONDOÑO
+probe line4 double-escape test: \n literal
