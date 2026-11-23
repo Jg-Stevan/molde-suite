@@ -14,7 +14,6 @@
 // Biblioteca local: moldes guardados en IndexedDB (almacen.ts) con Activar/
 // Borrar por fila y migración one-shot desde localStorage viejo.
 
-import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MoldeUniversal } from '@jg-stevan/scanner-core/molde/universal-types';
 import { activarMolde } from '@/lib/e14/molde/registry';
@@ -270,24 +269,6 @@ export function PanelMoldes({ onCambio }: Props) {
   return (
     <div className="mt-3 rounded-lg border border-brand-border p-2.5">
       <p className="font-mono text-[10px] font-bold text-white/70">MOLDES (UNIVERSAL v3)</p>
-
-      {/* Modo documento genérico: catálogo empaquetado en el build. NO precarga
-          moldes en la biblioteca E-14 ni activa nada: la biblioteca del operador
-          queda intacta (decisión del plan, sección 4.9). */}
-      <Link
-        href="/generico/"
-        className="mt-2 flex items-center justify-between rounded-xl border border-sky-800/60 bg-sky-500/10 px-4 py-3 hover:border-sky-500"
-      >
-        <span>
-          <span className="block text-sm font-semibold text-sky-200">
-            Verificar con moldes incluidos
-          </span>
-          <span className="block text-xs text-sky-200/60">
-            Captura cualquier documento del catálogo sin importar JSON
-          </span>
-        </span>
-        <span aria-hidden className="text-sky-300">→</span>
-      </Link>
 
       {/* Importar archivo */}
       <label className="mt-2 block w-full cursor-pointer rounded-lg border border-brand-border px-3 py-2 text-center font-mono text-[10px] font-bold text-white/80 hover:border-brand-green">

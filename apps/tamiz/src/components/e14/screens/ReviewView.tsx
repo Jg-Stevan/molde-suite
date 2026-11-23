@@ -303,6 +303,11 @@ export function ReviewView() {
   // D2/D3 Rev. 2: UN solo predicado compartido por banner + fallbacks.
   const hayClasificacion =
     acta.clasificacion != null && acta.clasificacion.nivel !== "MANUAL";
+  // ETAPA B (enrutamiento universal): el acta fue reconocida por un MOLDE de
+  // la biblioteca (documento no electoral) → el banner lleva el NOMBRE DEL
+  // DOCUMENTO (p. ej. «RECIBO DE LUZ») con el semáforo del veredicto del
+  // molde (construirActa ya estampa acta.titulo = nombre del molde).
+  const enrutado = acta.evaluacionMolde?.enrutado === true;
   // ── Banner de ubicación (mock del mantenedor): borde + glow del color del
   // estado, dot a cada lado del nombre. Fix del mantenedor (14-oct) #1: el
   // banner es el NOMBRE DEL PUESTO (acta.titulo) — nunca la ruta con «>».
@@ -312,17 +317,24 @@ export function ReviewView() {
       : status === "ADVERTENCIA" || status === "EN_REVISION_HUMANA"
         ? "border-amber-500/70 shadow-[0_0_14px_rgba(245,158,11,0.14)]"
         : "border-[#10b981]/40 shadow-[0_0_14px_rgba(16,185,129,0.10)]";
-  const dotUbicacion = hayClasificacion
-    ? "bg-brand-green"
-    : status === "EN_REVISION_HUMANA"
-      ? "bg-amber-400"
-      : "bg-red-500";
+  const dotUbicacion = enrutado
+    ? status === "RECHAZADA"
+      ? "bg-red-500"
+      : status === "ADVERTENCIA"
+        ? "bg-amber-400"
+        : "bg-brand-green"
+    : hayClasificacion
+      ? "bg-brand-green"
+      : status === "EN_REVISION_HUMANA"
+        ? "bg-amber-400"
+        : "bg-red-500";
   const textoBanner = (() => {
     // Fix del mantenedor (14-oct) #1: banner = nombre del puesto (p. ej.
     // «FRANKFURT - CONSULADO»), NUNCA la ruta construida a mano
     // (departamento > municipio > puesto > MESA > …). Sin clasificación
-    // → estados de fallback de siempre.
-    if (hayClasificacion) return acta.titulo;
+    // → estados de fallback de siempre. ETAPA B: acta ENRUTADA → el título
+    // del banner es el NOMBRE DEL DOCUMENTO del molde que lo identificó.
+    if (enrutado || hayClasificacion) return acta.titulo;
     return status === "EN_REVISION_HUMANA"
       ? "CLASIFICACIÓN PENDIENTE"
       : "NO IDENTIFICADO";

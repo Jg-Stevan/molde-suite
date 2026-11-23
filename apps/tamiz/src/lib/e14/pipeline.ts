@@ -17,6 +17,11 @@ import type { CamposActa, OpcionesEscaneoConTimeout, ParcialPipeline, PasosPipel
 // viaja con la regla exacta y su motivo — ver DETALLE_* en protocolo.ts).
 import { DETALLE_ESTRUCTURA } from './bridge/protocolo';
 import type { EntradaPipeline } from './bridge/captura';
+// ETAPA B (plan "interfaz única E-14"): el veredicto del MOLDE puede
+// sustituir al del gate cuando el acta se ENRUTA a una plantilla de la
+// biblioteca (documento no electoral reconocido por el motor universal).
+import { veredictoDeResumen } from './molde/enrutamiento';
+import { logger } from '../logger';
 
 function marcar(parcial: ParcialPipeline, fase: string, t0: number): void {
   parcial.msParciales = { ...(parcial.msParciales ?? {}), [fase]: Math.round(performance.now() - t0) };
@@ -235,24 +240,41 @@ export async function correrPipelineL2(
     opciones.maxIntentos ?? 3,
   );
 
-  // FASE 0 (blueprint DLA): evaluación del MOLDE ACTIVO tras el gate (paso
-  // inyectado — Tamiz ejecuta el motor universal compartido cuando hay molde
-  // registrado). ADITIVO: no toca score/status/rechazo; su veredicto viaja en
-  // `acta.evaluacionMolde`. Fallo del paso → null honesto (el escaneo sigue).
+  // FASE 0 (blueprint DLA): evaluación del MOLDE tras el gate (paso
+  // inyectado — Tamiz ejecuta el motor universal compartido). ETAPA B: el
+  // paso recibe el CONTEXTO E-14 (¿el clasificador electoral leyó el tipo?)
+  // y puede marcar el resultado `enrutado` cuando la biblioteca identifica
+  // un documento no electoral. Fallo del paso → null honesto (el escaneo
+  // sigue).
   let evaluacionMolde: CamposActa['evaluacionMolde'] = null;
   try {
-    evaluacionMolde = await pasos.evaluarMolde(warp.processed);
-  } catch {
+    evaluacionMolde = await pasos.evaluarMolde(warp.processed, {
+      esE14: (clasificacionBase?.tipo ?? null) !== null,
+    });
+  } catch (e) {
+    logger.warn('[pipeline] paso de molde falló (el escaneo sigue sin él)', {
+      mensaje: (e as Error).message,
+    });
     evaluacionMolde = null;
   }
+
+  // ETAPA B (B.2 + B.3) — acta ENRUTADA al molde: el score/estado/rechazo
+  // del acta derivan del RESULTADO DEL MOLDE (semáforo verde/ámbar/rojo
+  // universal con la misma escala del gate). La clasificación E-14 queda
+  // null (no hay cabecera electoral que archivar) y el banner toma el
+  // nombre del documento en construirActa. Sin enrutamiento: veredicto del
+  // gate intacto y resultado del molde ADITIVO (doctrina de siempre).
+  const veredictoMolde = evaluacionMolde?.enrutado
+    ? veredictoDeResumen(evaluacionMolde)
+    : null;
 
   void origenDeteccion;
   return pasos.construirActa(opciones as OpcionesEscaneo, parcial, {
     ...campos,
-    score,
-    status: gate.status,
-    rechazo: gate.rechazo,
-    clasificacion: gate.clasificacion,
+    score: veredictoMolde?.score ?? score,
+    status: veredictoMolde?.status ?? gate.status,
+    rechazo: veredictoMolde ? veredictoMolde.rechazo : gate.rechazo,
+    clasificacion: veredictoMolde ? null : gate.clasificacion,
     evaluacionMolde,
     // PLAN-AGENTE-LAYOUT F4: veredicto del gate estructural (ADITIVO —
     // null = etapa saltada). El overlay de REVISIÓN lo consume.

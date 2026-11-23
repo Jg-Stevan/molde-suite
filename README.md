@@ -16,7 +16,6 @@ El proyecto es una **plataforma genérica de validación documental**, no una ap
 - **Hub:** https://jg-stevan.github.io/molde-suite/
 - **Molde Studio:** https://jg-stevan.github.io/molde-suite/studio/
 - **Tamiz:** https://jg-stevan.github.io/molde-suite/tamiz/
-- **Tamiz — modo genérico:** https://jg-stevan.github.io/molde-suite/tamiz/generico/
 
 El despliegue lo hace [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) en cada push a `main`: compila las dos apps y publica el hub con los enlaces.
 

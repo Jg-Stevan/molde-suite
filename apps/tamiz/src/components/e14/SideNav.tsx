@@ -12,7 +12,6 @@
  * negocio).
  */
 import { useE14Store, type Vista } from "@/lib/e14/store";
-import Link from "next/link";
 import {
   StitchCameraIcon,
   StitchClockIcon,
@@ -162,18 +161,6 @@ export function SideNav() {
             </span>
           </div>
         </div>
-
-        {/* Entrada al modo genérico (flujo guiado multipágina, 2026-11-23):
-            enlace ADITIVO — no toca el flujo E-14. */}
-        <Link
-          href="/generico/"
-          className="flex items-center justify-center gap-2 min-h-11 rounded-xl border border-slate-800 bg-[#10161f] text-slate-300 font-mono text-[11px] font-bold uppercase tracking-wider hover:text-white hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
-        >
-          <span aria-hidden className="text-emerald-400 font-extrabold">
-            G
-          </span>
-          Modo genérico
-        </Link>
 
         <button
           type="button"
