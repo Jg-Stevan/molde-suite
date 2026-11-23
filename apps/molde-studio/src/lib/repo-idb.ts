@@ -151,7 +151,15 @@ const FLAG_SEMILLA_E14 = 'molde-studio-semilla-e14';
 // el build de Tamiz; aquí se siembran en Molde Studio para poder abrirlos y
 // calibrarlos. Flag propio y versionado: los visitantes anteriores reciben la
 // siembra una vez, y un molde borrado a propósito no resucita.
-const FLAG_SEMILLA_GENERICOS = 'molde-studio-semilla-genericos-v1';
+//
+// ACTUALIZACIÓN VERSIONADA (v2): cuando la versión del JSON empaquetado
+// cambia (p. ej. v1.2.0 → v1.3.0 recalibrado contra la plantilla vigente),
+// los registros SEMBRADOS que el usuario nunca editó a mano
+// (createdAt === updatedAt) se reemplazan por la semilla nueva. Un molde
+// editado por el usuario conserva sus cambios: la semilla jamás pisa
+// ediciones humanas. El upgrade no toca updatedAt para seguir permitiendo
+// upgrades futuros.
+const FLAG_SEMILLA_GENERICOS = 'molde-studio-semilla-genericos-v2';
 
 const SEMILLAS_GENERICAS = [
   { id: 'semilla-generico-comprobante-entrega', json: moldeComprobanteSeed },
@@ -167,21 +175,38 @@ async function sembrarGenericosSiToca(): Promise<void> {
     const existentes = await pedir<MoldeRegistro[]>('moldes', 'readonly', (s) => s.getAll());
     const porId = new Map(existentes.map((m) => [m.id, m]));
     const now = ahora();
-    // Siembras anteriores (sin referencias): se les añade paginasRef sin tocar
-    // el resto del molde, que puede tener ediciones del usuario.
     for (const { id, json } of SEMILLAS_GENERICAS) {
       const reg = porId.get(id);
       if (!reg) continue;
+      let guardado: { paginasRef?: unknown; version?: unknown } | null = null;
       try {
-        const guardado = JSON.parse(reg.json) as { paginasRef?: unknown };
-        if (guardado.paginasRef) continue;
+        guardado = JSON.parse(reg.json) as { paginasRef?: unknown; version?: unknown };
+      } catch {
+        /* json corrupto: no tocar */
+        continue;
+      }
+      const nuncaEditado = reg.updatedAt === reg.createdAt;
+      const desactualizado = guardado?.version !== json.version;
+      // Upgrade versionado: la semilla recalibrada manda sobre una copia
+      // sembrada y jamás editada a mano (incluye paginasRef y metadata).
+      if (nuncaEditado && desactualizado) {
+        reg.nombre = json.nombre;
+        reg.descripcion = json.descripcion ?? null;
+        reg.documento = json.documento ?? null;
+        reg.json = JSON.stringify(json);
+        reg.imagenRef = json.paginasRef?.[0]?.imagen ?? reg.imagenRef;
+        await pedir('moldes', 'readwrite', (s) => s.put(reg));
+        continue;
+      }
+      // Siembras anteriores (sin referencias): se les añade paginasRef sin
+      // tocar el resto del molde, que puede tener ediciones del usuario.
+      if (!guardado?.paginasRef) {
+        guardado = guardado ?? {};
         guardado.paginasRef = json.paginasRef;
         reg.json = JSON.stringify(guardado);
         reg.imagenRef = reg.imagenRef ?? json.paginasRef?.[0]?.imagen ?? null;
         reg.updatedAt = now;
         await pedir('moldes', 'readwrite', (s) => s.put(reg));
-      } catch {
-        /* json corrupto: no tocar */
       }
     }
     if (localStorage.getItem(FLAG_SEMILLA_GENERICOS)) return;
