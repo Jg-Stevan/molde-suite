@@ -29,9 +29,6 @@ import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useE14Store } from "@/lib/e14/store";
 import { TopBar } from "@/components/e14/TopBar";
-// SOLO PREVIEW (entrega): acceso al .zip con los cambios aplicados al repo.
-// Pieza ajena a la app — se puede eliminar sin afectar nada.
-import { DownloadIcon } from "@/components/e14/icons";
 import { BottomNav } from "@/components/e14/BottomNav";
 import { SideNav } from "@/components/e14/SideNav";
 import { ScanView } from "@/components/e14/screens/ScanView"; // vista inicial — EAGER
@@ -195,21 +192,6 @@ export default function Page() {
               {vista === "resumen" && <ResumenView />}
             </div>
           </main>
-
-          {/* SOLO PREVIEW (entrega): píldora discreta en el borde izquierdo
-              del visor, únicamente en ESCANEAR (bajo las franjas de avisos
-              z-40 y la galería de simulación z-50, así no tapa nada). */}
-          {vista === "escanear" && (
-            <a
-              href="/cambios-digielect14.zip"
-              download
-              title="Descargar cambios (.zip)"
-              aria-label="Descargar cambios (.zip)"
-              className="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-slate-800 bg-[#10161f]/90 text-slate-400 backdrop-blur-md transition hover:text-brand-green focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
-            >
-              <DownloadIcon className="w-4.5 h-4.5" />
-            </a>
-          )}
 
           {/* Navegación móvil (<lg). Las CTAs de REVISIÓN viajan dentro del
             BottomNav (encima de la barra), como siempre.
