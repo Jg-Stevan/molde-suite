@@ -1,0 +1,287 @@
+{
+  "tipo": "universal",
+  "version": "1.2.0",
+  "nombre": "Comprobante de entrega del producto",
+  "descripcion": "Las 3 primeras páginas del PDF son variantes del MISMO documento (A impresa, B a mano, C mixta). El molde se calibra con la página 1; las variantes se prueban imprimiéndolas por separado.",
+  "documento": "generico/comprobante_entrega",
+  "idioma": "es",
+  "campos": [
+    {
+      "id": "titulo",
+      "etiqueta": "Título del documento",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.0011,
+        "y": -0.0019,
+        "w": 0.501,
+        "h": 0.02
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+        "rect": {
+          "x": 0.0941,
+          "y": 0.0779,
+          "w": 0.5006,
+          "h": 0.0184
+        }
+      },
+      "patron": ".*COMPROBANTE\\s+DE\\s+ENTREGA.*",
+      "nota": "Identidad del documento. Campo de IDENTIDAD de página/documento (veredicto genérico): su patrón debe cumplirse en el recorte de la posición esperada.",
+      "destacado": true
+    },
+    {
+      "id": "nombre_comprador",
+      "etiqueta": "Nombre y apellido del comprador",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0003,
+        "y": 0.0135,
+        "w": 0.397,
+        "h": 0.017
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Nombre y apellido",
+        "rect": {
+          "x": 0.1027,
+          "y": 0.1365,
+          "w": 0.1324,
+          "h": 0.0127
+        }
+      },
+      "realce": true,
+      "htr": true,
+      "nota": "Valor en la línea siguiente. En variante B/C es manuscrito: el motor debe mandarlo a revisión, no inventar lectura."
+    },
+    {
+      "id": "documento_comprador",
+      "etiqueta": "Número de documento",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0003,
+        "y": 0.0137,
+        "w": 0.197,
+        "h": 0.016
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Número de Documento",
+        "rect": {
+          "x": 0.1027,
+          "y": 0.1763,
+          "w": 0.1667,
+          "h": 0.0127
+        }
+      },
+      "patron": "(CC|C\\.?C\\.?|DNI|C[eé]dula)?\\s*\\d{1,3}(\\.\\d{3}){1,3}",
+      "realce": true,
+      "htr": true,
+      "nota": "Acepta CC 1.023.456.789 / 79.884.120. En B/C manuscrito → revisión."
+    },
+    {
+      "id": "telefono",
+      "etiqueta": "Teléfono",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0,
+        "y": 0.0137,
+        "w": 0.192,
+        "h": 0.016
+      },
+      "umbral": 0.02,
+      "obligatorio": false,
+      "ancla": {
+        "texto": "Teléfono",
+        "rect": {
+          "x": 0.508,
+          "y": 0.1763,
+          "w": 0.065,
+          "h": 0.0127
+        }
+      },
+      "patron": "\\d{3}[\\s.-]?\\d{3}[\\s.-]?\\d{4}",
+      "realce": true,
+      "nota": "Opcional. A/B/C lo tienen impreso o manuscrito."
+    },
+    {
+      "id": "direccion",
+      "etiqueta": "Dirección de entrega",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.0027,
+        "y": 0.036,
+        "w": 0.8,
+        "h": 0.018
+      },
+      "umbral": 0.02,
+      "obligatorio": false,
+      "ancla": {
+        "texto": "Dirección de entrega",
+        "rect": {
+          "x": 0.1027,
+          "y": 0.216,
+          "w": 0.1455,
+          "h": 0.0127
+        }
+      },
+      "realce": true,
+      "htr": true,
+      "nota": "Una sola zona sobre la línea de valores (CALLE/NRO/PISO/DPTO). No incluir las etiquetas impresas de la fila superior."
+    },
+    {
+      "id": "articulo",
+      "etiqueta": "Artículo",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0003,
+        "y": 0.0134,
+        "w": 0.477,
+        "h": 0.018
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Artículo",
+        "rect": {
+          "x": 0.1027,
+          "y": 0.3136,
+          "w": 0.0604,
+          "h": 0.0127
+        }
+      },
+      "realce": true,
+      "htr": true,
+      "nota": "A impreso; C impreso en blanco para llenar a mano. Si queda vacío → falta obligatorio."
+    },
+    {
+      "id": "numero_operacion",
+      "etiqueta": "N.º de operación",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.0242,
+        "y": 0.0134,
+        "w": 0.161,
+        "h": 0.018
+      },
+      "umbral": 0.02,
+      "obligatorio": false,
+      "ancla": {
+        "texto": "Operación",
+        "rect": {
+          "x": 0.6132,
+          "y": 0.3136,
+          "w": 0.0776,
+          "h": 0.0127
+        }
+      },
+      "patron": "OP-\\d{4}-\\d{6}",
+      "realce": true,
+      "nota": "Opcional; patrón OP-AAAA-NNNNNN."
+    },
+    {
+      "id": "descripcion",
+      "etiqueta": "Descripción",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0003,
+        "y": 0.0127,
+        "w": 0.797,
+        "h": 0.034
+      },
+      "umbral": 0.02,
+      "obligatorio": false,
+      "ancla": {
+        "texto": "Descripción",
+        "rect": {
+          "x": 0.1027,
+          "y": 0.3533,
+          "w": 0.0891,
+          "h": 0.0127
+        }
+      },
+      "realce": true,
+      "nota": "Opcional; abarca dos líneas en la variante A."
+    },
+    {
+      "id": "firma_comprador",
+      "etiqueta": "Firma comprador",
+      "pagina": 1,
+      "tipo": "firma",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.0648,
+        "y": -0.0491,
+        "w": 0.35,
+        "h": 0.038
+      },
+      "umbral": 0.012,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Firma del comprador",
+        "rect": {
+          "x": 0.1848,
+          "y": 0.5291,
+          "w": 0.1381,
+          "h": 0.012
+        }
+      },
+      "nota": "Rúbrica manuscrita sobre la línea. Si la variante A se imprime sin firmar, este campo DEBE quedar faltante. Zona SOLO sobre la rúbrica (no incluir la línea impresa ni el nombre)."
+    },
+    {
+      "id": "fecha_entrega",
+      "etiqueta": "Fecha de entrega",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.1158,
+        "y": -0.0391,
+        "w": 0.34,
+        "h": 0.028
+      },
+      "umbral": 0.012,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Fecha de entrega",
+        "rect": {
+          "x": 0.6458,
+          "y": 0.5291,
+          "w": 0.1142,
+          "h": 0.012
+        }
+      },
+      "nota": "Se valida como PRESENCIA de tinta (fecha manuscrita). No exigir lectura exacta: el HTR no es fiable. Si se quiere el valor, agregar un campo texto opcional con htr=true."
+    }
+  ],
+  "validaciones": [],
+  "meta": {
+    "orden": 10,
+    "etiquetaCampos": "Campos",
+    "etiquetas": {
+      "texto": "Texto",
+      "presencia": "Presencia",
+      "firma": "Firma",
+      "checkbox": "Casilla"
+    }
+  }
+}

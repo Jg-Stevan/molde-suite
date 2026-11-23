@@ -24,3 +24,14 @@ Lo que el núcleo mínimo NO trae todavía (camino A, por partes): detección de
 ## Stack
 
 Next.js (App Router, convención `proxy`) · React · Zustand · TypeScript. OCR y visión viven en el paquete de motor privado (`@jg-stevan/scanner-core`, no incluido).
+
+## Modo documento genérico (`/generico/`)
+
+Ruta **aditiva** que valida cualquier documento contra un molde universal del catálogo empaquetado (comprobante de entrega, recibo de pago, E-22, E-24 y E-26), sin importar JSON ni tocar la biblioteca E-14 de IndexedDB:
+
+- Captura multipágina en orden (cámara o galería), con vista previa, reemplazo y quitado por página.
+- Análisis con `evaluarDocumentoUniversal` (motor universal compartido) + OCR Tesseract spa.
+- Veredicto propio: ÓPTIMA / ADVERTENCIA / RECHAZADA. Si falta una página, hay duplicado, está desordenada o falta un obligatorio duro → RECHAZADA. Los campos manuscritos (`htr`) siempre piden confirmación humana → ADVERTENCIA.
+- Reporte JSON descargable, sin fotos ni subidas: nada sale del dispositivo.
+- Catálogo en `src/lib/generico/moldes/` (moldes v1.1.0 calibrados contra los PDF de práctica).
+- El service worker precachea `/generico/` para recarga offline; E-14 sigue exactamente igual.

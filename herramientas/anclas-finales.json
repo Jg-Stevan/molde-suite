@@ -1,0 +1,1464 @@
+{
+  "version": "1.1.0-finales",
+  "convencion": "patrones del molde final (generico)",
+  "documentos": [
+    {
+      "documento": "comprobante_entrega",
+      "nombre": "Comprobante de entrega del producto",
+      "pdf": "comprobante_entrega.pdf",
+      "referencia": "referencias/comprobante_entrega/pag-01.png",
+      "paginas": 1,
+      "modo": "generico",
+      "campos": [
+        {
+          "id": "titulo",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+          "zona": {
+            "x": -0.0011,
+            "y": -0.0019,
+            "w": 0.501,
+            "h": 0.02
+          },
+          "patron": ".*COMPROBANTE\\s+DE\\s+ENTREGA.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "nombre_comprador",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Nombre y apellido",
+          "zona": {
+            "x": 0.0003,
+            "y": 0.0135,
+            "w": 0.397,
+            "h": 0.017
+          },
+          "patron": null,
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "documento_comprador",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Número de Documento",
+          "zona": {
+            "x": 0.0003,
+            "y": 0.0137,
+            "w": 0.197,
+            "h": 0.016
+          },
+          "patron": "(CC|C\\.?C\\.?|DNI|C[eé]dula)?\\s*\\d{1,3}(\\.\\d{3}){1,3}",
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "telefono",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": false,
+          "ancla": "Teléfono",
+          "zona": {
+            "x": 0.0,
+            "y": 0.0137,
+            "w": 0.192,
+            "h": 0.016
+          },
+          "patron": "\\d{3}[\\s.-]?\\d{3}[\\s.-]?\\d{4}",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "direccion",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": false,
+          "ancla": "Dirección de entrega",
+          "zona": {
+            "x": -0.0027,
+            "y": 0.036,
+            "w": 0.8,
+            "h": 0.018
+          },
+          "patron": null,
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "articulo",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Artículo",
+          "zona": {
+            "x": 0.0003,
+            "y": 0.0134,
+            "w": 0.477,
+            "h": 0.018
+          },
+          "patron": null,
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "numero_operacion",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": false,
+          "ancla": "Operación",
+          "zona": {
+            "x": -0.0242,
+            "y": 0.0134,
+            "w": 0.161,
+            "h": 0.018
+          },
+          "patron": "OP-\\d{4}-\\d{6}",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "descripcion",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": false,
+          "ancla": "Descripción",
+          "zona": {
+            "x": 0.0003,
+            "y": 0.0127,
+            "w": 0.797,
+            "h": 0.034
+          },
+          "patron": null,
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "firma_comprador",
+          "pagina": 1,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "Firma del comprador",
+          "zona": {
+            "x": -0.0648,
+            "y": -0.0491,
+            "w": 0.35,
+            "h": 0.038
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "fecha_entrega",
+          "pagina": 1,
+          "tipo": "presencia",
+          "obligatorio": true,
+          "ancla": "Fecha de entrega",
+          "zona": {
+            "x": -0.1158,
+            "y": -0.0391,
+            "w": 0.34,
+            "h": 0.028
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        }
+      ]
+    },
+    {
+      "documento": "recibo_pago",
+      "nombre": "Recibo de pago",
+      "pdf": "recibo_pago.pdf",
+      "referencia": "referencias/recibo_pago/pag-01.png",
+      "paginas": 1,
+      "modo": "generico",
+      "campos": [
+        {
+          "id": "titulo",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "RECIBO DE PAGO",
+          "zona": {
+            "x": -0.0006,
+            "y": -0.001,
+            "w": 0.189,
+            "h": 0.02
+          },
+          "patron": "RECIBO DE PAGO",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "fecha_emision",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Fecha",
+          "zona": {
+            "x": 0.0465,
+            "y": -0.0021,
+            "w": 0.182,
+            "h": 0.019
+          },
+          "patron": "\\d{1,2}\\s+de\\s+[A-Za-zÁÉÍÓÚáéíóúñ]+\\s+de\\s+\\d{4}",
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "numero_recibo",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Recibo",
+          "zona": {
+            "x": 0.3494,
+            "y": 0.096,
+            "w": 0.145,
+            "h": 0.019
+          },
+          "patron": "REC-\\d{4}-\\d{4}",
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "datos_emisor",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": null,
+          "zona": {
+            "x": 0.12,
+            "y": 0.202,
+            "w": 0.76,
+            "h": 0.048
+          },
+          "patron": ".*DNI\\s*\\d{1,3}(\\.\\d{3}){1,3}.*",
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "datos_pagador",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Recibí de",
+          "zona": {
+            "x": -0.0038,
+            "y": -0.0035,
+            "w": 0.76,
+            "h": 0.055
+          },
+          "patron": ".*DNI\\s*\\d{1,3}(\\.\\d{3}){1,3}.*",
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "importe",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "La suma de",
+          "zona": {
+            "x": 0.0842,
+            "y": -0.0029,
+            "w": 0.077,
+            "h": 0.02
+          },
+          "patron": ".*\\d{1,3}(\\.\\d{3})*,\\d{2}.*",
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "importe_texto",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": false,
+          "ancla": "La suma de",
+          "zona": {
+            "x": 0.1612,
+            "y": -0.0029,
+            "w": 0.245,
+            "h": 0.02
+          },
+          "patron": null,
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "concepto",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "En concepto de",
+          "zona": {
+            "x": 0.1112,
+            "y": -0.0029,
+            "w": 0.645,
+            "h": 0.022
+          },
+          "patron": null,
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "forma_pago",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Forma de pago",
+          "zona": {
+            "x": 0.1163,
+            "y": -0.002,
+            "w": 0.635,
+            "h": 0.021
+          },
+          "patron": null,
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "fecha_pago",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Fecha de pago",
+          "zona": {
+            "x": 0.1113,
+            "y": -0.0034,
+            "w": 0.16,
+            "h": 0.022
+          },
+          "patron": "\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}",
+          "umbral": 0.02,
+          "htr": true
+        },
+        {
+          "id": "firma_emisor",
+          "pagina": 1,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "Firma",
+          "zona": {
+            "x": -0.1715,
+            "y": -0.0519,
+            "w": 0.33,
+            "h": 0.045
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_pagador",
+          "pagina": 1,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "Firma",
+          "zona": {
+            "x": 0.2585,
+            "y": -0.0519,
+            "w": 0.33,
+            "h": 0.045
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        }
+      ]
+    },
+    {
+      "documento": "e22_resolucion",
+      "nombre": "E-22 Resolución de la Comisión Escrutadora",
+      "pdf": "e22_resolucion.pdf",
+      "referencia": "referencias/e22_resolucion/pag-01.png",
+      "paginas": 2,
+      "modo": "generico",
+      "campos": [
+        {
+          "id": "titulo_resolucion",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Resolución núm.",
+          "zona": {
+            "x": -0.0095,
+            "y": -0.0017,
+            "w": 0.2,
+            "h": 0.021
+          },
+          "patron": "Resoluci[oó]n\\s+n[uú]m\\.?\\s*0*1.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "fecha_resolucion",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "28 de agosto de 2024",
+          "zona": {
+            "x": -0.001,
+            "y": -0.0016,
+            "w": 0.19,
+            "h": 0.021
+          },
+          "patron": "28\\s+de\\s+agosto\\s+de\\s+2024",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "articulo_1",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Artículo 1",
+          "zona": {
+            "x": -0.0006,
+            "y": -0.0033,
+            "w": 0.85,
+            "h": 0.022
+          },
+          "patron": "Art[ií]culo\\s+1(?!\\d).*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "articulo_2",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Artículo 2",
+          "zona": {
+            "x": -0.0006,
+            "y": -0.0027,
+            "w": 0.85,
+            "h": 0.024
+          },
+          "patron": "Art[ií]culo\\s+2(?!\\d).*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "articulo_3",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Artículo 3",
+          "zona": {
+            "x": -0.0006,
+            "y": -0.0028,
+            "w": 0.78,
+            "h": 0.023
+          },
+          "patron": "Art[ií]culo\\s+3(?!\\d).*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "articulo_4",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Artículo 4",
+          "zona": {
+            "x": -0.0006,
+            "y": -0.0021,
+            "w": 0.53,
+            "h": 0.02
+          },
+          "patron": "Art[ií]culo\\s+4(?!\\d).*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "lugar_fecha",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Dada en Pivijay",
+          "zona": {
+            "x": -0.0006,
+            "y": -0.0029,
+            "w": 0.33,
+            "h": 0.021
+          },
+          "patron": ".*Dada\\s+en\\s+Pivijay.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "nombre_firmante",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Julio Rocha Gómez",
+          "zona": {
+            "x": -0.0752,
+            "y": -0.0018,
+            "w": 0.3,
+            "h": 0.017
+          },
+          "patron": ".*Julio\\s+Rocha\\s+G[oó]mez.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "cargo_firmante",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": false,
+          "ancla": "Juez municipal",
+          "zona": {
+            "x": -0.0041,
+            "y": -0.0019,
+            "w": 0.3,
+            "h": 0.024
+          },
+          "patron": "Juez\\s+municipal.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "firma_juez",
+          "pagina": 2,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "Julio Rocha Gómez",
+          "zona": {
+            "x": -0.0752,
+            "y": -0.0568,
+            "w": 0.27,
+            "h": 0.045
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        }
+      ]
+    },
+    {
+      "documento": "e24_cuadro",
+      "nombre": "E-24 Cuadro de resultados del escrutinio",
+      "pdf": "e24_cuadro.pdf",
+      "referencia": "referencias/e24_cuadro/pag-01.png",
+      "paginas": 2,
+      "modo": "generico",
+      "campos": [
+        {
+          "id": "hoja_1",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "HOJA N° 1 DE 2",
+          "zona": {
+            "x": -0.0041,
+            "y": -0.0031,
+            "w": 0.08,
+            "h": 0.021
+          },
+          "patron": "HOJA\\s*N.{0,2}\\s*1\\s*DE\\s*2",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "titulo_e24",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "CUADRO DE RESULTADOS DEL ESCRUTINIO",
+          "zona": {
+            "x": 0.0162,
+            "y": -0.0031,
+            "w": 0.44,
+            "h": 0.014
+          },
+          "patron": ".*CUADRO\\s+DE\\s+RESULTADOS.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "mesas_hoja_1",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": null,
+          "zona": {
+            "x": 0.38,
+            "y": 0.155,
+            "w": 0.59,
+            "h": 0.018
+          },
+          "patron": ".*ESCRUTINIO:\\s*100[.,]00\\s*%.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "firma_1_hoja_1",
+          "pagina": 1,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "CRISTIAN PERDOMO",
+          "zona": {
+            "x": -0.0207,
+            "y": -0.0518,
+            "w": 0.2,
+            "h": 0.042
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_2_hoja_1",
+          "pagina": 1,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "JOHN JAIME SALAS CARDONA",
+          "zona": {
+            "x": -0.0452,
+            "y": -0.0494,
+            "w": 0.23,
+            "h": 0.042
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_3_hoja_1",
+          "pagina": 1,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "ALEXANDRA MARIA RIVERA",
+          "zona": {
+            "x": -0.0486,
+            "y": -0.0518,
+            "w": 0.26,
+            "h": 0.042
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "hoja_2",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "HOJA N° 2 DE 2",
+          "zona": {
+            "x": -0.0041,
+            "y": -0.0031,
+            "w": 0.08,
+            "h": 0.021
+          },
+          "patron": "HOJA\\s*N.{0,2}\\s*2\\s*DE\\s*2",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "titulo_e24_hoja_2",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "CUADRO DE RESULTADOS DEL ESCRUTINIO",
+          "zona": {
+            "x": 0.0162,
+            "y": -0.0031,
+            "w": 0.44,
+            "h": 0.014
+          },
+          "patron": ".*CUADRO\\s+DE\\s+RESULTADOS.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "votos_blanco",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "996",
+          "zona": {
+            "x": 0.0003,
+            "y": -0.0022,
+            "w": 0.534,
+            "h": 0.018
+          },
+          "patron": "996",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "votos_nulos",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "997",
+          "zona": {
+            "x": 0.0003,
+            "y": -0.0022,
+            "w": 0.534,
+            "h": 0.018
+          },
+          "patron": "997",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "votos_no_marcados",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "998",
+          "zona": {
+            "x": 0.0003,
+            "y": -0.0027,
+            "w": 0.534,
+            "h": 0.018
+          },
+          "patron": "998",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "firma_1_hoja_2",
+          "pagina": 2,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "CRISTIAN PERDOMO",
+          "zona": {
+            "x": -0.0207,
+            "y": -0.0518,
+            "w": 0.2,
+            "h": 0.042
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_2_hoja_2",
+          "pagina": 2,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "JOHN JAIME SALAS CARDONA",
+          "zona": {
+            "x": -0.0452,
+            "y": -0.0494,
+            "w": 0.23,
+            "h": 0.042
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_3_hoja_2",
+          "pagina": 2,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "ALEXANDRA MARIA RIVERA",
+          "zona": {
+            "x": -0.0486,
+            "y": -0.0518,
+            "w": 0.26,
+            "h": 0.042
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        }
+      ]
+    },
+    {
+      "documento": "e26_acta_parcial",
+      "nombre": "E-26 Acta parcial del escrutinio municipal",
+      "pdf": "e26_acta_parcial.pdf",
+      "referencia": "referencias/e26_acta_parcial/pag-01.png",
+      "paginas": 6,
+      "modo": "generico",
+      "campos": [
+        {
+          "id": "pagina_1",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Pág 1 de 6",
+          "zona": {
+            "x": -0.0037,
+            "y": -0.0034,
+            "w": 0.067,
+            "h": 0.017
+          },
+          "patron": "P[aá]g\\s*1\\s*de\\s*6",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "pagina_2",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Pág 2 de 6",
+          "zona": {
+            "x": -0.0037,
+            "y": -0.0034,
+            "w": 0.067,
+            "h": 0.017
+          },
+          "patron": "P[aá]g\\s*2\\s*de\\s*6",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "pagina_3",
+          "pagina": 3,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Pág 3 de 6",
+          "zona": {
+            "x": -0.0037,
+            "y": -0.0034,
+            "w": 0.067,
+            "h": 0.017
+          },
+          "patron": "P[aá]g\\s*3\\s*de\\s*6",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "pagina_4",
+          "pagina": 4,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Pág 4 de 6",
+          "zona": {
+            "x": -0.0037,
+            "y": -0.0034,
+            "w": 0.067,
+            "h": 0.017
+          },
+          "patron": "P[aá]g\\s*4\\s*de\\s*6",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "pagina_5",
+          "pagina": 5,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Pág 5 de 6",
+          "zona": {
+            "x": -0.0037,
+            "y": -0.0034,
+            "w": 0.067,
+            "h": 0.017
+          },
+          "patron": "P[aá]g\\s*5\\s*de\\s*6",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "pagina_6",
+          "pagina": 6,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "Pág 6 de 6",
+          "zona": {
+            "x": -0.0037,
+            "y": -0.0034,
+            "w": 0.067,
+            "h": 0.017
+          },
+          "patron": "P[aá]g\\s*6\\s*de\\s*6",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "departamento",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "DEPARTAMENTO",
+          "zona": {
+            "x": 0.1162,
+            "y": -0.0021,
+            "w": 0.278,
+            "h": 0.017
+          },
+          "patron": "01[\\s-]+ANTIOQUIA.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "municipio",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "MUNICIPIO",
+          "zona": {
+            "x": 0.0741,
+            "y": -0.0021,
+            "w": 0.263,
+            "h": 0.017
+          },
+          "patron": "007[\\s-]+ABRIAQUI.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "partido_0028",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "0002 PARTIDO CONSERVADOR COLOMBIANO",
+          "zona": {
+            "x": -0.008,
+            "y": -0.0059,
+            "w": 0.411,
+            "h": 0.015
+          },
+          "patron": ".*CONSERVADOR.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "total_0028",
+          "pagina": 1,
+          "tipo": "texto",
+          "obligatorio": false,
+          "ancla": null,
+          "zona": {
+            "x": 0.6,
+            "y": 0.362,
+            "w": 0.15,
+            "h": 0.018
+          },
+          "patron": "\\d{1,3}",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "partido_0011",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "0011 PARTIDO CENTRO DEMOCRÁTICO",
+          "zona": {
+            "x": -0.008,
+            "y": -0.0046,
+            "w": 0.361,
+            "h": 0.016
+          },
+          "patron": ".*CENTRO\\s+DEMOCR.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "resumen_votacion",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "RESUMEN DE LA VOTACIÓN",
+          "zona": {
+            "x": -0.0058,
+            "y": -0.0046,
+            "w": 0.191,
+            "h": 0.015
+          },
+          "patron": ".*RESUMEN\\s+DE\\s+LA\\s+VOTACI[OÓ]N.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "total_validos_2",
+          "pagina": 2,
+          "tipo": "texto",
+          "obligatorio": false,
+          "ancla": null,
+          "zona": {
+            "x": 0.6,
+            "y": 0.35,
+            "w": 0.15,
+            "h": 0.018
+          },
+          "patron": "1\\.?383",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "totales_votacion",
+          "pagina": 3,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "TOTALES GENERALES DE LA VOTACIÓN",
+          "zona": {
+            "x": -0.0082,
+            "y": -0.0059,
+            "w": 0.253,
+            "h": 0.015
+          },
+          "patron": ".*TOTALES\\s+GENERALES.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "votos_nulos",
+          "pagina": 3,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "TOTAL VOTOS NULOS",
+          "zona": {
+            "x": -0.0129,
+            "y": -0.0117,
+            "w": 0.561,
+            "h": 0.021
+          },
+          "patron": ".*NULOS.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "votos_no_marcados",
+          "pagina": 3,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "TOTAL VOTOS NO MARCADOS",
+          "zona": {
+            "x": -0.0129,
+            "y": -0.0087,
+            "w": 0.561,
+            "h": 0.021
+          },
+          "patron": ".*NO\\s+MARCADOS.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "calculo_umbral",
+          "pagina": 4,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "CÁLCULO DEL UMBRAL",
+          "zona": {
+            "x": -0.008,
+            "y": -0.0046,
+            "w": 0.361,
+            "h": 0.016
+          },
+          "patron": ".*C[AÁ]LCULO\\s+DEL\\s+UMBRAL.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "umbral",
+          "pagina": 4,
+          "tipo": "texto",
+          "obligatorio": false,
+          "ancla": "UMBRAL",
+          "zona": {
+            "x": 0.5287,
+            "y": 0.1014,
+            "w": 0.05,
+            "h": 0.018
+          },
+          "patron": "115",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "partidos_superan",
+          "pagina": 4,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "PARTIDOS QUE SUPERAN EL UMBRAL",
+          "zona": {
+            "x": -0.008,
+            "y": -0.0044,
+            "w": 0.361,
+            "h": 0.016
+          },
+          "patron": ".*PARTIDOS\\s+QUE\\s+SUPERAN.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "cifra_repartidora",
+          "pagina": 5,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "CIFRA REPARTIDORA",
+          "zona": {
+            "x": -0.008,
+            "y": -0.0046,
+            "w": 0.261,
+            "h": 0.016
+          },
+          "patron": "CIFRA\\s+REPARTIDORA.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "cifra",
+          "pagina": 5,
+          "tipo": "texto",
+          "obligatorio": false,
+          "ancla": "LA CIFRA REPARTIDORA ES",
+          "zona": {
+            "x": 0.494,
+            "y": -0.0078,
+            "w": 0.1,
+            "h": 0.021
+          },
+          "patron": ".*175[.,]5.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "tabla_curules",
+          "pagina": 5,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "CALCULO DE CURULES",
+          "zona": {
+            "x": -0.008,
+            "y": -0.0044,
+            "w": 0.561,
+            "h": 0.016
+          },
+          "patron": ".*CURULES.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "declaratoria",
+          "pagina": 6,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "DECLARATORIA DE ELECCIÓN",
+          "zona": {
+            "x": -0.007,
+            "y": -0.0037,
+            "w": 0.2,
+            "h": 0.014
+          },
+          "patron": "DECLARATORIA\\s+DE\\s+ELECCI[OÓ]N.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "tabla_electos",
+          "pagina": 6,
+          "tipo": "texto",
+          "obligatorio": true,
+          "ancla": "PARTIDO Y/O MOVIMIENTO POLÍTICO",
+          "zona": {
+            "x": -0.0863,
+            "y": -0.0053,
+            "w": 0.561,
+            "h": 0.016
+          },
+          "patron": ".*PARTIDO\\s+Y/O\\s+MOVIMIENTO.*",
+          "umbral": 0.02,
+          "htr": false
+        },
+        {
+          "id": "firma_1_pag_1",
+          "pagina": 1,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "CRISTIAN PERDOMO",
+          "zona": {
+            "x": -0.02,
+            "y": -0.0341,
+            "w": 0.18,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_2_pag_1",
+          "pagina": 1,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "JOHN JAIME SALAS CARDONA",
+          "zona": {
+            "x": -0.0186,
+            "y": -0.0322,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_3_pag_1",
+          "pagina": 1,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "ALEXANDRA MARIA RIVERA",
+          "zona": {
+            "x": -0.0202,
+            "y": -0.0341,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_1_pag_2",
+          "pagina": 2,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "CRISTIAN PERDOMO",
+          "zona": {
+            "x": -0.02,
+            "y": -0.0341,
+            "w": 0.18,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_2_pag_2",
+          "pagina": 2,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "JOHN JAIME SALAS CARDONA",
+          "zona": {
+            "x": -0.0186,
+            "y": -0.0322,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_3_pag_2",
+          "pagina": 2,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "ALEXANDRA MARIA RIVERA",
+          "zona": {
+            "x": -0.0202,
+            "y": -0.0341,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_1_pag_3",
+          "pagina": 3,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "CRISTIAN PERDOMO",
+          "zona": {
+            "x": -0.02,
+            "y": -0.0341,
+            "w": 0.18,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_2_pag_3",
+          "pagina": 3,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "JOHN JAIME SALAS CARDONA",
+          "zona": {
+            "x": -0.0186,
+            "y": -0.0322,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_3_pag_3",
+          "pagina": 3,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "ALEXANDRA MARIA RIVERA",
+          "zona": {
+            "x": -0.0202,
+            "y": -0.0341,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_1_pag_4",
+          "pagina": 4,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "CRISTIAN PERDOMO",
+          "zona": {
+            "x": -0.02,
+            "y": -0.0341,
+            "w": 0.18,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_2_pag_4",
+          "pagina": 4,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "JOHN JAIME SALAS CARDONA",
+          "zona": {
+            "x": -0.0186,
+            "y": -0.0322,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_3_pag_4",
+          "pagina": 4,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "ALEXANDRA MARIA RIVERA",
+          "zona": {
+            "x": -0.0202,
+            "y": -0.0341,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_1_pag_5",
+          "pagina": 5,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "CRISTIAN PERDOMO",
+          "zona": {
+            "x": -0.02,
+            "y": -0.0341,
+            "w": 0.18,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_2_pag_5",
+          "pagina": 5,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "JOHN JAIME SALAS CARDONA",
+          "zona": {
+            "x": -0.0186,
+            "y": -0.0322,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_3_pag_5",
+          "pagina": 5,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "ALEXANDRA MARIA RIVERA",
+          "zona": {
+            "x": -0.0202,
+            "y": -0.0341,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_1_pag_6",
+          "pagina": 6,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "CRISTIAN PERDOMO",
+          "zona": {
+            "x": -0.02,
+            "y": -0.0341,
+            "w": 0.18,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_2_pag_6",
+          "pagina": 6,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "JOHN JAIME SALAS CARDONA",
+          "zona": {
+            "x": -0.0186,
+            "y": -0.0322,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        },
+        {
+          "id": "firma_3_pag_6",
+          "pagina": 6,
+          "tipo": "firma",
+          "obligatorio": true,
+          "ancla": "ALEXANDRA MARIA RIVERA",
+          "zona": {
+            "x": -0.0202,
+            "y": -0.0341,
+            "w": 0.22,
+            "h": 0.024
+          },
+          "patron": null,
+          "umbral": 0.012,
+          "htr": false
+        }
+      ]
+    }
+  ]
+}

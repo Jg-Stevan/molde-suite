@@ -1,0 +1,1644 @@
+{
+  "comprobante_entrega": [
+    {
+      "campo": "titulo",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.093,
+        0.076,
+        0.594,
+        0.096
+      ],
+      "despues": [
+        0.0941,
+        0.0779,
+        0.5947,
+        0.0963
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "titulo",
+      "tipo": "zona",
+      "antes": [
+        0.0,
+        0.0,
+        0.501,
+        0.02
+      ],
+      "despues": [
+        -0.0011,
+        -0.0019,
+        0.501,
+        0.02
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "nombre_comprador",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.103,
+        0.1365,
+        0.235,
+        0.1492
+      ],
+      "despues": [
+        0.1027,
+        0.1365,
+        0.2351,
+        0.1492
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "nombre_comprador",
+      "tipo": "zona",
+      "antes": [
+        0.0,
+        0.0135,
+        0.397,
+        0.017
+      ],
+      "despues": [
+        0.0003,
+        0.0135,
+        0.397,
+        0.017
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "documento_comprador",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.103,
+        0.1763,
+        0.2694,
+        0.189
+      ],
+      "despues": [
+        0.1027,
+        0.1763,
+        0.2694,
+        0.189
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "documento_comprador",
+      "tipo": "zona",
+      "antes": [
+        0.0,
+        0.0137,
+        0.197,
+        0.016
+      ],
+      "despues": [
+        0.0003,
+        0.0137,
+        0.197,
+        0.016
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "fecha_entrega",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.6458,
+        0.5291,
+        0.7605,
+        0.5411
+      ],
+      "despues": [
+        0.6458,
+        0.5291,
+        0.76,
+        0.5411
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    }
+  ],
+  "recibo_pago": [
+    {
+      "campo": "numero_recibo",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.7023,
+        0.1615,
+        0.7557,
+        0.1762
+      ],
+      "despues": [
+        0.4056,
+        0.063,
+        0.4912,
+        0.0812
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "numero_recibo",
+      "tipo": "zona",
+      "antes": [
+        0.0527,
+        -0.0025,
+        0.145,
+        0.019
+      ],
+      "despues": [
+        0.3494,
+        0.096,
+        0.145,
+        0.019
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_pagador",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.6671,
+        0.8719,
+        0.7085,
+        0.8852
+      ],
+      "despues": [
+        0.2915,
+        0.8719,
+        0.3329,
+        0.8852
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_pagador",
+      "tipo": "zona",
+      "antes": [
+        -0.1171,
+        -0.0519,
+        0.33,
+        0.045
+      ],
+      "despues": [
+        0.2585,
+        -0.0519,
+        0.33,
+        0.045
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    }
+  ],
+  "e22_resolucion": [
+    {
+      "campo": "articulo_1",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.0706,
+        0.7613,
+        0.1344,
+        0.7767
+      ],
+      "despues": [
+        0.0706,
+        0.7613,
+        0.1532,
+        0.7767
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "articulo_2",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.0706,
+        0.8087,
+        0.1344,
+        0.824
+      ],
+      "despues": [
+        0.0706,
+        0.8087,
+        0.1524,
+        0.824
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    }
+  ],
+  "e24_cuadro": [
+    {
+      "campo": "titulo_e24",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.2933,
+        0.0891,
+        0.72,
+        0.1092
+      ],
+      "despues": [
+        0.2638,
+        0.0891,
+        0.566,
+        0.1092
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "titulo_e24",
+      "tipo": "zona",
+      "antes": [
+        -0.0133,
+        -0.0031,
+        0.44,
+        0.014
+      ],
+      "despues": [
+        0.0162,
+        -0.0031,
+        0.44,
+        0.014
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_1_hoja_1",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.14,
+        0.891,
+        0.28,
+        0.905
+      ],
+      "despues": [
+        0.1207,
+        0.8938,
+        0.2233,
+        0.9084
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_1_hoja_1",
+      "tipo": "zona",
+      "antes": [
+        -0.04,
+        -0.049,
+        0.2,
+        0.042
+      ],
+      "despues": [
+        -0.0207,
+        -0.0518,
+        0.2,
+        0.042
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_2_hoja_1",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.34,
+        0.888,
+        0.56,
+        0.903
+      ],
+      "despues": [
+        0.3752,
+        0.8914,
+        0.5283,
+        0.906
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_2_hoja_1",
+      "tipo": "zona",
+      "antes": [
+        -0.01,
+        -0.046,
+        0.23,
+        0.042
+      ],
+      "despues": [
+        -0.0452,
+        -0.0494,
+        0.23,
+        0.042
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_3_hoja_1",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.72,
+        0.888,
+        0.9,
+        0.903
+      ],
+      "despues": [
+        0.7486,
+        0.8938,
+        0.888,
+        0.9084
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_3_hoja_1",
+      "tipo": "zona",
+      "antes": [
+        -0.02,
+        -0.046,
+        0.26,
+        0.042
+      ],
+      "despues": [
+        -0.0486,
+        -0.0518,
+        0.26,
+        0.042
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "titulo_e24_hoja_2",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.2933,
+        0.0891,
+        0.72,
+        0.1092
+      ],
+      "despues": [
+        0.2638,
+        0.0891,
+        0.566,
+        0.1092
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "titulo_e24_hoja_2",
+      "tipo": "zona",
+      "antes": [
+        -0.0133,
+        -0.0031,
+        0.44,
+        0.014
+      ],
+      "despues": [
+        0.0162,
+        -0.0031,
+        0.44,
+        0.014
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "votos_blanco",
+      "tipo": "zona",
+      "antes": [
+        0.0,
+        -0.0022,
+        0.5343,
+        0.018
+      ],
+      "despues": [
+        0.0003,
+        -0.0022,
+        0.534,
+        0.018
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "votos_nulos",
+      "tipo": "zona",
+      "antes": [
+        0.0,
+        -0.0022,
+        0.5343,
+        0.018
+      ],
+      "despues": [
+        0.0003,
+        -0.0022,
+        0.534,
+        0.018
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "votos_no_marcados",
+      "tipo": "zona",
+      "antes": [
+        0.0,
+        -0.0027,
+        0.5343,
+        0.018
+      ],
+      "despues": [
+        0.0003,
+        -0.0027,
+        0.534,
+        0.018
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_1_hoja_2",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.14,
+        0.891,
+        0.28,
+        0.905
+      ],
+      "despues": [
+        0.1207,
+        0.8938,
+        0.2233,
+        0.9084
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_1_hoja_2",
+      "tipo": "zona",
+      "antes": [
+        -0.04,
+        -0.049,
+        0.2,
+        0.042
+      ],
+      "despues": [
+        -0.0207,
+        -0.0518,
+        0.2,
+        0.042
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_2_hoja_2",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.34,
+        0.888,
+        0.56,
+        0.903
+      ],
+      "despues": [
+        0.3752,
+        0.8914,
+        0.5283,
+        0.906
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_2_hoja_2",
+      "tipo": "zona",
+      "antes": [
+        -0.01,
+        -0.046,
+        0.23,
+        0.042
+      ],
+      "despues": [
+        -0.0452,
+        -0.0494,
+        0.23,
+        0.042
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_3_hoja_2",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.72,
+        0.888,
+        0.9,
+        0.903
+      ],
+      "despues": [
+        0.7486,
+        0.8938,
+        0.888,
+        0.9084
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_3_hoja_2",
+      "tipo": "zona",
+      "antes": [
+        -0.02,
+        -0.046,
+        0.26,
+        0.042
+      ],
+      "despues": [
+        -0.0486,
+        -0.0518,
+        0.26,
+        0.042
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    }
+  ],
+  "e26_acta_parcial": [
+    {
+      "campo": "partido_0028",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.0394,
+        0.1867,
+        0.359,
+        0.1986
+      ],
+      "despues": [
+        0.047,
+        0.1909,
+        0.359,
+        0.2031
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "partido_0028",
+      "tipo": "zona",
+      "antes": [
+        -0.0004,
+        -0.0017,
+        0.411,
+        0.015
+      ],
+      "despues": [
+        -0.008,
+        -0.0059,
+        0.411,
+        0.015
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "partido_0011",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.0394,
+        0.1576,
+        0.3177,
+        0.171
+      ],
+      "despues": [
+        0.047,
+        0.1606,
+        0.3166,
+        0.1728
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "partido_0011",
+      "tipo": "zona",
+      "antes": [
+        -0.0004,
+        -0.0016,
+        0.361,
+        0.016
+      ],
+      "despues": [
+        -0.008,
+        -0.0046,
+        0.361,
+        0.016
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "resumen_votacion",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.4089,
+        0.2319,
+        0.5868,
+        0.2448
+      ],
+      "despues": [
+        0.4148,
+        0.2356,
+        0.5851,
+        0.2464
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "resumen_votacion",
+      "tipo": "zona",
+      "antes": [
+        0.0001,
+        -0.0009,
+        0.191,
+        0.015
+      ],
+      "despues": [
+        -0.0058,
+        -0.0046,
+        0.191,
+        0.015
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "totales_votacion",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.3695,
+        0.191,
+        0.6219,
+        0.2038
+      ],
+      "despues": [
+        0.3772,
+        0.1959,
+        0.6228,
+        0.2066
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "totales_votacion",
+      "tipo": "zona",
+      "antes": [
+        -0.0005,
+        -0.001,
+        0.253,
+        0.015
+      ],
+      "despues": [
+        -0.0082,
+        -0.0059,
+        0.253,
+        0.015
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "votos_nulos",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.0394,
+        0.2048,
+        0.55,
+        0.225
+      ],
+      "despues": [
+        0.0519,
+        0.2157,
+        0.1855,
+        0.2265
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "votos_nulos",
+      "tipo": "zona",
+      "antes": [
+        -0.0004,
+        -0.0008,
+        0.561,
+        0.021
+      ],
+      "despues": [
+        -0.0129,
+        -0.0117,
+        0.561,
+        0.021
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "votos_no_marcados",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.0394,
+        0.225,
+        0.55,
+        0.2457
+      ],
+      "despues": [
+        0.0519,
+        0.2337,
+        0.2372,
+        0.2445
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "votos_no_marcados",
+      "tipo": "zona",
+      "antes": [
+        -0.0004,
+        0.0,
+        0.561,
+        0.021
+      ],
+      "despues": [
+        -0.0129,
+        -0.0087,
+        0.561,
+        0.021
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "calculo_umbral",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.0394,
+        0.1567,
+        0.2155,
+        0.171
+      ],
+      "despues": [
+        0.047,
+        0.1606,
+        0.2168,
+        0.1728
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "calculo_umbral",
+      "tipo": "zona",
+      "antes": [
+        -0.0004,
+        -0.0007,
+        0.361,
+        0.016
+      ],
+      "despues": [
+        -0.008,
+        -0.0046,
+        0.361,
+        0.016
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "umbral",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.2605,
+        0.262,
+        0.35,
+        0.28
+      ],
+      "despues": [
+        0.1513,
+        0.1606,
+        0.2168,
+        0.1728
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "umbral",
+      "tipo": "zona",
+      "antes": [
+        0.4195,
+        0.0,
+        0.05,
+        0.018
+      ],
+      "despues": [
+        0.5287,
+        0.1014,
+        0.05,
+        0.018
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "partidos_superan",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.0394,
+        0.2857,
+        0.3165,
+        0.301
+      ],
+      "despues": [
+        0.047,
+        0.2894,
+        0.3163,
+        0.3015
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "partidos_superan",
+      "tipo": "zona",
+      "antes": [
+        -0.0004,
+        -0.0007,
+        0.361,
+        0.016
+      ],
+      "despues": [
+        -0.008,
+        -0.0044,
+        0.361,
+        0.016
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "cifra_repartidora",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.0394,
+        0.1576,
+        0.194,
+        0.17
+      ],
+      "despues": [
+        0.047,
+        0.1606,
+        0.1952,
+        0.1728
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "cifra_repartidora",
+      "tipo": "zona",
+      "antes": [
+        -0.0004,
+        -0.0016,
+        0.261,
+        0.016
+      ],
+      "despues": [
+        -0.008,
+        -0.0046,
+        0.261,
+        0.016
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "cifra",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.1958,
+        0.2438,
+        0.55,
+        0.2638
+      ],
+      "despues": [
+        0.206,
+        0.2508,
+        0.3801,
+        0.2615
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "cifra",
+      "tipo": "zona",
+      "antes": [
+        0.5042,
+        -0.0008,
+        0.1,
+        0.021
+      ],
+      "despues": [
+        0.494,
+        -0.0078,
+        0.1,
+        0.021
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "tabla_curules",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.0394,
+        0.2686,
+        0.4908,
+        0.2838
+      ],
+      "despues": [
+        0.047,
+        0.2724,
+        0.2108,
+        0.2845
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "tabla_curules",
+      "tipo": "zona",
+      "antes": [
+        -0.0004,
+        -0.0006,
+        0.561,
+        0.016
+      ],
+      "despues": [
+        -0.008,
+        -0.0044,
+        0.561,
+        0.016
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "declaratoria",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.4015,
+        0.161,
+        0.593,
+        0.1729
+      ],
+      "despues": [
+        0.407,
+        0.1637,
+        0.5929,
+        0.1744
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "declaratoria",
+      "tipo": "zona",
+      "antes": [
+        -0.0015,
+        -0.001,
+        0.2,
+        0.014
+      ],
+      "despues": [
+        -0.007,
+        -0.0037,
+        0.2,
+        0.014
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "tabla_electos",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.0419,
+        0.201,
+        0.6,
+        0.215
+      ],
+      "despues": [
+        0.1253,
+        0.2053,
+        0.35,
+        0.216
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "tabla_electos",
+      "tipo": "zona",
+      "antes": [
+        -0.0029,
+        -0.001,
+        0.561,
+        0.016
+      ],
+      "despues": [
+        -0.0863,
+        -0.0053,
+        0.561,
+        0.016
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_1_pag_1",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.1139,
+        0.94,
+        0.2426,
+        0.9529
+      ],
+      "despues": [
+        0.12,
+        0.9461,
+        0.2428,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_1_pag_1",
+      "tipo": "zona",
+      "antes": [
+        -0.0139,
+        -0.028,
+        0.18,
+        0.024
+      ],
+      "despues": [
+        -0.02,
+        -0.0341,
+        0.18,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_2_pag_1",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.343,
+        0.94,
+        0.5308,
+        0.9519
+      ],
+      "despues": [
+        0.3486,
+        0.9442,
+        0.5319,
+        0.9546
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_2_pag_1",
+      "tipo": "zona",
+      "antes": [
+        -0.013,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0186,
+        -0.0322,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_3_pag_1",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.6909,
+        0.94,
+        0.8676,
+        0.9529
+      ],
+      "despues": [
+        0.7002,
+        0.9461,
+        0.8672,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_3_pag_1",
+      "tipo": "zona",
+      "antes": [
+        -0.0109,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0202,
+        -0.0341,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_1_pag_2",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.1139,
+        0.94,
+        0.2426,
+        0.9529
+      ],
+      "despues": [
+        0.12,
+        0.9461,
+        0.2428,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_1_pag_2",
+      "tipo": "zona",
+      "antes": [
+        -0.0139,
+        -0.028,
+        0.18,
+        0.024
+      ],
+      "despues": [
+        -0.02,
+        -0.0341,
+        0.18,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_2_pag_2",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.343,
+        0.94,
+        0.5308,
+        0.9519
+      ],
+      "despues": [
+        0.3486,
+        0.9442,
+        0.5319,
+        0.9546
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_2_pag_2",
+      "tipo": "zona",
+      "antes": [
+        -0.013,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0186,
+        -0.0322,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_3_pag_2",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.6909,
+        0.94,
+        0.8676,
+        0.9529
+      ],
+      "despues": [
+        0.7002,
+        0.9461,
+        0.8672,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_3_pag_2",
+      "tipo": "zona",
+      "antes": [
+        -0.0109,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0202,
+        -0.0341,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_1_pag_3",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.1139,
+        0.94,
+        0.2426,
+        0.9529
+      ],
+      "despues": [
+        0.12,
+        0.9461,
+        0.2428,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_1_pag_3",
+      "tipo": "zona",
+      "antes": [
+        -0.0139,
+        -0.028,
+        0.18,
+        0.024
+      ],
+      "despues": [
+        -0.02,
+        -0.0341,
+        0.18,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_2_pag_3",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.343,
+        0.94,
+        0.5308,
+        0.9519
+      ],
+      "despues": [
+        0.3486,
+        0.9442,
+        0.5319,
+        0.9546
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_2_pag_3",
+      "tipo": "zona",
+      "antes": [
+        -0.013,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0186,
+        -0.0322,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_3_pag_3",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.6909,
+        0.94,
+        0.8676,
+        0.9529
+      ],
+      "despues": [
+        0.7002,
+        0.9461,
+        0.8672,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_3_pag_3",
+      "tipo": "zona",
+      "antes": [
+        -0.0109,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0202,
+        -0.0341,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_1_pag_4",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.1139,
+        0.94,
+        0.2426,
+        0.9529
+      ],
+      "despues": [
+        0.12,
+        0.9461,
+        0.2428,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_1_pag_4",
+      "tipo": "zona",
+      "antes": [
+        -0.0139,
+        -0.028,
+        0.18,
+        0.024
+      ],
+      "despues": [
+        -0.02,
+        -0.0341,
+        0.18,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_2_pag_4",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.343,
+        0.94,
+        0.5308,
+        0.9519
+      ],
+      "despues": [
+        0.3486,
+        0.9442,
+        0.5319,
+        0.9546
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_2_pag_4",
+      "tipo": "zona",
+      "antes": [
+        -0.013,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0186,
+        -0.0322,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_3_pag_4",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.6909,
+        0.94,
+        0.8676,
+        0.9529
+      ],
+      "despues": [
+        0.7002,
+        0.9461,
+        0.8672,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_3_pag_4",
+      "tipo": "zona",
+      "antes": [
+        -0.0109,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0202,
+        -0.0341,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_1_pag_5",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.1139,
+        0.94,
+        0.2426,
+        0.9529
+      ],
+      "despues": [
+        0.12,
+        0.9461,
+        0.2428,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_1_pag_5",
+      "tipo": "zona",
+      "antes": [
+        -0.0139,
+        -0.028,
+        0.18,
+        0.024
+      ],
+      "despues": [
+        -0.02,
+        -0.0341,
+        0.18,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_2_pag_5",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.343,
+        0.94,
+        0.5308,
+        0.9519
+      ],
+      "despues": [
+        0.3486,
+        0.9442,
+        0.5319,
+        0.9546
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_2_pag_5",
+      "tipo": "zona",
+      "antes": [
+        -0.013,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0186,
+        -0.0322,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_3_pag_5",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.6909,
+        0.94,
+        0.8676,
+        0.9529
+      ],
+      "despues": [
+        0.7002,
+        0.9461,
+        0.8672,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_3_pag_5",
+      "tipo": "zona",
+      "antes": [
+        -0.0109,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0202,
+        -0.0341,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_1_pag_6",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.1139,
+        0.94,
+        0.2426,
+        0.9529
+      ],
+      "despues": [
+        0.12,
+        0.9461,
+        0.2428,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_1_pag_6",
+      "tipo": "zona",
+      "antes": [
+        -0.0139,
+        -0.028,
+        0.18,
+        0.024
+      ],
+      "despues": [
+        -0.02,
+        -0.0341,
+        0.18,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_2_pag_6",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.343,
+        0.94,
+        0.5308,
+        0.9519
+      ],
+      "despues": [
+        0.3486,
+        0.9442,
+        0.5319,
+        0.9546
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_2_pag_6",
+      "tipo": "zona",
+      "antes": [
+        -0.013,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0186,
+        -0.0322,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    },
+    {
+      "campo": "firma_3_pag_6",
+      "tipo": "ancla.rect",
+      "antes": [
+        0.6909,
+        0.94,
+        0.8676,
+        0.9529
+      ],
+      "despues": [
+        0.7002,
+        0.9461,
+        0.8672,
+        0.9565
+      ],
+      "motivo": "rect fijado al bbox real de la frase en el PDF (palabras_pdf)"
+    },
+    {
+      "campo": "firma_3_pag_6",
+      "tipo": "zona",
+      "antes": [
+        -0.0109,
+        -0.028,
+        0.22,
+        0.024
+      ],
+      "despues": [
+        -0.0202,
+        -0.0341,
+        0.22,
+        0.024
+      ],
+      "motivo": "offset recalculado para que el rect resuelto sea la zona objetivo"
+    }
+  ]
+}
