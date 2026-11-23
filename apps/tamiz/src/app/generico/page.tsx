@@ -101,7 +101,21 @@ function valorVisible(campo: CampoVeredicto): string {
   return texto || '—';
 }
 
-function descargarReporte(resultado: ResultadoGenerico): void {
+function guardarArchivo(blob: Blob, nombre: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+function descargarReporte(
+  resultado: ResultadoGenerico,
+  alFallar: (reporte: { nombre: string; json: string; aviso: string }) => void,
+): void {
   const fecha = new Date();
   const puntos = resultado.campos.map((c) => ({
     id: c.id,
@@ -138,20 +152,39 @@ function descargarReporte(resultado: ResultadoGenerico): void {
       tiempos: resultado.universal.tiempos,
     },
   };
-  const blob = new Blob([JSON.stringify(reporte, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `reporte-${slug(resultado.molde.nombre)}-${fecha
+  const json = JSON.stringify(reporte, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const nombre = `reporte-${slug(resultado.molde.nombre)}-${fecha
     .toISOString()
     .slice(0, 19)
     .replace(/[:T]/g, '-')}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  const esMovil = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  if (esMovil) {
+    if (typeof navigator.share === 'function') {
+      const archivo = new File([blob], nombre, { type: 'application/json' });
+      if (navigator.canShare?.({ files: [archivo] })) {
+        navigator.share({ files: [archivo], title: nombre }).catch((err: unknown) => {
+          // El usuario canceló el menú de compartir: no forzar nada más.
+          if ((err as DOMException)?.name === 'AbortError') return;
+          alFallar({
+            nombre,
+            json,
+            aviso:
+              'Este navegador no permitió guardar el archivo. Copia el JSON o compártelo como texto.',
+          });
+        });
+        return;
+      }
+    }
+    alFallar({
+      nombre,
+      json,
+      aviso:
+        'Este navegador no permite guardar archivos. Copia el JSON o compártelo como texto.',
+    });
+    return;
+  }
+  guardarArchivo(blob, nombre);
 }
 
 export default function GenericoPage() {
@@ -163,6 +196,11 @@ export default function GenericoPage() {
   const [progreso, setProgreso] = useState('');
   const [resultado, setResultado] = useState<ResultadoGenerico | null>(null);
   const [error, setError] = useState('');
+  const [reportePendiente, setReportePendiente] = useState<{
+    nombre: string;
+    json: string;
+    aviso: string;
+  } | null>(null);
   const camaraRef = useRef<HTMLInputElement>(null);
   const galeriaRef = useRef<HTMLInputElement>(null);
   const reemplazoRef = useRef<number | null>(null);
@@ -191,6 +229,55 @@ export default function GenericoPage() {
     setProgreso('');
     setVista('captura');
     reemplazoRef.current = null;
+    setReportePendiente(null);
+  }
+
+  function mostrarRespaldoReporte(reporte: {
+    nombre: string;
+    json: string;
+    aviso: string;
+  }): void {
+    setReportePendiente(reporte);
+  }
+
+  async function copiarReporte(): Promise<void> {
+    if (!reportePendiente) return;
+    if (!navigator.clipboard) {
+      setReportePendiente({
+        ...reportePendiente,
+        aviso: 'Este navegador no permite copiar. Selecciona el texto del cuadro.',
+      });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(reportePendiente.json);
+      setReportePendiente({
+        ...reportePendiente,
+        aviso: 'JSON copiado al portapapeles.',
+      });
+    } catch {
+      setReportePendiente({
+        ...reportePendiente,
+        aviso: 'No se pudo copiar. Selecciona el texto del cuadro.',
+      });
+    }
+  }
+
+  async function compartirReporteTexto(): Promise<void> {
+    if (!reportePendiente) return;
+    try {
+      await navigator.share({
+        text: reportePendiente.json,
+        title: reportePendiente.nombre,
+      });
+    } catch (err: unknown) {
+      if ((err as DOMException)?.name !== 'AbortError') {
+        setReportePendiente({
+          ...reportePendiente,
+          aviso: 'No se pudo compartir como texto. Copia el JSON.',
+        });
+      }
+    }
   }
 
   function elegirMolde(nombre: string): void {
@@ -596,7 +683,7 @@ export default function GenericoPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <button
               type="button"
-              onClick={() => descargarReporte(resultado)}
+              onClick={() => descargarReporte(resultado, mostrarRespaldoReporte)}
               className="rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-950"
             >
               Descargar reporte JSON
@@ -610,6 +697,47 @@ export default function GenericoPage() {
             </button>
           </div>
         </section>
+      )}
+
+      {reportePendiente && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/80 p-4 sm:items-center">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-4">
+            <h2 className="text-sm font-semibold text-white">{reportePendiente.nombre}</h2>
+            <p className="mt-1 text-xs text-slate-400">{reportePendiente.aviso}</p>
+            <textarea
+              readOnly
+              value={reportePendiente.json}
+              className="mt-3 h-48 w-full resize-none rounded-lg border border-slate-700 bg-slate-950 p-2 font-mono text-[10px] text-slate-300"
+            />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void copiarReporte();
+                }}
+                className="rounded-lg bg-sky-500 px-3 py-2 text-sm font-semibold text-slate-950"
+              >
+                Copiar JSON
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void compartirReporteTexto();
+                }}
+                className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200"
+              >
+                Compartir como texto
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReportePendiente(null)}
+              className="mt-2 w-full rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
       )}
     </main>
   );
