@@ -137,9 +137,56 @@ async function revocarArchivo(key: string | null | undefined): Promise<void> {
 // Un flag en localStorage evita duplicar la semilla y evita resucitar el molde
 // si el usuario lo eliminó a propósito.
 import moldeE14Seed from '../../templates/e14/molde-e14.json';
+import moldeComprobanteSeed from '../../templates/genericos/comprobante_entrega.molde.json';
+import moldeReciboSeed from '../../templates/genericos/recibo_pago.molde.json';
+import moldeE22Seed from '../../templates/genericos/e22_resolucion.molde.json';
+import moldeE24Seed from '../../templates/genericos/e24_cuadro.molde.json';
+import moldeE26Seed from '../../templates/genericos/e26_acta_parcial.molde.json';
 
 const ID_SEMILLA_E14 = 'semilla-acta-e14-exterior';
 const FLAG_SEMILLA_E14 = 'molde-studio-semilla-e14';
+
+// ---- Semilla: moldes genéricos creados para Tamiz ----
+// La biblioteca de Pages arranca solo con el E-14. Estos moldes ya viajan en
+// el build de Tamiz; aquí se siembran en Molde Studio para poder abrirlos y
+// calibrarlos. Flag propio y versionado: los visitantes anteriores reciben la
+// siembra una vez, y un molde borrado a propósito no resucita.
+const FLAG_SEMILLA_GENERICOS = 'molde-studio-semilla-genericos-v1';
+
+const SEMILLAS_GENERICAS = [
+  { id: 'semilla-generico-comprobante-entrega', json: moldeComprobanteSeed },
+  { id: 'semilla-generico-recibo-pago', json: moldeReciboSeed },
+  { id: 'semilla-generico-e22-resolucion', json: moldeE22Seed },
+  { id: 'semilla-generico-e24-cuadro', json: moldeE24Seed },
+  { id: 'semilla-generico-e26-acta-parcial', json: moldeE26Seed },
+];
+
+async function sembrarGenericosSiToca(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    if (localStorage.getItem(FLAG_SEMILLA_GENERICOS)) return;
+    const existentes = await pedir<MoldeRegistro[]>('moldes', 'readonly', (s) => s.getAll());
+    const idsExistentes = new Set(existentes.map((m) => m.id));
+    const now = ahora();
+    for (const { id, json } of SEMILLAS_GENERICAS) {
+      if (idsExistentes.has(id)) continue;
+      const reg: MoldeRegistro = {
+        id,
+        nombre: json.nombre,
+        descripcion: json.descripcion ?? null,
+        documento: json.documento ?? null,
+        json: JSON.stringify(json),
+        imagenRef: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await pedir('moldes', 'readwrite', (s) => s.put(reg));
+    }
+    localStorage.setItem(FLAG_SEMILLA_GENERICOS, 'v1');
+  } catch {
+    /* la semilla jamás debe romper la app */
+  }
+}
 
 async function sembrarE14SiToca(): Promise<void> {
   if (typeof window === 'undefined') return;
@@ -178,6 +225,7 @@ export const repoIdb: Repo = {
   listarMoldes: () =>
     seguro(async () => {
       await sembrarE14SiToca();
+      await sembrarGenericosSiToca();
       const moldes = await pedir<MoldeRegistro[]>('moldes', 'readonly', (s) => s.getAll());
       const pruebas = await pedir<PruebaRegistro[]>('pruebas', 'readonly', (s) => s.getAll());
       const conteo = new Map<string, number>();
