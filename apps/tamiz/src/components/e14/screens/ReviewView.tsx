@@ -35,10 +35,13 @@ import { nombreExportacion } from "@/lib/e14/fachada";
 import { QuadEditor } from "../QuadEditor";
 import { ZoomableVisor } from "@/lib/e14/ui/ZoomableVisor";
 import { PanelClasificacion } from "../PanelClasificacion";
-// VERIFICACIÓN DOCUMENTAL (mock del mantenedor, 2026-11-16): tarjeta EN FLUJO
-// encima del documento — data-driven por plantilla (lib/e14/checklist.ts) con
-// secciones «Campos Obligatorios» / «Campos Opcionales (desplegables)».
+// VERIFICACIÓN DOCUMENTAL (mock del mantenedor, 2026-11-16) — P4 del plan
+// PLAN-AJUSTES-VISUALES (adaptación E-14 del zip): overlay sobre la foto con
+// acordeón por estado (P4) y documento sin plantilla → «NO IDENTIFICADO».
 import { VerificacionDocumental } from "../VerificacionDocumental";
+// FitScale (P5 del plan): la FOTO es el único elemento flexible — se escala
+// para caber completa sin scroll ni recortes.
+import { FitScale } from "../fit-scale";
 import { PrimaryBtn, ToolbarBtn } from "../primitives";
 import {
   DownloadIcon,
@@ -363,8 +366,12 @@ export function ReviewView() {
   // de respaldo las coordenadas no aplican → el ojo no se ofrece).
   const puedeVerZonas = cajasZonas.length > 0 && !mostrandoOriginal;
   const contenidoFoto = fotoVisible ? (
-    <div className="w-full flex-1 min-h-[160px] lg:min-h-[240px] relative flex flex-col mt-2">
-      <div className="flex items-center justify-between gap-2">
+    // P5 (plan PLAN-AJUSTES-VISUALES — adaptación E-14 del zip): SIN SCROLL,
+    // todo cabe en pantalla. La FOTO DEL DOCUMENTO es el ÚNICO elemento
+    // flexible (FitScale la escala para caber completa) y la VERIFICACIÓN
+    // DOCUMENTAL flota como overlay sobre la imagen (P4).
+    <div className="w-full flex-1 min-h-0 relative flex flex-col mt-2">
+      <div className="flex items-center justify-between gap-2 shrink-0">
         <span className="font-mono text-[9px] font-bold tracking-[0.18em] uppercase text-slate-400 truncate">
           {zonasVisibles ? "Zonas detectadas" : "Foto procesada"}
         </span>
@@ -395,47 +402,51 @@ export function ReviewView() {
           </button>
         )}
       </div>
-      <div className="w-full flex justify-center mt-1.5">
-        {zonasVisibles && puedeVerZonas ? (
-          <div className="relative w-fit max-w-full overflow-hidden rounded-lg border border-slate-800">
-            <img
-              src={fotoVisible}
-              alt="Foto procesada del documento con las zonas detectadas"
-              className="block h-auto w-auto max-h-[46vh] max-w-full lg:max-h-[60vh]"
-            />
-            {cajasZonas.map((c, i) => {
-              const tono = ESTADO_ESTRUCTURA_TONO[c.estado];
-              return (
-                <div
-                  key={i}
-                  aria-hidden
-                  data-testid="zona-box"
-                  className="absolute border-2 rounded-[2px]"
-                  style={{
-                    left: `${c.x * 100}%`,
-                    top: `${c.y * 100}%`,
-                    width: `${c.w * 100}%`,
-                    height: `${c.h * 100}%`,
-                    borderColor: tono.borde,
-                    backgroundColor: tono.relleno,
-                  }}
-                />
-              );
-            })}
-          </div>
-        ) : (
-          // Foto acotada por alto (sin desborde sobre la fila del ojo) y el
-          // contenedor se ajusta al tamaño REAL de la imagen para que las
-          // cajas del ojo queden alineadas. Tocar la tarjeta abre el visor.
-          <div className="relative w-fit max-w-full overflow-hidden rounded-lg border border-brand-border bg-black/40">
+      {/* Área del documento: foto ESCALADA (FitScale) + overlay de verificación */}
+      <div className="relative flex-1 min-h-0 w-full mt-1.5" data-purpose="visor-documento">
+        <FitScale className="absolute inset-0">
+          <div className="relative w-fit max-w-full overflow-hidden rounded-lg border border-slate-800 bg-black/40">
             <img
               src={fotoVisible}
               alt={altFoto}
-              className="block h-auto w-auto max-h-[46vh] max-w-full lg:max-h-[60vh]"
+              className="block h-auto w-auto"
               draggable={false}
             />
+            {zonasVisibles &&
+              puedeVerZonas &&
+              cajasZonas.map((c, i) => {
+                const tono = ESTADO_ESTRUCTURA_TONO[c.estado];
+                return (
+                  <div
+                    key={i}
+                    aria-hidden
+                    data-testid="zona-box"
+                    className="absolute border-2 rounded-[2px]"
+                    style={{
+                      left: `${c.x * 100}%`,
+                      top: `${c.y * 100}%`,
+                      width: `${c.w * 100}%`,
+                      height: `${c.h * 100}%`,
+                      borderColor: tono.borde,
+                      backgroundColor: tono.relleno,
+                    }}
+                  />
+                );
+              })}
           </div>
-        )}
+        </FitScale>
+        {/* P4+P5 — VERIFICACIÓN DOCUMENTAL como OVERLAY sobre la imagen:
+            fila-resumen siempre visible; el panel desplegado flota SOBRE la
+            foto con fondo oscuro semitransparente — sin empujar contenido. */}
+        <div className="absolute inset-0 z-20 flex flex-col pointer-events-none px-1.5 pt-1.5 pb-1.5">
+          <div
+            className="pointer-events-auto flex flex-col min-h-0"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <VerificacionDocumental acta={acta} overlay />
+          </div>
+        </div>
       </div>
     </div>
   ) : (
@@ -592,12 +603,13 @@ export function ReviewView() {
     // de acciones FIJA abajo. Shell (page.tsx: h-dvh + main flex-1 min-h-0)
     // INTOCABLE; único overflow-y-auto (sin scroll duplicado).
     <div className="flex-1 min-h-0 flex flex-col">
-      {/* ZONA SCROLL — banner + checklist + tarjeta + nota + panel. La foto se
-          acotó a 38vh (antes 56vh) para que TODO quepa sin desplazar en el
-          teléfono; el aviso de envío vive en la zona fija inferior. max-w-md
-          centrado aquí y en la zona fija: el centrado no baile. Task 2-b:
-          lg:max-w-2xl — escritorio 2 columnas de ancho útil sin tocar el shell. */}
-      <div className="flex-1 min-h-0 overflow-y-auto max-w-md lg:max-w-2xl xl:max-w-3xl mx-auto w-full px-4 lg:px-6 py-3 space-y-3 lg:space-y-4 flex flex-col">
+      {/* ZONA SCROLL — banner + tarjeta + nota + panel. P5: la foto es el
+          único elemento flexible (FitScale) y la verificación es overlay —
+          el contenido CABE por diseño; el scroll queda solo como válvula de
+          seguridad para casos de contingencia (panel de clasificación RH,
+          pantallas muy bajas). max-w-md centrado aquí y en la zona fija.
+          Task 2-b: lg:max-w-2xl — escritorio 2 columnas de ancho útil. */}
+      <div className="flex-1 min-h-0 overflow-y-auto thin-scroll max-w-md lg:max-w-2xl xl:max-w-3xl mx-auto w-full px-4 lg:px-6 py-3 space-y-3 lg:space-y-4 flex flex-col">
         {/* Banner de ubicación (mock del mantenedor): borde + glow del estado,
             dot a cada lado del nombre del documento/puesto. */}
         <div
@@ -649,10 +661,11 @@ export function ReviewView() {
           </div>
         )}
 
-        {/* VERIFICACIÓN DOCUMENTAL (mock del mantenedor): tarjeta EN FLUJO
-            con Campos Obligatorios + Campos Opcionales (desplegables) —
-            los MISMOS datos del checklist, nueva piel. */}
-        <VerificacionDocumental acta={acta} />
+        {/* VERIFICACIÓN DOCUMENTAL — SOLO como fallback EN FLUJO cuando la
+            foto no está disponible (D4 hace que sea casi imposible: el visor
+            nunca queda vacío). Con foto, la verificación vive como OVERLAY
+            dentro de la tarjeta (P4+P5 del plan PLAN-AJUSTES-VISUALES). */}
+        {!fotoVisible && <VerificacionDocumental acta={acta} overlay={false} />}
 
         {/* PLAN-AGENTE-LAYOUT F4 (ADITIVO): diagnóstico del gate estructural
             — SOLO se monta con acta.estructura (molde con layout + modelo
