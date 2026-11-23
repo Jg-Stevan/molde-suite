@@ -268,12 +268,19 @@ export type PasosGate = {
 };
 
 /**
- * FASE 0 (blueprint DLA): etapa MOLDE — evaluación del molde activo tras el
- * gate. OPCIONAL (null cuando no hay molde registrado o el flag está off):
- * el resultado viaja ADITIVO en `acta.evaluacionMolde` sin tocar score/status.
+ * ETAPA B (plan "interfaz única E-14"): etapa MOLDE — evaluación universal
+ * tras el gate. El paso recibe el CONTEXTO del acta (¿el clasificador E-14
+ * reconoció el tipo?) y devuelve el resumen del motor universal; cuando el
+ * documento no es un E-14 y la biblioteca lo identifica, el resumen viene
+ * marcado `enrutado: true` y su veredicto SUSTITUYE al del gate E-14
+ * (score/estado/banner del molde). En el resto de casos el resultado viaja
+ * ADITIVO en `acta.evaluacionMolde` sin tocar score/status.
  */
 export type PasosMolde = {
-  evaluarMolde: (fotoProcesada: string) => Promise<import("@jg-stevan/scanner-core/dominio/types").ResumenMoldeActa | null>;
+  evaluarMolde: (
+    fotoProcesada: string,
+    contexto?: { esE14: boolean },
+  ) => Promise<import("@jg-stevan/scanner-core/dominio/types").ResumenMoldeActa | null>;
 };
 
 /**

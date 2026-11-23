@@ -13,7 +13,8 @@ export type ImagenSimuladaId =
   | 'recortada'
   | 'optima'
   | 'rechazada'
-  | 'no-identificado';
+  | 'no-identificado'
+  | 'recibo';
 
 export interface ImagenSimulada {
   id: ImagenSimuladaId;
@@ -22,9 +23,12 @@ export interface ImagenSimulada {
 }
 
 /** Catálogo del selector SIMULACIÓN (la primera es el default).
- *  P4 (plan PLAN-AJUSTES-VISUALES, adaptación E-14): el último caso es el
- *  5.º estado del ciclo del zip — un documento SIN PLANTILLA CONOCIDA (no
- *  es un E-14) que produce la tarjeta «DOCUMENTO NO IDENTIFICADO». */
+ *  P4 (plan PLAN-AJUSTES-VISUALES, adaptación E-14): «no-identificado» es un
+ *  documento SIN PLANTILLA CONOCIDA (no es un E-14) que produce la tarjeta
+ *  «DOCUMENTO NO IDENTIFICADO». ETAPA B (enrutamiento universal): «recibo»
+ *  es un documento legible que NO es un E-14 y SÍ coincide con el molde demo
+ *  «RECIBO DE LUZ» de la biblioteca → el banner muestra su nombre y el
+ *  score/semáforo salen del resultado del MOLDE. */
 export const IMAGENES_SIMULADAS: ImagenSimulada[] = [
   { id: 'completa', titulo: 'Completa', descripcion: 'Acta legible, bien encuadrada' },
   { id: 'color', titulo: 'Color', descripcion: 'Fondo con color, texto legible' },
@@ -35,6 +39,7 @@ export const IMAGENES_SIMULADAS: ImagenSimulada[] = [
   { id: 'optima', titulo: 'Óptima', descripcion: 'E-14 nítida — auto-envío (guardado automático)' },
   { id: 'rechazada', titulo: 'Rechazada', descripcion: 'E-14 borrosa — score bajo el umbral (6.5)' },
   { id: 'no-identificado', titulo: 'No identificado', descripcion: 'Documento sin plantilla conocida (no es E-14)' },
+  { id: 'recibo', titulo: 'Recibo de luz', descripcion: 'Otro documento legible — se enruta al molde de la biblioteca' },
 ];
 
 /** Dibuja el documento sintético del caso y devuelve dataURL JPEG. */
@@ -122,6 +127,7 @@ export function dibujarImagenSimulada(id: ImagenSimuladaId): string {
   if (id === 'no-identificado') return dibujarDocumentoNoIdentificado();
   if (id === 'optima') return dibujarActaOptima();
   if (id === 'rechazada') return dibujarActaRechazada();
+  if (id === 'recibo') return dibujarReciboLuz();
   return c.toDataURL('image/jpeg', 0.9);
 }
 
@@ -328,4 +334,68 @@ function dibujarDocumentoNoIdentificado(): string {
   ctx.fillRect(0, 0, W, H);
   ctx.drawImage(papel, 0, 0);
   return c.toDataURL('image/jpeg', 0.85);
+}
+
+/* ------------------------------------------------------------------
+ * ETAPA B (enrutamiento universal) — RECIBO DE LUZ legible.
+ * Un documento REAL que NO es un E-14 (sin palabras electorales: el
+ * clasificador `PATRON_CABECERA` no lo reconoce) y SÍ coincide con el
+ * molde demo «RECIBO DE LUZ» que el router siembra en la biblioteca
+ * (molde/enrutamiento.ts). Coordenadas calibradas UNO A UNO con las
+ * anclas/zonas de ese molde — el pipeline corre REAL (detección + OCR
+ * + gate + motor universal) y la REVISIÓN muestra el nombre del
+ * documento en el banner con el veredicto del molde. */
+function dibujarReciboLuz(): string {
+  const W = 850;
+  const H = 1100;
+  const papel = document.createElement('canvas');
+  papel.width = W;
+  papel.height = H;
+  const p = papel.getContext('2d')!;
+  const mx = 110;
+  const my = 120;
+  const dw = W - mx * 2;
+  const dh = H - my * 2;
+  // Papel claro + borde oscuro nítido (mismo estilo detectable del ciclo).
+  p.fillStyle = '#fdfdf8';
+  p.strokeStyle = '#3a3a3a';
+  p.lineWidth = 3;
+  p.fillRect(mx, my, dw, dh);
+  p.strokeRect(mx, my, dw, dh);
+  p.fillStyle = '#1a1b1f';
+  // Cabecera (sin palabras electorales — el enrutamiento universal entra limpio).
+  p.font = 'bold 36px Arial, sans-serif';
+  p.fillText('RECIBO DE LUZ', mx + 40, my + 78);
+  p.font = '15px Arial, sans-serif';
+  p.fillText('SERVICIO DE ENERGIA ELECTRICA', mx + 40, my + 106);
+  // Campos impresos: cada línea alimenta un campo del molde demo.
+  p.font = '20px monospace';
+  p.fillText('SUSCRIPTOR No: 448221', mx + 40, my + 150);
+  p.fillText('PERIODO: 2026-10', mx + 40, my + 184);
+  p.fillText('CONSUMO kWh: 245', mx + 40, my + 218);
+  p.font = 'bold 26px Arial, sans-serif';
+  // Sin '$': el glifo no está en la whitelist del molde y hunde la
+  // confianza del OCR del recorte (conf 0.00 observado en calibración).
+  p.fillText('VALOR A PAGAR: 187450', mx + 40, my + 290);
+  p.font = '16px Arial, sans-serif';
+  p.fillText('VENCE: 05-11-2026', mx + 40, my + 322);
+  // Timbre ovalado (presencia de sello — RELLENO: tinta densa que el
+  // clasificador de marca del motor lee como «marcada» sin ambigüedad).
+  p.beginPath();
+  p.ellipse(mx + dw - 130, my + 430, 58, 36, -0.15, 0, Math.PI * 2);
+  p.fillStyle = '#7a1f2b';
+  p.fill();
+  p.font = '14px Arial, sans-serif';
+  p.fillStyle = '#1a1b1f';
+  p.fillText('PAGUESE EN OFICINAS PRINCIPALES', mx + 40, my + 520);
+  p.font = '12px Arial, sans-serif';
+  p.fillText('OFICINA PRINCIPAL - LUN A VIE 8:00 A 17:00', mx + 40, my + 548);
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#f0ede6';
+  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(papel, 0, 0);
+  return c.toDataURL('image/jpeg', 0.9);
 }

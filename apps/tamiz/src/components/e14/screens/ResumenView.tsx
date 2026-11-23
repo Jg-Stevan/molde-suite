@@ -212,25 +212,6 @@ export function ResumenView() {
       </header>
 
       <div className="flex-grow flex flex-col gap-4 px-4 pt-4 pb-8 max-w-md lg:max-w-2xl mx-auto w-full">
-        {/* Entrada al modo genérico (flujo guiado multipágina, 2026-11-23):
-            enlace ADITIVO — no toca el flujo E-14. */}
-        <Link
-          href="/generico/"
-          className="flex items-center gap-3 rounded-xl border border-sky-800/60 bg-sky-500/10 px-4 py-3 hover:border-sky-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60"
-        >
-          <span aria-hidden className="font-mono text-sm font-black text-sky-300">
-            G
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-bold text-white">
-              Modo genérico — flujo guiado
-            </span>
-            <span className="block font-mono text-[10px] uppercase tracking-wider text-sky-300/80">
-              Plantillas incluidas · multipágina con score
-            </span>
-          </span>
-        </Link>
-
         {/* ── CARGAR MOLDE .JSON (mock: borde punteado + botón verde). */}
         <section
           className="rounded-2xl border-2 border-dashed border-slate-700 bg-[#10161f]/60 p-5 flex flex-col items-center gap-3 text-center"

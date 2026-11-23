@@ -1,24 +1,22 @@
-// FASE 0 (blueprint DLA): evaluación del MOLDE ACTIVO sobre el acta de Tamiz.
-// El pipeline llama `evaluarMolde(fotoProcesada)` tras el gate (paso
-// inyectado en PasosMolde) cuando hay un molde registrado (molde/registry.ts)
-// y el flag del operador lo habilita.
+// ETAPA B (plan "interfaz única E-14") — evaluación de MOLDES en el acta.
 //
-// Qué hace:
+// Antes (FASE 0): solo el molde ACTIVO del operador se evaluaba tras el gate
+// y su resumen era estrictamente ADITIVO (nadie lo mostraba). Ahora este
+// módulo es el PUENTE Studio→Tamiz completo:
+//
 //   1. Registra el proveedor OCR de Tamiz en el motor compartido (una vez).
-//   2. Renderiza la foto PROCESADA del acta a un canvas de 1000 px de ancho
-//      — la misma escala canónica del motor (pdf-client del Studio usa
-//      TARGET_WIDTH=1000), para que las zonas normalizadas 0-1 signifiquen
-//      lo mismo en ambas apps.
-//   3. Ejecuta evaluarDocumentoUniversal en MODO LIGERO (sin previews ni
-//      crops: el Acta lleva un resumen; la memoria del móvil manda).
-//   4. FASE B2 (blueprint DLA): SEGUNDA OPINIÓN ONNX para las casillas que
-//      cayeron en `requiere_revision` — si el detector de casillas está
-//      configurado (flag + URL del modelo), confirma o revierte con bandera
-//      `onnx_segunda_opinion`. NUNCA inventa: sin detector disponible, nada
-//      cambia.
+//   2. Si hay molde ACTIVO, se evalúa directamente (comportamiento de
+//      siempre — la elección explícita del operador manda).
+//   3. Si NO hay activo, el ROUTER (molde/enrutamiento.ts) corre UNA pasada
+//      de OCR compartida, prefiltra la biblioteca por anclas y evalúa
+//      COMPLETO solo al mejor candidato (motor universal, modo ligero).
+//   4. Cuando el documento NO fue reconocido como E-14 y el candidato
+//      responde (score ≥ umbral), el resultado se marca `enrutado: true`:
+//      el veredicto del acta (score/estado/banner) deriva del MOLDE. Con
+//      E-14 reconocido el resultado queda ADITIVO (doctrina del gate intacta).
 //
-// Principio de honestidad intacto: este paso es ADITIVO (no cambia score ni
-// status del gate); su veredicto viaja en `acta.evaluacionMolde`.
+// FASE B2/B4 del blueprint DLA intactas: segunda opinión ONNX para casillas
+// dudosas y bandera de presencia manuscrita (señales, nunca veredictos).
 
 import { evaluarDocumentoUniversal } from '@jg-stevan/scanner-core/molde/universal-engine';
 import type {
@@ -27,9 +25,16 @@ import type {
 } from '@jg-stevan/scanner-core/molde/universal-types';
 import { configurarProveedorOcr } from '@jg-stevan/scanner-core/molde/ocr-tipos';
 import type { MoldeUniversal } from '@jg-stevan/scanner-core/molde/universal-types';
-import type { ResumenMoldeActa } from '@jg-stevan/scanner-core/dominio/types';
-import { proveedorOcrTamiz } from './ocr-proveedor';
+import type { ResumenMoldeActa, ResumenMoldeCampo } from '@jg-stevan/scanner-core/dominio/types';
+import { proveedorOcrTamiz, ocrLines } from './ocr-proveedor';
 import { moldeActivo } from './registry';
+import {
+  candidatosDeSesion,
+  elegirCandidato,
+  sembrarMoldeDemo,
+  UMBRAL_RUTA_SCORE,
+  type ContextoE14Acta,
+} from './enrutamiento';
 import '../dla/config';
 import { leerFlags } from '../flags';
 import { logger } from '../../logger';
@@ -66,7 +71,27 @@ function banderasAgregadas(resultado: ResultadoUniversal): string[] {
   return [...set];
 }
 
-/** Resumen LIGERO (sin crops/previews) para el Acta. */
+/** Filas por campo para el checklist universal (Etapa B) — la presentación
+ *  (destacado/obligatorio) viaja desde la DEFINICIÓN del molde por id. */
+function filasDeCampos(molde: MoldeUniversal, resultado: ResultadoUniversal): ResumenMoldeCampo[] {
+  const defPorId = new Map(molde.campos.map((c) => [c.id, c]));
+  return resultado.paginas.flatMap((p) => p.campos).map((c): ResumenMoldeCampo => {
+    const def = defPorId.get(c.id);
+    return {
+      id: c.id,
+      etiqueta: c.etiqueta,
+      tipo: c.tipo,
+      estado: c.estado,
+      valor: c.valor,
+      conf: c.conf,
+      rect: c.rect,
+      ...(def?.destacado ? { destacado: true } : {}),
+      ...(def?.obligatorio ? { obligatorio: true } : {}),
+    };
+  });
+}
+
+/** Resumen LIGERO (sin crops/previews) para el Acta — ahora con filas. */
 function resumir(molde: MoldeUniversal, resultado: ResultadoUniversal): ResumenMoldeActa {
   const banderas = banderasAgregadas(resultado)
     .filter((b) => !b.startsWith('forma_fill_'));
@@ -79,6 +104,8 @@ function resumir(molde: MoldeUniversal, resultado: ResultadoUniversal): ResumenM
     obligatoriosFaltantes: resultado.obligatorios_faltantes,
     banderas,
     tiempos: resultado.tiempos,
+    campos: filasDeCampos(molde, resultado),
+    enrutado: false,
   };
 }
 
@@ -133,17 +160,42 @@ async function segundaOpinionCasillas(
 }
 
 /**
- * Evalúa el molde activo sobre la foto procesada del acta.
- * Devuelve null cuando no hay molde activo (el pipeline no cambia nada).
+ * ETAPA B — evalúa el mejor molde sobre la foto procesada del acta.
+ *  · Molde ACTIVO → evaluación directa (comportamiento de siempre).
+ *  · Sin activo → ROUTER sobre la biblioteca (prefiltro por anclas con UNA
+ *    pasada de OCR compartida; evaluación completa solo al mejor candidato).
+ *  · Devuelve null cuando no hay moldes o ningún ancla matchea — el pipeline
+ *    no cambia nada (honesto).
  */
-export async function evaluarMoldeEnActa(fotoProcesada: string): Promise<ResumenMoldeActa | null> {
-  const molde = moldeActivo();
-  if (!molde) return null;
+export async function evaluarMoldeEnActa(
+  fotoProcesada: string,
+  contexto?: ContextoE14Acta,
+): Promise<ResumenMoldeActa | null> {
   if (!leerFlags().evaluacionMolde) return null;
   asegurarProveedor();
+  await sembrarMoldeDemo();
+  const moldes = await candidatosDeSesion();
+  if (moldes.length === 0) return null;
+
   const t0 = performance.now();
   const canvas = await fotoACanvas(fotoProcesada, 1000);
   const renderMs = Math.round(performance.now() - t0);
+
+  // Elección del molde: activo explícito o mejor candidato del router.
+  let molde: MoldeUniversal;
+  if (moldeActivo()) {
+    molde = moldes[0];
+  } else {
+    const ocr = await ocrLines(canvas);
+    const candidato = elegirCandidato(moldes, ocr.lines, canvas.width, canvas.height);
+    if (!candidato) return null; // ninguna ancla matchea → comportamiento de siempre
+    molde = candidato.molde;
+    logger.info('[molde] candidato del router', {
+      nombre: molde.nombre,
+      ratioAnclas: Math.round(candidato.ratioAnclas * 100) / 100,
+    });
+  }
+
   const resultado = await evaluarDocumentoUniversal(
     [canvas],
     molde,
@@ -154,11 +206,41 @@ export async function evaluarMoldeEnActa(fotoProcesada: string): Promise<Resumen
   );
   await segundaOpinionCasillas(canvas, resultado);
   const resumen = resumir(molde, resultado);
+  // Telemetría honesta del puente (visible en consola DEV): qué leyó el
+  // motor universal y por qué estado va cada campo.
+  logger.info('[molde] resumen del motor universal', {
+    molde: molde.nombre,
+    score: resultado.score,
+    ok: resultado.ok_count,
+    total: resultado.total,
+    obligatoriosFaltantes: resultado.obligatorios_faltantes,
+    campos: resultado.paginas
+      .flatMap((p) => p.campos)
+      .map(
+        (c) =>
+          `${c.etiqueta}=${c.estado}${typeof c.valor === 'string' && c.valor ? `(${c.valor})` : ''}${c.banderas.length > 0 ? `[${c.banderas.join('|')}]` : ''} rect=${c.rect ? `${c.rect.x.toFixed(3)},${c.rect.y.toFixed(3)},${c.rect.w.toFixed(3)},${c.rect.h.toFixed(3)}` : 'null'} fuente=${c.fuente ?? 'null'} ratio=${c.ratio != null ? c.ratio.toFixed(3) : 'null'} conf=${c.conf != null ? c.conf.toFixed(2) : 'null'}`,
+      ),
+  });
+
   // FASE B4 (blueprint DLA): PRESENCIA de manuscrito (D-FINE) — señal
   // agregada en el resumen, JAMÁS lectura de texto (el HTR sigue siendo
   // revisión humana). null detector = bandera ausente (Nivel 1).
   const banderaManuscrito = await banderaManuscritoSiDisponible(canvas);
   if (banderaManuscrito) resumen.banderas.push(banderaManuscrito);
+
+  // ETAPA B — ¿el molde se convierte en el VEREDICTO del acta? Solo cuando
+  // el documento NO fue reconocido como E-14 y el motor universal responde
+  // con confianza (score ≥ umbral y al menos un campo leído). En caso
+  // contrario el resultado queda ADITIVO (enrutado: false).
+  if (!contexto?.esE14 && resultado.score >= UMBRAL_RUTA_SCORE && resultado.ok_count > 0) {
+    resumen.enrutado = true;
+    logger.info('[molde] acta ENRUTADA al molde', {
+      nombre: molde.nombre,
+      score: resultado.score,
+      ok: resultado.ok_count,
+      total: resultado.total,
+    });
+  }
   return resumen;
 }
 

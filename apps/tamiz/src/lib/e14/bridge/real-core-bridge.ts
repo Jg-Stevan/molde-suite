@@ -299,9 +299,12 @@ export class RealCoreBridge implements E14Bridge {
       DETALLE_BAJO,
       TECHO_SIN_SENAL,
       TECHO_ESCUDO_FONDO,
-      // FASE 0 (blueprint DLA): evaluación del molde activo tras el gate —
-      // null honesto sin molde registrado o con el flag apagado.
-      evaluarMolde: (fotoProcesada) => evaluarMoldeEnActa(fotoProcesada),
+      // FASE 0 (blueprint DLA): evaluación del molde tras el gate —
+      // ETAPA B: reenvía el CONTEXTO E-14 al router universal (el molde
+      // puede convertirse en el veredicto del acta); null honesto sin
+      // moldes o con el flag apagado.
+      evaluarMolde: (fotoProcesada, contexto) =>
+        evaluarMoldeEnActa(fotoProcesada, contexto),
       // FASE B3 (blueprint DLA): bandas OCR dinámicas (PP-DocLayout) cuando
       // el flag + modelo están; undefined = bandas fijas de siempre.
       ocrBandaDinamica: ocrBandaDinamicaSiDisponible,
@@ -612,9 +615,17 @@ export class RealCoreBridge implements E14Bridge {
         : campos.clasificacion?.tipo === "DELEGADOS"
           ? "CÓNSUL/EMBAJADOR"
           : "SIN CLASIFICAR";
+    // ETAPA B (enrutamiento universal): acta reconocida por un MOLDE de la
+    // biblioteca → el banner/tipo llevan el NOMBRE DEL DOCUMENTO (p. ej.
+    // «RECIBO DE LUZ»), no «DOCUMENTO SIN IDENTIFICAR». La ubicación no
+    // existe en documentos no electorales: honesta con «—».
+    const enrutado = campos.evaluacionMolde?.enrutado === true;
+    const nombreMolde = enrutado
+      ? (campos.evaluacionMolde?.moldeNombre ?? "DOCUMENTO").toUpperCase()
+      : null;
     return {
       id: `acta-${Date.now()}-${this.contador}`,
-      titulo: titUbi?.titulo ?? "DOCUMENTO SIN IDENTIFICAR",
+      titulo: nombreMolde ?? (titUbi?.titulo ?? "DOCUMENTO SIN IDENTIFICAR"),
       ubicacion: titUbi?.ubicacion ?? {
         departamento: "—",
         municipio: "—",
@@ -622,7 +633,7 @@ export class RealCoreBridge implements E14Bridge {
         puesto: "—",
         mesa: numeroMesa,
       },
-      tipo: tipoHonesto,
+      tipo: nombreMolde ?? tipoHonesto,
       // §6: página REAL del «Ver/Pag/de» cuando la clasificación la leyó.
       // KIT actas-vivas-paginas-v1 (FASE B): la página viaja COMO VENGA de
       // la clasificación (null incluido — DESCONOCIDA: el chip muestra

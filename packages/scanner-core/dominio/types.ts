@@ -81,6 +81,35 @@ export interface ResumenMoldeActa {
   /** Banderas agregadas del motor (sin duplicar): forma_discrepa, umbral_al_borde, … */
   banderas: string[];
   tiempos: { render_ms: number; ocr_ms: number; motor_ms: number };
+  /**
+   * ETAPA B (enrutamiento universal): filas por campo para la VERIFICACIÓN
+   * DOCUMENTAL — opcional y aditivo (hosts viejos no lo consumen).
+   */
+  campos?: ResumenMoldeCampo[];
+  /**
+   * ETAPA B — true cuando este resultado MOLDE es el veredicto del acta
+   * (documento NO identificado como E-14 que la biblioteca reconoció): el
+   * score/estado/banner del acta derivan de aquí. false/ausente = evaluación
+   * ADITIVA de siempre (el E-14 manda).
+   */
+  enrutado?: boolean;
+}
+
+/** Fila de un campo del molde para el checklist universal (Etapa B). */
+export interface ResumenMoldeCampo {
+  id: string;
+  etiqueta: string;
+  tipo: "texto" | "presencia" | "firma" | "checkbox";
+  estado: "ok" | "no_encontrado" | "requiere_revision";
+  /** Texto leído (texto) o booleano de diligenciamiento (presencia/firma/checkbox). */
+  valor: string | boolean | null;
+  /** Confianza 0-1 (null = el OCR no reportó confianza). */
+  conf: number | null;
+  /** Rectángulo normalizado resuelto (para el overlay). */
+  rect?: { x: number; y: number; w: number; h: number } | null;
+  /** Presentación (G-7): el valor se resalta en la lista. */
+  destacado?: boolean;
+  obligatorio?: boolean;
 }
 
 /**

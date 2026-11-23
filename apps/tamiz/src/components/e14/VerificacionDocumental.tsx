@@ -24,6 +24,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Acta } from '@/lib/e14/fachada';
+import type { ResumenMoldeCampo } from '@jg-stevan/scanner-core/dominio/types';
 import {
   construirChecklist,
   tonoDeStatus,
@@ -236,6 +237,34 @@ function fusionarGrupos(
   return grupos.filter((g) => ids.includes(g.id)).flatMap((g) => g.items);
 }
 
+/** ETAPA B (enrutamiento universal): una fila del motor universal → item del
+ *  checklist con el MISMO semáforo. Valores legibles por tipo de campo:
+ *  texto → el valor leído; presencia/firma/checkbox → diligenciado o sin
+ *  marca; dudoso → CONFIRMAR (revisión humana); vacío → SIN LECTURA. */
+function itemDeFilaMolde(c: ResumenMoldeCampo): ItemChecklist {
+  const estado: EstadoChecklist =
+    c.estado === 'ok'
+      ? 'ok'
+      : c.estado === 'requiere_revision'
+        ? 'alerta'
+        : c.obligatorio
+          ? 'fallo'
+          : 'alerta';
+  let detalle: string;
+  if (c.estado === 'requiere_revision') {
+    detalle = 'CONFIRMAR';
+  } else if (c.estado === 'no_encontrado') {
+    detalle = 'SIN LECTURA';
+  } else if (typeof c.valor === 'boolean') {
+    detalle = c.valor ? 'DILIGENCIADO' : 'SIN MARCA';
+  } else if (typeof c.valor === 'string' && c.valor.trim()) {
+    detalle = c.valor.trim();
+  } else {
+    detalle = 'SIN LECTURA';
+  }
+  return { id: c.id, etiqueta: c.etiqueta, detalle, estado };
+}
+
 /** Tarjeta VERIFICACIÓN DOCUMENTAL.
  *  · overlay (default true): fila-resumen flotante sobre la foto — colapsada
  *    ocupa solo la barra (la foto queda tocable); desplegada, el panel llena
@@ -251,6 +280,20 @@ export function VerificacionDocumental({
   const checklist = useMemo(() => construirChecklist(acta), [acta]);
   const tono = tonoDeStatus(acta.status);
   const piel = TONO_TARJETA[tono];
+
+  // ── ETAPA B (enrutamiento universal): acta reconocida por un MOLDE de la
+  // biblioteca (`evaluacionMolde.enrutado`) → el checklist se construye de
+  // las FILAS del motor universal con el semáforo de siempre (B.3). El
+  // nombre del documento vive en el banner (acta.titulo) y en el caption.
+  const molde = acta.evaluacionMolde?.enrutado ? acta.evaluacionMolde : null;
+  // Filas del motor universal → items del checklist (derivación barata; el
+  // compilador de React memoiza automáticamente).
+  const obligatoriosMolde = (molde?.campos ?? [])
+    .filter((c) => c.obligatorio)
+    .map(itemDeFilaMolde);
+  const opcionalesMolde = (molde?.campos ?? [])
+    .filter((c) => !c.obligatorio)
+    .map(itemDeFilaMolde);
 
   // ── P4 — SIN PLANTILLA: rechazada sin clasificación NI texto útil
   // (ILEGIBLE: ni código de barras ni cabecera detectados → nada que
@@ -295,11 +338,18 @@ export function VerificacionDocumental({
   // P4 — contenido: óptima muestra TODO; el resto SOLO lo faltante.
   const soloFaltantes = tono !== 'ok';
 
-  // Porcentaje global del gate (mock: badge del header).
-  const totalItems = obligatorios.length + opcionales.length;
-  const pasadosItems =
-    obligatorios.filter((it) => it.estado === 'ok').length +
-    opcionales.filter((it) => it.estado === 'ok').length;
+  // Porcentaje global del gate (mock: badge del header) — para actas
+  // ENRUTADAS el conteo sale de las filas del MOLDE (semáforo universal).
+  const totalItems = molde
+    ? obligatoriosMolde.length + opcionalesMolde.length
+    : obligatorios.length + opcionales.length;
+  const pasadosItems = molde
+    ?
+      obligatoriosMolde.filter((it) => it.estado === 'ok').length +
+      opcionalesMolde.filter((it) => it.estado === 'ok').length
+    :
+      obligatorios.filter((it) => it.estado === 'ok').length +
+      opcionales.filter((it) => it.estado === 'ok').length;
   const pct = totalItems > 0 ? Math.round((pasadosItems / totalItems) * 100) : 0;
 
   return (
@@ -366,7 +416,34 @@ export function VerificacionDocumental({
               : 'rounded-lg bg-[#0d131a]/85 border border-slate-800/80 p-2.5 flex flex-col gap-2.5 max-h-[60vh] overflow-y-auto thin-scroll'
           }
         >
-          {sinPlantilla ? (
+          {molde ? (
+            <>
+              {/* ETAPA B — caption del molde que identificó el documento. */}
+              <p className="font-mono text-[9.5px] font-bold tracking-widest text-slate-300 uppercase shrink-0">
+                Molde: {molde.moldeNombre.toUpperCase()} · {molde.ok}/{molde.total} campos ok
+              </p>
+              {/* Campos Obligatorios del molde (P4: solo faltantes si el
+                  veredicto no está OK; badge con conteo completo). */}
+              {obligatoriosMolde.length > 0 && (
+                <SeccionVerificacion
+                  titulo="Campos Obligatorios"
+                  items={obligatoriosMolde}
+                  soloFaltantes={soloFaltantes}
+                />
+              )}
+              {/* Campos informativos del molde (desplegable, regla del mock). */}
+              {opcionalesMolde.length > 0 && (
+                <SeccionVerificacion
+                  titulo="Campos Opcionales"
+                  items={opcionalesMolde}
+                  soloFaltantes={soloFaltantes}
+                  desplegable
+                  abierta={opcionalesAbiertos}
+                  onToggle={() => setOverrideOpcionales(!opcionalesAbiertos)}
+                />
+              )}
+            </>
+          ) : sinPlantilla ? (
             <div className="min-h-[110px] flex flex-col items-center justify-center gap-1.5 text-center py-3">
               <span
                 aria-hidden
