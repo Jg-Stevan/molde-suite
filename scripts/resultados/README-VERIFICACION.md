@@ -112,6 +112,40 @@ se reproduce, pero el número publicado no es reproducible y el score oscila
 ±8.3 entre corridas del mismo binario sobre la misma imagen — las dos firmas
 vuelven a `ok` por `ancla_solo_textual`.
 
+## Banco 1.3.3 (molde corregido, motor v3.2.0 intacto)
+
+Medición end-to-end con el Studio real (conductor externo, corrida persistida
+por la app como fuente de verdad). Todos con `_meta` (commit/rama/imagen),
+`score motor = score arnés = score genuino` y **0 `ok` no genuinos**:
+
+| Imagen | Artefacto | v1.3.2 | v1.3.3 |
+|---|---|---|---|
+| limpia `pag-01.png` | `v133d-limpia-2026-11-24T22-16-19-971Z.json` | 100 | **100** (12/12) |
+| `recorte-60pct-usuario.png` | `v133d-recorte60-2026-11-24T22-19-25-157Z.json` | 66.7 | **75** (9/12) |
+| `recorte-66pct-sin-firma.png` | `v133e-recorte66-2026-11-24T22-28-51-285Z.json` | 50.0 | **75** (9/12) |
+| `recibo-tachado.png` | `v133d-tachado-2026-11-24T22-18-23-110Z.json` | 33.3 | **50** (6/12) |
+| `recibo-sin-firmas.png` | `v133c-sinfirmas-2026-11-24T22-09-44-445Z.json` | 75 | **75** (9/12) |
+| `recibo-datos-nuevos.png` | `v133c-nuevos-2026-11-24T22-10-50-637Z.json` | 75 | **75** (9/12) |
+| `rotada-12.png` | `v133e-rotada-2026-11-24T22-30-12-387Z.json` | 66.7 | **91.7** (11/12) |
+
+Correcciones declarativas (motor sin cambios; ver
+`lessons/recibo_pago/2026-11-24-ancla-unica-offset-intralinea.md`):
+
+- `numero_recibo`: ancla `"N.9 Recibo"` (lectura real del OCR) + respaldo
+  `"N.º Recibo"` — deja de colisionar con el título.
+- `datos_emisor`: `zona_fija` → `ancla_relativa` con ancla `"con DNI"` en su
+  propia línea, `x_absoluto`; centro x 0.333 medido con perfil de tinta (la x
+  de la frase depende del nombre previo).
+
+Nota de procedencia: `v133d-*` se midieron con el rect anterior (x 0.315);
+el paso a 0.288 deja el dx idéntico en esas tres imágenes (mismo documento,
+ancho intacto → score idéntico) y por eso no se repitieron; `recorte66` y
+`rotada-12` sí se repitieron con el valor final (`v133e-*`).
+`v133c-nuevos/sinfirmas` se midieron con la misma declaración 1.3.3 salvo el
+recentrado x (documentos completos, dy≈0, `datos_emisor` `ok` sin banderas
+en ambos). Los `v133`/`v133b`/`v133c` intermedios no se versionan: son
+iteraciones superadas.
+
 ## Cómo reproducir
 
 ```bash
