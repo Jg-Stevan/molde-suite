@@ -15,6 +15,7 @@ Los consumidores solo pueden importar por subpath (el lint de las apps bloquea
 
 | Subpath | Contenido |
 |---|---|
+| `.` (barrel `src/index.ts`) | API de alto nivel: contrato (`esMoldeUniversal`, `erroresContrato`), sobre con checksum y tipos de dominio (Acta). Ligero a propósito; el resto solo por subpaths |
 | `./contract` | Contrato del molde: `esMoldeUniversal`, `erroresMolde`, `erroresContrato`, `MOLDE_UNIVERSAL_VERSION`, `CLAVES_TOP_LEVEL` |
 | `./contract/sobre` | Sobre con checksum: `crearSobreMolde`, `verificarSobreMolde`, `esSobreConMolde`, `checksumDeMolde` |
 | `./dominio/types` · `./dominio/bridge` · `./dominio/clasificador` | Tipos del documento (Acta), puente de análisis, clasificador E-14 |

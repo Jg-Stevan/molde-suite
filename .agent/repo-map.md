@@ -9,10 +9,10 @@
 | Workspace | Ruta | Depende de (workspace:*) |
 |---|---|---|
 | `@jg-stevan/dla-onnx` | `packages/dla-onnx` | — |
-| `@jg-stevan/layout-core` | `packages/layout-core` | `@jg-stevan/scanner-core` |
-| `@jg-stevan/scanner-core` | `packages/scanner-core` | — |
-| `docutemplate-studio` | `apps/molde-studio` | `@jg-stevan/dla-onnx`, `@jg-stevan/layout-core`, `@jg-stevan/scanner-core` |
-| `tamiz` | `apps/tamiz` | `@jg-stevan/dla-onnx`, `@jg-stevan/layout-core`, `@jg-stevan/scanner-core` |
+| `@jg-stevan/layout-core` | `packages/layout-core` | `@molde-suite/scanner-core` |
+| `@molde-suite/scanner-core` | `packages/scanner-core` | — |
+| `docutemplate-studio` | `apps/molde-studio` | `@jg-stevan/dla-onnx`, `@jg-stevan/layout-core`, `@molde-suite/scanner-core` |
+| `tamiz` | `apps/tamiz` | `@jg-stevan/dla-onnx`, `@jg-stevan/layout-core`, `@molde-suite/scanner-core` |
 
 ## 2. Índice de símbolos exportados (packages/*)
 
@@ -470,6 +470,44 @@
 | `VerificacionSobre` | typealias | 54 | `any` |
 | `verificarSobreMolde` | function | 59 | `(sobre: { checksum: string; molde: unknown; }) => Promise<VerificacionSobre>` |
 
+### packages/scanner-core/src/index.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `Acta` | exportspecifier | 41 | `any` |
+| `ActaFirma` | exportspecifier | 43 | `any` |
+| `ActaStatus` | exportspecifier | 42 | `any` |
+| `checksumDeMolde` | exportspecifier | 29 | `(molde: unknown) => Promise<string>` |
+| `CLAVES_TOP_LEVEL` | exportspecifier | 22 | `readonly ["tipo", "version", "nombre", "descripcion", "documento", "idioma", "paginasRef", "campos", "validaciones", "layout", "meta"]` |
+| `crearSobreMolde` | exportspecifier | 30 | `(molde: MoldeUniversal) => Promise<SobreMolde>` |
+| `DiagnosticoActa` | exportspecifier | 44 | `any` |
+| `erroresContrato` | exportspecifier | 20 | `(obj: unknown) => {}` |
+| `erroresMolde` | exportspecifier | 19 | `(obj: unknown) => {}` |
+| `esMoldeUniversal` | exportspecifier | 18 | `(obj: unknown) => obj is MoldeUniversal` |
+| `esSobreConMolde` | exportspecifier | 28 | `(p: unknown) => p is { checksum: string; molde: unknown; }` |
+| `EstructuraActa` | exportspecifier | 45 | `any` |
+| `EtapaAnalisis` | exportspecifier | 46 | `any` |
+| `FuenteCaptura` | exportspecifier | 47 | `any` |
+| `HistorialRow` | exportspecifier | 48 | `any` |
+| `Mesa` | exportspecifier | 49 | `any` |
+| `MesaPagina` | exportspecifier | 50 | `any` |
+| `MetricasActa` | exportspecifier | 51 | `any` |
+| `MOLDE_UNIVERSAL_VERSION` | exportspecifier | 21 | `"3.2.0"` |
+| `MoldeUniversal` | exportspecifier | 24 | `any` |
+| `PaginaActa` | exportspecifier | 52 | `any` |
+| `ProgresoAnalisis` | exportspecifier | 53 | `any` |
+| `Quad` | exportspecifier | 59 | `any` |
+| `RechazoActa` | exportspecifier | 54 | `any` |
+| `ResumenMoldeActa` | exportspecifier | 55 | `any` |
+| `ResumenMoldeCampo` | exportspecifier | 56 | `any` |
+| `SobreMolde` | exportspecifier | 33 | `any` |
+| `statusDeScore` | exportspecifier | 38 | `(score: number) => ActaStatus` |
+| `TipoPagina` | exportspecifier | 57 | `any` |
+| `UbicacionActa` | exportspecifier | 58 | `any` |
+| `UMBRAL_ADMISIBLE_SCORE` | exportspecifier | 37 | `8.5` |
+| `VerificacionSobre` | exportspecifier | 33 | `any` |
+| `verificarSobreMolde` | exportspecifier | 31 | `(sobre: { checksum: string; molde: unknown; }) => Promise<VerificacionSobre>` |
+
 ---
 
-Total: 279 símbolos en 35 archivos de 3 paquetes.
+Total: 312 símbolos en 36 archivos de 3 paquetes.
