@@ -38,3 +38,14 @@ export function topeLadoLargoPx(): number {
       return 2560;
   }
 }
+
+/** KIT e14-ocr-tessbest-v1 — presupuesto del PROBE de orientación por tier
+ *  (upstream adaptacion/plan.ts: BAJO 150 s · MEDIO 60 s · ALTO 12 s). */
+const PROBE_ORIENTACION_MS: Record<TierDispositivo, number> = {
+  BAJO: 150_000,
+  MEDIO: 60_000,
+  ALTO: 12_000,
+};
+export function presupuestoProbeOrientacionEfectivo(): number {
+  return PROBE_ORIENTACION_MS[tierDelDispositivo()];
+}

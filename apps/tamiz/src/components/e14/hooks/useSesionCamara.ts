@@ -8,7 +8,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
 import type { SensorProfile } from '@/lib/e14/core/sensor-profiler';
-import { profileActiveSensor } from '@/lib/e14/core/sensor-profiler';
+import {
+  clampBlobToSafeCap,
+  getSensorSafeCap,
+  profileActiveSensor,
+} from '@/lib/e14/core/sensor-profiler';
 import { TEXTO_MOTIVO } from '@/lib/e14/errores';
 
 export type CamEstado = 'iniciando' | 'viva' | 'denegada' | 'sin-camara' | 'cerrada';
@@ -22,6 +26,37 @@ export function esIOS(): boolean {
   if (typeof navigator === 'undefined') return false;
   return /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
 }
+
+/* ── Constantes de cámara (upstream useSesionCamara — DUAL PIPELINE D7) ──── */
+
+// FIX v6 6.1 del lab — Safari moderno expone ImageCapture pero takePhoto()
+// se cuelga: el régimen se decide por UA Android, no por typeof ImageCapture.
+const IS_ANDROID = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
+/** takePhoto() fiable SOLO en Android (Chrome). */
+const CAN_TAKEPHOTO = IS_ANDROID && typeof ImageCapture !== 'undefined';
+
+// LOTE 5 (F5-A) — escalera rápida de photoSettings: el takePhoto DESNUDO
+// tarda ~15 s (ISP full-res); 2048×1536 tarda ~1.0 s. El desnudo queda como
+// ÚLTIMO recurso (con carrera de 8 s).
+const FOTO_LADDER: Array<{ imageWidth: number; imageHeight: number }> = [
+  { imageWidth: 2048, imageHeight: 1536 },
+  { imageWidth: 1280, imageHeight: 960 },
+];
+
+// LOTE 5.5 — «calidad primero»: SOLO equipos con 8+ GB pagan la espera del
+// desnudo full-res. Se lee en cada captura, NUNCA en render.
+function esCalidadPrimero(): boolean {
+  try {
+    const dm = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+    return CAN_TAKEPHOTO && dm === 8;
+  } catch {
+    return false;
+  }
+}
+
+/** takePhoto puede colgarse (lab error #29): carrera de 8 s SOLO para el
+ *  último peldaño (el desnudo); los intermedios fallan rápido. */
+const TAKEPHOTO_TIMEOUT_MS = 8000;
 
 interface Config {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -81,7 +116,7 @@ export function useSesionCamara(config: Config): {
   setAvisoCamara: Dispatch<SetStateAction<'denied' | 'sin-senal' | null>>;
   puedeTomarFotoRef: MutableRefObject<boolean>;
   takePhotoBrokenRef: MutableRefObject<boolean>;
-  tomarFoto: (onUpgrade: (upgrade: { dataUrl: string; acta: never }) => void) => Promise<Blob | null>;
+  tomarFoto: (onUpgrade?: (upgrade: Promise<Blob>) => void) => Promise<Blob | null>;
   loopRef: MutableRefObject<{ notifyCaptured(): void } | null>;
   camaraViva: boolean;
 } {
@@ -106,7 +141,7 @@ export function useSesionCamara(config: Config): {
   } = config;
 
   const [avisoCamara, setAvisoCamara] = useState<'denied' | 'sin-senal' | null>(null);
-  const puedeTomarFotoRef = useRef(true);
+  const puedeTomarFotoRef = useRef(CAN_TAKEPHOTO);
   const takePhotoBrokenRef = useRef(false);
   const loopRef = useRef<{ notifyCaptured(): void } | null>(null);
   const rafRef = useRef(0);
@@ -192,9 +227,8 @@ export function useSesionCamara(config: Config): {
         config.autoRef.current &&
         !procesandoRef.current &&
         score > 0.55 &&
-        ahora - cooldownRef.current > 2500
+        cooldownRef.current <= Date.now()
       ) {
-        cooldownRef.current = ahora;
         setAutoArmado(false);
         void capturarRef.current?.();
       }
@@ -203,23 +237,76 @@ export function useSesionCamara(config: Config): {
     return () => cancelAnimationFrame(rafRef.current);
   }, [alimentarAnillo, capturarRef, cooldownRef, config.autoRef, procesandoRef, setAutoArmado, setLive, videoRef]);
 
-  // ---- toma de foto ----
+  // ---- toma de foto (D7 — DUAL PIPELINE upstream: escalera FOTO_LADDER +
+  // carrera 8 s + lista negra + upgrade LOTE 5.4. NADA de pantallazo del
+  // <video> como "foto del sensor": el frame del visor queda SOLO como
+  // último recurso del dispatch de ScanView) ----
   const tomarFoto = useCallback(
-    async (_onUpgrade: (upgrade: { dataUrl: string; acta: never }) => void): Promise<Blob | null> => {
-      const video = videoRef.current;
-      if (!video || video.readyState < 2 || !video.videoWidth) return null;
-      const c = document.createElement('canvas');
-      c.width = video.videoWidth;
-      c.height = video.videoHeight;
-      c.getContext('2d', { willReadFrequently: true })!.drawImage(video, 0, 0);
-      setFramePendiente(video);
-      if (flashRef.current) {
-        // El destello visual lo dispara el store (destelloKey).
-        flashRef.current = false;
+    async (onUpgrade?: (upgrade: Promise<Blob>) => void): Promise<Blob | null> => {
+      if (!CAN_TAKEPHOTO) return null; // FIX v6 6.1 del lab — Android only
+      const track = streamRef.current?.getVideoTracks()[0];
+      if (!track) return null;
+      try {
+        const capture = new ImageCapture(track);
+        const profile = sensorProfileRef.current;
+        // LOTE 5.5 — calidad primero (deviceMemory 8+): el desnudo de primero.
+        const qualityFirst = esCalidadPrimero();
+        const settings = qualityFirst ? undefined : FOTO_LADDER[0];
+        let winnerSettings: { imageWidth: number; imageHeight: number } | undefined =
+          settings;
+        const attempt = async (
+          ps?: { imageWidth: number; imageHeight: number },
+          conCarrera?: boolean,
+        ): Promise<Blob | null> => {
+          try {
+            const photoPromise = capture.takePhoto(ps as PhotoSettings);
+            if (!conCarrera) {
+              const b = await photoPromise;
+              return b && b.size > 0 ? b : null;
+            }
+            const blob = await Promise.race([
+              photoPromise,
+              new Promise<never>((_, reject) =>
+                window.setTimeout(
+                  () => reject(new Error('takePhoto timeout 8s')),
+                  TAKEPHOTO_TIMEOUT_MS,
+                ),
+              ),
+            ]);
+            return blob && blob.size > 0 ? blob : null;
+          } catch {
+            return null;
+          }
+        };
+        let blob = await attempt(settings, settings === undefined);
+        const escalera: Array<{ imageWidth: number; imageHeight: number } | undefined> =
+          qualityFirst ? [...FOTO_LADDER] : [...FOTO_LADDER.slice(1), undefined];
+        for (const ps of escalera) {
+          if (blob) break;
+          winnerSettings = ps;
+          blob = await attempt(ps, ps === undefined);
+        }
+        // FIX v4 4.1 — lista negra temporal: respondió → rehabilitar.
+        if (blob) takePhotoBrokenRef.current = false;
+        else takePhotoBrokenRef.current = true;
+        if (!blob) return null;
+        // LOTE 5.4 (F5.4-A) — upgrade solo si lo que ganó fue un PELDAÑO.
+        // Fire-and-forget: la promesa NUNCA se espera aquí (~15 s del desnudo).
+        if (winnerSettings !== undefined && onUpgrade) {
+          try {
+            onUpgrade(capture.takePhoto(undefined));
+          } catch {
+            /* throw sincrónico raro del sensor: nunca rompe la captura */
+          }
+        }
+        // Capa 2 — red de seguridad post-decode (solo recorta si excede el tope).
+        return await clampBlobToSafeCap(blob, profile?.safeCapPx ?? getSensorSafeCap());
+      } catch {
+        // takePhoto es un camino, no el único: null → el flujo cae al frame del visor
+        return null;
       }
-      return new Promise<Blob | null>((res) => c.toBlob((b) => res(b), 'image/jpeg', 0.92));
     },
-    [flashRef, setFramePendiente, videoRef],
+    [streamRef, sensorProfileRef, takePhotoBrokenRef],
   );
 
   return {

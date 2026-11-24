@@ -4,6 +4,95 @@
 // quad con transformación bilineal aproximada por triangulación.
 
 import type { PageFilter, Quad } from './types';
+// R-46 — prefijo público de assets por INYECCIÓN lazy (dominio/entorno del fork).
+import { publicBaseEfectivo } from '../dominio/entorno';
+
+/** Tope técnico ÚNICO del lado mayor procesado (fix v3 upstream): 4032 px —
+ *  4032×3024 ≈ 12.2 MP, lejos del límite de canvas de iOS (~16.7 MP). */
+export const PROCESSED_MAX_LONG_SIDE = 4032;
+
+/** Decode de un data URL a <img> (decode-once del paquete — upstream L99-106). */
+export function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("No se pudo cargar la imagen"));
+    img.src = src;
+  });
+}
+
+/** Dims de un JPEG leídas del CONTENEDOR (≤256 KB, sin decodificar) con la
+ *  orientación EXIF ya resuelta (swap 5-8). null = no-JPEG o header ilegible.
+ *  Port byte-fiel de upstream image-processor.ts:116-159 (KIT velocidad-5s). */
+export async function jpegDimensionsFromBlob(blob: Blob): Promise<{ w: number; h: number } | null> {
+  try {
+    const head = new Uint8Array(await blob.slice(0, 262144).arrayBuffer());
+    if (head[0] !== 0xff || head[1] !== 0xd8) return null;
+    let orientation = 1;
+    let i = 2;
+    while (i + 9 < head.length) {
+      if (head[i] !== 0xff) { i += 1; continue; }
+      const marker = head[i + 1];
+      if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) { i += 2; continue; }
+      const len = (head[i + 2] << 8) | head[i + 3];
+      if (marker === 0xe1 && len >= 8) {
+        const isExif = head[i + 4] === 0x45 && head[i + 5] === 0x78 && head[i + 6] === 0x69 && head[i + 7] === 0x66;
+        if (isExif) {
+          if (i + 18 > head.length || i + 2 + len > head.length) return null;
+          const tiff = i + 10;
+          const be = head[tiff] === 0x4d && head[tiff + 1] === 0x4d;
+          const u16 = (o: number) => (be ? (head[o] << 8) | head[o + 1] : head[o] | (head[o + 1] << 8));
+          const ifd0 = be
+            ? (((head[tiff + 4] << 24) | (head[tiff + 5] << 16) | (head[tiff + 6] << 8) | head[tiff + 7]) >>> 0)
+            : (((head[tiff + 7] << 24) | (head[tiff + 6] << 16) | (head[tiff + 5] << 8) | head[tiff + 4]) >>> 0);
+          const ifd = tiff + ifd0;
+          for (let n = u16(ifd), e = 0; e < n && ifd + 2 + e * 12 + 8 <= head.length; e += 1) {
+            const entry = ifd + 2 + e * 12;
+            if (u16(entry) === 0x0112) { orientation = u16(entry + 8); break; }
+          }
+        }
+      }
+      const isSof = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+      if (isSof) {
+        const h = (head[i + 5] << 8) | head[i + 6];
+        const w = (head[i + 7] << 8) | head[i + 8];
+        if (w <= 0 || h <= 0) return null;
+        const swap = orientation >= 5 && orientation <= 8;
+        return { w: swap ? h : w, h: swap ? w : h };
+      }
+      i += 2 + len;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Defaults del rescate F-HEIC (upstream image-processor.ts:248-255). */
+export const HEIC_TOPE_MP_DEFECTO = 24;
+export const HEIC_LIMITE_MS_DEFECTO = 15_000;
+export type OpcionesRescateHeic = { topeMpHeic?: number; limiteMsHeic?: number };
+
+/** F-IMPORT — File → dataURL de captura. Sin `heic2any` en Tamiz (sin deps
+ *  nuevas autorizadas), el rescate HEIC de reserva NO existe: un HEIC se
+ *  rechaza con SU error (ErrorRescateHeic) y la UI lo clasifica
+ *  (HEIC_NO_SOPORTADO); JPEG/PNG decodifican nativo con tope por canvas. */
+export async function fileToCaptureDataUrl(
+  file: File,
+  _opcionesRescate: OpcionesRescateHeic = {},
+): Promise<string> {
+  const looksHeic = /heic|heif/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
+  if (looksHeic) throw new ErrorRescateHeic("La foto HEIC no se pudo decodificar en este navegador.");
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result ?? ""));
+    fr.onerror = () => reject(fr.error ?? new Error("No se pudo leer el archivo"));
+    fr.readAsDataURL(file);
+  });
+  if (!dataUrl) throw new ErrorRescateHeic();
+  return dataUrl;
+}
+
 import {
   anguloDeskew,
   corregirDeskew,
@@ -153,6 +242,144 @@ export async function detectDocumentEdgesDetail(
  * deskew automático (la decisión del usuario manda).
  * Devuelve { processed } como dataURL.
  */
+
+// ─── KIT e14-fallback-worker-v1 (Ola 5 §5.4 — R2, port Tamiz universal) ────
+// El warp + filtros + encode PNG salen del hilo principal al worker IIFE
+// `public/scanner/fallback-canvas.worker.js` (build: scripts/build-fallback-
+// canvas-worker.mjs — fuentes en workers/fallback-canvas.ts con los filtros
+// EXACTOS del fork, ver comentario del worker). El hilo principal queda como
+// red: decodifica (createImageBitmap, async) y TRANSIERE el bitmap. Ruta local
+// SIEMPRE cuando no hay window (tests bun), no hay OffscreenCanvas (iOS <16.4),
+// el worker falló una vez (roto para la sesión) o cualquier excepción.
+interface RespuestaFallbackOk {
+  id: number;
+  ok: true;
+  png: Blob;
+  ancho: number;
+  alto: number;
+}
+interface RespuestaFallbackMal {
+  id: number;
+  ok: false;
+  error: string;
+}
+type RespuestaFallbackWorker = RespuestaFallbackOk | RespuestaFallbackMal;
+
+let fallbackCanvasWorker: Worker | null = null;
+let fallbackCanvasWorkerRoto = false;
+let fallbackCanvasSeq = 0;
+const fallbackCanvasPendientes = new Map<
+  number,
+  { resolver: (r: RespuestaFallbackOk) => void; rechazar: (e: Error) => void }
+>();
+
+function fallbackCanvasHabilitado(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof Worker === "function" &&
+    typeof OffscreenCanvas === "function" &&
+    !fallbackCanvasWorkerRoto
+  );
+}
+
+function romperFallbackCanvasWorker(motivo: string): void {
+  fallbackCanvasWorkerRoto = true;
+  if (fallbackCanvasWorker) {
+    try {
+      fallbackCanvasWorker.terminate();
+    } catch {
+      /* noop */
+    }
+    fallbackCanvasWorker = null;
+  }
+  for (const [id, pendiente] of fallbackCanvasPendientes) {
+    fallbackCanvasPendientes.delete(id);
+    pendiente.rechazar(new Error(`fallback-worker: ${motivo}`));
+  }
+}
+
+function obtenerFallbackCanvasWorker(): Worker {
+  if (!fallbackCanvasWorker) {
+    // Artefacto PRECOMPILADO (DICTAMEN-e73 §3.1): el .ts crudo no sirve de
+    // worker — el .worker.js lo emite scripts/build-fallback-canvas-worker.mjs.
+    const w = new Worker(`${publicBaseEfectivo()}/scanner/fallback-canvas.worker.js`, {
+      name: "fallback-canvas-v1",
+    });
+    w.onmessage = (e: MessageEvent<RespuestaFallbackWorker>) => {
+      const pendiente = fallbackCanvasPendientes.get(e.data.id);
+      if (!pendiente) return;
+      fallbackCanvasPendientes.delete(e.data.id);
+      if (e.data.ok) pendiente.resolver(e.data);
+      else pendiente.rechazar(new Error(e.data.error));
+    };
+    w.onerror = () => romperFallbackCanvasWorker("onerror del worker");
+    fallbackCanvasWorker = w;
+  }
+  return fallbackCanvasWorker;
+}
+
+/** processImage EN WORKER: el main decodifica y transfiere; el worker hace
+ *  warp + rotación + filtro fork + PNG (misma matemática). Devuelve null en
+ *  cualquier fallo — el llamador cae a su ruta local sin cambiar nada. */
+async function processImageViaFallbackWorker(
+  foto: string,
+  quad: Quad,
+  filtro: PageFilter,
+  rotation: number,
+): Promise<{ processed: string; width: number; height: number } | null> {
+  if (!fallbackCanvasHabilitado()) return null;
+  try {
+    const blobSrc = await (await fetch(foto)).blob();
+    const bitmap = await createImageBitmap(blobSrc);
+    try {
+      const worker = obtenerFallbackCanvasWorker();
+      const id = ++fallbackCanvasSeq;
+      const respuesta = new Promise<RespuestaFallbackOk>((resolver, rechazar) => {
+        fallbackCanvasPendientes.set(id, { resolver, rechazar });
+      });
+      const reloj = setTimeout(() => {
+        if (fallbackCanvasPendientes.delete(id)) {
+          romperFallbackCanvasWorker("sin respuesta en 30 s");
+        }
+      }, 30_000);
+      try {
+        worker.postMessage(
+          {
+            id,
+            bitmap,
+            quad: quad.flatMap((p) => [p.x, p.y]),
+            filter: filtro,
+            rotation,
+            maxLongSide: 4032,
+          },
+          [bitmap],
+        );
+        const r = await respuesta;
+        const processed = await new Promise<string>((resolve) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(String(fr.result ?? ""));
+          fr.onerror = () => resolve("");
+          fr.readAsDataURL(r.png);
+        });
+        if (!processed) return null;
+        return { processed, width: r.ancho, height: r.alto };
+      } finally {
+        clearTimeout(reloj);
+        fallbackCanvasPendientes.delete(id);
+      }
+    } finally {
+      try {
+        bitmap.close();
+      } catch {
+        /* noop — si fue transferido queda detached */
+      }
+    }
+  } catch {
+    // Cualquier excepción del camino nuevo → null: la ruta local termina el trabajo.
+    return null;
+  }
+}
+
 export async function processImage(
   foto: string,
   quad: Quad,
@@ -160,6 +387,13 @@ export async function processImage(
   rotation: number,
   opts?: { manual?: boolean; deskew?: boolean },
 ): Promise<{ processed: string; width: number; height: number }> {
+  // §5.4 (R2, port) — ruta EN WORKER cuando el entorno la soporta y el pedido
+  // no necesita deskew (corrección exclusiva del fork, camada local). El quad
+  // manual (`manual: true`) viaja igual: el worker respeta el quad al píxel.
+  if (!opts?.deskew) {
+    const viaWorker = await processImageViaFallbackWorker(foto, quad, filtro, rotation);
+    if (viaWorker) return viaWorker;
+  }
   const img = await decodificar(foto);
   const src = imgACanvas(img);
   const w = img.naturalWidth;
@@ -173,7 +407,9 @@ export async function processImage(
       (Math.hypot((quad[1].x - quad[0].x) * w, (quad[1].y - quad[0].y) * h) +
         Math.hypot((quad[2].x - quad[3].x) * w, (quad[2].y - quad[3].y) * h)) / 2,
     );
-    out = warpPerspectiva(src, quad, Math.max(200, Math.min(3200, anchoDoc)));
+    // PROCESSED_MAX_LONG_SIDE = 4032 (upstream image-processor.ts:67 — bug v3
+    // de CALIDAD: 3200 recortaba las fotos de 12 MP; 4032×3024 ≈ 12.2 MP).
+    out = warpPerspectiva(src, quad, Math.max(200, Math.min(4032, anchoDoc)));
   } else {
     // Rect del quad (bounding) en px — camino equivalente al recorte histórico.
     const xs = quad.map((p) => p.x * w);
@@ -258,7 +494,9 @@ export async function processImage(
     rc.putImageData(data, 0, 0);
   }
   return {
-    processed: rotado.toDataURL('image/jpeg', 0.85),
+    // R-10 (upstream): los 3 filtros del producto salen PNG — sin ringing
+    // JPEG sobre la tinta (degrada OCR y la comparación del visor).
+    processed: rotado.toDataURL('image/png'),
     width: rotado.width,
     height: rotado.height,
   };

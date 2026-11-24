@@ -22,6 +22,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useE14Store } from "@/lib/e14/store";
+import { downloadBlob, nombrePdf, pdfConsolidadoDeActas, type DocPdf } from "@/lib/e14/core/pdf-export";
 import type { HistorialRow } from "@/lib/e14/fachada";
 import {
   ChevronDownIcon,
@@ -333,6 +334,22 @@ export function ActasView() {
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [detalleAbierto, setDetalleAbierto] = useState<string | null>(null);
+  const pdfLibro = useE14Store((s2) => s2.pdfLibro);
+  const [pdfEnVuelo, setPdfEnVuelo] = useState(false);
+  // Bloque 2.6 — exportar el LIBRO DE LA SESIÓN a PDF multipágina (jspdf).
+  const exportarPdf = () => {
+    if (pdfLibro.length === 0 || pdfEnVuelo) return;
+    setPdfEnVuelo(true);
+    try {
+      const docs: DocPdf[] = pdfLibro.map((e) => ({
+        titulo: e.titulo, estado: e.estado, score: e.score, foto: e.foto, hora: e.hora, qr: e.qr ?? null,
+      }));
+      const blob = pdfConsolidadoDeActas(docs);
+      downloadBlob(blob, nombrePdf(docs.length, "documentos-tamiz"));
+    } finally {
+      setPdfEnVuelo(false);
+    }
+  };
 
   // Documentos: REAL (envíos de la sesión) + DEMO del SIM (encima, bandera).
   const docs = useMemo<DocHistorial[]>(() => {
@@ -407,6 +424,16 @@ export function ActasView() {
             >
               <StitchClockIcon className="w-3 h-3" />
               SIM
+            </button>
+            <button
+              type="button"
+              onClick={exportarPdf}
+              disabled={pdfLibro.length === 0 || pdfEnVuelo}
+              aria-label={`Exportar ${pdfLibro.length} documentos a PDF`}
+              title="Exportar la sesión a PDF multipágina (una página por documento)"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border font-mono text-[10px] font-bold uppercase tracking-wider transition min-h-[32px] bg-[#10161f] border-slate-700 text-slate-300 hover:text-white disabled:opacity-40"
+            >
+              PDF{pdfLibro.length > 0 ? ` (${pdfLibro.length})` : ""}
             </button>
             <button
               type="button"

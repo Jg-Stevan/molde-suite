@@ -27,7 +27,7 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-empty": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "next-env.d.ts"],
+  ignores: ["node_modules/**", ".next/**", "out/**", "next-env.d.ts", "public/scanner/**", "public/vendor/**", "public/sw.js"],
 }, {
   files: ["src/**/*.{ts,tsx}"],
   rules: {

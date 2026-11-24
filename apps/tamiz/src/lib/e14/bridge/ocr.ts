@@ -24,7 +24,31 @@ async function ocrDataUrl(dataUrl: string, psm?: string): Promise<{ texto: strin
     };
   } catch (e) {
     logger.warn('[ocr] recognize falló', { mensaje: (e as Error).message });
+    // Bloque 3b — FALLBACK AUTOMÁTICO: si el motor ganador (Tesseract, ver
+    // benchmark /tmp/benchmark-ocr.ts) no inicializa, el SECOND motor
+    // (RapidOCR ONNX del fork) toma el turno. null honesto si también cae.
+    const fb = await ocrRapidoFallback(dataUrl, psm);
+    if (fb) return { texto: fb, conf: null };
     return { texto: '', conf: null };
+  }
+}
+
+/** Fallback RapidOCR (motor B del benchmark): solo navegador; los modelos
+ *  viajan self-hosted (/models/rapidocr, sha256 en PanelModelos). Cualquier
+ *  fallo ⇒ null (el pipeline sigue sin OCR — jamás lanza). */
+async function ocrRapidoFallback(dataUrl: string, psm?: string): Promise<string | null> {
+  void psm; // el rec de RapidOCR no usa psm (bloques DB propios)
+  if (typeof window === 'undefined') return null;
+  try {
+    const motor = await import('@molde-suite/scanner-core/ocr/rapidocr');
+    const rt = await motor.asegurarRapidOcr();
+    const r = await motor.rapidOcrReconocer(rt, dataUrl);
+    return r?.texto || null;
+  } catch (e) {
+    logger.warn('[ocr] fallback RapidOCR falló (se sigue sin texto)', {
+      mensaje: (e as Error).message,
+    });
+    return null;
   }
 }
 

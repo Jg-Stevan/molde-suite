@@ -5,12 +5,22 @@
 // del motor universal comparten sesión). Sin cambios de comportamiento.
 
 import { logger } from '../../logger';
+import { BASE_PATH } from '../../rutas';
 
 export type TesseractWorkerLike = {
   recognize: (imagen: unknown, opts?: unknown, out?: unknown) => Promise<{ data: { text?: string; confidence?: number } }>;
   setParameters: (p: Record<string, string>) => Promise<unknown>;
   terminate?: () => Promise<unknown>;
 };
+
+/** tesseract.js arma un worker sobre `blob:` y ahí `importScripts` NO resuelve
+ *  rutas relativas: las tres rutas tienen que salir absolutas. */
+function urlAbsoluta(ruta: string): string {
+  if (typeof location === 'undefined') return ruta;
+  return new URL(ruta, location.href).href;
+}
+
+const ASSET = (ruta: string) => urlAbsoluta(`${BASE_PATH}${ruta}`);
 
 let workerPromise: Promise<TesseractWorkerLike> | null = null;
 
@@ -20,6 +30,13 @@ export function getWorker(): Promise<TesseractWorkerLike> {
     workerPromise = (async () => {
       const { createWorker } = await import('tesseract.js');
       const worker = await createWorker('spa', 1, {
+        // Todo same-origin, servido por `bun run preparar`: sin esto la lib
+        // hace importScripts al CDN y el OCR muere sin red en campo.
+        // corePath es DIRECTORIO: la lib elige simd-lstm o lstm según la
+        // sonda SIMD del dispositivo (los dos núcleos están vendorizados).
+        workerPath: ASSET('/vendor/tesseract/worker.min.js'),
+        corePath: ASSET('/vendor/tesseract'),
+        langPath: ASSET('/models/tess/4.0.0_fast'),
         logger: () => {
           /* silencioso: el progreso vive en el pipeline */
         },

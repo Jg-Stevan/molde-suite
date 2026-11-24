@@ -50,12 +50,7 @@ import type {
 } from "@molde-suite/scanner-core/core/types";
 import { ocrTextIsValid } from "@molde-suite/scanner-core/core/ocr";
 import { statusDeScore } from "@molde-suite/scanner-core/dominio/types";
-import type {
-  Acta,
-  ActaFirma,
-  ActaStatus,
-  ProgresoAnalisis,
-} from "@molde-suite/scanner-core/dominio/types";
+import type { Acta, ProgresoAnalisis } from "@molde-suite/scanner-core/dominio/types";
 import type { E14Bridge, OpcionesEscaneo } from "@molde-suite/scanner-core/dominio/bridge";
 import { tituloYUbicacionDe } from "@molde-suite/scanner-core/dominio/clasificador";
 import type { ClasificacionE14 } from "@molde-suite/scanner-core/dominio/clasificador";
@@ -138,7 +133,7 @@ export class RealCoreBridge implements E14Bridge {
     //  · SIMULACIÓN sin archivo (D35) → el acta E-14 incluida, EXACTAMENTE
     //    como un archivo de IMPORTAR (la foto real del mantenedor, EXIF incluido).
     //  · Sin entrada → error explícito (el guard del store ya avisó).
-    let entrada: EntradaPipeline | null = null;
+    let entrada: EntradaPipeline;
     if (opciones.archivo) {
       entrada = { archivo: opciones.archivo };
     } else if (opciones.fuente === "CAMARA") {
@@ -372,7 +367,6 @@ export class RealCoreBridge implements E14Bridge {
           score: 0,
           status: "RECHAZADA",
           rechazo: { tipo: "ILEGIBLE", detalle: DETALLE_TIMEOUT },
-          firmas: this.firmasPorStatus(acta.firmas, "RECHAZADA"),
           // FIX (auditoría 2-a #8): el invariante del gate (RECHAZADA ⇒
           // clasificación descartada) también en el timeout del recorte —
           // el spread conservaba una clasificación AUTO previa (p. ej. de
@@ -387,7 +381,6 @@ export class RealCoreBridge implements E14Bridge {
       void correrPipelineRecorte(
         {
           evaluarGate: (s, t, c, i, m) => this.evaluarGate(s, t, c, i, m),
-          firmasPorStatus: (f, st) => this.firmasPorStatus(f, st),
         },
         acta,
         fotoOriginal,
@@ -577,15 +570,6 @@ export class RealCoreBridge implements E14Bridge {
     return reconocerRapidOcr(fotoProcesada); // comportamiento de hoy (fallback)
   }
 
-  /** Firmas coherentes con el estado (misma regla del mock/§7.5):
-   *  ADVERTENCIA → firma 2 TENUE · RECHAZADA → NO_DETECTADO · resto OK. */
-  private firmasPorStatus(firmas: ActaFirma[], status: ActaStatus): ActaFirma[] {
-    if (firmas.length < 2) return firmas;
-    const estadoFirma2: ActaFirma["estado"] =
-      status === "ADVERTENCIA" ? "TENUE" : status === "RECHAZADA" ? "NO_DETECTADO" : "OK";
-    return firmas.map((f, i) => (i === 1 ? { ...f, estado: estadoFirma2 } : { ...f }));
-  }
-
   /** Acta final: seed SOLO cuando la clasificación no está resuelta (§1) + campos reales §3.1. */
   private construirActa(
     opciones: OpcionesEscaneo,
@@ -596,11 +580,6 @@ export class RealCoreBridge implements E14Bridge {
       ? opciones.objetivo.mesaId.replace(/\D/g, "").padStart(3, "0")
       : "001";
     this.contador += 1;
-
-    // Firmas coherentes con el estado (misma regla del mock §7.5):
-    // ADVERTENCIA → firma 2 TENUE · RECHAZADA → NO_DETECTADO · resto OK.
-    const estadoFirma2: ActaFirma["estado"] =
-      campos.status === "ADVERTENCIA" ? "TENUE" : campos.status === "RECHAZADA" ? "NO_DETECTADO" : "OK";
 
     // §1.2 (SPEC-titulo-ubicacion): clasificación AUTO → el acta nace con
     // título/ubicación REALES. KIT e14-sin-relleno-v1 + auditoría 2026-11-11
@@ -647,11 +626,7 @@ export class RealCoreBridge implements E14Bridge {
             total: 2,
           },
       candidatos: [],
-      firmas: [
-        { nombre: "—", jurado: "FIRMA 1", estado: "OK" },
-        { nombre: "—", jurado: "FIRMA 2", estado: estadoFirma2 },
-        { nombre: "—", jurado: "FIRMA 3", estado: "OK" },
-      ],
+      firmas: [],
       score: campos.score,
       scoreVisual: campos.scoreVisual,
       status: campos.status,

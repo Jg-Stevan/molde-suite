@@ -101,3 +101,18 @@ export function estirarContrasteEnCanvas(c: HTMLCanvasElement): void {
   }
   ctx.putImageData(data, 0, 0);
 }
+
+/** Rota un data URL 90° en sentido horario (espejo de rotateProcessedDataUrl
+ *  del upstream — dominio/image-utils.ts:254). La rotación rápida del editor
+ *  consume esto: un decode, un canvas y un re-encode JPEG 0.92. */
+export async function rotarDataUrl90(dataUrl: string): Promise<string> {
+  const c = await canvasDesdeDataUrl(dataUrl);
+  const r = document.createElement('canvas');
+  r.width = c.height;
+  r.height = c.width;
+  const rc = r.getContext('2d', { willReadFrequently: true })!;
+  rc.translate(r.width / 2, r.height / 2);
+  rc.rotate(Math.PI / 2);
+  rc.drawImage(c, -c.width / 2, -c.height / 2);
+  return r.toDataURL('image/jpeg', 0.92);
+}

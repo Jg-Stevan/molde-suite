@@ -148,6 +148,8 @@ export function fmtClasif(c: ClasificacionE14 | null): string {
 export interface ParcialPipeline {
   fotoOriginal?: string;
   qrCam?: { payload: string } | null;
+  /** D57 T2 — ms del probe de orientación (aditivo, diagnóstico). */
+  probeMsOrientacion?: number | null;
   /** KIT e14-remediacion-movil-v1 (B1 — P0 #3): parciales de TIEMPO ya
    *  medidos al vencer el watchdog — el acta de timeout deja de emitir una
    *  muestra sin cuerpo. El pipeline (pipeline.ts) sincroniza este objeto en

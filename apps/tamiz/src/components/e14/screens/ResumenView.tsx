@@ -26,6 +26,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Acta } from "@/lib/e14/fachada";
 import { useE14Store } from "@/lib/e14/store";
+import { downloadBlob, nombrePdf, pdfConsolidadoDeActas, type DocPdf } from "@/lib/e14/core/pdf-export";
 import { construirChecklist } from "@/lib/e14/checklist";
 // KIT e14-puente-supervision-v1 (§7): tarjeta del puente al panel de
 // supervisión — estado del singleton + sincronización manual inline.
@@ -69,6 +70,22 @@ export function ResumenView() {
   const navegar = useE14Store((s) => s.navegar);
   const reiniciarJornada = useE14Store((s) => s.reiniciarJornada);
   const [reiniciarArmado, setReiniciarArmado] = useState(false);
+  const pdfLibro = useE14Store((s2) => s2.pdfLibro);
+  const [pdfEnVuelo, setPdfEnVuelo] = useState(false);
+  // Bloque 2.6 — exportar la SESIÓN a PDF multipágina (una página por
+  // documento del libro; jspdf, sin ZIP).
+  const exportarPdf = () => {
+    if (pdfLibro.length === 0 || pdfEnVuelo) return;
+    setPdfEnVuelo(true);
+    try {
+      const docs: DocPdf[] = pdfLibro.map((e) => ({
+        titulo: e.titulo, estado: e.estado, score: e.score, foto: e.foto, hora: e.hora, qr: e.qr ?? null,
+      }));
+      downloadBlob(pdfConsolidadoDeActas(docs), nombrePdf(docs.length, "documentos-tamiz"));
+    } finally {
+      setPdfEnVuelo(false);
+    }
+  };
 
   // Molde personalizado registrado en el dispositivo (REAL: localStorage).
   const [moldeLocal, setMoldeLocal] = useState<MoldeLocal | null>(null);
@@ -467,6 +484,19 @@ export function ResumenView() {
                   </span>
                 )}
               </div>
+
+              {/* Bloque 2.6 — exportar la sesión a PDF multipágina. */}
+              <button
+                type="button"
+                onClick={exportarPdf}
+                disabled={pdfLibro.length === 0 || pdfEnVuelo}
+                aria-label={`Exportar ${pdfLibro.length} documentos a PDF`}
+                className="w-full min-h-[44px] px-4 rounded-xl border font-mono text-[11px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer border-emerald-600/60 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-40"
+              >
+                {pdfEnVuelo
+                  ? "GENERANDO PDF…"
+                  : `EXPORTAR PDF${pdfLibro.length > 0 ? ` (${pdfLibro.length})` : ""}`}
+              </button>
 
               {/* Reiniciar jornada. */}
               <button

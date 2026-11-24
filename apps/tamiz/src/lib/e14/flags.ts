@@ -14,6 +14,18 @@ export interface Flags {
   deskew: boolean;
   /** FASE B (blueprint DLA): señales ONNX en el navegador (casillas/layout). */
   dlaOnnx: boolean;
+  /** KIT velocidad-5s: dims de JPEG desde el contenedor (sin decodificar) y
+   *  re-escalado fuera del hilo para imports/capturas por encima del tope. */
+  importRutaCorta: boolean;
+  /** Rescate F-HEIC (sin heic2any en Tamiz: hoy solo clasifica el rechazo). */
+  heicTopeMp: number;
+  heicLimiteMs: number;
+  /** D3 — brújula QR primero; sondeo OCR de respaldo (upstream). */
+  qrBrujulaOrientacion: boolean;
+  /** Pases del rescate hi-res guiado por el quad (upstream: 2). */
+  qrBrujulaWarpPases: number;
+  /** Lado de la miniatura del sondeo de orientación (upstream: 1280). */
+  probeMiniLado: number;
 }
 
 const CLAVE = 'tamiz.flags.v1';
@@ -31,6 +43,12 @@ const DEFAULTS: Flags = {
   // FASE B: OFF por defecto — requiere modelo configurado (URL) y su primera
   // validación contra el banco (lessons/). Activable desde el Panel DEV.
   dlaOnnx: false,
+  importRutaCorta: true,
+  heicTopeMp: 24,
+  heicLimiteMs: 15_000,
+  qrBrujulaOrientacion: true,
+  qrBrujulaWarpPases: 2,
+  probeMiniLado: 1280,
 };
 
 let cache: Flags | null = null;
@@ -49,4 +67,12 @@ export function refrescarFlags(): void {
 export function leerFlags(): Flags {
   if (!cache) refrescarFlags();
   return cache ?? DEFAULTS;
+}
+
+/** Opciones del rescate F-HEIC para los DOS lectores de File (useDestello y
+ *  la memo del bridge) — un único lector de flags (upstream flags.ts:344). */
+export type OpcionesRescateHeic = { topeMpHeic?: number; limiteMsHeic?: number };
+export function opcionesRescateHeic(): OpcionesRescateHeic {
+  const f = leerFlags();
+  return { topeMpHeic: f.heicTopeMp, limiteMsHeic: f.heicLimiteMs };
 }

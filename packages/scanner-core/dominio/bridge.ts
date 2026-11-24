@@ -22,6 +22,11 @@ export interface PaginaObjetivo {
 /** Opciones de una pasada de escaneo. */
 export interface OpcionesEscaneo {
   archivo?: File;
+  /** El `archivo` salió de la cámara (obturador, input capture o foto del
+   *  sensor) en lugar de un IMPORTAR. Cambiar de documento = cambiar de molde,
+   *  no de motor; pero la detección de bordes sí necesita saber si hay mesa y
+   *  dedos alrededor: con eso decide buscar el papel o tomar la foto entera. */
+  desdeCamara?: boolean;
   fuente: FuenteCaptura;
   frameActual?: HTMLVideoElement;
   onProgreso?: (p: ProgresoAnalisis) => void;

@@ -75,6 +75,9 @@ export interface E14Store {
   /** F2 §F2.2: true mientras el bridge re-procesa la foto con un filtro. */
   revelando: boolean;
   actasSesion: number;
+  /** Bloque 2.6 — libro de SESIÓN para la exportación PDF (JPEG 1280 por
+   *  documento, tope FIFO 30 — memoria acotada; NUNCA dataURLs de 12 MP). */
+  pdfLibro: PdfLibroEntry[];
   mesas: Mesa[];
   /** Fase B (§6): archivado «dónde va» — clasificaciones guardadas por
    *  clave de mesa real; la vista ACTAS las añade al seed (modo demo). */
@@ -281,6 +284,17 @@ export interface HuecoArchivado {
   estado: "OK" | "RESCANEO";
 }
 /** Entrada Fase B (§6): clasificación guardada + huecos ocupados de la mesa. */
+/** Bloque 2.6 — entrada del libro de PDF de la sesión. */
+export interface PdfLibroEntry {
+  id: string;
+  titulo: string;
+  estado: string;
+  score: number | null;
+  hora: string | null;
+  foto: string | null;
+  qr?: string | null;
+}
+
 export interface ActaArchivada {
   clasificacion: ClasificacionE14;
   huecos: HuecoArchivado[];

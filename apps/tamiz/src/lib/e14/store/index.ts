@@ -7,6 +7,7 @@ import type { Acta, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/t
 import type { PageFilter, Quad } from '@molde-suite/scanner-core/core/types';
 import type { ClasificacionE14 } from '@molde-suite/scanner-core/dominio/clasificador';
 import { getBridge } from '../get-bridge';
+import { rotarDataUrl90 } from '@molde-suite/scanner-core/core/canvas-imagen';
 import { IMAGENES_SIMULADAS, type ImagenSimuladaId } from '../simulacion-imagenes';
 import { TEXTO_MOTIVO, type AvisoOperador, type MotivoOperador } from '../errores';
 import { logger } from '../../logger';
@@ -15,10 +16,12 @@ import { crearEnvio } from './envio';
 import { refrescarMesasDeArchivo } from './guion';
 import {
   cargarJornada,
+  enFalloEscrituraJornada,
   guardarActaEnRevision,
   guardarJornada,
   TOPE_HISTORIAL,
 } from '../jornada';
+import { ErrorRescateHeic } from '@molde-suite/scanner-core/core/image-processor';
 import type { E14Store, Vista } from './tipos';
 
 export type { Vista, ActaArchivada, PuestoActual, HuecoArchivado, E14Store } from './tipos';
@@ -26,6 +29,11 @@ export type { Vista, ActaArchivada, PuestoActual, HuecoArchivado, E14Store } fro
 // ---------------------------------------------------------------------------
 // Slice de CAPTURA + ANÁLISIS + EDICIÓN (la parte que faltaba del store).
 // ---------------------------------------------------------------------------
+
+/** Guard anti doble-rotación (espejo del rotandoFotoEnVuelo del upstream
+ *  store/edicion.ts:24 — la rotación rápida es async y un doble tap
+ *  giraría 180°). */
+let rotandoFotoEnVuelo = false;
 
 function crearCaptura(
   set: (partial: Partial<E14Store> | ((s: E14Store) => Partial<E14Store>)) => void,
@@ -100,6 +108,7 @@ function crearCaptura(
 
     dispararEscaneo: async (intentoArg, sim) => {
       const estado = get();
+      if (estado.analisisEnVuelo) return;
       const archivo = estado.archivoPendiente;
       const frame = estado.framePendiente ?? undefined;
       const fuente = sim ? 'SIMULACION' : estado.fuente;
@@ -130,10 +139,17 @@ function crearCaptura(
         set({ actaActual: acta, analisisResuelto: true, archivoPendiente: null, framePendiente: null });
       } catch (e) {
         logger.warn('[store] escaneo falló', { mensaje: (e as Error).message });
+        // El decode clasifica la causa: HEIC (iPhone) merece SU aviso, no el
+        // genérico ESCANEO_FALLIDO (upstream: guard HEIC_NO_SOPORTADO).
+        const esHeic = e instanceof ErrorRescateHeic;
         set({
           actaActual: null,
           analisisResuelto: true,
-          avisoVisor: { tipo: 'error', motivo: 'ESCANEO_FALLIDO', accion: 'reintentar' },
+          avisoVisor: {
+            tipo: 'error',
+            motivo: esHeic ? 'HEIC_NO_SOPORTADO' : 'ESCANEO_FALLIDO',
+            accion: esHeic ? 'entendido' : 'reintentar',
+          },
         });
       } finally {
         set({ analisisEnVuelo: false });
@@ -196,14 +212,32 @@ function crearCaptura(
     aplicarRecorte: async (quad, rotacionNueva) => {
       const acta = get().actaActual;
       if (!acta?.fotoOriginal) return false;
-      set({ recortando: true, errorRecorte: null });
+      // Guard SIMÉTRICO (upstream edicion.ts FIX M5): un revelado/mejora en
+      // vuelo compite por el motor y su resolve tardío sobrescribiría el
+      // recorte recién aplicado.
+      if (get().recortando || get().revelando) return false;
+      set({ recortando: true, progresoAnalisis: null, errorRecorte: null });
       try {
         const bridge = getBridge();
-        const actaNueva = await bridge.recortar(acta, quad, undefined, rotacionNueva, undefined, true);
-        set({ actaActual: actaNueva, recortando: false });
+        const actaNueva = await bridge.recortar(
+          acta,
+          quad,
+          (p) => set({ progresoAnalisis: p }),
+          rotacionNueva,
+          undefined,
+          true,
+        );
+        set({ actaActual: actaNueva, progresoAnalisis: null, recortando: false });
         return true;
       } catch (e) {
-        set({ recortando: false, errorRecorte: (e as Error).message });
+        // Upstream T2: el fallo DEJA DE SER SILENCIOSO — píldora con copy fijo
+        // (nunca el message crudo del Error) y el editor se queda abierto.
+        logger.error('[store] aplicarRecorte falló:', { mensaje: e instanceof Error ? e.message : String(e) });
+        set({
+          recortando: false,
+          progresoAnalisis: null,
+          errorRecorte: 'NO SE PUDO RECORTAR — INTENTA DE NUEVO',
+        });
         return false;
       }
     },
@@ -211,11 +245,21 @@ function crearCaptura(
     cambiarFiltro: async (filtro) => {
       const acta = get().actaActual;
       if (!acta?.fotoOriginal) return;
+      if (get().revelando) return; // guard de reentrada (upstream edicion.ts:154)
       set({ revelando: true });
       try {
         const bridge = getBridge();
         const actaNueva = await bridge.revelar(acta, filtro as PageFilter);
+        // Identidad al resolver (upstream FIX M5): un recorte aplicado durante
+        // el revelado NO debe ser sobrescrito por este resolve.
+        if (get().actaActual !== acta) return;
         set({ actaActual: actaNueva });
+      } catch (e) {
+        // El revelado es un preview: al fallar, el acta conserva la foto y el
+        // filtro anterior (upstream edicion.ts:168-174) — sin rechazo propagado.
+        logger.debug('[store] revelado del filtro falló — la foto anterior queda', {
+          mensaje: (e as Error).message,
+        });
       } finally {
         set({ revelando: false });
       }
@@ -223,37 +267,72 @@ function crearCaptura(
 
     reconocerTextoActa: async () => {
       const acta = get().actaActual;
-      if (!acta) return;
-      const bridge = getBridge();
-      const texto = await bridge.reconocerTexto(acta);
-      set({ actaActual: { ...acta, ocrTexto: texto } });
+      // Guard (upstream spec §F2.1): sin foto procesada no hay nada que reconocer.
+      if (!acta?.fotoProcesada) return;
+      try {
+        const bridge = getBridge();
+        const texto = await bridge.reconocerTexto(acta);
+        // ocrTextIsValid del upstream (edicion.ts:189): una lectura vacía NO
+        // sobrescribe el OCR previo válido.
+        if (texto.trim().length > 0) {
+          set({ actaActual: { ...acta, ocrTexto: texto } });
+        }
+      } catch (e) {
+        logger.debug('[store] re-OCR falló — el texto previo queda', {
+          mensaje: (e as Error).message,
+        });
+      }
     },
 
     rotarFoto: async () => {
       const acta = get().actaActual;
-      if (!acta?.fotoOriginal) return;
-      set({ recortando: true, errorRecorte: null });
+      // F-ROT-RAPID (upstream edicion.ts:123-147): gira la PROCESADA sin
+      // re-ejecutar el pipeline (rápido, sin OCR) y la rotación queda HORNEADA.
+      if (!acta?.fotoProcesada) return;
+      if (rotandoFotoEnVuelo) return;
+      rotandoFotoEnVuelo = true;
       try {
-        const bridge = getBridge();
-        const rotacion = ((acta.rotation ?? 0) + 90) % 360;
-        const actaNueva = await bridge.recortar(
-          acta,
-          acta.quadDetectado as Quad,
-          undefined,
-          rotacion,
-          undefined,
-          true,
-        );
-        set({ actaActual: actaNueva, recortando: false });
-      } catch (e) {
-        set({ recortando: false, errorRecorte: (e as Error).message });
+        const url = await rotarDataUrl90(acta.fotoProcesada);
+        set({
+          actaActual: {
+            ...acta,
+            fotoProcesada: url,
+            rotation: ((acta.rotation ?? 0) + 90) % 360,
+          },
+        });
+      } catch {
+        // La rotación fallida no cambia estado — el acta conserva su foto.
+      } finally {
+        rotandoFotoEnVuelo = false;
       }
     },
 
     mejorarFotoActa: async (fotoNueva, objetivo) => {
-      const bridge = getBridge();
-      const actaNueva = await bridge.mejorarResolucion(objetivo, fotoNueva);
-      if (get().actaActual?.id === objetivo.id) set({ actaActual: actaNueva });
+      // Guardas del lab (upstream edicion.ts:199-205 — silenciosas: el upgrade
+      // JAMÁS rompe nada): identidad de captura, acta ya enviada, recorte o
+      // revelado en vuelo.
+      const acta = get().actaActual;
+      if (!acta || acta !== objetivo) return;
+      if (acta.status === 'ENVIADA') return;
+      if (get().recortando || get().revelando) return;
+      if (!acta.fotoOriginal) return;
+      set({ revelando: true });
+      try {
+        const bridge = getBridge();
+        const actaNueva = await bridge.mejorarResolucion(objetivo, fotoNueva, (p) =>
+          set({ progresoAnalisis: p }),
+        );
+        // El usuario pudo actuar mientras el upgrade volaba: solo escribo si
+        // el acta SIGUE siendo la misma (identidad por referencia).
+        if (get().actaActual !== objetivo) return;
+        set({ actaActual: actaNueva, progresoAnalisis: null });
+      } catch (e) {
+        logger.debug('[store] upgrade silencioso falló — el acta queda como está', {
+          mensaje: (e as Error).message,
+        });
+      } finally {
+        set({ revelando: false });
+      }
     },
 
     mostrarAvisoVisor: (aviso) => set({ avisoVisor: aviso as AvisoOperador }),
@@ -345,6 +424,7 @@ export const useE14Store = create<E14Store>()((set, get) => ({
   ...crearJornada(set, get),
   // Estado derivado restante (contadores de sesión).
   actasSesion: 0,
+    pdfLibro: [],
   mesas: [],
   archivadas: {},
   puestoActual: null,
@@ -355,6 +435,25 @@ export const useE14Store = create<E14Store>()((set, get) => ({
   historial: [],
   motivosNoEnvio: {},
 }));
+
+/** §6.10 — fallos de escritura de la jornada EXPUESTOS: sin este cable, un
+ *  QuotaExceededError (almacenamiento lleno / modo incógnito) se tragaba en
+ *  silencio y el turno se perdía sin señal (kit upstream store/persistencia). */
+if (typeof window !== 'undefined') {
+  enFalloEscrituraJornada((fallo) => {
+    useE14Store.setState({
+      avisoVisor: {
+        tipo: 'warning',
+        motivo: 'ALMACENAMIENTO_LLENO',
+        accion: 'entendido',
+      },
+    });
+    logger.warn('[store] escritura de jornada falló', {
+      contexto: fallo.contexto,
+      quota: fallo.quota,
+    });
+  });
+}
 
 /** Persistencia de la jornada al cerrar (best-effort). */
 if (typeof window !== 'undefined') {
