@@ -1,8 +1,11 @@
 {
   "name": "@jg-stevan/scanner-core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Contrato del núcleo de escaneo de Molde Suite (decisión D8, opción B del plan de implementación): tipos de dominio del documento (Acta), bridge de análisis, primitivas de imagen/OCR y —desde FASE 0 del blueprint DLA— el MOTOR UNIVERSAL v3 compartido (unificación Studio↔Tamiz: universal-types, imageproc, tabla-detect, universal-engine con proveedor OCR inyectable, marca por forma, retícula de tablas por imagen y homografía/deskew).",
+  "description": "Contrato del núcleo de escaneo de Molde Suite (decisión D8, opción B del plan de implementación): tipos de dominio del documento (Acta), bridge de análisis, primitivas de imagen/OCR, el MOTOR UNIVERSAL v3 compartido (unificación Studio↔Tamiz) y —desde la migración Fase 2a/2b— primitivas de canvas/hash/calidad absorbidas de apps/tamiz y el CONTRATO del molde .json (src/contract: guardas + sobre con checksum + fixtures golden).",
+  "scripts": {
+    "test": "bun test"
+  },
   "exports": {
     "./dominio/types": "./dominio/types.ts",
     "./dominio/bridge": "./dominio/bridge.ts",
@@ -10,6 +13,9 @@
     "./core/types": "./core/types.ts",
     "./core/image-processor": "./core/image-processor.ts",
     "./core/ocr": "./core/ocr.ts",
+    "./core/calidad": "./core/calidad.ts",
+    "./core/canvas-imagen": "./core/canvas-imagen.ts",
+    "./core/hash": "./core/hash.ts",
     "./obs-base/breadcrumbs": "./obs-base/breadcrumbs.ts",
     "./molde/ocr-tipos": "./molde/ocr-tipos.ts",
     "./molde/universal-types": "./molde/universal-types.ts",
