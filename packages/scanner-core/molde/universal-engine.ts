@@ -2,15 +2,21 @@
 // páginas renderizadas (foto o PDF). Todo en el navegador con Tesseract.js.
 //
 // Pipeline por página:
-//   1. OCR completo (líneas con palabras y bbox) — una sola pasada.
+//   1. OCR completo (líneas con palabras y bbox) — una sola pasada (el MAPA
+//      OCR GLOBAL, ya pagado por el pipeline).
 //   2. Para cada campo de esa página:
 //      - Resolver el rect final (fijo, ancla fuzzy, respaldo o fallback).
 //      - Recortar y binarizar sin líneas impresas -> densidad de tinta.
 //      - tipo presencia/firma/checkbox: diligenciado si ratio >= umbral, con
 //        banda de indeterminación (0.6x–1.4x del umbral) en requiere_revision.
-//      - tipo texto: OCR del recorte (psm 7) + regex anclado + limpieza.
+//      - tipo texto (FASE 1 del plan extracción relacional): lectura desde el
+//        MAPA OCR GLOBAL (textoEnRect); el re-OCR del recorte queda SOLO como
+//        rescate puntual (realce) y rescate anti-tachón (FASE 4) para
+//        obligatorios. Regex anclado + limpieza intactos.
 //      - Generar la captura JPEG de la zona (crop) para la verificación.
 //   3. Validaciones aritméticas de cierre entre campos (Fase 2.2).
+//   4. (FASE 1b) ningún obligatorio termina 'ok' con posición no verificada:
+//      fuente 'referencia' + ancla_no_encontrada → requiere_revision.
 //
 // Principio rector (Fase 2 del plan): los datos que importan se leen o se
 // rechazan con razón — NUNCA se inventan. Ningún campo termina "ok" con
@@ -22,6 +28,7 @@ import {
   canvasOtsu,
   canvasRealce,
   inkRatio,
+  type BinImage,
 } from './imageproc';
 import { canvasJpeg, proveedorOcr, type LineaOcr } from './ocr-tipos';
 import { clasificarMarcaSobreCrop, diferencialSiNo, detectarCajasHuecas, metricasFirma } from './marca';
@@ -35,6 +42,7 @@ import {
   type ResultadoPaginaUniversal,
   type ResultadoUniversal,
   type ResultadoValidacion,
+  type ValidacionMolde,
 } from './universal-types';
 
 // ---- utilidades ----
@@ -759,6 +767,151 @@ function confPresencia(ratio: number, umbral: number): number {
   return Math.min(0.97, 0.55 + 0.42 * Math.min(1, margen));
 }
 
+// ---- FASE 4 (plan extracción relacional): rescate anti-tachón ----
+
+/**
+ * Fracción del ANCHO DEL RECORT que fija el kernel de apertura del rescate
+ * anti-tachón (`k = max(20, ancho × frac)`): la apertura elimina trazos
+ * horizontales/verticales de extensión ≥ k. El valor es el MISMO que usa el
+ * motor para medir tinta sin líneas impresas (0.083 — probado en producción):
+ * en un recorte de ~500 px elimina trazos ≥ 41 px (tachones de 50-200 px) y
+ * conserva trazos de letra (~2-5 px). Si una corrida real exige otro valor,
+ * se calibra AQUÍ (cambio interno, sin impacto en contrato).
+ */
+const FRACCION_KERNEL_RESCATE_TACHON = 0.083;
+
+/** BinImage (1 = tinta) → canvas blanco con tinta negra, listo para OCR. */
+function binACanvas(bin: BinImage, w: number, h: number): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  const img = ctx.createImageData(w, h);
+  for (let i = 0, p = 0; i < bin.data.length; i++, p += 4) {
+    const v = bin.data[i] ? 0 : 255;
+    img.data[p] = v;
+    img.data[p + 1] = v;
+    img.data[p + 2] = v;
+    img.data[p + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+/**
+ * Rescate anti-tachón (FASE 4): binariza el recorte SIN líneas largas
+ * (`binarizeNoLines` — apertura morfológica H/V que elimina tachones y
+ * reglas impresas) y re-OCRea el resultado limpio. LOCAL al campo que falló;
+ * jamás sobre la página completa. Si la limpieza no produce texto usable el
+ * llamador conserva el resultado original y marca `rescate_fallido`.
+ */
+async function rescateAntiTachon(
+  crop: HTMLCanvasElement,
+  whitelist?: string,
+): Promise<{ texto: string; conf: number | null } | null> {
+  try {
+    const gray = canvasGrayscale(crop);
+    const gctx = gray.getContext('2d', { willReadFrequently: true })!;
+    const gimg = gctx.getImageData(0, 0, gray.width, gray.height);
+    const g = new Uint8Array(gray.width * gray.height);
+    for (let i = 0, p = 0; i < g.length; i++, p += 4) g[i] = gimg.data[p];
+    const sinLineas = binarizeNoLines(g, gray.width, gray.height, FRACCION_KERNEL_RESCATE_TACHON);
+    const limpio = binACanvas(sinLineas, gray.width, gray.height);
+    // Psm 7 (línea única): las zonas de texto del molde son de una línea.
+    // Si no produce nada, psm 6 (bloque) para zonas de dos líneas.
+    const p7 = await proveedorOcr().ocrTextoUnico(limpio, { whitelist, psm: '7' });
+    if (p7.texto.trim()) return p7;
+    const p6 = await proveedorOcr().ocrTextoUnico(limpio, { whitelist, psm: '6' });
+    return p6;
+  } catch {
+    // La limpieza es un RECURSO de diagnóstico: un fallo inesperado no puede
+    // tumbar la corrida — el campo conserva su resultado original.
+    return null;
+  }
+}
+
+// ---- FASE 1 (plan extracción relacional): lectura desde el mapa OCR global ----
+
+/**
+ * Extrae el texto de un campo desde el MAPA OCR GLOBAL de la página (la pasada
+ * única de `ocrLines`, ya pagada) en vez de re-OCrear el recorte de cada
+ * campo (12 campos = 12 pasadas extra que además leían recortes encogidos:
+ * Causa B del diagnóstico — la altura de banda relativa al alto del canvas
+ * adelgazaba el recorte y degradaba el OCR en un ciclo de realimentación).
+ *
+ * Reglas de inclusión (plan FASE 1a):
+ * - Se incluyen las PALABRAS cuyo CENTRO cae dentro del rect resuelto (recorte
+ *   fino: la etiqueta impresa vecina queda fuera aunque su línea cruce).
+ * - Orden de lectura natural: filas arriba→abajo agrupadas por cercanía
+ *   vertical, palabras izquierda→derecha dentro de cada fila.
+ * - Confianza: media de las confianzas de las palabras incluidas; si ninguna
+ *   palabra reporta confianza → null ("sin señal", N-9/G-3 — jamás inventado).
+ *
+ * El texto que no quedó en el mapa global (OCR global falló) se recupera por
+ * los caminos de RESCATE del motor (realce y anti-tachón), no aquí.
+ */
+export function textoEnRect(
+  lineas: LineaOcr[],
+  rect: RectNorm,
+  canvasW: number,
+  canvasH: number,
+): { texto: string; conf: number | null; palabras: number } {
+  const x0 = rect.x * canvasW;
+  const y0 = rect.y * canvasH;
+  const x1 = (rect.x + rect.w) * canvasW;
+  const y1 = (rect.y + rect.h) * canvasH;
+  interface Pieza {
+    texto: string;
+    conf: number | null;
+    cx: number;
+    cy: number;
+    alto: number;
+  }
+  const piezas: Pieza[] = [];
+  for (const l of lineas) {
+    const [lx0, ly0, lx1, ly1] = l.bbox;
+    // La línea debe INTERSECTAR el rect (plan: IoU > 0 o centro dentro).
+    const ix0 = Math.max(lx0, x0);
+    const iy0 = Math.max(ly0, y0);
+    const ix1 = Math.min(lx1, x1);
+    const iy1 = Math.min(ly1, y1);
+    if (ix1 - ix0 <= 0 || iy1 - iy0 <= 0) continue;
+    for (const p of l.palabras) {
+      const cx = (p.bbox[0] + p.bbox[2]) / 2;
+      const cy = (p.bbox[1] + p.bbox[3]) / 2;
+      if (cx < x0 || cx > x1 || cy < y0 || cy > y1) continue;
+      const conf = Number.isFinite(p.conf) ? p.conf : null;
+      piezas.push({ texto: p.texto, conf, cx, cy, alto: Math.max(1, p.bbox[3] - p.bbox[1]) });
+    }
+  }
+  if (!piezas.length) return { texto: '', conf: null, palabras: 0 };
+  // Agrupación en filas: piezas ordenadas por cy; una pieza entra a la fila
+  // actual si su centro vertical está cerca del promedio de la fila (tolerancia
+  // = 60% del alto de palabra, piso 6 px). Determinista y estable.
+  piezas.sort((a, b) => a.cy - b.cy || a.cx - b.cx);
+  const filas: Pieza[][] = [];
+  for (const p of piezas) {
+    const fila = filas[filas.length - 1];
+    if (fila) {
+      const promCy = fila.reduce((s, q) => s + q.cy, 0) / fila.length;
+      const tol = Math.max(6, fila[0].alto * 0.6);
+      if (Math.abs(p.cy - promCy) <= tol) {
+        fila.push(p);
+        continue;
+      }
+    }
+    filas.push([p]);
+  }
+  const texto = filas
+    .map((f) => f.sort((a, b) => a.cx - b.cx).map((p) => p.texto).join(' '))
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const conConf = piezas.filter((p) => p.conf !== null);
+  const conf = conConf.length ? conConf.reduce((s, p) => s + (p.conf as number), 0) / conConf.length : null;
+  return { texto, conf, palabras: piezas.length };
+}
+
 /** Compila el patrón del campo ANCLADO a la cadena completa (G-8). */
 function compilarPatron(campo: CampoUniversal, banderas: string[]): RegExp | null {
   if (!campo.patron) return null;
@@ -949,30 +1102,34 @@ async function evaluarCampo(
     return base;
   }
 
-  // tipo texto: OCR de la línea del recorte
-  const { texto, conf: confOcr } = await proveedorOcr().ocrTextoUnico(rec.crop, { whitelist: campo.whitelist });
-  const limpio = texto.replace(/\s+/g, ' ').trim();
+  // tipo texto — FASE 1 (plan extracción relacional): la lectura sale del
+  // MAPA OCR GLOBAL de la página (una sola pasada de OCR por página, ya
+  // pagada). El recorte dedicado queda como RESCATE puntual, no como camino
+  // principal: OCRs por página 13+ → 1 (+ rescates).
   const captura = previews ? cropDataUrl(canvas, resuelto.rect) : null;
   base.crop = captura?.crop ?? null;
   base.crop_dims = captura?.dims ?? null;
-  // N-9/G-3: el OCR puede no reportar confianza (null). Ese caso es "sin
-  // señal", NO un 50-60% inventado: se registra como conf_baja.
-  const confNum = confOcr; // number | null
-  base.conf = confNum;
-  const sinConf = confNum === null;
-  if (sinConf) base.banderas.push('sin_confianza_ocr');
-  if (!limpio) {
-    base.banderas.push('ocr_vacio');
-    if (ratio < campo.umbral * 0.6) base.banderas.push('zona_vacia');
-    if (!campo.realce) return base;
-  }
   const patronRe = compilarPatron(campo, base.banderas);
   const cumplePatron = (v: string): boolean => {
     if (!patronRe) return true;
     return patronRe.test(v);
   };
-  let valorFinal = limpio;
-  let confFinal = confNum;
+  const global = textoEnRect(lineas, resuelto.rect, canvas.width, canvas.height);
+  let valorFinal = global.texto;
+  let confFinal = global.conf;
+  base.conf = confFinal;
+  // N-9/G-3: el OCR puede no reportar confianza (null). Ese caso es "sin
+  // señal", NO un 50-60% inventado: se registra como sin_confianza_ocr.
+  if (valorFinal && confFinal === null) base.banderas.push('sin_confianza_ocr');
+  if (!valorFinal) {
+    base.banderas.push('ocr_vacio');
+    if (ratio < campo.umbral * 0.6) base.banderas.push('zona_vacia');
+  }
+  // Rescate 1 (ruta histórica, plan FASE 1): el mapa global no produjo texto
+  // utilizable (vacío, sin confianza, conf < 0.5 o patrón incumplido) y el
+  // molde declara `realce` → recorte dedicado con realce/Otsu y psm 7/8/13,
+  // exactamente como antes. Preserva el camino donde un recorte ampliado lee
+  // lo que el OCR global perdió.
   if (
     campo.realce &&
     (!valorFinal || !cumplePatron(valorFinal) || confFinal === null || confFinal < 0.5)
@@ -1019,6 +1176,39 @@ async function evaluarCampo(
         base.banderas.push('realce_retry', 'patron_no_cumple');
         break;
       }
+    }
+  }
+  // Rescate 2 — FASE 4 (plan extracción relacional, anti-tachón): limpieza
+  // morfológica LOCAL del recorte (apertura 1D que elimina trazos largos
+  // horizontales/verticales = tachones) + re-OCR. SOLO campos OBLIGATORIOS
+  // con tinta real en la zona y lectura aún inválida tras el mapa global y
+  // el realce. Nunca global: en un documento limpio las letras finas no se
+  // tocan (el kernel de apertura escala con el ancho del recorte).
+  if (
+    campo.obligatorio &&
+    ratio > 0 &&
+    (!valorFinal || confFinal === null || confFinal < 0.5 || !cumplePatron(valorFinal))
+  ) {
+    const rescate = await rescateAntiTachon(rec.crop, campo.whitelist);
+    if (rescate) {
+      const limpioRescate = rescate.texto.replace(/\s+/g, ' ').trim();
+      const confRescate = rescate.conf;
+      if (
+        limpioRescate &&
+        cumplePatron(limpioRescate) &&
+        confRescate !== null &&
+        confRescate >= 0.5
+      ) {
+        valorFinal = limpioRescate;
+        confFinal = confRescate;
+        base.banderas.push('rescate_anti_tachon');
+      } else {
+        // Se mantiene el resultado original (o vacío) y se deja la bandera
+        // honesta: el rescate no mejoró la lectura.
+        base.banderas.push('rescate_fallido');
+      }
+    } else {
+      base.banderas.push('rescate_fallido');
     }
   }
   if (!valorFinal) return base;
@@ -1103,12 +1293,83 @@ export function parsearIgualdad(
   return { izq, der };
 }
 
+/**
+ * FASE 3 (plan extracción relacional): parser seguro de rangos de FECHAS
+ * `idA >= idB` / `idA <= idB`. Tokeniza IDs y el operador; NO evalúa JS.
+ * Exportado para las pruebas unitarias del parser.
+ */
+export function parsearRango(
+  expresion: string,
+): { izq: string; op: '>=' | '<='; der: string } | null {
+  const sinEspacios = expresion.replace(/\s+/g, ' ').trim();
+  const m = /^([a-z_][a-z0-9_]*)\s*(>=|<=)\s*([a-z_][a-z0-9_]*)$/i.exec(sinEspacios);
+  if (!m) return null;
+  return { izq: m[1], op: m[2] as '>=' | '<=', der: m[3] };
+}
+
+/**
+ * Parseo de FECHAS en los formatos que produce el OCR de documentos en
+ * español (FASE 3 — plan extracción relacional). Devuelve timestamp UTC
+ * (milisegundos) o null si no hay fecha legible — NUNCA inventa una fecha.
+ * Formatos soportados:
+ * - ISO:        2026-11-24
+ * - Numéricos:  24/11/2026 · 24-11-2026 · 24.11.2026 (también d/m/aa)
+ * - Español:    «24 de noviembre de 2026» (con/sin «de», meses completos
+ *               y abreviaturas «ene., feb., …»), insensible a acentos/mayús.
+ * Rechaza deliberadamente combos ambiguos (11-24-2026 estilo US): dd/mm es
+ * el formato del contrato (recibos y actas del dominio).
+ */
+export function parsearFechaTexto(valor: string): number | null {
+  if (typeof valor !== 'string') return null;
+  const s = valor.toLowerCase().trim();
+  if (!s) return null;
+  // ISO aaaa-mm-dd
+  let m = /(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  if (m) return fechaUtc(Number(m[1]), Number(m[2]), Number(m[3]));
+  // dd/mm/aaaa · dd-mm-aaaa · dd.mm.aaaa (incluye aa de 2 dígitos → 20aa).
+  // La alternancia prueba PRIMERO 4 dígitos: con \d{2}|\d{4}, "2026" quedaba
+  // capturado como "20" (→ año 2020).
+  m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4}|\d{2})/.exec(s);
+  if (m) {
+    const anio = Number(m[3]) < 100 ? 2000 + Number(m[3]) : Number(m[3]);
+    return fechaUtc(anio, Number(m[2]), Number(m[1]));
+  }
+  // «24 de noviembre de 2026» / «24 noviembre 2026» / «24 nov 2026»
+  const MESES = [
+    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+  ];
+  m = /(\d{1,2})\s+(?:de\s+)?([a-záéíóúñ]{3,12})\s+(?:de\s+)?(\d{4})/.exec(s);
+  if (m) {
+    const mesTxt = m[2].normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 3);
+    // Alias del dominio: «setiembre» (variante hispana de septiembre).
+    const idx = mesTxt === 'set' ? 8 : MESES.indexOf(mesTxt);
+    if (idx >= 0) return fechaUtc(Number(m[3]), idx + 1, Number(m[1]));
+    return null;
+  }
+  return null;
+}
+
+/** Fecha UTC desde año/mes/día con validación de rango (sin Date locals). */
+function fechaUtc(anio: number, mes: number, dia: number): number | null {
+  if (!Number.isInteger(anio) || !Number.isInteger(mes) || !Number.isInteger(dia)) return null;
+  if (anio < 1900 || anio > 2100 || mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+  const d = new Date(Date.UTC(anio, mes - 1, dia));
+  // Rechazar desbordes (31/02 → 03/03): los componentes deben coincidir.
+  if (d.getUTCFullYear() !== anio || d.getUTCMonth() !== mes - 1 || d.getUTCDate() !== dia) return null;
+  return d.getTime();
+}
+
 function evaluarValidaciones(
   molde: MoldeUniversal,
   porId: Map<string, ResultadoCampoUniversal>,
 ): ResultadoValidacion[] {
   const salidas: ResultadoValidacion[] = [];
   for (const v of molde.validaciones ?? []) {
+    if (v.regla === 'rango') {
+      salidas.push(evaluarValidacionRango(v, porId));
+      continue;
+    }
     const parseado = parsearIgualdad(v.expresion);
     const implicados = new Set<string>();
     if (!parseado) {
@@ -1164,6 +1425,65 @@ function evaluarValidaciones(
   return salidas;
 }
 
+/**
+ * FASE 3 (plan extracción relacional): validación de RANGO entre dos campos
+ * de fecha. Ambos valores se parsean con `parsearFechaTexto` (ISO, dd/mm/aaaa,
+ * «24 de noviembre de 2026»); un operando sin fecha legible deja la validación
+ * NO EVALUABLE (ok: null, como en la igualdad) — jamás un veredicto inventado.
+ * `fecha_pago >= fecha_emision` exige que el pago no preceda a la emisión.
+ */
+function evaluarValidacionRango(
+  v: ValidacionMolde,
+  porId: Map<string, ResultadoCampoUniversal>,
+): ResultadoValidacion {
+  const parseado = parsearRango(v.expresion);
+  if (!parseado) {
+    return {
+      id: v.id,
+      expresion: v.expresion,
+      ok: null,
+      detalle: 'Expresión inválida (se espera: fecha_id >= fecha_id | fecha_id <= fecha_id)',
+      campos: [],
+    };
+  }
+  const rIzq = porId.get(parseado.izq);
+  const rDer = porId.get(parseado.der);
+  const tIzq = rIzq && typeof rIzq.valor === 'string' ? parsearFechaTexto(rIzq.valor) : null;
+  const tDer = rDer && typeof rDer.valor === 'string' ? parsearFechaTexto(rDer.valor) : null;
+  const campos = [parseado.izq, parseado.der];
+  if (tIzq === null || tDer === null) {
+    const ilegibles = [tIzq === null ? parseado.izq : null, tDer === null ? parseado.der : null]
+      .filter((x): x is string => x !== null);
+    return {
+      id: v.id,
+      expresion: v.expresion,
+      ok: null,
+      detalle: `No evaluable: fecha ilegible en ${ilegibles.join(', ')}`,
+      campos,
+    };
+  }
+  const cumple = parseado.op === '>=' ? tIzq >= tDer : tIzq <= tDer;
+  const f1 = fechaLegible(tIzq);
+  const f2 = fechaLegible(tDer);
+  return {
+    id: v.id,
+    expresion: v.expresion,
+    ok: cumple,
+    detalle: cumple
+      ? `${f1} ${parseado.op} ${f2} — coherentes`
+      : `${f1} ${parseado.op === '>=' ? '<' : '>'} ${f2} — incoherencia de fechas (revisar el documento)`,
+    campos,
+  };
+}
+
+/** Formatea un timestamp para el detalle del reporte (ISO corto). */
+function fechaLegible(t: number): string {
+  const d = new Date(t);
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${mm}-${dd}`;
+}
+
 // ---- evaluación de un documento completo ----
 
 /** Voltea un canvas 180° (detección de rotación barata, Fase 3.3). */
@@ -1193,6 +1513,30 @@ function iou(a: RectNorm, b: RectNorm): number {
  * el MISMO rect denotan confusión de anclas (F1 — Frankfurt J1≡J3 midieron
  * el mismo pedazo de papel pixel a pixel; IoU = 1). */
 const IOU_COLISION = 0.8;
+
+/**
+ * FASE 1 (plan extracción relacional — fin del falso positivo de firmas):
+ * ningún campo OBLIGATORIO termina 'ok' si su POSICIÓN no fue verificada.
+ * `fuente: 'referencia'` + `ancla_no_encontrada` significa que el ancla
+ * textual no apareció y el motor midió/leyó sobre la banda de referencia del
+ * molde — NO sobre la zona real del documento (diagnóstico real: 2 firmas
+ * 'ok' conf 0.97 en el MISMO rect de referencia y=0.548, con valores leídos
+ * de una banda que no contenía ninguna firma). El rect de referencia sigue
+ * siendo el mejor estimado disponible y se reporta, pero el VEREDICTO ahora
+ * lo dice: requiere_revision + bandera `fallback_no_verificado`.
+ * Aditivo al contrato: `banderas` es un array libre.
+ */
+function endurecerFallbackNoVerificado(campo: CampoUniversal, r: ResultadoCampoUniversal): void {
+  if (
+    campo.obligatorio &&
+    r.estado === 'ok' &&
+    r.fuente === 'referencia' &&
+    r.banderas.includes('ancla_no_encontrada')
+  ) {
+    r.estado = 'requiere_revision';
+    r.banderas.push('fallback_no_verificado');
+  }
+}
 
 /**
  * F1 (variante 1.1 — la más barata de la conversación de mejora): dedupe de
@@ -1285,7 +1629,11 @@ export async function evaluarDocumentoUniversal(
     for (let i = 0; i < camposPagina.length; i++) {
       const c = camposPagina[i];
       onProgreso?.(`Página ${p + 1}: campo ${i + 1}/${camposPagina.length} — ${c.etiqueta}`);
-      resultados.push(await evaluarCampo(c, pageCanvas, ocr.lines, previews));
+      const r = await evaluarCampo(c, pageCanvas, ocr.lines, previews);
+      // FASE 1b (plan extracción relacional): el fallback silencioso ya no
+      // produce 'ok' en obligatorios (fin del falso positivo de firmas).
+      endurecerFallbackNoVerificado(c, r);
+      resultados.push(r);
     }
     // F1 (variante 1.1): detección de colisión de rects — DOS campos que miran
     // el mismo pedazo de papel es la firma del falso positivo de la auditoría.
