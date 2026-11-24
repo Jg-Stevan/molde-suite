@@ -41,8 +41,11 @@ bun install                    # desde la raíz (workspaces Bun)
 bun run agent:map              # regenera .agent/repo-map.md (raíz)
 cd packages/scanner-core && bun test            # tests golden del contrato
 cd packages/layout-core  && bun test            # tests del evaluador layout
-cd apps/tamiz      && bun run typecheck && bun run lint
+cd apps/tamiz      && bun run test && bun run typecheck && bun run lint
 cd apps/molde-studio && bun run typecheck && bun run lint
+# Build de studio (checkout fresco): ANTES corre `bun run db:generate` en
+# apps/molde-studio — sin el cliente Prisma generado, `next build` falla al
+# recolectar las rutas /api/* (Cannot find module '.prisma/client/default').
 ```
 
 No hay `test`/`build` a nivel raíz: ejecuta por workspace. No inventes scripts:
