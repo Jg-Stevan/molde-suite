@@ -96,7 +96,31 @@
 > Pasos: Settings → General → marcar «Archive this repository» y añadir la
 > nota anterior al README antes de archivar.
 
-## 8. Siguientes pasos recomendados (para el dueño)
+## 8. Re-verificación independiente (sesión 2, 2026-11-24)
+
+Cada fase fue re-verificada desde cero en una sesión posterior, con el árbol
+limpio en `feat/scanner-core-absorption` (`8b1b2e7`). Resultados:
+
+| # | Verificación (fase) | Resultado |
+|---|---|---|
+| 1 | `bun run scripts/analyze-exports.ts` ×2 (Fase 1) | OK — 377 símbolos / 73 archivos; diff vacío entre ejecuciones (determinista) |
+| 2 | `bun test` en `packages/scanner-core` (Fase 2b) | OK — 8/8 golden del contrato y sobre |
+| 3 | `bun test` en `packages/layout-core` | OK — 14/14 |
+| 4 | `tsc -p packages/scanner-core/tsconfig.json` (Fase 2a/2b) | OK — 0 errores. Tsconfig estricto AÑADIDO en esta sesión (strict, noEmit; excluye `*.test.ts` porque Bun valida los tests en runtime; sin dependencias nuevas) |
+| 5 | `bun run typecheck` en `apps/tamiz` (Fase 3) | OK — exit 0 |
+| 6 | `bun run lint` en `apps/tamiz` (Fase 3) | OK — exit 0 |
+| 7 | `bun run typecheck` en `apps/molde-studio` (Fase 3) | OK — exit 0 |
+| 8 | `bun run lint` en `apps/molde-studio` (Fase 3) | OK — exit 0 |
+| 9 | **Prueba negativa de la frontera** (Fase 3): sonda temporal en tamiz con `import ... from "@jg-stevan/scanner-core/src/contract/contrato"` | OK — eslint marca exactamente 1 `no-restricted-imports`; sonda eliminada tras la prueba |
+| 10 | `bun run agent:map` ×2 (Fase 4) | OK — `git status .agent/` vacío tras doble ejecución (mapa versionado al día y estable) |
+| 11 | `AGENTS.md` raíz ≤ 120 líneas (Fase 4) | OK — 92 líneas |
+| 12 | Cadena de rollback (Fase 0) | OK — 6 tags: `pre-migracion`, `pre-fase-2`, `pre-fase-2b`, `pre-fase-3`, `pre-fase-4`, `post-migracion` (se completaron `pre-fase-2` y `pre-fase-4`, ausentes de la sesión 1) |
+
+Gaps corregidos en esta sesión: tsconfig del paquete (gap de verificación de
+la Fase 2) y tags de rollback faltantes (Fase 0). Sin cambios de código de
+producto: el trabajo de la sesión 1 era correcto.
+
+## 9. Siguientes pasos recomendados (para el dueño)
 
 1. Revisar el diff de la rama (`git log pre-migracion..HEAD --oneline`) y abrir PR a `main`.
 2. Ejecutar una prueba real en Tamiz (acta E-14 del catálogo de simulación) y una exportación/importación Studio→Tamiz con checksum antes del merge.
