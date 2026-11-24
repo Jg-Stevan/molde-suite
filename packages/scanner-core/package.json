@@ -16,6 +16,8 @@
     "./core/calidad": "./core/calidad.ts",
     "./core/canvas-imagen": "./core/canvas-imagen.ts",
     "./core/hash": "./core/hash.ts",
+    "./contract": "./src/contract/contrato.ts",
+    "./contract/sobre": "./src/contract/sobre.ts",
     "./obs-base/breadcrumbs": "./obs-base/breadcrumbs.ts",
     "./molde/ocr-tipos": "./molde/ocr-tipos.ts",
     "./molde/universal-types": "./molde/universal-types.ts",
