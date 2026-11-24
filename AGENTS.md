@@ -21,6 +21,97 @@ de actas E-14 ni de un formulario concreto:
 - En este repo, «entrenar» significa **calibrar moldes**, nunca reentrenar
   modelos.
 
+### Visión de producto (texto del dueño — no reinterpretar)
+
+> Totalmente claro: tu objetivo es construir un sistema autónomo de recepción y
+> validación documental donde toda la lógica del negocio se configura una sola
+> vez en plantillas, para que en la operación diaria el humano únicamente tenga
+> que apuntar la cámara sobre la mesa.
+>
+> Lo que estás armando se divide en tres piezas que encajan con total coherencia:
+>
+> **Molde Studio (El cerebro configurador y laboratorio de estrés):** Es donde
+> traduces la estructura de un documento físico a reglas deterministas que una
+> máquina entiende sin adivinar. Ahí defines cuántas páginas tiene el formato,
+> qué palabras únicas identifican cada página para poder ordenarlas solas, dónde
+> van los datos y las firmas, cómo se respaldan los campos entre sí cuando alguno
+> sale borroso (por ejemplo, apoyarse en otro dato del documento para no perder
+> la lectura) y qué criterios hacen que el documento sea válido. Además,
+> funciona como simulador para probar variaciones difíciles y garantizar que el
+> sistema nunca rechace por error un documento válido y legible.
+>
+> **Tamiz (El operador automático en campo):** Es la herramienta ligera de
+> captura con intervención humana mínima. El usuario solo apunta el documento
+> sobre la mesa y Tamiz ejecuta toda la cadena en silencio: detecta la hoja,
+> reconoce automáticamente a qué molde pertenece (recibo, factura, comprobante),
+> organiza las páginas si el documento es multipágina, extrae los datos definidos
+> y evalúa si cumple las reglas.
+>
+> **Filtro en vivo con retroalimentación visual:** Tal como lo planteas en el
+> ejemplo de la entrega de un celular, Tamiz no solo escanea, sino que decide en
+> el acto. Si el recibo tiene todos los datos y firmas requeridas, lo aprueba y
+> lo guarda automáticamente; si falta una firma o un campo obligatorio, detiene
+> el guardado y te señala directamente sobre la imagen qué campo faltó para
+> corregirlo en el momento antes de que se vaya la persona.
+>
+> El objetivo de molde-suite es ser un ecosistema integral y offline-first para
+> capturar, estructurar y verificar documentos físicos directamente en el
+> navegador, combinando visión por computadora en tiempo real, diseño visual de
+> plantillas y extracción híbrida (estructura clave-valor sobre OCR para texto
+> impreso + detección visual de tinta para firmas, huellas y manuscritos).
+>
+> Dentro del monorepo, cada pieza cumple un rol específico hacia ese objetivo:
+> **packages/scanner-core (El motor)** es el núcleo compartido de procesamiento:
+> evalúa la calidad de cámara por frame, corrige perspectiva, ejecuta el OCR
+> global y cruza la estructura lógica del documento —ubicando datos impresos por
+> relación entre etiquetas y auditando trazos físicos (rúbricas, sellos o
+> tachaduras) sin inventar valores cuando hay obstrucciones o recortes.
+> **Molde Studio** es la interfaz web para crear plantillas documentales sin
+> escribir código, declarar qué campos son fijos o variables, definir reglas de
+> validación cruzada (como coherencia entre fechas) y verificar la extracción
+> inspeccionando recortes visuales únicamente donde importa (firmas, huellas y
+> manuscritos). **apps/tamiz** es la aplicación ligera orientada a dispositivos
+> móviles que asiste el encuadre en vivo, dispara la captura automáticamente al
+> detectar estabilidad y procesa los documentos en el dispositivo con mínima
+> latencia y funcionamiento sin conexión.
+>
+> En pocas palabras, el repositorio busca transformar formatos físicos
+> repetitivos (actas, recibos, formularios de control) en datos estructurados,
+> validados y auditables en local, reemplazando plantillas rígidas basadas en
+> coordenadas fijas por reglas estructurales tolerantes a recortes o
+> inclinaciones reales de captura.
+
+### Criterio de verificación autónoma (no negociable)
+
+**Principio rector:** la verificación debe ser tan buena que **un documento con
+todos los datos definidos y legibles NUNCA se rechaza**. Solo se detiene la
+aprobación cuando un dato obligatorio o una firma **falta o no se entiende**; en
+ese caso se entrega verificación humana con la evidencia del campo.
+
+Reglas de obligado cumplimiento para cualquier cambio en motor, molde o UI:
+
+1. **Orden de precedencia del veredicto:** `ok` (leído y dentro de reglas) →
+   `requiere_revision` (no concluyente) → `no_encontrado` (obligatorio ausente).
+   El veredicto global solo es negativo si el documento está incompleto o
+   ilegible, nunca por geometría de captura.
+2. **Prohibido el falso `ok`:** ningún campo se aprueba sin lectura verificada.
+   Bandera de no-lectura (`fallback_no_verificado`, `ancla_no_encontrada`,
+   `ocr_vacio`, `zona_vacia`, `lectura_degenerada`, `conf_baja`,
+   `ancla_sin_geometria`) ⇒ nunca `ok`.
+3. **Prohibido rechazar por coordenadas:** si el dato está presente en el OCR
+   global, el motor debe resolverlo (etiqueta → valor) aunque la foto venga
+   recortada, rotada o desplazada. La revisión se justifica por **contenido**
+   (ilegible, ambiguo, ausente), no por desplazamiento.
+4. **Toda revisión es explicable:** cada `requiere_revision`/`no_encontrado`
+   lleva banderas y evidencia visual del campo, sin excepción.
+5. **Definición de terminado de cualquier fase:** (a) 0 falsos `ok`;
+   (b) 0 revisiones sobre documentos completos y legibles del banco de imágenes;
+   (c) los números del banco se reproducen, no se transcriben.
+
+El estado actual y las desviaciones conocidas se registran en
+`lessons/recibo_pago/` y `scripts/resultados/README-VERIFICACION.md`; no se
+reescriben aquí.
+
 ## Estructura del monorepo
 
 | Workspace | Papel |
@@ -74,8 +165,12 @@ revisa el `package.json` de cada workspace antes de llamar.
 - **Local y offline**: prohibido enviar documentos, fotos o moldes a
   servidores, y prohibido añadir backend, login, multiusuario o sincronización
   en la nube.
-- **Nada de datos pesados/sensibles al repo**: nunca commitear ONNX, PDFs,
-  fotos de documentos ni bytes de modelos. Ver `.gitignore`.
+- **Nada de pesos de modelos al repo**: nunca commitear ONNX ni bytes de
+  modelos (rompen el clone; los modelos son stock y se sirven por URL). Las
+  **fotos de documento de prueba SÍ se versionan**, por decisión del dueño
+  (2026-11-24): son el banco de verificación y viven en
+  `scripts/resultados/fixtures/`. Los artefactos de cada corrida (incluidos sus
+  recortes) viven en `scripts/resultados/`.
 - **Push a `main` solo con autorización explícita del dueño.** El flujo por
   defecto es rama + PR.
 - **Sin dependencias nuevas** sin confirmación explícita del dueño.

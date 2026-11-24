@@ -237,7 +237,8 @@ export async function detectDocumentEdgesDetail(
  * inverso); si es axis-aligned exacto, el recorte recto equivale al warp y es
  * más barato. El ancho de salida conserva la resolución del documento.
  * Además, con `opts.deskew` (kill-switch por flag en Tamiz) se corrige la
- * INCLINACIÓN residual ≤10° por perfil de proyección — la que el quad no ve.
+ * INCLINACIÓN residual ≤25° por perfil de proyección (FASE 2 del plan:
+ * antes ≤10°) — la que el quad no ve.
  * `manual: true` (recorte del editor) respeta el quad al píxel y desactiva el
  * deskew automático (la decisión del usuario manda).
  * Devuelve { processed } como dataURL.
@@ -426,8 +427,9 @@ export async function processImage(
     const ctx = out.getContext('2d', { willReadFrequently: true })!;
     ctx.drawImage(src, x0, y0, cw, ch, 0, 0, cw, ch);
   }
-  // FASE A3 — deskew residual (≤10°): solo fuera del recorte manual y cuando
-  // la flag del host lo habilita; el ángulo lo mide el perfil de proyección.
+  // FASE A3 — deskew residual (≤25°, FASE 2 del plan: antes ≤10°): solo fuera
+  // del recorte manual y cuando la flag del host lo habilita; el ángulo lo
+  // mide el perfil de proyección.
   if (opts?.deskew && !opts?.manual) {
     try {
       const ang = anguloDeskew(out);

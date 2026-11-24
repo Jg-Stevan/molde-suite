@@ -1,0 +1,245 @@
+{
+  "molde": "cmwuy3xd70000r0n4rpx8yt9j",
+  "archivo": "pag-01.png",
+  "score": 100,
+  "requiere_revision": false,
+  "fecha": "2026-11-24T17:27:35.644Z",
+  "campos": [
+    {
+      "id": "titulo",
+      "etiqueta": "Título del documento",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "RECIBO DE PAGO",
+      "ratio": 0.17509328358208956,
+      "conf": 0.96,
+      "rect": {
+        "x": 0.376,
+        "y": 0.04732302936630603,
+        "w": 0.26,
+        "h": 0.026
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "ancla_solo_textual"
+      ]
+    },
+    {
+      "id": "fecha_emision",
+      "etiqueta": "Fecha de emisión",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "03 de diciembre de 2026",
+      "ratio": 0.09090909090909091,
+      "conf": 0.92,
+      "rect": {
+        "x": 0.55,
+        "y": 0.09050850077279753,
+        "w": 0.3,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": []
+    },
+    {
+      "id": "numero_recibo",
+      "etiqueta": "N.º de recibo",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "REC-2026-0314",
+      "ratio": 0.09031681144609095,
+      "conf": 0.92,
+      "rect": {
+        "x": 0.55,
+        "y": 0.11701081916537867,
+        "w": 0.2,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": []
+    },
+    {
+      "id": "datos_emisor",
+      "etiqueta": "Datos del receptor/emisor (nombre, DNI, cargo, empresa, CIF)",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "D. Fernando Cabrera Leal, con DNI 45.876.213, en calidad de Gerente financiero, de la empresa",
+      "ratio": 0.1296181502603521,
+      "conf": 0.96,
+      "rect": {
+        "x": 0.07,
+        "y": 0.16,
+        "w": 0.86,
+        "h": 0.024
+      },
+      "fuente": "fija",
+      "banderas": []
+    },
+    {
+      "id": "datos_pagador",
+      "etiqueta": "Datos del pagador (nombre, DNI, cargo, empresa, CIF)",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "D. Carmen Ordóñez Vidal, con DNI 52.340.987, en calidad de Directora administrativa,",
+      "ratio": 0.11444149897578021,
+      "conf": 0.96,
+      "rect": {
+        "x": 0.16399999999999998,
+        "y": 0.24043122102009273,
+        "w": 0.76,
+        "h": 0.028
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "ancla_solo_textual"
+      ]
+    },
+    {
+      "id": "importe",
+      "etiqueta": "Importe numérico",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "2.480,50 €",
+      "ratio": 0.12544620091789904,
+      "conf": 0.96,
+      "rect": {
+        "x": 0.182,
+        "y": 0.32080216383307575,
+        "w": 0.1,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "ancla_solo_textual"
+      ]
+    },
+    {
+      "id": "importe_texto",
+      "etiqueta": "Importe en letras",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "2.480,50 € (dos mil cuatrocientos ochenta euros con cincuenta céntimos)",
+      "ratio": 0.12064238151194673,
+      "conf": 0.96,
+      "rect": {
+        "x": 0.182,
+        "y": 0.32080216383307575,
+        "w": 0.68,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "ancla_solo_textual"
+      ]
+    },
+    {
+      "id": "concepto",
+      "etiqueta": "Concepto del pago",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "Pago del 50 % de la factura F-2026-092, por servicio de transporte de",
+      "ratio": 0.10212335692618807,
+      "conf": 0.95,
+      "rect": {
+        "x": 0.21699999999999997,
+        "y": 0.3702612055641422,
+        "w": 0.68,
+        "h": 0.028
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "ancla_solo_textual"
+      ]
+    },
+    {
+      "id": "forma_pago",
+      "etiqueta": "Forma de pago",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "Transferencia bancaria — cuenta ES76 2077 0024 0031 0442 9015",
+      "ratio": 0.11115340692805481,
+      "conf": 0.95,
+      "rect": {
+        "x": 0.21400000000000002,
+        "y": 0.452177743431221,
+        "w": 0.7,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "ancla_solo_textual"
+      ]
+    },
+    {
+      "id": "fecha_pago",
+      "etiqueta": "Fecha de pago",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "05/12/2026",
+      "ratio": 0.08384190642255158,
+      "conf": 0.95,
+      "rect": {
+        "x": 0.21200000000000002,
+        "y": 0.47613446676970633,
+        "w": 0.18,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "ancla_solo_textual"
+      ]
+    },
+    {
+      "id": "firma_emisor",
+      "etiqueta": "Firma emisor (receptor)",
+      "tipo": "firma",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": true,
+      "ratio": 0.03834838533114395,
+      "conf": 0.94,
+      "rect": {
+        "x": 0.1,
+        "y": 0.5481020092735703,
+        "w": 0.34,
+        "h": 0.06
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "forma_borrosa",
+        "forma_sin_caja"
+      ]
+    },
+    {
+      "id": "firma_pagador",
+      "etiqueta": "Firma pagador",
+      "tipo": "firma",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": true,
+      "ratio": 0.03191707717569787,
+      "conf": 0.8,
+      "rect": {
+        "x": 0.5279999999999999,
+        "y": 0.5481020092735703,
+        "w": 0.34,
+        "h": 0.06
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "forma_borrosa",
+        "forma_sin_caja"
+      ]
+    }
+  ]
+}

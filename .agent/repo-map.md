@@ -215,6 +215,23 @@
 | `estirarContrasteEnCanvas` | function | 70 | `(c: HTMLCanvasElement) => void` |
 | `grisesDesdeCanvas` | function | 54 | `(c: HTMLCanvasElement) => { g: Float32Array; w: number; h: number; }` |
 | `OpcionesCanvasDesdeDataUrl` | typealias | 10 | `any` |
+| `rotarDataUrl90` | function | 108 | `(dataUrl: string) => Promise<string>` |
+
+### packages/scanner-core/core/detector-client.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `computeProcessDims` | function | 38 | `(videoW: number, videoH: number) => { w: number; h: number; }` |
+| `DetectOutcome` | interface | 137 | `any` |
+| `DocProfile` | typealias | 31 | `any` |
+| `EnhanceMode` | typealias | 30 | `any` |
+| `EnhanceOutcome` | interface | 154 | `any` |
+| `getScannerWorker` | function | 532 | `() => ScannerWorkerClient` |
+| `PROCESS_LONG_SIDE` | variable | 36 | `400` |
+| `RawQualityInput` | interface | 52 | `any` |
+| `ScannerWorkerClient` | class | 180 | `typeof ScannerWorkerClient` |
+| `warmUpScannerWorker` | function | 551 | `() => void` |
+| `WarpOutcome` | interface | 146 | `any` |
 
 ### packages/scanner-core/core/hash.ts
 
@@ -224,14 +241,69 @@
 | `sha256HexDeDataUrl` | function | 34 | `(dataUrl: string) => Promise<string>` |
 | `sha256HexDeTexto` | function | 29 | `(texto: string) => Promise<string>` |
 
+### packages/scanner-core/core/image-modes.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `APPLY_FACTOR_MAX` | variable | 58 | `8` |
+| `applyModelAndGainToRgba` | function | 653 | `(data: Uint8ClampedArray, model: ShadowModel, gain: Float32Array, w: number, h: number) => Uint8ClampedArray` |
+| `bradleyRoth` | function | 145 | `(gray: Uint8ClampedArray, w: number, h: number, t?: number, windowRatio?: number) => Uint8ClampedArray` |
+| `BW_DESPECKLE_PX` | variable | 35 | `3` |
+| `BW_SAUVOLA_K` | variable | 32 | `0.34` |
+| `BW_SAUVOLA_R` | variable | 33 | `128` |
+| `BW_T` | variable | 31 | `0.15` |
+| `BW_WINDOW_RATIO` | variable | 29 | `number` |
+| `correctedGrayWithModel` | function | 605 | `(gray: Uint8ClampedArray, model: ShadowModel, w: number, h: number) => Uint8ClampedArray` |
+| `despeckleBinary` | function | 219 | `(binary: Uint8ClampedArray, w: number, h: number, minPx?: number) => Uint8ClampedArray` |
+| `edgeAwareSharpenGray` | function | 363 | `(src: Uint8ClampedArray, w: number, h: number) => Uint8ClampedArray` |
+| `enhanceMime` | function | 813 | `(mode: EnhanceMode) => "image/png" \| "image/jpeg"` |
+| `EnhanceMode` | typealias | 810 | `any` |
+| `EnhanceOptions` | interface | 797 | `any` |
+| `enhanceToRgba` | function | 834 | `(data: Uint8ClampedArray, w: number, h: number, mode: EnhanceMode, opts?: EnhanceOptions) => Uint8ClampedArray` |
+| `estimateShadowModel` | function | 581 | `(gray: Uint8ClampedArray, w: number, h: number) => ShadowModel` |
+| `FF_FLOOR_DEFAULT` | variable | 45 | `40` |
+| `gaussianKernel1D` | function | 709 | `(k: number, sigma: number) => Float32Array` |
+| `grayToRgba` | function | 74 | `(gray: Uint8ClampedArray, w: number, h: number) => Uint8ClampedArray` |
+| `ILLUM_KERNEL` | variable | 40 | `any` |
+| `ILLUM_MAP_LONG_SIDE` | variable | 38 | `800` |
+| `rebuildRgbaWithChroma` | function | 430 | `(data: Uint8ClampedArray, gray: Uint8ClampedArray, targetLuma: Uint8ClampedArray, w: number, h: number) => Uint8ClampedArray` |
+| `rgbaToGray` | function | 63 | `(data: Uint8ClampedArray, w: number, h: number) => Uint8ClampedArray` |
+| `sauvola` | function | 178 | `(gray: Uint8ClampedArray, w: number, h: number, k?: number, r?: number, windowRatio?: number) => Uint8ClampedArray` |
+| `ShadowModel` | interface | 573 | `any` |
+| `TEXT_CHROMA_FADE_START` | variable | 407 | `200` |
+| `TEXT_CHROMA_MAX_GAIN` | variable | 411 | `1.5` |
+| `TEXT_CLARO_BLACK_POINT` | variable | 26 | `0.15` |
+| `TEXT_CLARO_CONTRAST` | variable | 20 | `1.45` |
+| `TEXT_CLARO_PIVOT` | variable | 23 | `0.82` |
+| `TEXT_CLARO_WHITE_PCT` | variable | 17 | `0.95` |
+| `TEXT_EDGE_AMOUNT` | variable | 353 | `0.75` |
+| `TEXT_EDGE_GRADIENT` | variable | 351 | `25` |
+| `TEXT_GAIN_MAX` | variable | 55 | `4` |
+| `TEXT_NEUTRAL_INK` | variable | 402 | `45` |
+| `TEXT_WHITE_TARGET` | variable | 400 | `253` |
+| `textClaroContrast` | function | 297 | `(gray: Uint8ClampedArray, contrast?: number, pivot?: number) => Uint8ClampedArray` |
+| `textTargetLumaLut` | function | 327 | `(contrast?: number, pivot?: number, bp?: number) => Uint8ClampedArray` |
+| `UNSHARP_AMOUNT` | variable | 47 | `0.5` |
+| `UNSHARP_KERNEL` | variable | 49 | `7` |
+| `UNSHARP_RADIUS` | variable | 48 | `1.5` |
+| `unsharpRgba` | function | 762 | `(data: Uint8ClampedArray, w: number, h: number, amount?: number, sigma?: number) => Uint8ClampedArray` |
+| `whitePointStretchPct` | function | 267 | `(gray: Uint8ClampedArray, pct: number) => Uint8ClampedArray` |
+
 ### packages/scanner-core/core/image-processor.ts
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `detectDocumentEdgesDetail` | function | 56 | `(foto: string) => Promise<{ quad: Quad; origen: OrigenQuad; }>` |
-| `ErrorRescateHeic` | class | 23 | `typeof ErrorRescateHeic` |
-| `OrigenQuad` | typealias | 15 | `any` |
-| `processImage` | function | 156 | `(foto: string, quad: Quad, filtro: PageFilter, rotation: number, opts?: { manual?: boolean; deskew?: boolean; }) => Promise<{ processed: string; width: number; ` |
+| `detectDocumentEdgesDetail` | function | 145 | `(foto: string) => Promise<{ quad: Quad; origen: OrigenQuad; }>` |
+| `ErrorRescateHeic` | class | 112 | `typeof ErrorRescateHeic` |
+| `fileToCaptureDataUrl` | function | 80 | `(file: File, _opcionesRescate?: OpcionesRescateHeic) => Promise<string>` |
+| `HEIC_LIMITE_MS_DEFECTO` | variable | 73 | `15000` |
+| `HEIC_TOPE_MP_DEFECTO` | variable | 72 | `24` |
+| `jpegDimensionsFromBlob` | function | 27 | `(blob: Blob) => Promise<{ w: number; h: number; }>` |
+| `loadImage` | function | 15 | `(src: string) => Promise<HTMLImageElement>` |
+| `OpcionesRescateHeic` | typealias | 74 | `any` |
+| `OrigenQuad` | typealias | 104 | `any` |
+| `PROCESSED_MAX_LONG_SIDE` | variable | 12 | `4032` |
+| `processImage` | function | 384 | `(foto: string, quad: Quad, filtro: PageFilter, rotation: number, opts?: { manual?: boolean; deskew?: boolean; }) => Promise<{ processed: string; width: number; ` |
 
 ### packages/scanner-core/core/ocr.ts
 
@@ -254,9 +326,9 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `E14Bridge` | interface | 41 | `any` |
+| `E14Bridge` | interface | 46 | `any` |
 | `OpcionesEscaneo` | interface | 23 | `any` |
-| `OpcionesEscaneoExtendidas` | typealias | 34 | `any` |
+| `OpcionesEscaneoExtendidas` | typealias | 39 | `any` |
 | `PaginaObjetivo` | interface | 15 | `any` |
 
 ### packages/scanner-core/dominio/clasificador.ts
@@ -272,6 +344,53 @@
 | `tipoDeBanda` | function | 45 | `(textoOcr: string) => "TRANSMISION" \| "DELEGADOS"` |
 | `tipoPaginaDe` | function | 52 | `(tipo: string) => TipoPagina` |
 | `tituloYUbicacionDe` | function | 78 | `(c: ClasificacionE14) => { titulo: string; ubicacion: { departamento: string; municipio: string; zona: string; puesto: string; mesa: string; }; }` |
+
+### packages/scanner-core/dominio/entorno.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `configurarPublicBase` | function | 23 | `(base: string) => void` |
+| `publicBaseEfectivo` | function | 28 | `() => string` |
+| `restablecerPublicBaseParaTest` | function | 42 | `() => void` |
+| `urlAssetPublico` | function | 34 | `(rutaRelativa: string) => string` |
+
+### packages/scanner-core/dominio/image-utils.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `canvasCon` | function | 199 | `(ancho: number, alto: number) => HTMLCanvasElement` |
+| `decodeImagenLru` | function | 136 | `(url: string, opciones?: { maxDim?: number; }) => Promise<CanvasImageSource>` |
+| `decodeImagenLruDeBlob` | function | 177 | `(blob: Blob, opciones?: { maxDim?: number; }) => Promise<CanvasImageSource>` |
+| `loadImageMemo` | function | 48 | `(url: string) => Promise<HTMLImageElement>` |
+| `procesadaVaciaDataUrl` | function | 225 | `(url: string) => Promise<boolean>` |
+| `rotateProcessedDataUrl` | function | 254 | `(url: string, deg: number) => Promise<{ url: string; thumb: string; w: number; h: number; }>` |
+
+### packages/scanner-core/dominio/logger.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `logger` | variable | 99 | `{ debug(...args: {}): void; info(...args: {}): void; warn(...args: {}): void; error(...args: {}): void; }` |
+
+### packages/scanner-core/dominio/plan.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `configurarPlan` | function | 66 | `(parcial: Partial<OpcionesPlan>) => void` |
+| `opcionesPlan` | variable | 63 | `OpcionesPlan` |
+| `OpcionesPlan` | interface | 17 | `any` |
+
+### packages/scanner-core/dominio/senal-lectura.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `ANCLAS_LECTURA` | variable | 32 | `{}` |
+| `lazoPerdonadoPorLectura` | function | 83 | `(esquinas: { tl: boolean; tr: boolean; bl: boolean; br: boolean; }, texto: string, faltaSeccion: boolean) => boolean` |
+| `NivelLectura` | typealias | 13 | `any` |
+| `norm` | function | 47 | `(s: string) => string` |
+| `PISO_LECTURA_FUERTE` | variable | 24 | `8.5` |
+| `senalDeLectura` | function | 60 | `(texto: string, parciales?: { folio?: number; cabecera?: boolean; }) => SenalLectura` |
+| `SenalLectura` | interface | 15 | `any` |
+| `TECHO_LECTURA_DEBIL` | variable | 28 | `5.9` |
 
 ### packages/scanner-core/dominio/types.ts
 
@@ -299,13 +418,24 @@
 | `UbicacionActa` | interface | 23 | `any` |
 | `UMBRAL_ADMISIBLE_SCORE` | variable | 228 | `8.5` |
 
+### packages/scanner-core/geom/orientacion.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `anilloGanadorRegistrar` | function | 300 | `(rot: Rotacion) => void` |
+| `ganadorPersistente` | function | 265 | `() => Rotacion` |
+| `OpcionesProbeOrientacion` | interface | 151 | `any` |
+| `probeOrientacion` | function | 606 | `(fotoOcr: string, opciones?: OpcionesProbeOrientacion) => Promise<ProbeOrientacion>` |
+| `ProbeOrientacion` | interface | 114 | `any` |
+| `rotarDataUrl` | function | 357 | `(dataUrl: string, rot: Rotacion) => Promise<string>` |
+
 ### packages/scanner-core/molde/homografia.ts
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `anguloDeskew` | function | 179 | `(src: HTMLCanvasElement) => number` |
+| `anguloDeskew` | function | 188 | `(src: HTMLCanvasElement) => number` |
 | `aplicarHomografia` | function | 79 | `(H: Matriz8, x: number, y: number) => { x: number; y: number; }` |
-| `corregirDeskew` | function | 251 | `(src: HTMLCanvasElement, anguloCorrector: number) => HTMLCanvasElement` |
+| `corregirDeskew` | function | 261 | `(src: HTMLCanvasElement, anguloCorrector: number) => HTMLCanvasElement` |
 | `Matriz8` | typealias | 19 | `any` |
 | `quadSesgado` | function | 89 | `(quad: Quad, eps?: number) => boolean` |
 | `resolverHomografia` | function | 23 | `(src: {}, dst: {}) => Matriz8` |
@@ -390,28 +520,33 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `alinearAnclas` | function | 1419 | `(molde: MoldeUniversal, canvas: HTMLCanvasElement, pagina?: number) => Promise<{ molde: MoldeUniversal; encontradas: number; total: number; detalles: Record<str` |
-| `ANCLA_SCORE_MIN` | variable | 255 | `0.72` |
-| `buscarAncla` | function | 153 | `(texto: string, lineas: {}, canvasW: number, canvasH: number, rectEsperado?: RectNorm) => HitAncla` |
-| `editDistance` | function | 52 | `(a: string, b: string) => number` |
-| `editDistancePonderada` | function | 110 | `(a: string, b: string) => number` |
-| `evaluarDocumentoUniversal` | function | 1220 | `(canvases: {}, molde: MoldeUniversal, nombreArchivo: string, onProgreso?: (msg: string) => void, renderMs?: number, opts?: { previews?: boolean; }) => Promise<R` |
-| `FARO_MARGEN` | variable | 302 | `0.01` |
-| `hexTipo` | exportspecifier | 1761 | `(tipo: string) => string` |
-| `HitAncla` | interface | 137 | `any` |
-| `lineasEnFaro` | function | 318 | `(lineas: {}, canvasW: number, canvasH: number, faro: RectNorm) => {}` |
-| `MIN_CORRIDAS_CLUSTERING` | variable | 1542 | `3` |
-| `normTxt` | function | 42 | `(s: string) => string` |
-| `parsearIgualdad` | function | 1088 | `(expresion: string) => { izq: string; der: Array<{ tipo: "id" \| "num"; valor: string; }>; }` |
-| `RADIO_DESAMBIGUACION` | variable | 260 | `0.3` |
-| `rectEditor` | function | 657 | `(campo: CampoUniversal) => RectNorm` |
-| `RectResuelto` | interface | 220 | `any` |
-| `resolverRectCampo` | function | 599 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
-| `resolverRectRelacional` | function | 468 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
-| `sugerirUmbral` | function | 1467 | `(resultados: ResultadoUniversal, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; motivo?: "sin_mediciones" \| "sin_tinta" \| "si` |
-| `sugerirUmbralClustering` | function | 1644 | `(corridas: {}, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; metodo: "clustering" \| "corte_fijo"; corridasConMediciones: num` |
-| `TECHO_RUIDO` | variable | 1539 | `0.02` |
-| `valorNumerico` | function | 1067 | `(r: ResultadoCampoUniversal) => number` |
+| `alinearAnclas` | function | 1957 | `(molde: MoldeUniversal, canvas: HTMLCanvasElement, pagina?: number) => Promise<{ molde: MoldeUniversal; encontradas: number; total: number; detalles: Record<str` |
+| `ANCLA_SCORE_MIN` | variable | 314 | `0.72` |
+| `ANCLA_TEXUAL_DESPLAZAMIENTO_MAX` | variable | 326 | `0.3` |
+| `buscarAncla` | function | 175 | `(texto: string, lineas: {}, canvasW: number, canvasH: number, rectEsperado?: RectNorm) => HitAncla` |
+| `editDistance` | function | 61 | `(a: string, b: string) => number` |
+| `editDistancePonderada` | function | 119 | `(a: string, b: string) => number` |
+| `endurecerFallbackNoVerificado` | function | 1670 | `(campo: CampoUniversal, r: ResultadoCampoUniversal) => void` |
+| `evaluarDocumentoUniversal` | function | 1729 | `(canvases: {}, molde: MoldeUniversal, nombreArchivo: string, onProgreso?: (msg: string) => void, renderMs?: number, opts?: { previews?: boolean; }) => Promise<R` |
+| `FARO_MARGEN` | variable | 373 | `0.01` |
+| `hexTipo` | exportspecifier | 2299 | `(tipo: string) => string` |
+| `HitAncla` | interface | 146 | `any` |
+| `lineasEnFaro` | function | 389 | `(lineas: {}, canvasW: number, canvasH: number, faro: RectNorm) => {}` |
+| `MIN_CORRIDAS_CLUSTERING` | variable | 2080 | `3` |
+| `normTxt` | function | 51 | `(s: string) => string` |
+| `parsearFechaTexto` | function | 1463 | `(valor: string) => number` |
+| `parsearIgualdad` | function | 1419 | `(expresion: string) => { izq: string; der: Array<{ tipo: "id" \| "num"; valor: string; }>; }` |
+| `parsearRango` | function | 1442 | `(expresion: string) => { izq: string; op: ">=" \| "<="; der: string; }` |
+| `RADIO_DESAMBIGUACION` | variable | 331 | `0.3` |
+| `rectEditor` | function | 740 | `(campo: CampoUniversal) => RectNorm` |
+| `RectResuelto` | interface | 272 | `any` |
+| `resolverRectCampo` | function | 670 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
+| `resolverRectRelacional` | function | 539 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
+| `sugerirUmbral` | function | 2005 | `(resultados: ResultadoUniversal, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; motivo?: "sin_mediciones" \| "sin_tinta" \| "si` |
+| `sugerirUmbralClustering` | function | 2182 | `(corridas: {}, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; metodo: "clustering" \| "corte_fijo"; corridasConMediciones: num` |
+| `TECHO_RUIDO` | variable | 2077 | `0.02` |
+| `textoEnRect` | function | 956 | `(lineas: {}, rect: RectNorm, canvasW: number, canvasH: number) => { texto: string; conf: number; palabras: number; }` |
+| `valorNumerico` | function | 1398 | `(r: ResultadoCampoUniversal) => number` |
 
 ### packages/scanner-core/molde/universal-types.ts
 
@@ -419,34 +554,237 @@
 |---|---|---|---|
 | `AnclaUniversal` | interface | 63 | `any` |
 | `CampoUniversal` | interface | 76 | `any` |
-| `ClaseLayout` | typealias | 229 | `any` |
-| `COLOR_TIPO` | variable | 338 | `Record<TipoCampo, string>` |
-| `erroresMolde` | function | 681 | `(obj: unknown) => {}` |
-| `esMoldeUniversal` | function | 630 | `(obj: unknown) => obj is MoldeUniversal` |
+| `ClaseLayout` | typealias | 238 | `any` |
+| `COLOR_TIPO` | variable | 347 | `Record<TipoCampo, string>` |
+| `erroresMolde` | function | 690 | `(obj: unknown) => {}` |
+| `esMoldeUniversal` | function | 639 | `(obj: unknown) => obj is MoldeUniversal` |
 | `EstrategiaCampo` | typealias | 32 | `any` |
-| `hexTipo` | function | 345 | `(tipo: string) => string` |
-| `LayoutMolde` | interface | 288 | `any` |
-| `MOLDE_UNIVERSAL_VERSION` | variable | 335 | `"3.2.0"` |
-| `MoldeUniversal` | interface | 298 | `any` |
-| `nuevoIdCampo` | function | 746 | `() => string` |
+| `hexTipo` | function | 354 | `(tipo: string) => string` |
+| `LayoutMolde` | interface | 297 | `any` |
+| `MOLDE_UNIVERSAL_VERSION` | variable | 344 | `"3.2.0"` |
+| `MoldeUniversal` | interface | 307 | `any` |
+| `nuevoIdCampo` | function | 755 | `() => string` |
 | `RectNorm` | interface | 22 | `any` |
-| `ReglaLayout` | interface | 243 | `any` |
+| `ReglaLayout` | interface | 252 | `any` |
 | `RelacionAncla` | interface | 39 | `any` |
-| `ResultadoCampoUniversal` | interface | 360 | `any` |
-| `ResultadoPaginaUniversal` | interface | 412 | `any` |
-| `ResultadoUniversal` | interface | 431 | `any` |
-| `ResultadoValidacion` | interface | 421 | `any` |
+| `ResultadoCampoUniversal` | interface | 369 | `any` |
+| `ResultadoPaginaUniversal` | interface | 421 | `any` |
+| `ResultadoUniversal` | interface | 440 | `any` |
+| `ResultadoValidacion` | interface | 430 | `any` |
 | `TipoCampo` | typealias | 29 | `any` |
-| `UMBRAL_APROBADO` | variable | 751 | `98` |
-| `ValidacionMolde` | interface | 197 | `any` |
+| `UMBRAL_APROBADO` | variable | 760 | `98` |
+| `ValidacionMolde` | interface | 198 | `any` |
 
 ### packages/scanner-core/obs-base/breadcrumbs.ts
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `breadcrumb` | function | 17 | `(evento: string, datos?: Record<string, unknown>) => void` |
-| `iniciarBreadcrumbs` | function | 30 | `() => void` |
-| `onBreadcrumb` | function | 9 | `(escucha: Escucha) => () => void` |
+| `breadcrumb` | function | 81 | `(tipo: string, datos?: Record<string, unknown>) => void` |
+| `detalleDeTarget` | function | 48 | `(target: { closest: (sel: string) => { getAttribute(n: string): string; }; }) => string` |
+| `iniciarBreadcrumbs` | function | 65 | `() => void` |
+| `obtenerBreadcrumbs` | function | 42 | `() => {}` |
+| `registrarBreadcrumb` | function | 26 | `(b: Omit<Breadcrumb, "t">) => void` |
+| `registrarVista` | function | 37 | `(vista: string) => void` |
+
+### packages/scanner-core/obs-base/buffer.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `abrirBuffer` | function | 189 | `() => Promise<void>` |
+| `appendEvento` | function | 197 | `(e: Omit<EventoObs, "id">) => Promise<void>` |
+| `contarEventos` | function | 319 | `() => Promise<number>` |
+| `CUOTA_HANG_MS` | variable | 32 | `5000` |
+| `descartesDeBuffer` | function | 180 | `() => Record<string, number>` |
+| `eventosPorDigest` | function | 347 | `() => Promise<{}>` |
+| `leerEventos` | function | 301 | `(f?: (e: EventoObs) => boolean) => Promise<{}>` |
+| `mantenimientoBuffer` | function | 95 | `(eventos: {}, ahora: number) => { conservar: {}; borrar: {}; }` |
+| `purgarBuffer` | function | 334 | `() => Promise<void>` |
+| `registrarDescarteBuffer` | function | 150 | `(motivo: string) => void` |
+| `TOPE_EVENTOS` | variable | 26 | `500` |
+| `TTL_MS` | variable | 27 | `number` |
+
+### packages/scanner-core/obs-base/config.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `configObsBase` | variable | 18 | `ConfigObsBase` |
+| `ConfigObsBase` | interface | 9 | `any` |
+| `configurarObsBase` | function | 25 | `(parcial: Partial<ConfigObsBase>) => void` |
+
+### packages/scanner-core/obs-base/digest.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `agregarErrores` | function | 57 | `(eventos: {}) => {}` |
+| `archivoDeStack` | function | 38 | `(stack: string) => string` |
+| `digestDe` | function | 47 | `(mensaje: string, tipo: string, stack: string) => string` |
+| `normalizarMensaje` | function | 27 | `(s: string) => string` |
+
+### packages/scanner-core/obs-base/eventos-lectura.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `AgregadoLectura` | interface | 57 | `any` |
+| `AgregadoLecturaAceptante` | interface | 46 | `any` |
+| `agregarLecturas` | function | 67 | `(resumenes: {}) => AgregadoLectura` |
+| `colectorLectura` | function | 104 | `() => { sink: SinkLectura; eventos: {}; resumen: () => ResumenLectura; }` |
+| `EventoLectura` | interface | 15 | `any` |
+| `PasoLectura` | typealias | 13 | `any` |
+| `ResumenLectura` | interface | 32 | `any` |
+| `SinkLectura` | typealias | 26 | `any` |
+
+### packages/scanner-core/obs-base/identidad.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `appVersion` | function | 83 | `() => string` |
+| `fnv1a8` | function | 91 | `(s: string) => string` |
+| `idDispositivo` | function | 69 | `() => string` |
+| `idSesion` | function | 61 | `() => string` |
+| `nuevoUuid` | function | 30 | `() => string` |
+
+### packages/scanner-core/obs-base/tipos.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `Breadcrumb` | interface | 20 | `any` |
+| `ErroresAgrupados` | interface | 149 | `any` |
+| `ErrorEvento` | interface | 26 | `any` |
+| `EventoObs` | interface | 139 | `any` |
+| `HangEvento` | interface | 100 | `any` |
+| `PerfActa` | interface | 35 | `any` |
+| `PoliticaDatos` | interface | 132 | `any` |
+| `SaludSnapshot` | interface | 73 | `any` |
+| `Tier` | typealias | 18 | `any` |
+| `TipoEvento` | typealias | 17 | `any` |
+| `TramosOcr` | interface | 66 | `any` |
+| `UsoContador` | interface | 89 | `any` |
+
+### packages/scanner-core/ocr/crop-geometria.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `medidasDeCaja` | function | 17 | `(box: {}) => { w: number; h: number; }` |
+| `PuntoCaja` | interface | 12 | `any` |
+
+### packages/scanner-core/ocr/db-postprocess-client.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `dbPostprocessEnWorkerHabilitado` | function | 72 | `() => boolean` |
+| `dbPostprocessRemoto` | function | 129 | `(pred: Float32Array, pw: number, ph: number, ops: OpsDet, srcW: number, srcH: number, tiempoMaxMs?: number) => Promise<ResultadoDbPost>` |
+| `ResultadoDbPost` | interface | 33 | `any` |
+
+### packages/scanner-core/ocr/db-postprocess.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `boxScoreFast` | function | 163 | `(pred: Float32Array, w: number, h: number, box: {}) => number` |
+| `convexHull` | function | 93 | `(pts: {}) => {}` |
+| `DB_BOX_THRESH` | variable | 77 | `0.5` |
+| `DB_MAX_CANDIDATES` | variable | 78 | `1000` |
+| `DB_THRESH` | variable | 76 | `0.3` |
+| `DB_UNCLIP_RATIO` | variable | 79 | `1.6` |
+| `dbPostprocess` | function | 273 | `(pred: Float32Array, pw: number, ph: number, ops: OpsDet, srcW: number, srcH: number) => { boxesFuente: {}; nBoxes: number; }` |
+| `esquinasRect` | function | 208 | `(r: Rect) => {}` |
+| `mapearAFuente` | function | 55 | `(p: { x: number; y: number; }, ops: OpsDet, srcW: number, srcH: number) => { x: number; y: number; }` |
+| `MIN_SIDE_DESCARTAR` | variable | 80 | `3` |
+| `MIN_SIDE_TRAS_UNCLIP` | variable | 81 | `5` |
+| `minAreaRect` | function | 118 | `(hull: {}) => Rect` |
+| `OpsDet` | interface | 40 | `any` |
+| `ordenarCajas` | function | 245 | `(boxes: {}) => {}` |
+
+### packages/scanner-core/ocr/rapidocr.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `asegurarRapidOcr` | function | 1244 | `() => Promise<RapidRuntime>` |
+| `configurarColaGlobalOcr` | function | 267 | `(activa: () => boolean) => void` |
+| `DET_CAP_PROD` | variable | 362 | `1920` |
+| `DET_CAP_RAPIDO` | variable | 363 | `1280` |
+| `EsperaOcrSink` | interface | 246 | `any` |
+| `ocrEnVuelo` | function | 231 | `() => boolean` |
+| `rapidOcrCropsOrientacion` | function | 1111 | `(rt: RapidRuntime, dataUrl: string, k: number, esperaSink?: EsperaOcrSink) => Promise<{ crops: {}; w: number; h: number; msDet: number; }>` |
+| `rapidOcrInit` | function | 112 | `() => Promise<RapidRuntime>` |
+| `RapidOcrLinea` | interface | 73 | `any` |
+| `rapidOcrPrecalentar` | function | 130 | `() => Promise<boolean>` |
+| `rapidOcrRecLote` | function | 1167 | `(rt: RapidRuntime, canvases: {}, esperaSink?: EsperaOcrSink) => Promise<{}>` |
+| `rapidOcrReconocer` | function | 779 | `(rt: RapidRuntime, dataUrl: string, onProgress?: (p: number) => void, opts?: { detCap?: number; omitirCls?: boolean; sinRescateBordes?: boolean; esperaSink?: Es` |
+| `rapidOcrReiniciar` | function | 297 | `() => Promise<void>` |
+| `RapidOcrResultado` | interface | 79 | `any` |
+| `RapidRuntime` | interface | 100 | `any` |
+| `recKnobs` | function | 401 | `() => { anchoMax: number; alto: number; lote: number; suave: boolean; wFija: boolean; cabecera: number; pie: number; bordesRescate: number; }` |
+| `reiniciarMotorOcrSiInactivo` | function | 310 | `() => Promise<boolean>` |
+
+### packages/scanner-core/qr/capa0-qr.client.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `configurarCapa0` | function | 70 | `(o: OpcionesCapa0) => void` |
+| `decodificarQrCapa0Camara` | function | 307 | `(dataUrl: string) => Promise<{ payload: string; }>` |
+| `decodificarQrCapa0Worker` | function | 230 | `(blob: Blob, opcionesCadena: OpcionesCapa0Worker) => Promise<ResultadoCapa0Worker>` |
+| `FasesCapa0` | exportspecifier | 41 | `any` |
+| `FinCapa0` | exportspecifier | 41 | `any` |
+| `hardKillsQrWorker` | function | 95 | `() => number` |
+| `OpcionesCapa0` | interface | 62 | `any` |
+| `OpcionesCapa0Worker` | typealias | 55 | `any` |
+| `PeticionCapa0` | exportspecifier | 41 | `any` |
+| `ResultadoCapa0Worker` | typealias | 44 | `any` |
+
+### packages/scanner-core/qr/identidad-qr.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `BANDA_A` | exportspecifier | 110 | `any` |
+| `BARRIDO_VENTANAS` | exportspecifier | 111 | `{}` |
+| `barridoQrDePixeles` | exportspecifier | 109 | `(pix: PixelesQr) => string` |
+| `binarizadaQrDePixeles` | exportspecifier | 115 | `(pix: PixelesQr) => PixelesQr` |
+| `decodificarQrDeCapture` | function | 489 | `(dataUrl: string, opciones?: { tiers?: "completos" \| "base"; ladoLargo?: number; rescate4096?: boolean; presupuestoMs?: number; }) => Promise<{ payload: string;` |
+| `intentoSobrePixeles` | exportspecifier | 116 | `(cv: PixelesQr, esp: EspecieBanda) => string` |
+| `ladderBaseDePixeles` | exportspecifier | 117 | `(pix: PixelesQr) => string` |
+| `moduloZxingDe` | function | 197 | `() => Promise<typeof import("C:/Users/JG/Documents/PROYECTOS/molde-suite/node_modules/.bun/zxing-wasm@3.1.8/node_modules/zxing-wasm/dist/es/reader/index")>` |
+| `nitidezQrDePixeles` | exportspecifier | 118 | `(pix: PixelesQr) => PixelesQr` |
+| `PixelesQr` | exportspecifier | 122 | `any` |
+| `QR_RECORTE_LADO` | exportspecifier | 119 | `600` |
+| `qrCorto` | function | 556 | `(payload: string) => string` |
+| `rotarPixeles` | exportspecifier | 120 | `(src: PixelesQr, grados: number) => PixelesQr` |
+
+### packages/scanner-core/qr/qr-pixeles.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `activarGuardBarrido` | function | 294 | `(vencido: () => boolean) => void` |
+| `BANDA_A` | variable | 51 | `any` |
+| `BANDAS_BASE` | variable | 44 | `{}` |
+| `BARRIDO_VENTANAS` | variable | 180 | `{}` |
+| `barridoQrDePixeles` | function | 321 | `(pix: PixelesQr) => string` |
+| `BINARIZADA_DELTA` | variable | 400 | `12` |
+| `BINARIZADA_VENTANA` | variable | 399 | `0.025` |
+| `binarizadaQrDePixeles` | function | 402 | `(pix: PixelesQr) => PixelesQr` |
+| `Cuadrante` | interface | 198 | `any` |
+| `CUADRANTES` | variable | 205 | `{}` |
+| `EspecieBanda` | interface | 35 | `any` |
+| `intentoSobrePixeles` | function | 61 | `(cv: PixelesQr, esp: EspecieBanda) => string` |
+| `jsQrDeVentana` | function | 254 | `(win: PixelesQr) => string` |
+| `ladderBaseDePixeles` | function | 156 | `(pix: PixelesQr) => string` |
+| `ladoDeVentana` | function | 269 | `(pix: PixelesQr, fraccion: number) => number` |
+| `limitesDeCuadrante` | function | 214 | `(pix: PixelesQr, q: Cuadrante) => { x0: number; y0: number; x1: number; y1: number; }` |
+| `NITIDEZ_K` | variable | 367 | `0.6` |
+| `nitidezQrDePixeles` | function | 369 | `(pix: PixelesQr) => PixelesQr` |
+| `PixelesQr` | interface | 28 | `any` |
+| `QR_PREVIO_LADO_LARGO` | variable | 193 | `1600` |
+| `QR_RECORTE_LADO` | variable | 188 | `600` |
+| `QR_ROTACIONES` | variable | 148 | `{}` |
+| `rotarPixeles` | function | 134 | `(src: PixelesQr, grados: number) => PixelesQr` |
+| `ventanaDePixeles` | function | 230 | `(pix: PixelesQr, x: number, y: number, lado: number) => PixelesQr` |
+
+### packages/scanner-core/src/captura/reescalo-worker.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `reescalarImportEnWorker` | function | 92 | `(blob: Blob, dims: { w: number; h: number; }, cap: number, calidad: "medium" \| "high", tiempoMaxMs?: number) => Promise<ResultadoReescalo>` |
+| `reescaloImportEnWorkerHabilitado` | function | 42 | `() => boolean` |
+| `ResultadoReescalo` | interface | 13 | `any` |
 
 ### packages/scanner-core/src/contract/contrato.ts
 
@@ -508,6 +846,15 @@
 | `VerificacionSobre` | exportspecifier | 33 | `any` |
 | `verificarSobreMolde` | exportspecifier | 31 | `(sobre: { checksum: string; molde: unknown; }) => Promise<VerificacionSobre>` |
 
+### packages/scanner-core/workers/capa0-qr.worker.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `FasesCapa0` | typealias | 127 | `any` |
+| `FinCapa0` | typealias | 152 | `any` |
+| `PeticionCapa0` | typealias | 155 | `any` |
+| `RespuestaCapa0` | typealias | 170 | `any` |
+
 ---
 
-Total: 312 símbolos en 36 archivos de 3 paquetes.
+Total: 544 símbolos en 59 archivos de 3 paquetes.

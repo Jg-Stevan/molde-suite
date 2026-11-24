@@ -18,6 +18,7 @@ import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const RAIZ = process.cwd();
+const relativa = (p: string) => relative(RAIZ, p).replaceAll('\\', '/');
 const DIRS_EXCLUIDOS = new Set(['node_modules', '__fixtures__', 'tests', '.next', '.agent']);
 const DESTINO = join(RAIZ, '.agent', 'repo-map.md');
 
@@ -87,9 +88,12 @@ function indiceExports(paquetes: string[]): Map<string, Fila[]> {
   const porArchivo = new Map<string, Fila[]>();
 
   for (const sf of program.getSourceFiles()) {
-    const rel = relative(RAIZ, sf.fileName);
+    // TypeScript entrega `sf.fileName` con barras diagonales y path.win32
+    // devuelve barras invertidas: sin normalizar, la comparación descartaba
+    // TODOS los archivos y el mapa salía vacío (sobrescribiendo el bueno).
+    const rel = relativa(sf.fileName);
     if (sf.isDeclarationFile) continue;
-    if (!rootNames.some((n) => rel === relative(RAIZ, n) || relative(RAIZ, n).startsWith(rel + '/'))) continue;
+    if (!rootNames.some((n) => rel === relativa(n) || relativa(n).startsWith(rel + '/'))) continue;
     if (!paquetes.some((p) => rel.startsWith(p + '/'))) continue;
 
     const filas: Fila[] = [];

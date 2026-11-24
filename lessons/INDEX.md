@@ -56,3 +56,27 @@ acta_e14/2026-11-21-fase8-clustering-umbral.md
 Tesseract no lee escritura a mano: los campos `htr` quedan en
 `requiere_revision` con conf 0-0.64. NO es un bug del molde: es la filosofía
 anti-invención. No intentes "arreglarlo" bajando umbrales de confianza.
+
+## P5 — Geometría normalizada ≠ referencia (canvas recortado/escala distinta)
+
+**Patrón:** el documento prueba es un recorte o tiene proporción distinta de la
+referencia del molde (recibo tachado: 1700×1519 vs 1700×2200). Las anclas con
+match textual PERFECTO (d=0) se RECHAZAN por la penalización de posición
+(`1/(1+3·(dx+dy))` con dy 0.16-0.21 → < 0.72) y el campo cae al fallback de
+referencia silencioso; además, los tachones/revelados rompen la SEGMENTACIÓN
+de líneas del OCR global (líneas enteras sin ancla posible).
+
+**Síntomas:** ancla_no_encontrada con la etiqueta visiblemente impresa en la
+página; 5 campos del mismo bloque central con el mismo desplazamiento;
+`rescate_fallido` en todos los rescates locales.
+
+**Mitigaciones (ya en el motor tras la corrección post-verificación):**
+- Bypass posicional para match textual perfecto y único (`ancla_solo_textual`):
+  la penalización solo decide entre candidatos ambiguos.
+- Mapa OCR de rescate perezoso (`ancla_rescate_anti_tachon` /
+  `valor_rescate_anti_tachon`): 2ª pasada OCR sobre el canvas con limpieza
+  morfológica, solo si el mapa primario perdió anclas/valores.
+- `ok: null` en validaciones no degrada campos individuales
+  (`validacion_no_evaluable` ≠ `validacion_fallida`).
+
+**Lecciones:** recibo_pago/2026-11-24-tachado-posicion-ancla.md

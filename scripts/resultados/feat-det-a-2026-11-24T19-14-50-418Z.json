@@ -1,0 +1,286 @@
+{
+  "_meta": {
+    "generado_por": "_verificacion/scratch/conducir-e2e.ts (playwright-core + Chrome del sistema)",
+    "fecha_iso": "2026-11-24T19:14:50.418Z",
+    "url_studio": "http://localhost:3477",
+    "imagen": "C:\\Users\\JG\\.qoder\\recibo-tachado.png",
+    "molde_etiqueta": "Recibo de pago",
+    "score_arnes": 33.3,
+    "score_genuino_arnes": 33.3,
+    "campos_no_genuinos": []
+  },
+  "molde": "cmwv0x0r60000wau8hwnaj4oi",
+  "archivo": "recibo-tachado.png",
+  "score": 33.3,
+  "requiere_revision": true,
+  "fecha": "2026-11-24T19:14:46.919Z",
+  "campos": [
+    {
+      "id": "titulo",
+      "etiqueta": "T�tulo del documento",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "RECIBO DE PAGO",
+      "ratio": 0.25013326226012794,
+      "conf": 0.96,
+      "rect": {
+        "x": 0.376,
+        "y": 0.07118120805369127,
+        "w": 0.26,
+        "h": 0.026
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "ancla_rescate_anti_tachon",
+        "ancla_solo_textual",
+        "rescate_anti_tachon"
+      ]
+    },
+    {
+      "id": "fecha_emision",
+      "etiqueta": "Fecha de emisi�n",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "requiere_revision",
+      "valor": "-",
+      "ratio": 0.000999000999000999,
+      "conf": 0.3,
+      "rect": {
+        "x": 0.55,
+        "y": 0.13682102908277405,
+        "w": 0.3,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "valor_rescate_anti_tachon",
+        "rescate_fallido",
+        "conf_baja",
+        "patron_no_cumple",
+        "validacion_no_evaluable"
+      ]
+    },
+    {
+      "id": "numero_recibo",
+      "etiqueta": "N.� de recibo",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "requiere_revision",
+      "valor": "DE P",
+      "ratio": 0.18278566094100074,
+      "conf": 0.65,
+      "rect": {
+        "x": 0.489,
+        "y": 0.07518120805369127,
+        "w": 0.2,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "rescate_fallido",
+        "patron_no_cumple"
+      ]
+    },
+    {
+      "id": "datos_emisor",
+      "etiqueta": "Datos del receptor/emisor (nombre, DNI, cargo, empresa, CIF)",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "requiere_revision",
+      "valor": "N.9 Recibo:",
+      "ratio": 0.05958892025405787,
+      "conf": 0.9,
+      "rect": {
+        "x": 0.07,
+        "y": 0.16,
+        "w": 0.86,
+        "h": 0.024
+      },
+      "fuente": "fija",
+      "banderas": [
+        "rescate_fallido",
+        "patron_no_cumple"
+      ]
+    },
+    {
+      "id": "datos_pagador",
+      "etiqueta": "Datos del pagador (nombre, DNI, cargo, empresa, CIF)",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "requiere_revision",
+      "valor": "Cabrera Leal, con DNI 45.876.213, en calidad de Gerel ciero, de la empresa",
+      "ratio": 0.1667530224525043,
+      "conf": 0.95,
+      "rect": {
+        "x": 0.16499999999999998,
+        "y": 0.24,
+        "w": 0.76,
+        "h": 0.028
+      },
+      "fuente": "referencia",
+      "banderas": [
+        "ancla_no_encontrada",
+        "fallback_no_verificado"
+      ]
+    },
+    {
+      "id": "importe",
+      "etiqueta": "Importe num�rico",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "requiere_revision",
+      "valor": "o",
+      "ratio": 0,
+      "conf": 0.2,
+      "rect": {
+        "x": 0.183,
+        "y": 0.321,
+        "w": 0.1,
+        "h": 0.024
+      },
+      "fuente": "referencia",
+      "banderas": [
+        "ancla_no_encontrada",
+        "ocr_vacio",
+        "zona_vacia",
+        "realce_retry",
+        "patron_no_cumple",
+        "conf_baja",
+        "patron_no_cumple"
+      ]
+    },
+    {
+      "id": "importe_texto",
+      "etiqueta": "Importe en letras",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "no_encontrado",
+      "valor": "o",
+      "ratio": 0,
+      "conf": 0.14,
+      "rect": {
+        "x": 0.183,
+        "y": 0.321,
+        "w": 0.68,
+        "h": 0.024
+      },
+      "fuente": "referencia",
+      "banderas": [
+        "ancla_no_encontrada",
+        "ocr_vacio",
+        "zona_vacia",
+        "realce_retry",
+        "conf_baja",
+        "fallback_no_verificado"
+      ]
+    },
+    {
+      "id": "concepto",
+      "etiqueta": "Concepto del pago",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "Pago del 50 % de la factura F-2026-092, por servicio de transporte de",
+      "ratio": 0.14830917874396135,
+      "conf": 0.95,
+      "rect": {
+        "x": 0.21699999999999997,
+        "y": 0.537268456375839,
+        "w": 0.68,
+        "h": 0.028
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "ancla_solo_textual"
+      ]
+    },
+    {
+      "id": "forma_pago",
+      "etiqueta": "Forma de pago",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "Transferencia bancaria — cuenta ES76 2077 0024 0031 0442 9015",
+      "ratio": 0.15270855904658723,
+      "conf": 0.95,
+      "rect": {
+        "x": 0.21400000000000002,
+        "y": 0.6569552572706935,
+        "w": 0.7,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "ancla_solo_textual"
+      ]
+    },
+    {
+      "id": "fecha_pago",
+      "etiqueta": "Fecha de pago",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "05/12/2026",
+      "ratio": 0.11889991728701406,
+      "conf": 0.95,
+      "rect": {
+        "x": 0.21200000000000002,
+        "y": 0.6916308724832215,
+        "w": 0.18,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "ancla_solo_textual",
+        "validacion_no_evaluable"
+      ]
+    },
+    {
+      "id": "firma_emisor",
+      "etiqueta": "Firma emisor (receptor)",
+      "tipo": "firma",
+      "pagina": 1,
+      "estado": "requiere_revision",
+      "valor": true,
+      "ratio": 0.08523280732515098,
+      "conf": 0.97,
+      "rect": {
+        "x": 0.1,
+        "y": 0.548,
+        "w": 0.34,
+        "h": 0.06
+      },
+      "fuente": "referencia",
+      "banderas": [
+        "ancla_no_encontrada",
+        "forma_borrosa",
+        "forma_sin_caja",
+        "fallback_no_verificado"
+      ]
+    },
+    {
+      "id": "firma_pagador",
+      "etiqueta": "Firma pagador",
+      "tipo": "firma",
+      "pagina": 1,
+      "estado": "requiere_revision",
+      "valor": true,
+      "ratio": 0.059370738359633746,
+      "conf": 0.97,
+      "rect": {
+        "x": 0.5279999999999999,
+        "y": 0.548,
+        "w": 0.34,
+        "h": 0.06
+      },
+      "fuente": "referencia",
+      "banderas": [
+        "ancla_no_encontrada",
+        "forma_borrosa",
+        "forma_sin_caja",
+        "fallback_no_verificado"
+      ]
+    }
+  ]
+}
