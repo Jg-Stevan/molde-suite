@@ -4,13 +4,15 @@
  * Recorre Studio end-to-end y guarda el Reporte JSON de una corrida:
  *   1. Abre Studio (default http://localhost:3000).
  *   2. Biblioteca → molde «Recibo de pago» → «Abrir en Editor Visual»
- *      → «Probar Plantilla».
- *   3. Sube la imagen de prueba vía el input de Verificación.
- *   4. Espera el fin del pipeline (sin «Cargando corrida...» ni overlay de
- *      progreso).
- *   5. Abre «Reporte JSON», extrae el JSON del diálogo forense.
- *   6. Lo guarda en scripts/resultados/<timestamp>.json.
- *   7. Imprime resumen: score, campos ok/revisión/fallback, banderas.
+ *      → «Probar Plantilla» (solo sin imagen propia).
+ *   3. Entra a la pestaña Verificación (nav móvil: se estrecha el viewport).
+ *   4. Sube la imagen de prueba vía el input de Verificación.
+ *   5. Espera el fin del pipeline (persistencia POST /api/pruebas).
+ *   6. Lee la corrida PERSISTIDA (fuente de verdad) o, si no hay, el diálogo
+ *      «Reporte JSON».
+ *   7. Lo guarda en scripts/resultados/<etiqueta>-<timestamp>.json con _meta
+ *      (commit, rama, imagen).
+ *   8. Imprime resumen: score, campos ok/revisión/fallback, banderas.
  *
  * Uso:
  *   bun scripts/verificar-molde.ts [ruta-imagen] [--url http://localhost:3000] [--molde Nombre]
@@ -156,7 +158,16 @@ Pasos que automatiza (referencia manual):
   mkdirSync(DIR_SALIDA, { recursive: true });
   console.log(`[arnés] Studio: ${URL_STUDIO} · molde: «${NOMBRE_MOLDE}» · imagen: ${absImagen}`);
 
-  const navegador = await pw.chromium.launch({ headless: true });
+  // playwright-core no trae navegadores: primero el empaquetado (si existe) y,
+  // si no, el Chrome instalado en el sistema (channel: 'chrome').
+  const lanzar = async (): Promise<any> => {
+    try {
+      return await pw.chromium.launch({ headless: true });
+    } catch {
+      return await pw.chromium.launch({ headless: true, channel: 'chrome' });
+    }
+  };
+  const navegador = await lanzar();
   const pagina = await navegador.newPage();
   const erroresConsola: string[] = [];
   pagina.on('console', (msg: { type(): string; text(): string }) => {
@@ -197,11 +208,24 @@ Pasos que automatiza (referencia manual):
       await pagina.waitForTimeout(2_000);
     }
 
-    // 4) Subir imagen por el input oculto de Verificación (Playwright ignora
-    //    la visibilidad del input). El onChange dispara el pipeline completo.
-    //    Señal de fin: al terminar, el cliente PERSISTE la corrida (POST
-    //    /api/pruebas, o PUT si re-ejecuta en sitio). Se promete ANTES de
-    //    subir para no perderla si llega rápido.
+    // 4) Navegar EXPLÍCITAMENTE a Verificación: la pestaña se monta bajo
+    //    demanda (dynamic import), así que su <input type="file"> no existe en
+    //    el DOM hasta entrar — el `.first()` tomaba el input del Editor y el
+    //    pipeline nunca arrancaba. El nav de escritorio NO tiene botón a
+    //    Verificación; el conmutador vive en el nav móvil (<768px). Se
+    //    estrecha el viewport, se entra y se restaura: el input queda montado.
+    await pagina.setViewportSize({ width: 700, height: 1000 });
+    const botonVerif = pagina.getByRole('button', { name: /^Verificación$/i }).first();
+    await botonVerif.waitFor({ state: 'visible', timeout: 30_000 });
+    await botonVerif.click();
+    await pagina.setViewportSize({ width: 1280, height: 900 });
+    console.log('[arnés] Pestaña Verificación abierta');
+
+    // 5) Subir imagen por el input PROPIO de Verificación (accept con heic +
+    //    multiple; el del Editor y el del diálogo de importación no lo tienen).
+    //    El onChange dispara el pipeline completo. Señal de fin: al terminar,
+    //    el cliente PERSISTE la corrida (POST /api/pruebas, o PUT si
+    //    re-ejecuta en sitio). Se promete ANTES de subir para no perderla.
     const persistida = pagina
       .waitForResponse(
         (r) =>
@@ -211,11 +235,12 @@ Pasos que automatiza (referencia manual):
         { timeout: 8 * 60_000 },
       )
       .catch(() => null);
-    const input = pagina.locator('input[type="file"]').first();
+    const input = pagina.locator('input[type="file"][multiple][accept*="heic"]').first();
+    await input.waitFor({ state: 'attached', timeout: 30_000 });
     await input.setInputFiles(absImagen);
     console.log('[arnés] Imagen cargada — esperando fin del pipeline (OCR puede tardar minutos)…');
 
-    // 5) Esperar fin: la persistencia (determinista) y, después, tres sondeos
+    // 6) Esperar fin: la persistencia (determinista) y, después, tres sondeos
     //    sin overlay. El heurístico busy→idle del original NUNCA salía si el
     //    pipeline terminaba antes del primer sondeo: el arnés agotaba los 8 min
     //    y moría en exit 3 sin artefacto (perdido real en una corrida de control).
@@ -240,7 +265,7 @@ Pasos que automatiza (referencia manual):
     }
     console.log('[arnés] Corrida terminada');
 
-    // 6) Fuente del reporte: la corrida PERSISTIDA por la app. El diálogo
+    // 7) Fuente del reporte: la corrida PERSISTIDA por la app. El diálogo
     //    forense se quedó mostrando la corrida ANTERIOR mientras la UI no
     //    refrescaba: una corrida medida como 50.0 por el diálogo era 33.3 en
     //    la BD (con las firmas ya en requiere_revision). Leer la BD del
@@ -315,7 +340,7 @@ Pasos que automatiza (referencia manual):
     writeFileSync(destino, JSON.stringify(escrito, null, 2), 'utf8');
     console.log(`[arnés] Reporte guardado: ${destino}`);
 
-    // 7) Resumen comparable con el baseline.
+    // 8) Resumen comparable con el baseline.
     const ok = campos.filter((c) => c.estado === 'ok');
     const revision = campos.filter((c) => c.estado === 'requiere_revision');
     const noEncontrado = campos.filter((c) => c.estado === 'no_encontrado');

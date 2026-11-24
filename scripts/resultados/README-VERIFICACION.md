@@ -160,3 +160,11 @@ Los JSON ya guardados se re-puntúan importando `metricas()` y
 `normalizarCampos()` desde `scripts/verificar-molde.ts` (el módulo no ejecuta
 nada al importarse).
 
+Nota FASE 4: el arnés commiteado ya entra a la pestaña Verificación por el nav
+móvil (viewport 700px y de vuelta), usa el input propio de Verificación y cae
+al Chrome del sistema si `playwright-core` no trae navegadores. Validado
+end-to-end contra la referencia: 100 · 12/12 · 0 errores de consola
+(`arnes-fase4-2026-11-24T22-34-27-056Z.json`). En un entorno sin Playwright
+resoluble desde el repo, `NODE_PATH=<node_modules externo> bun
+scripts/verificar-molde.ts …` funciona sin añadir dependencias.
+
