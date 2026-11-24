@@ -25,10 +25,12 @@ bun scripts/verificar-molde.ts scripts/resultados/fixtures/recibo-tachado.png --
 Artefactos (con recortes) en `scripts/resultados/`; análisis por corrida en
 `lessons/recibo_pago/` y en los `ANALISIS-*.md` de la raíz.
 
-## Limitación conocida del arnés
+## Arnés del repo (corregido — FASE 4)
 
-`scripts/verificar-molde.ts` todavía no navega a la pestaña Verificación (su
-conmutador de escritorio no existe; el nav es solo móvil), así que subir una
-imagen nueva puede no arrancar el pipeline. Corrección pendiente en la Fase 4
-del plan. Los números de la tabla se reprodujeron con un conductor externo que
-usa el mismo flujo con la navegación corregida.
+`scripts/verificar-molde.ts` entra a la pestaña Verificación por el nav móvil
+(estrecha el viewport y lo restaura) y sube la imagen por el input propio de
+Verificación: antes tomaba el primer `input[type=file]` (el del Editor) y el
+pipeline nunca arrancaba con una imagen nueva. Además cae al Chrome del
+sistema si `playwright-core` no trae navegadores empaquetados. Validado
+end-to-end contra `pag-01.png`: **100 · 12/12 · 0 errores de consola**
+(`scripts/resultados/arnes-fase4-*.json`).
