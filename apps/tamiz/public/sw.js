@@ -4,9 +4,10 @@
  * Estrategia (PLAN-AGENTE-LAYOUT F5):
  *  · App shell: NO se precachea la lista de assets hasheados de Next (cambia
  *    en cada build) — se usa RUNTIME CACHING: /_next/static/ (hashed,
- *    inmutable), /tesseract/ (core/lenguajes), fuentes y cualquier .wasm
- *    (ONNX Runtime viene de un chunk o de CDN) entran a `tamiz-shell-v1` con
- *    CACHE-FIRST la primera vez que se piden.
+ *    inmutable), /vendor/ y /scanner/ (el motor que materializa `bun run
+ *    preparar`: Tesseract core/lenguajes, OpenCV, workers), fuentes y cualquier
+ *    .wasm (ONNX Runtime viene de un chunk o de CDN) entran a `tamiz-shell-v1`
+ *    con CACHE-FIRST la primera vez que se piden.
  *  · Navegaciones: NETWORK-FIRST — red, y si falla se responde con lo que haya
  *    en cache para esa URL, luego `/` y por último `/offline.html`.
  *  · Modelos versionados (`/models/`, pp_doclayout*.onnx): cache `tamiz-modelos-v1`
@@ -40,8 +41,19 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_SHELL);
+      // Bloque 2.7 — los workers IIFE del núcleo entran al respaldo mínimo
+      // (allSettled: un 404 momentáneo NO aborta la instalación del SW).
       await Promise.allSettled(
-        ['/', '/offline.html'].map((url) =>
+        [
+          '/',
+          '/offline.html',
+          '/scanner/detection-worker.js',
+          '/scanner/fallback-canvas.worker.js',
+          '/scanner/reescalar-import.worker.js',
+          '/scanner/capa0-qr.worker.js',
+          '/scanner/db-postprocess.worker.js',
+          '/models/rapidocr/ppocr_keys.txt',
+        ].map((url) =>
           cache.add(new Request(rutaPublica(url), { cache: 'reload' })),
         ),
       );
@@ -83,12 +95,15 @@ function esCdnTesseract(url) {
   );
 }
 
-/** Estáticos inmutables: assets hasheados de Next, tesseract local, fuentes
- *  y WebAssembly (ONNX Runtime — chunk local o CDN). */
+/** Estáticos inmutables: assets hasheados de Next, el vendor mismo-origin del
+ *  motor (Tesseract/OpenCV/jsQR — lo materializa `bun run preparar`), los
+ *  workers IIFE de `public/scanner`, fuentes y WebAssembly (ONNX Runtime —
+ *  chunk local o CDN). */
 function esEstatico(url) {
   return (
     url.pathname.startsWith(rutaPublica('/_next/static/')) ||
-    url.pathname.startsWith(rutaPublica('/tesseract/')) ||
+    url.pathname.startsWith(rutaPublica('/vendor/')) ||
+    url.pathname.startsWith(rutaPublica('/scanner/')) ||
     esCdnTesseract(url) ||
     /\.(woff2?|ttf|otf|wasm)$/i.test(url.pathname)
   );

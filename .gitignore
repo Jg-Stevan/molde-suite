@@ -45,3 +45,22 @@ docs/investigacion/**/previews/
 # directorio llamado uploads a cualquier profundidad y podría volver a
 # silenciar código futuro (la API vive en src/app/api/upload, sin s).
 /uploads/
+
+# Assets del motor de Tamiz MATERIALIZADOS por apps/tamiz/scripts (pesados, con
+# URL+SHA-256 o md5 fijado). Rutas ancladas de punta a punta por la misma causa
+# raíz del FIX F2: un patrón suelto como «vendor/» matchearía código a cualquier
+# profundidad. Lo que SÍ va al repo es el worker precompilado (71 KB, md5 en
+# packages/scanner-core/assets.lock.json) y el stub cargador opencv-4.5.5.js.
+apps/tamiz/public/vendor/opencv-4.12.0-core.js
+apps/tamiz/public/vendor/tesseract/
+apps/tamiz/public/vendor/onnxruntime/
+apps/tamiz/public/models/tess/
+apps/tamiz/public/models/rapidocr/
+# Los 4 IIFE se COMPILAN desde packages/scanner-core/workers/*.ts en `preparar`
+# (scripts/construir-workers.mjs). heartbeat.worker.js es un artefacto huérfano:
+# ningún código lo pide. detection-worker.js SÍ va al repo (no tiene fuente).
+apps/tamiz/public/scanner/capa0-qr.worker.js
+apps/tamiz/public/scanner/db-postprocess.worker.js
+apps/tamiz/public/scanner/fallback-canvas.worker.js
+apps/tamiz/public/scanner/reescalar-import.worker.js
+apps/tamiz/public/scanner/heartbeat.worker.js

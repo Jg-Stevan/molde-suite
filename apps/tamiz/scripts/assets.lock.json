@@ -1,0 +1,20 @@
+{
+  "_comentario": "Assets que NO vienen en npm y se descargan al preparar el entorno. Cada entrada fija URL y SHA-256 del archivo servido: si el origen cambia, scripts/preparar-assets.mjs detiene el build. Portado de digielect14 (e14-suite) con los mismos hashes probados.",
+  "_notas": [
+    "OpenCV: @techstark/opencv-js@4.12.0-release.1 por unpkg. El tarball de npm es inmutable, así que la versión fijada es garantía de reproducibilidad. docs.opencv.org devuelve 403 con challenge JS de Cloudflare y el alias /4.x/ es móvil: no sirve para un pipeline. La ruta lleva versión para invalidar las cachés (IndexedDB de tesseract.js, MOTOR_CACHE del SW y HTTP).",
+    "spa.traineddata.gz: naptha/tessdata en commit fijo 806cd9a, sabor 4.0.0_fast (1,14 MB comprimido). La ruta lleva versión por el mismo motivo.",
+    "DIFERIDO (fuera del alcance de este port): los 3 .onnx de RapidOCR PP-OCRv4 y el vendor de jsQR. Se agregan aquí cuando tamiz porte el OCR ONNX."
+  ],
+  "archivos": [
+    {
+      "destino": "public/vendor/opencv-4.12.0-core.js",
+      "url": "https://unpkg.com/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js",
+      "sha256": "bd0c3e6448043de04f6a64a12cb7b759f78c3ab8f7c35c9f2e0f71c88bb17103"
+    },
+    {
+      "destino": "public/models/tess/4.0.0_fast/spa.traineddata.gz",
+      "url": "https://raw.githubusercontent.com/naptha/tessdata/806cd9adc8c6e8abc11c782db1818c990576bebc/4.0.0_fast/spa.traineddata.gz",
+      "sha256": "8db1167a8c9bb015ac8e97278384c3b07dfa9bc8271569beea071d9e296b4487"
+    }
+  ]
+}
