@@ -1,3 +1,28 @@
+# Cambios — sincronización de la biblioteca de moldes publicada en GitHub Pages (v1.3.1)
+
+- Fecha: 2026-11-24
+- Base: commit `fd6939e` (C5 sobre la migración) en `origin/main`
+- Objeto: la auditoría (6e06646) corrigió los JSON de `moldes-finales/` y `apps/molde-studio/templates/genericos/` (empaquetados en el seed del Studio), pero las copias que GitHub Pages sirve para DESCARGA (`apps/tamiz/public/moldes/`) quedaron en v1.3.0 — quien importara la biblioteca desde Tamiz recibía los umbrales y anclas PRE-auditoría.
+
+## Qué se sincronizó
+
+| Archivo | Cambio | Correcciones que arrastra |
+|---|---|---|
+| `apps/tamiz/public/moldes/comprobante_entrega.molde.json` | v1.3.0 → **1.3.1** (idéntico a `moldes-finales/`) | C1 (umbral `firma_comprador` 0.006→0.0035) + C2 (patrón `numero_operacion` `[IO]P-\d{4}-\d{6}`) |
+| `apps/tamiz/public/moldes/recibo_pago.molde.json` | v1.3.0 → **1.3.1** (idéntico a `moldes-finales/`) | C3 (ancla `Recibo` + zona x 0.134→0.103) |
+| `apps/tamiz/public/moldes/LEEME.md` | Tabla a v1.3.1 + nota de re-importación | Documenta que C4/C5 son código (motor empaquetado) y NO requieren re-importar JSON |
+
+## Verificación de que las demás copias YA estaban sincronizadas
+
+- Studio (Pages `/studio/`): los seeds van **empaquetados en el bundle** (`repo-idb.ts` importa `templates/genericos/*.molde.json`, corregidos por la auditoría) + imágenes en `public/moldes-genericos/` (solo PNG, sin cambios). El deploy de Pages de `fd6939e` ya los sirvió corregidos.
+- `packages/scanner-core/src/contract/__fixtures__/` (creado post-auditoría por la migración): idéntico a `moldes-finales/` ✓
+- `apps/tamiz/src/lib/generico/moldes/e14_acta.molde.json`: idéntico a `moldes-finales/e14_acta.molde.json` ✓
+- Resto de `apps/tamiz/public/moldes/` (e22, e24, e26, e14): sin cambios de la auditoría, ya sincronizados ✓
+
+El push a `main` dispara `deploy-pages.yml`: la biblioteca descargable queda en `https://jg-stevan.github.io/molde-suite/tamiz/moldes/<archivo>.molde.json` con v1.3.1.
+
+---
+
 # Cambios — prueba E2E en Chromium real del paquete verificado (plan de navegador)
 
 - Fecha: 2026-11-24
