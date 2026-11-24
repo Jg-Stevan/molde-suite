@@ -99,6 +99,50 @@ Correcciones aplicadas en esta ficha de lección (todas aditivas):
 - Tests unitarios de `buscarAncla`, `parsearRango`, `parsearFechaTexto`,
   `textoEnRect` y `endurecerFallbackNoVerificado` (20 nuevos).
 
+## Corridas con las correcciones aplicadas (3ra sesión, mismo día)
+
+Método: `playwright-core` + Chrome del sistema conduciendo el Studio del
+worktree (puerto 3477, molde v1.3.2 de la Biblioteca), misma imagen
+`recibo-tachado.png` 1700×1519. Artefactos con `_meta` en
+`scripts/resultados/feat-{fixa2,det-a}-*.json`.
+
+| Corrida | Score motor | Score arnés | Genuino | Firmas |
+|---|---|---|---|---|
+| fixa2 | **33.3** | 33.3 | **33.3** | `requiere_revision` (`ancla_no_encontrada` + `fallback_no_verificado`) |
+| det-a | **33.3** | 33.3 | 33.3 | ídem |
+| limpia pag-01 | **100** | 100 | 100 | `ok` por ancla GEOMÉTRICA (sin `ancla_solo_textual`) |
+
+Cuatro `ok` reales en el tachado (`titulo`, `concepto`, `forma_pago`,
+`fecha_pago`) y **cero lecturas contadas como acierto que no lo eran**: el
+score del arnés coincide con el del motor, que era el objetivo.
+
+### Hallazgo de método: el diálogo de Studio puede mostrar la corrida ANTERIOR
+
+La primera corrida tras editar el motor devolvió **50.0 con las dos firmas
+`ok`** — exactamente el síntoma que se suponía corregido. La primera explicación
+que escribí aquí (chunk viejo de Turbopack) está **refutada por la base de
+datos del propio Studio**: la corrida persistida a las 19:05:48 tiene
+`score 33.3` y `firma_emisor/firma_pagador = requiere_revision`. Es decir, el
+motor ya ejecutaba la corrección; lo que el arnés leyó fue el **diálogo forense
+obsoleto**, que aún mostraba la corrida de las 18:37 (50.0).
+
+Regla operativa que sale de aquí: **la fuente del reporte es la corrida
+persistida (`POST /api/pruebas` → `GET /api/pruebas/<id>` → `resultados`), no
+el DOM**. El arnés (`scripts/verificar-molde.ts`) cambió a ese orden y solo usa
+el diálogo como respaldo, avisando que puede estar viejo. Y la señal de fin es
+la propia persistencia: el heurístico anterior (overlay ocupado→libre) no salía
+si el pipeline terminaba antes del primer sondeo, con lo que el arnés agotaba 8
+minutos y moría en exit 3 sin artefacto (perdido real en una corrida de
+control).
+
+### Lo que la cota y la ambigüedad hacen sobre papel
+
+Las dos cajas «Firma» dan matches textuales perfectos en la misma página →
+`perfectos.length === 1` no se cumple → el bypass no dispara → el campo cae al
+fallback de referencia → `endurecerFallbackNoVerificado` lo degrada. En la
+imagen limpia el ancla es geométrica (la etiqueta está donde el molde dice), así
+que las firmas siguen `ok`: la corrección no castiga el caso bueno.
+
 ## Recomendación para próximas plantillas
 
 1. La penalización de posición de un ancla SOLO debe decidir entre candidatos
