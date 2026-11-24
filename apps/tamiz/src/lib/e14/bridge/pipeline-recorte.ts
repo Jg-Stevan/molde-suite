@@ -2,11 +2,11 @@
 // sea el del editor manual o el re-detectado en mejorarResolución). Comparte
 // calidad + OCR + gate con el pipeline de escaneo (helper único §4.4).
 
-import { clasificarDesdeOcr, type ClasificacionE14 } from '@jg-stevan/scanner-core/dominio/clasificador';
-import { processImage } from '@jg-stevan/scanner-core/core/image-processor';
-import type { Quad } from '@jg-stevan/scanner-core/core/types';
-import type { ActaFirma, ActaStatus, Acta, ProgresoAnalisis } from '@jg-stevan/scanner-core/dominio/types';
-import type { OrigenQuad } from '@jg-stevan/scanner-core/core/image-processor';
+import { clasificarDesdeOcr, type ClasificacionE14 } from '@molde-suite/scanner-core/dominio/clasificador';
+import { processImage } from '@molde-suite/scanner-core/core/image-processor';
+import type { Quad } from '@molde-suite/scanner-core/core/types';
+import type { ActaFirma, ActaStatus, Acta, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/types';
+import type { OrigenQuad } from '@molde-suite/scanner-core/core/image-processor';
 import type { ResultadoGate } from './protocolo';
 import { conRampa } from './progreso';
 import { calidadDeActa, contrasteEfectivoDe, esquinasDeActa, scoreDeCalidad } from './calidad';

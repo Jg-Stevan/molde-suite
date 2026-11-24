@@ -22,9 +22,9 @@
 // del pdf-client, la misma escala sobre la que se calibraron los umbrales) +
 // métricas INFORMATIVAS (ángulo aplicado) para el chip forense de Verificación.
 
-import { defaultQuad, type PageFilter, type Quad } from '@jg-stevan/scanner-core/core/types';
-import { processImage } from '@jg-stevan/scanner-core/core/image-processor';
-import { anguloDeskew, corregirDeskew, quadSesgado } from '@jg-stevan/scanner-core/molde/homografia';
+import { defaultQuad, type PageFilter, type Quad } from '@molde-suite/scanner-core/core/types';
+import { processImage } from '@molde-suite/scanner-core/core/image-processor';
+import { anguloDeskew, corregirDeskew, quadSesgado } from '@molde-suite/scanner-core/molde/homografia';
 import { escalarCanvas } from '@/lib/ocr/pdf-client';
 
 export interface PaginaNormalizada {

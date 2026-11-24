@@ -18,15 +18,15 @@
 // FASE B2/B4 del blueprint DLA intactas: segunda opinión ONNX para casillas
 // dudosas y bandera de presencia manuscrita (señales, nunca veredictos).
 
-import { evaluarDocumentoUniversal } from '@jg-stevan/scanner-core/molde/universal-engine';
+import { evaluarDocumentoUniversal } from '@molde-suite/scanner-core/molde/universal-engine';
 import type {
   ResultadoCampoUniversal,
   ResultadoUniversal,
-} from '@jg-stevan/scanner-core/molde/universal-types';
-import { configurarProveedorOcr } from '@jg-stevan/scanner-core/molde/ocr-tipos';
-import { canvasDesdeDataUrl } from '@jg-stevan/scanner-core/core/canvas-imagen';
-import type { MoldeUniversal } from '@jg-stevan/scanner-core/molde/universal-types';
-import type { ResumenMoldeActa, ResumenMoldeCampo } from '@jg-stevan/scanner-core/dominio/types';
+} from '@molde-suite/scanner-core/molde/universal-types';
+import { configurarProveedorOcr } from '@molde-suite/scanner-core/molde/ocr-tipos';
+import { canvasDesdeDataUrl } from '@molde-suite/scanner-core/core/canvas-imagen';
+import type { MoldeUniversal } from '@molde-suite/scanner-core/molde/universal-types';
+import type { ResumenMoldeActa, ResumenMoldeCampo } from '@molde-suite/scanner-core/dominio/types';
 import { proveedorOcrTamiz, ocrLines } from './ocr-proveedor';
 import { moldeActivo } from './registry';
 import {

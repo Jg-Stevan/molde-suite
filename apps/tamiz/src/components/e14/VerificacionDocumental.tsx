@@ -24,7 +24,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Acta } from '@/lib/e14/fachada';
-import type { ResumenMoldeCampo } from '@jg-stevan/scanner-core/dominio/types';
+import type { ResumenMoldeCampo } from '@molde-suite/scanner-core/dominio/types';
 import {
   construirChecklist,
   tonoDeStatus,

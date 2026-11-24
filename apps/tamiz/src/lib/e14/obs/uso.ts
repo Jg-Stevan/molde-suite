@@ -1,6 +1,6 @@
 // Observabilidad de uso de la app: eventos de navegación y acciones clave.
 
-import { breadcrumb } from '@jg-stevan/scanner-core/obs-base/breadcrumbs';
+import { breadcrumb } from '@molde-suite/scanner-core/obs-base/breadcrumbs';
 
 let iniciado = false;
 

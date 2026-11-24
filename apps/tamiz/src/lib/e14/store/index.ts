@@ -2,10 +2,10 @@
 // captura/análisis/edición y expone useE14Store + tipos.
 
 import { create } from 'zustand';
-import type { PaginaObjetivo } from '@jg-stevan/scanner-core/dominio/bridge';
-import type { Acta, ProgresoAnalisis } from '@jg-stevan/scanner-core/dominio/types';
-import type { PageFilter, Quad } from '@jg-stevan/scanner-core/core/types';
-import type { ClasificacionE14 } from '@jg-stevan/scanner-core/dominio/clasificador';
+import type { PaginaObjetivo } from '@molde-suite/scanner-core/dominio/bridge';
+import type { Acta, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/types';
+import type { PageFilter, Quad } from '@molde-suite/scanner-core/core/types';
+import type { ClasificacionE14 } from '@molde-suite/scanner-core/dominio/clasificador';
 import { getBridge } from '../get-bridge';
 import { IMAGENES_SIMULADAS, type ImagenSimuladaId } from '../simulacion-imagenes';
 import { TEXTO_MOTIVO, type AvisoOperador, type MotivoOperador } from '../errores';

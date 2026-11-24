@@ -101,7 +101,7 @@ export interface Molde {
 
 // Fase 3 (migración scanner-core): los tipos OCR viven en el paquete (D4);
 // re-exportados aquí para conservar la ruta histórica '@ /lib/molde/types'.
-export type { PalabraOcr, LineaOcr } from '@jg-stevan/scanner-core/molde/ocr-tipos';
+export type { PalabraOcr, LineaOcr } from '@molde-suite/scanner-core/molde/ocr-tipos';
 
 // ---- Resultados ----
 

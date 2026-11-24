@@ -7,11 +7,11 @@
 import {
   clasificarDesdeOcr,
   type ClasificacionE14,
-} from '@jg-stevan/scanner-core/dominio/clasificador';
-import { detectDocumentEdgesDetail, processImage } from '@jg-stevan/scanner-core/core/image-processor';
-import { defaultQuad, type PageFilter } from '@jg-stevan/scanner-core/core/types';
-import type { Acta, ProgresoAnalisis } from '@jg-stevan/scanner-core/dominio/types';
-import type { OpcionesEscaneo } from '@jg-stevan/scanner-core/dominio/bridge';
+} from '@molde-suite/scanner-core/dominio/clasificador';
+import { detectDocumentEdgesDetail, processImage } from '@molde-suite/scanner-core/core/image-processor';
+import { defaultQuad, type PageFilter } from '@molde-suite/scanner-core/core/types';
+import type { Acta, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/types';
+import type { OpcionesEscaneo } from '@molde-suite/scanner-core/dominio/bridge';
 import type { CamposActa, OpcionesEscaneoConTimeout, ParcialPipeline, PasosPipelineL2 } from './bridge/protocolo';
 // PLAN-AGENTE-LAYOUT F4: copy canónico del rechazo estructural (el detalle
 // viaja con la regla exacta y su motivo — ver DETALLE_* en protocolo.ts).

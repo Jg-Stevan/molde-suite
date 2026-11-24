@@ -14,7 +14,7 @@ import { desactivarMolde, moldeActivo } from '@/lib/e14/molde/registry';
 import { leerFlags } from '@/lib/e14/flags';
 import { PanelMoldes } from '../PanelMoldes';
 import { PanelModelos } from '../PanelModelos';
-import type { MoldeUniversal } from '@jg-stevan/scanner-core/molde/universal-types';
+import type { MoldeUniversal } from '@molde-suite/scanner-core/molde/universal-types';
 
 interface Props {
   onClose: () => void;

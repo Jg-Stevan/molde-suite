@@ -10,8 +10,8 @@
 
 import { evaluarEstructura, normalizarClase } from '@jg-stevan/layout-core';
 import type { CajaLayout } from '@jg-stevan/layout-core';
-import type { EstructuraActa } from '@jg-stevan/scanner-core/dominio/types';
-import { canvasDesdeDataUrl } from '@jg-stevan/scanner-core/core/canvas-imagen';
+import type { EstructuraActa } from '@molde-suite/scanner-core/dominio/types';
+import { canvasDesdeDataUrl } from '@molde-suite/scanner-core/core/canvas-imagen';
 import '../dla/config';
 import { moldeActivo } from '../molde/registry';
 import { leerFlags } from '../flags';

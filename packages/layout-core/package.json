@@ -14,7 +14,7 @@
     "./matcher": "./src/matcher.ts"
   },
   "dependencies": {
-    "@jg-stevan/scanner-core": "workspace:*"
+    "@molde-suite/scanner-core": "workspace:*"
   },
   "scripts": {
     "test": "bun test",

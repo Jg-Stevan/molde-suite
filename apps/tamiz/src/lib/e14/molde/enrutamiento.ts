@@ -21,10 +21,10 @@
 // calibrado contra el fixture SIM «recibo» (simulacion-imagenes.ts) para que
 // el puente sea demostrable de punta a punta sin importar nada a mano.
 
-import type { MoldeUniversal } from '@jg-stevan/scanner-core/molde/universal-types';
-import { buscarAncla } from '@jg-stevan/scanner-core/molde/universal-engine';
-import type { LineaOcr } from '@jg-stevan/scanner-core/molde/ocr-tipos';
-import type { ActaStatus, RechazoActa, ResumenMoldeActa } from '@jg-stevan/scanner-core/dominio/types';
+import type { MoldeUniversal } from '@molde-suite/scanner-core/molde/universal-types';
+import { buscarAncla } from '@molde-suite/scanner-core/molde/universal-engine';
+import type { LineaOcr } from '@molde-suite/scanner-core/molde/ocr-tipos';
+import type { ActaStatus, RechazoActa, ResumenMoldeActa } from '@molde-suite/scanner-core/dominio/types';
 import { guardarMolde, listarMoldes } from './almacen';
 import { moldeActivo } from './registry';
 

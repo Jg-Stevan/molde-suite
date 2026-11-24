@@ -12,10 +12,10 @@
  * ENVIADO, franja del visor, feedback en botón).
  */
 import type { StoreApi } from "zustand";
-import type { PaginaObjetivo } from "@jg-stevan/scanner-core/dominio/bridge";
-import type { Acta, FuenteCaptura, HistorialRow, Mesa, ProgresoAnalisis, TipoPagina } from "@jg-stevan/scanner-core/dominio/types";
-import type { PageFilter, Quad } from "@jg-stevan/scanner-core/core/types";
-import type { ClasificacionE14 } from "@jg-stevan/scanner-core/dominio/clasificador";
+import type { PaginaObjetivo } from "@molde-suite/scanner-core/dominio/bridge";
+import type { Acta, FuenteCaptura, HistorialRow, Mesa, ProgresoAnalisis, TipoPagina } from "@molde-suite/scanner-core/dominio/types";
+import type { PageFilter, Quad } from "@molde-suite/scanner-core/core/types";
+import type { ClasificacionE14 } from "@molde-suite/scanner-core/dominio/clasificador";
 import type { AvisoOperador, MotivoOperador } from "../errores";
 import type { ImagenSimuladaId } from "../simulacion-imagenes";
 

@@ -15,7 +15,7 @@
 // (bloques sin bbox) quedan marcados en `nota` para recalibración en editor.
 
 import { writeFileSync, readFileSync } from 'node:fs';
-import { erroresMolde, esMoldeUniversal, type CampoUniversal, type MoldeUniversal, type RectNorm } from '@jg-stevan/scanner-core/molde/universal-types';
+import { erroresMolde, esMoldeUniversal, type CampoUniversal, type MoldeUniversal, type RectNorm } from '@molde-suite/scanner-core/molde/universal-types';
 
 interface BloqueChandra {
   texto?: string;

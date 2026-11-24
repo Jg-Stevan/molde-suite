@@ -8,7 +8,7 @@
 // del PWA sin backend. El JSON de un molde E-14 v3 ronda los ~20-60 KB
 // (imagen de referencia aparte): bajo el presupuesto de localStorage.
 
-import { esMoldeUniversal, erroresMolde, type MoldeUniversal } from '@jg-stevan/scanner-core/molde/universal-types';
+import { esMoldeUniversal, erroresMolde, type MoldeUniversal } from '@molde-suite/scanner-core/molde/universal-types';
 
 const CLAVE = 'tamiz.moldeActivo.v1';
 

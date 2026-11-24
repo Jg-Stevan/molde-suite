@@ -2,7 +2,7 @@
 
 ## Papel del paquete
 
-`@jg-stevan/scanner-core` es la **fuente compartida** de Molde Suite: el
+`@molde-suite/scanner-core` es la **fuente compartida** de Molde Suite: el
 contrato del molde `.json`, el motor universal v3 de evaluación, y las
 primitivas de imagen/OCR/calidad/hash. Studio (autoria) y Tamiz (campo) lo
 consumen por `workspace:*`. Sin React, sin Next, sin zustand: lógica pura o
@@ -11,7 +11,7 @@ canvas/WebCrypto estándar.
 ## API pública (exports map, la ÚNICA frontera)
 
 Los consumidores solo pueden importar por subpath (el lint de las apps bloquea
-`@jg-stevan/scanner-core/src/*`):
+`@molde-suite/scanner-core/src/*`):
 
 | Subpath | Contenido |
 |---|---|

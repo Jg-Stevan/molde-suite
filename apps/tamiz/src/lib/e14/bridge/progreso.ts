@@ -1,7 +1,7 @@
 // Progreso del análisis: rampa de pesos por etapa (la UI muestra el porcentaje
 // global con piso escénico para que no salte de golpe).
 
-import type { EtapaAnalisis, ProgresoAnalisis } from '@jg-stevan/scanner-core/dominio/types';
+import type { EtapaAnalisis, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/types';
 
 /** Peso relativo de cada etapa (normalizado al vuelo). */
 export const PESOS: Record<EtapaAnalisis, number> = {

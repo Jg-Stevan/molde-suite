@@ -8,7 +8,7 @@ import { logger } from '../../logger';
 // y lo comparte con el proveedor OCR del motor universal (molde/ocr-proveedor).
 import { getWorker } from './ocr-worker';
 // Fase 3 (migración scanner-core): el realce p5-p95 vive en el paquete (D2).
-import { canvasDesdeDataUrl, estirarContrasteEnCanvas } from '@jg-stevan/scanner-core/core/canvas-imagen';
+import { canvasDesdeDataUrl, estirarContrasteEnCanvas } from '@molde-suite/scanner-core/core/canvas-imagen';
 
 async function ocrDataUrl(dataUrl: string, psm?: string): Promise<{ texto: string; conf: number | null }> {
   try {

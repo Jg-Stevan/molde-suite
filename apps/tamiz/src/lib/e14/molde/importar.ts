@@ -22,8 +22,8 @@ import {
   esMoldeUniversal,
   erroresMolde,
   type MoldeUniversal,
-} from '@jg-stevan/scanner-core/molde/universal-types';
-import { esSobreConMolde, verificarSobreMolde } from '@jg-stevan/scanner-core/contract/sobre';
+} from '@molde-suite/scanner-core/molde/universal-types';
+import { esSobreConMolde, verificarSobreMolde } from '@molde-suite/scanner-core/contract/sobre';
 
 const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
 const AVISO_IMAGENES_BYTES = 500 * 1024; // 500 KB

@@ -10,4 +10,4 @@ export {
   contrasteEfectivoDe,
   scoreDeCalidad,
   esquinasDeActa,
-} from '@jg-stevan/scanner-core/core/calidad';
+} from '@molde-suite/scanner-core/core/calidad';

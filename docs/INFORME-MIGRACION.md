@@ -87,7 +87,7 @@
 
 > **Este repositorio fue absorbido por [molde-suite](https://github.com/Jg-Stevan/molde-suite).**
 > El código vive ahora en `packages/scanner-core` dentro del monorepo (paquete
-> `@jg-stevan/scanner-core`), junto con el contrato tipado del molde
+> `@molde-suite/scanner-core`), junto con el contrato tipado del molde
 > (`packages/scanner-core/src/contract/`), las primitivas compartidas y los
 > tests golden. No se aceptan issues ni PRs aquí. Para contribuir, abre un PR
 > en molde-suite (rama + PR; ver su `AGENTS.md`). Este archivo se archiva como
@@ -111,7 +111,7 @@ limpio en `feat/scanner-core-absorption` (`8b1b2e7`). Resultados:
 | 6 | `bun run lint` en `apps/tamiz` (Fase 3) | OK — exit 0 |
 | 7 | `bun run typecheck` en `apps/molde-studio` (Fase 3) | OK — exit 0 |
 | 8 | `bun run lint` en `apps/molde-studio` (Fase 3) | OK — exit 0 |
-| 9 | **Prueba negativa de la frontera** (Fase 3): sonda temporal en tamiz con `import ... from "@jg-stevan/scanner-core/src/contract/contrato"` | OK — eslint marca exactamente 1 `no-restricted-imports`; sonda eliminada tras la prueba |
+| 9 | **Prueba negativa de la frontera** (Fase 3): sonda temporal en tamiz con `import ... from "@molde-suite/scanner-core/src/contract/contrato"` | OK — eslint marca exactamente 1 `no-restricted-imports`; sonda eliminada tras la prueba |
 | 10 | `bun run agent:map` ×2 (Fase 4) | OK — `git status .agent/` vacío tras doble ejecución (mapa versionado al día y estable) |
 | 11 | `AGENTS.md` raíz ≤ 120 líneas (Fase 4) | OK — 92 líneas |
 | 12 | Cadena de rollback (Fase 0) | OK — 6 tags: `pre-migracion`, `pre-fase-2`, `pre-fase-2b`, `pre-fase-3`, `pre-fase-4`, `post-migracion` (se completaron `pre-fase-2` y `pre-fase-4`, ausentes de la sesión 1) |

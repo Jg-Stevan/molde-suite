@@ -20,10 +20,10 @@ sin backend propio.
 
 ## Cómo se consume scanner-core (frontera pública)
 
-- SIEMPRE por subpath del exports map: `@jg-stevan/scanner-core/dominio/types`,
+- SIEMPRE por subpath del exports map: `@molde-suite/scanner-core/dominio/types`,
   `./core/image-processor`, `./molde/universal-engine`, `./contract/sobre`,
   `./core/calidad`, `./core/canvas-imagen`, `./core/hash`, etc.
-- PROHIBIDO `@jg-stevan/scanner-core/src/**` (el lint lo bloquea con
+- PROHIBIDO `@molde-suite/scanner-core/src/**` (el lint lo bloquea con
   `no-restricted-imports` en `eslint.config.mjs`).
 - El proveedor OCR de la app (`molde/ocr-proveedor.ts`) se registra en el
   motor con `configurarProveedorOcr` reutilizando el MISMO worker del puente

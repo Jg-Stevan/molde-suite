@@ -7,7 +7,7 @@
 
 import { leerFlags } from "../flags";
 import { logger } from "../../logger";
-import { canvasDesdeDataUrl } from "@jg-stevan/scanner-core/core/canvas-imagen";
+import { canvasDesdeDataUrl } from "@molde-suite/scanner-core/core/canvas-imagen";
 import "../dla/config";
 
 let avisadoSinModelo = false;

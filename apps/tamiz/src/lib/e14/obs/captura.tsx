@@ -3,7 +3,7 @@
 // el prefijo [obs] — lista para enchufar un transporte real después.
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { breadcrumb } from '@jg-stevan/scanner-core/obs-base/breadcrumbs';
+import { breadcrumb } from '@molde-suite/scanner-core/obs-base/breadcrumbs';
 
 export interface MuestraPerfActa {
   actaId: string;

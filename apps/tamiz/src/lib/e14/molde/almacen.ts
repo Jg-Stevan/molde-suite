@@ -13,7 +13,7 @@
 //  · migrarDesdeLocalStorage(): si hay un molde activo viejo en localStorage,
 //    lo copia a la biblioteca (idempotente — mismo contenido, misma id).
 
-import type { MoldeUniversal } from '@jg-stevan/scanner-core/molde/universal-types';
+import type { MoldeUniversal } from '@molde-suite/scanner-core/molde/universal-types';
 import { activarMolde } from './registry';
 
 const DB_NOMBRE = 'tamiz-moldes-v1';

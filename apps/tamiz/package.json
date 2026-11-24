@@ -12,7 +12,7 @@
   "dependencies": {
     "@jg-stevan/dla-onnx": "workspace:*",
     "@jg-stevan/layout-core": "workspace:*",
-    "@jg-stevan/scanner-core": "workspace:*",
+    "@molde-suite/scanner-core": "workspace:*",
     "next": "^16.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

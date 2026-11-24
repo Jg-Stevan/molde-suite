@@ -52,7 +52,7 @@ revisa el `package.json` de cada workspace antes de llamar.
 
 1. **Dependencias de workspaces**: `packages/*` NUNCA importa de `apps/*` ni
    de la raíz. `apps/*` consume los paquetes SOLO por sus subpaths públicos
-   (`@jg-stevan/scanner-core/...`), nunca rutas internas `src/**` — el lint
+   (`@molde-suite/scanner-core/...`), nunca rutas internas `src/**` — el lint
    (`no-restricted-imports`) lo bloquea en tamiz y studio.
 2. **Contrato del molde**: fuente única en
    `packages/scanner-core/src/contract/` (`./contract` y `./contract/sobre`).

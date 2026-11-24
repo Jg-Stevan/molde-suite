@@ -15,7 +15,7 @@
 // Borrar por fila y migración one-shot desde localStorage viejo.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MoldeUniversal } from '@jg-stevan/scanner-core/molde/universal-types';
+import type { MoldeUniversal } from '@molde-suite/scanner-core/molde/universal-types';
 import { activarMolde } from '@/lib/e14/molde/registry';
 import { importarMoldeDesdeTexto } from '@/lib/e14/molde/importar';
 import {

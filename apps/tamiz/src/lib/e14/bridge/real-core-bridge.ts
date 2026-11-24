@@ -41,24 +41,24 @@ import {
   detectDocumentEdgesDetail,
   ErrorRescateHeic,
   processImage,
-} from "@jg-stevan/scanner-core/core/image-processor";
-import type { OrigenQuad } from "@jg-stevan/scanner-core/core/image-processor";
-import { defaultQuad } from "@jg-stevan/scanner-core/core/types";
+} from "@molde-suite/scanner-core/core/image-processor";
+import type { OrigenQuad } from "@molde-suite/scanner-core/core/image-processor";
+import { defaultQuad } from "@molde-suite/scanner-core/core/types";
 import type {
   PageFilter,
   Quad,
-} from "@jg-stevan/scanner-core/core/types";
-import { ocrTextIsValid } from "@jg-stevan/scanner-core/core/ocr";
-import { statusDeScore } from "@jg-stevan/scanner-core/dominio/types";
+} from "@molde-suite/scanner-core/core/types";
+import { ocrTextIsValid } from "@molde-suite/scanner-core/core/ocr";
+import { statusDeScore } from "@molde-suite/scanner-core/dominio/types";
 import type {
   Acta,
   ActaFirma,
   ActaStatus,
   ProgresoAnalisis,
-} from "@jg-stevan/scanner-core/dominio/types";
-import type { E14Bridge, OpcionesEscaneo } from "@jg-stevan/scanner-core/dominio/bridge";
-import { tituloYUbicacionDe } from "@jg-stevan/scanner-core/dominio/clasificador";
-import type { ClasificacionE14 } from "@jg-stevan/scanner-core/dominio/clasificador";
+} from "@molde-suite/scanner-core/dominio/types";
+import type { E14Bridge, OpcionesEscaneo } from "@molde-suite/scanner-core/dominio/bridge";
+import { tituloYUbicacionDe } from "@molde-suite/scanner-core/dominio/clasificador";
+import type { ClasificacionE14 } from "@molde-suite/scanner-core/dominio/clasificador";
 import { IMAGENES_SIMULADAS } from "../simulacion-imagenes";
 // KIT e14-ocr-tessbest-v1 (GO-B): presupuesto del ESCANEO por tier — el
 // default lo resuelve `presupuestoEscaneoEfectivo()` (adaptacion/plan.ts).
