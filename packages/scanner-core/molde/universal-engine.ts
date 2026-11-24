@@ -899,6 +899,16 @@ async function evaluarCampo(
     // convierten un no_encontrado en ok.
     const esFirma = campo.tipo === 'firma' || campo.firma_esperada === true;
     let trazosInsuficientes = false;
+    // Corrección de la auditoría con variantes reales (v3.2.0, prueba pag-01..
+    // 03 + variantes sintéticas): rúbrica PRESENTE con trazos detectados pero
+    // ratio de tinta por debajo del umbral (rúbrica plana que el filtro de
+    // líneas combinadas elimina, o trazo ultrafino antialiaseado). Reportar
+    // eso como no_encontrado («firma ausente») MIENTE con la rúbrica a la
+    // vista — el motor jamás escoge en silencio entre dos señales
+    // contradictorias: bandera firma_dudosa + revisión honesta. Piso de
+    // ratio ≥ 0.001 (≈20 px de tinta en la canónica): evita disparar la
+    // bandera por 1-2 specks de polvo (trazos aislados sin tinta real).
+    let firmaDudosa = false;
     if (esFirma) {
       const mf = metricasFirma(rec.crop);
       base.firma = { trazos: mf.trazos, densidad: mf.densidad, extension: mf.extension };
@@ -914,13 +924,18 @@ async function evaluarCampo(
         base.banderas.push('trazos_insuficientes');
         trazosInsuficientes = true;
       }
+      if (mf.trazos > 0 && !diligenciado && ratio >= 0.001 && ratio < campo.umbral * 0.6) {
+        base.banderas.push('firma_dudosa');
+        firmaDudosa = true;
+      }
     }
 
     if (
       enBandaAlta ||
       enBandaBaja ||
       formaDiscrepa ||
-      trazosInsuficientes
+      trazosInsuficientes ||
+      firmaDudosa
     ) {
       base.estado = 'requiere_revision';
     } else {

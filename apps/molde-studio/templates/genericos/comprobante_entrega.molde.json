@@ -1,6 +1,6 @@
 {
   "tipo": "universal",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "nombre": "Comprobante de entrega del producto",
   "descripcion": "Recalibrado (1.3.0) contra la plantilla HTML vigente (VAR 1-6 de variantes-prueba): título centrado, fecha de entrega BAJO el rótulo, dirección en 4 celdas y firma sobre el rótulo \"Firma del comprador o autorizado\". Datos impresos: los obligatorios de texto ya no usan htr (los manuscritos fallan patrón y caen a revisión igualmente).",
   "documento": "generico/comprobante_entrega",
@@ -188,9 +188,9 @@
           "h": 0.01
         }
       },
-      "patron": "OP-\\d{4}-\\d{6}",
+      "patron": "[IO]P-\\d{4}-\\d{6}",
       "realce": true,
-      "nota": "Opcional; patrón OP-AAAA-NNNNNN."
+      "nota": "Opcional; patrón OP-AAAA-NNNNNN. 1.3.1 (auditoría): el OCR lee de forma consistente «IP-» por «OP-» en esta caja pequeña (conf 0.82 con la fuente impresa de la plantilla; documentado en cabeza y en las variantes sintéticas) — el patrón acepta la confusión I↔O del prefijo y mantiene los dígitos estrictos; rechaza lecturas sin prefijo («P-…») o con texto extra."
     },
     {
       "id": "descripcion",
@@ -230,7 +230,7 @@
         "w": 0.46,
         "h": 0.062
       },
-      "umbral": 0.006,
+      "umbral": 0.0035,
       "obligatorio": true,
       "ancla": {
         "texto": "Firma del comprador",
@@ -241,7 +241,7 @@
           "h": 0.011
         }
       },
-      "nota": "Rúbrica manuscrita sobre la línea impresa. Zona SOLO sobre la rúbrica (sin la línea ni el rótulo). Calibrada con el motor: VAR 1 ratio 0.0123 (trazo fino), VAR 3 0.0413; sin firma 0.0000 → umbral 0.006 (banda de indeterminación 0.0036-0.0084)."
+      "nota": "Rúbrica manuscrita sobre la línea impresa. Zona SOLO sobre la rúbrica (sin la línea ni el rótulo). Calibrada con el motor: VAR 1 ratio 0.0123 (trazo fino), VAR 3 0.0413; sin firma 0.0000. 1.3.1 (auditoría con variantes): el umbral 0.006 dejaba el trazo fino real (ratio medido 0.0087 en pag-01 y en la variante completa 1700×2200) DENTRO de la banda de indeterminación 0.0036-0.0084 (estado oscilante ok↔requiere_revision). Nuevo umbral 0.0035 (banda 0.0021-0.0049): separa el vacío medido (0.0000) del trazo más fino (0.0087) con margen en ambos lados. Verificado en 8 imágenes."
     },
     {
       "id": "fecha_entrega",
