@@ -7,6 +7,8 @@ import { logger } from '../../logger';
 // FASE 0 (blueprint DLA): el singleton del worker vive ahora en ./ocr-worker
 // y lo comparte con el proveedor OCR del motor universal (molde/ocr-proveedor).
 import { getWorker } from './ocr-worker';
+// Fase 3 (migración scanner-core): el realce p5-p95 vive en el paquete (D2).
+import { canvasDesdeDataUrl, estirarContrasteEnCanvas } from '@jg-stevan/scanner-core/core/canvas-imagen';
 
 async function ocrDataUrl(dataUrl: string, psm?: string): Promise<{ texto: string; conf: number | null }> {
   try {
@@ -44,46 +46,10 @@ export async function reconocerRapidOcrEscalonado(dataUrl: string): Promise<stri
 export async function reconocerRapidOcrCascada(dataUrl: string): Promise<string> {
   const primera = await reconocerRapidOcrEscalonado(dataUrl);
   if (primera.length >= 60) return primera;
-  // Realce: escala de grises + estiramiento p5-p95 antes del reintento.
-  const img = new Image();
-  img.src = dataUrl;
-  await img.decode();
-  const c = document.createElement('canvas');
-  c.width = img.naturalWidth;
-  c.height = img.naturalHeight;
-  const ctx = c.getContext('2d', { willReadFrequently: true })!;
-  ctx.drawImage(img, 0, 0);
-  const data = ctx.getImageData(0, 0, c.width, c.height);
-  const px = data.data;
-  const hist = new Uint32Array(256);
-  for (let i = 0; i < px.length; i += 4) {
-    hist[(0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]) | 0]++;
-  }
-  const totalPx = px.length / 4;
-  let acc = 0;
-  let p5 = 0;
-  let p95 = 255;
-  for (let v = 0; v < 256; v++) {
-    acc += hist[v];
-    if (acc >= totalPx * 0.05) {
-      p5 = v;
-      break;
-    }
-  }
-  acc = 0;
-  for (let v = 0; v < 256; v++) {
-    acc += hist[v];
-    if (acc >= totalPx * 0.95) {
-      p95 = v;
-      break;
-    }
-  }
-  const span = Math.max(8, p95 - p5);
-  for (let i = 0; i < px.length; i += 4) {
-    const v = Math.min(255, Math.max(0, ((0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2] - p5) * 255) / span));
-    px[i] = px[i + 1] = px[i + 2] = v;
-  }
-  ctx.putImageData(data, 0, 0);
+  // Realce: escala de grises + estiramiento p5-p95 antes del reintento
+  // (implementación compartida en scanner-core/core/canvas-imagen — D2).
+  const c = await canvasDesdeDataUrl(dataUrl);
+  estirarContrasteEnCanvas(c);
   const segunda = await ocrDataUrl(c.toDataURL('image/jpeg', 0.92), '4');
   return segunda.texto.length > primera.length ? segunda.texto : primera;
 }

@@ -56,6 +56,25 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     // nunca se linteaban antes de auto-hospedarlos (P1 2026-11-21).
     "public/tesseract/**",
   ]
+}, {
+  files: ["src/**/*.{ts,tsx}"],
+  rules: {
+    // Fase 3 (migración scanner-core): frontera pública del paquete.
+    // apps/* consume por subpath del exports map (p. ej.
+    // '@jg-stevan/scanner-core/contract'), nunca rutas internas src/**.
+    "no-restricted-imports": [
+      "error",
+      {
+        patterns: [
+          {
+            group: ["@jg-stevan/scanner-core/src/*"],
+            message:
+              "Usa la frontera pública: subpaths del exports map de @jg-stevan/scanner-core (p. ej. './contract'), no rutas internas src/**.",
+          },
+        ],
+      },
+    ],
+  }
 }];
 
 export default eslintConfig;

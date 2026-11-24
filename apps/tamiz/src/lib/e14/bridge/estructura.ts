@@ -11,6 +11,7 @@
 import { evaluarEstructura, normalizarClase } from '@jg-stevan/layout-core';
 import type { CajaLayout } from '@jg-stevan/layout-core';
 import type { EstructuraActa } from '@jg-stevan/scanner-core/dominio/types';
+import { canvasDesdeDataUrl } from '@jg-stevan/scanner-core/core/canvas-imagen';
 import '../dla/config';
 import { moldeActivo } from '../molde/registry';
 import { leerFlags } from '../flags';
@@ -45,7 +46,7 @@ export async function evaluarEstructuraDelActa(
   if (!detector) return null; // modelo no configurado → Nivel 1 intacto
   try {
     const t0 = performance.now();
-    const canvas = await fotoACanvasTope(fotoProcesada, LADO_MAX);
+    const canvas = await canvasDesdeDataUrl(fotoProcesada, { maxLado: LADO_MAX });
     const W = canvas.width;
     const H = canvas.height;
     const detecciones = await detector.detectar(canvas);
@@ -97,23 +98,6 @@ export async function evaluarEstructuraDelActa(
     });
     return null;
   }
-}
-
-/** Carga un dataURL a canvas escalado para que su lado MAYOR mida `tope` px. */
-async function fotoACanvasTope(dataUrl: string, tope: number): Promise<HTMLCanvasElement> {
-  const img = new Image();
-  img.src = dataUrl;
-  await img.decode();
-  const ladoMayor = Math.max(img.naturalWidth, img.naturalHeight);
-  const escala = ladoMayor > tope ? tope / ladoMayor : 1;
-  const c = document.createElement('canvas');
-  c.width = Math.max(1, Math.round(img.naturalWidth * escala));
-  c.height = Math.max(1, Math.round(img.naturalHeight * escala));
-  const ctx = c.getContext('2d', { willReadFrequently: true })!;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, 0, 0, c.width, c.height);
-  return c;
 }
 
 function clamp01(v: number): number {

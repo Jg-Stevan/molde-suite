@@ -7,6 +7,7 @@
 
 import { leerFlags } from "../flags";
 import { logger } from "../../logger";
+import { canvasDesdeDataUrl } from "@jg-stevan/scanner-core/core/canvas-imagen";
 import "../dla/config";
 
 let avisadoSinModelo = false;
@@ -28,7 +29,7 @@ export async function ocrBandaDinamicaSiDisponible(
     const { crearDetectorLayout, bandasDesdeRegiones } = await import("@jg-stevan/dla-onnx");
     const detector = await crearDetectorLayout();
     if (!detector) return null;
-    const canvas = await fotoACanvas(fotoProcesada, 800);
+    const canvas = await canvasDesdeDataUrl(fotoProcesada, { ancho: 800 });
     const regiones = await detector.detectar(canvas);
     const bandas = bandasDesdeRegiones(regiones);
     const banda = parte === "sup" ? bandas.sup : bandas.inf;
@@ -58,19 +59,4 @@ export async function ocrBandaDinamicaSiDisponible(
     logger.warn("[dla-onnx] banda dinámica no disponible", { mensaje: (e as Error).message });
     return null;
   }
-}
-
-/** Escala un dataURL a un canvas de `ancho` px (mismo patrón de evaluacion.ts). */
-async function fotoACanvas(dataUrl: string, ancho: number): Promise<HTMLCanvasElement> {
-  const img = new Image();
-  img.src = dataUrl;
-  await img.decode();
-  const c = document.createElement("canvas");
-  c.width = ancho;
-  c.height = Math.max(1, Math.round((img.naturalHeight / Math.max(1, img.naturalWidth)) * ancho));
-  const ctx = c.getContext("2d", { willReadFrequently: true })!;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, 0, 0, c.width, c.height);
-  return c;
 }

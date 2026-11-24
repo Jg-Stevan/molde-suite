@@ -23,6 +23,7 @@ import {
   erroresMolde,
   type MoldeUniversal,
 } from '@jg-stevan/scanner-core/molde/universal-types';
+import { esSobreConMolde, verificarSobreMolde } from '@jg-stevan/scanner-core/contract/sobre';
 
 const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
 const AVISO_IMAGENES_BYTES = 500 * 1024; // 500 KB
@@ -30,28 +31,6 @@ const AVISO_IMAGENES_BYTES = 500 * 1024; // 500 KB
 export type ResultadoImportacion =
   | { ok: true; molde: MoldeUniversal; avisos: string[]; checksum?: string }
   | { ok: false; errores: string[] };
-
-/** ArrayBuffer → hex en bloques (sin apply sobre buffers grandes). */
-function aHex(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let hex = '';
-  for (let i = 0; i < bytes.length; i++) {
-    hex += bytes[i].toString(16).padStart(2, '0');
-  }
-  return hex;
-}
-
-/** Detecta el sobre { checksum, molde } conservando el molde plano. */
-function esSobreConMolde(p: unknown): p is { checksum: string; molde: unknown } {
-  if (typeof p !== 'object' || p === null) return false;
-  const o = p as Record<string, unknown>;
-  return (
-    typeof o.checksum === 'string' &&
-    o.checksum.length > 0 &&
-    typeof o.molde === 'object' &&
-    o.molde !== null
-  );
-}
 
 /** Suma del tamaño (caracteres) de las imágenes de referencia, y detección de
  *  URLs remotas http(s) — esas son rechazo DURO. */
@@ -103,32 +82,29 @@ export async function importarMoldeDesdeTexto(texto: string): Promise<ResultadoI
   const avisos: string[] = [];
   let checksum: string | undefined;
 
-  // Sobre con checksum: recalcular SHA-256 del cuerpo y comparar.
+  // Sobre con checksum: recalcular SHA-256 del cuerpo y comparar (protocolo
+  // compartido en scanner-core/contract/sobre — Fase 3, D5).
   if (esSobreConMolde(parsed)) {
     const sobre = parsed;
     // Sobre "medio": checksum presente pero 'molde' ausente se detecta arriba;
     // el caso inverso (molde sin checksum) cae al molde plano más abajo.
-    if (!globalThis.crypto?.subtle) {
-      return {
-        ok: false,
-        errores: [
-          'Este contexto no permite verificar el checksum (requiere HTTPS o localhost). Importación cancelada.',
-        ],
-      };
-    }
-    const digest = await globalThis.crypto.subtle.digest(
-      'SHA-256',
-      new TextEncoder().encode(JSON.stringify(sobre.molde)),
-    );
-    const recalculado = aHex(digest);
-    if (recalculado.toLowerCase() !== sobre.checksum.trim().toLowerCase()) {
+    const v = await verificarSobreMolde(sobre);
+    if (!v.ok) {
+      if (v.motivo === 'sin_crypto') {
+        return {
+          ok: false,
+          errores: [
+            'Este contexto no permite verificar el checksum (requiere HTTPS o localhost). Importación cancelada.',
+          ],
+        };
+      }
       return {
         ok: false,
         errores: ['El checksum no coincide (archivo corrompido o alterado).'],
       };
     }
     cuerpo = sobre.molde;
-    checksum = recalculado;
+    checksum = v.checksum;
   } else if (
     typeof parsed === 'object' &&
     parsed !== null &&

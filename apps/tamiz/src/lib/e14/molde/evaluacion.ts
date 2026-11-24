@@ -24,6 +24,7 @@ import type {
   ResultadoUniversal,
 } from '@jg-stevan/scanner-core/molde/universal-types';
 import { configurarProveedorOcr } from '@jg-stevan/scanner-core/molde/ocr-tipos';
+import { canvasDesdeDataUrl } from '@jg-stevan/scanner-core/core/canvas-imagen';
 import type { MoldeUniversal } from '@jg-stevan/scanner-core/molde/universal-types';
 import type { ResumenMoldeActa, ResumenMoldeCampo } from '@jg-stevan/scanner-core/dominio/types';
 import { proveedorOcrTamiz, ocrLines } from './ocr-proveedor';
@@ -45,21 +46,6 @@ function asegurarProveedor(): void {
     configurarProveedorOcr(proveedorOcrTamiz);
     proveedorRegistrado = true;
   }
-}
-
-/** Escala una imagen (dataURL) a un canvas de `ancho` px (canónica del motor). */
-async function fotoACanvas(dataUrl: string, ancho: number): Promise<HTMLCanvasElement> {
-  const img = new Image();
-  img.src = dataUrl;
-  await img.decode();
-  const c = document.createElement('canvas');
-  c.width = ancho;
-  c.height = Math.max(1, Math.round((img.naturalHeight / Math.max(1, img.naturalWidth)) * ancho));
-  const ctx = c.getContext('2d', { willReadFrequently: true })!;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, 0, 0, c.width, c.height);
-  return c;
 }
 
 /** Banderas agregadas (sin duplicar) de todos los campos del resultado. */
@@ -183,7 +169,7 @@ export async function evaluarMoldeEnActa(
   if (moldes.length === 0) return null;
 
   const t0 = performance.now();
-  const canvas = await fotoACanvas(fotoProcesada, 1000);
+  const canvas = await canvasDesdeDataUrl(fotoProcesada, { ancho: 1000 });
   const renderMs = Math.round(performance.now() - t0);
 
   // Elección del molde: activo explícito o mejor candidato del router.

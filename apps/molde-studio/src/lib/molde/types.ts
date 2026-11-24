@@ -99,17 +99,9 @@ export interface Molde {
 
 // ---- OCR ----
 
-export interface PalabraOcr {
-  texto: string;
-  conf: number;
-  bbox: [number, number, number, number]; // x0, y0, x1, y1 (px)
-}
-
-export interface LineaOcr {
-  texto: string;
-  bbox: [number, number, number, number];
-  palabras: PalabraOcr[];
-}
+// Fase 3 (migración scanner-core): los tipos OCR viven en el paquete (D4);
+// re-exportados aquí para conservar la ruta histórica '@ /lib/molde/types'.
+export type { PalabraOcr, LineaOcr } from '@jg-stevan/scanner-core/molde/ocr-tipos';
 
 // ---- Resultados ----
 

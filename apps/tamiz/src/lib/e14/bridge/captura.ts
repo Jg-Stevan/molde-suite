@@ -1,16 +1,15 @@
 // Captura: entrada del pipeline (File o dataUrl), decodificación memoizada,
 // captura síncrona de frames de video y entradas de simulación.
 
-import type { Quad } from '@jg-stevan/scanner-core/core/types';
+import { defaultQuad, type Quad } from '@jg-stevan/scanner-core/core/types';
 import { dibujarImagenSimulada, type ImagenSimuladaId } from '../simulacion-imagenes';
 
-/** Quad identidad (normalizado 0..1). */
-export const QUAD_IDENTITY: Quad = [
-  { x: 0, y: 0 },
-  { x: 1, y: 0 },
-  { x: 1, y: 1 },
-  { x: 0, y: 1 },
-];
+/**
+ * Quad identidad (normalizado 0..1). Fase 3 (migración): ya no se duplica —
+ * se evalúa desde `defaultQuad()` del paquete (D1). Siguiendo siendo un valor
+ * para no cambiar la semántica para los consumidores (real-core-bridge).
+ */
+export const QUAD_IDENTITY: Quad = defaultQuad();
 
 /** Entrada del pipeline L2. */
 export type EntradaPipeline = { archivo: File } | { dataUrl: string };
