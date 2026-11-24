@@ -10,6 +10,21 @@
 import { createWorker, type Worker } from 'tesseract.js';
 import sharp from 'sharp';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+// FASE 4a (plan extracción relacional — primitivas unificadas): las copias
+// locales de gaussianKernel/blurReplicate/adaptiveThresholdInv/opening1D/
+// binarizeNoLines/connectedComponents/inkRatio se RETIRARON. Ahora se importa
+// del paquete (@molde-suite/scanner-core/molde/imageproc), la MISMA fuente que
+// corre el motor universal: lo que mide la calibración es EXACTAMENTE lo que
+// mide la corrida. Nota de semántica: la apertura 1D del paquete es la ventana
+// COMPLETA [j-r, j+r] (FIX Fase 5.2); las copias locales viejas usaban media
+// ventana y borraban trazos de longitud k/2..k — los resultados de calibración
+// quedan alineados con el motor (puede variar levemente el ratio histórico).
+import {
+  binarizeNoLines as binarizeNoLinesPaquete,
+  connectedComponents as connectedComponentsPaquete,
+  inkRatio as inkRatioPaquete,
+  type BinImage,
+} from '@molde-suite/scanner-core/molde/imageproc';
 
 const DIR = 'scripts/actas-nuevas';
 const CACHE = 'scripts/actas-nuevas/ocr-cache.json';
@@ -138,154 +153,26 @@ export async function ocrTodasLasPaginas(): Promise<Record<string, PagOcr>> {
   return out;
 }
 
-// ---- medición de tinta (port de imageproc, misma lógica) ----
-function gaussianKernel(blockSize: number): Float32Array {
-  const sigma = 0.3 * ((blockSize - 1) * 0.5 - 1) + 0.8;
-  const r = (blockSize - 1) >> 1;
-  const k = new Float32Array(blockSize);
-  let sum = 0;
-  for (let i = 0; i < blockSize; i++) {
-    const v = Math.exp(-((i - r) * (i - r)) / (2 * sigma * sigma));
-    k[i] = v;
-    sum += v;
-  }
-  for (let i = 0; i < blockSize; i++) k[i] /= sum;
-  return k;
-}
+// ---- medición de tinta (FASE 4a: adaptadores sobre las primitivas del paquete) ----
+// Las implementaciones duplicadas se retiraron (ver nota del import). Estos
+// adaptadores conservan las firmas planas que consumen los demás scripts
+// (debug-cand1, perfil-filas, sweep-zonas, sweep-zonas2, validar-zonas).
 
-function blurReplicate(src: Float32Array, w: number, h: number, kernel: Float32Array): Float32Array {
-  const r = (kernel.length - 1) >> 1;
-  const tmp = new Float32Array(src.length);
-  const out = new Float32Array(src.length);
-  for (let y = 0; y < h; y++) {
-    const row = y * w;
-    for (let x = 0; x < w; x++) {
-      let acc = 0;
-      for (let k = -r; k <= r; k++) acc += src[row + Math.min(w - 1, Math.max(0, x + k))] * kernel[k + r];
-      tmp[row + x] = acc;
-    }
-  }
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let acc = 0;
-      for (let k = -r; k <= r; k++) acc += tmp[Math.min(h - 1, Math.max(0, y + k)) * w + x] * kernel[k + r];
-      out[y * w + x] = acc;
-    }
-  }
-  return out;
-}
-
-function adaptiveThresholdInv(gray: Uint8Array, w: number, h: number, blockSize = 31, C = 12): Uint8Array {
-  const f = new Float32Array(gray.length);
-  for (let i = 0; i < gray.length; i++) f[i] = gray[i];
-  const b = blurReplicate(f, w, h, gaussianKernel(blockSize));
-  const out = new Uint8Array(gray.length);
-  for (let i = 0; i < gray.length; i++) out[i] = gray[i] <= Math.round(b[i]) - C ? 1 : 0;
-  return out;
-}
-
-function opening1D(bin: Uint8Array, w: number, h: number, k: number, dir: 'h' | 'v'): Uint8Array {
-  const out = new Uint8Array(w * h);
-  const n = dir === 'h' ? w : h;
-  const lines = dir === 'h' ? h : w;
-  const r = (k - 1) >> 1;
-  const idx = dir === 'h' ? (i: number, j: number) => i * w + j : (i: number, j: number) => j * w + i;
-  const deque = new Int32Array(n + 1);
-  const eroded = new Uint8Array(n);
-  for (let i = 0; i < lines; i++) {
-    let head = 0, tail = 0;
-    for (let j = 0; j < n; j++) {
-      const v = bin[idx(i, j)];
-      while (tail > head && bin[idx(i, deque[tail - 1])] >= v) tail--;
-      deque[tail++] = j;
-      const jmin = Math.max(0, j - r);
-      while (deque[head] < jmin) head++;
-      eroded[j] = bin[idx(i, deque[head])];
-    }
-    head = 0; tail = 0;
-    const dil = new Uint8Array(n);
-    for (let j = 0; j < n; j++) {
-      const v = eroded[j];
-      while (tail > head && eroded[deque[tail - 1]] <= v) tail--;
-      deque[tail++] = j;
-      const jmin = Math.max(0, j - r);
-      while (deque[head] < jmin) head++;
-      dil[j] = eroded[deque[head]];
-    }
-    if (dir === 'h') out.set(dil, i * w);
-    else for (let j = 0; j < n; j++) out[j * w + i] = dil[j];
-  }
-  return out;
-}
-
+/** Binarización "sin líneas" del paquete — firma plana heredada de los scripts. */
 export function binarizeNoLines(gray: Uint8Array, w: number, h: number): Uint8Array {
-  const bin = adaptiveThresholdInv(gray, w, h, 31, 12);
-  const k = Math.max(20, Math.floor(w * 0.083)) | 1;
-  const hor = opening1D(bin, w, h, k, 'h');
-  const ver = opening1D(bin, w, h, k, 'v');
-  const data = new Uint8Array(w * h);
-  for (let i = 0; i < data.length; i++) data[i] = bin[i] && !(hor[i] || ver[i]) ? 1 : 0;
-  return data;
+  return binarizeNoLinesPaquete(gray, w, h).data;
 }
 
+/** Componentes conexos (8) del paquete — firma plana heredada de los scripts. */
 export function connectedComponents(bin: Uint8Array, w: number, h: number) {
-  const labels = new Int32Array(w * h).fill(-1);
-  const stats: Array<{ x: number; y: number; w: number; h: number; area: number }> = [];
-  const stack = new Int32Array(w * h);
-  for (let start = 0; start < w * h; start++) {
-    if (bin[start] === 0 || labels[start] !== -1) continue;
-    const id = stats.length;
-    let sp = 0;
-    stack[sp++] = start;
-    labels[start] = id;
-    let minX = w, maxX = -1, minY = h, maxY = -1, area = 0;
-    while (sp > 0) {
-      const p = stack[--sp];
-      const px = p % w, py = (p / w) | 0;
-      area++;
-      if (px < minX) minX = px;
-      if (px > maxX) maxX = px;
-      if (py < minY) minY = py;
-      if (py > maxY) maxY = py;
-      const y0 = Math.max(0, py - 1), y1 = Math.min(h - 1, py + 1);
-      const x0 = Math.max(0, px - 1), x1 = Math.min(w - 1, px + 1);
-      for (let yy = y0; yy <= y1; yy++) {
-        for (let xx = x0; xx <= x1; xx++) {
-          const q = yy * w + xx;
-          if (bin[q] === 1 && labels[q] === -1) { labels[q] = id; stack[sp++] = q; }
-        }
-      }
-    }
-    stats.push({ x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1, area });
-  }
-  return { labels, stats };
+  return connectedComponentsPaquete(bin, w, h);
 }
 
-/** Densidad de tinta en la zona (px) con filtro de líneas — igual que inkRatio del motor. */
+/** Densidad de tinta con filtro de líneas (0.5 ancho / grosor máx 6) — la MISMA
+ * configuración que `medirTinta` del motor universal. */
 export function inkRatio(bin: Uint8Array, W: number, zone: [number, number, number, number]): number {
-  const [zx0, zy0, zx1, zy1] = zone;
-  const x0 = Math.max(0, Math.floor(zx0)), y0 = Math.max(0, Math.floor(zy0));
-  const x1 = Math.min(W, Math.ceil(zx1)), y1 = Math.min(W, Math.ceil(zy1));
-  const zw = x1 - x0, zh = y1 - y0;
-  if (zw <= 0 || zh <= 0) return 0;
-  const H = bin.length / W;
-  if (y1 > H) return 0;
-  const crop = new Uint8Array(zw * zh);
-  for (let y = 0; y < zh; y++) for (let x = 0; x < zw; x++) crop[y * zw + x] = bin[(y0 + y) * W + x0 + x];
-  const { labels, stats } = connectedComponents(crop, zw, zh);
-  for (let i = 0; i < stats.length; i++) {
-    const s = stats[i];
-    if (s.w >= 0.5 * zw && s.area <= 6 * s.w) {
-      for (let y = s.y; y < s.y + s.h; y++) {
-        for (let x = s.x; x < s.x + s.w; x++) {
-          if (labels[y * zw + x] === i) crop[y * zw + x] = 0;
-        }
-      }
-    }
-  }
-  let ink = 0;
-  for (let i = 0; i < crop.length; i++) ink += crop[i];
-  return ink / crop.length;
+  const img: BinImage = { w: W, h: bin.length / W, data: bin };
+  return inkRatioPaquete(img, zone, { fraccion_ancho: 0.5, grosor_max: 6 });
 }
 
 /** Grises de una zona (px) desde el PNG a 1000px. */
