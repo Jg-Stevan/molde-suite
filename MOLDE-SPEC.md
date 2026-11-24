@@ -63,10 +63,11 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
   `desambiguacion_fallida`, `umbral_al_borde`, `pagina_faltante`,
   `posible_pagina_equivocada`, `rotacion_180_corregida`.
 - **Plan extracción relacional (FASE 1b — fin del falso positivo de firmas)**:
-  `fallback_no_verificado` — ningún campo OBLIGATORIO queda `ok` con
-  `fuente: 'referencia'` + `ancla_no_encontrada`: la posición no fue verificada
-  (el motor midió sobre la banda de referencia, no sobre la zona real). El
-  veredicto pasa a `requiere_revision`. Aditivo.
+  `fallback_no_verificado` — ningún campo queda `ok` con `fuente: 'referencia'` +
+  `ancla_no_encontrada`: la posición no fue verificada (el motor midió sobre la
+  banda de referencia, no sobre la zona real). OBLIGATORIO → `requiere_revision`;
+  OPCIONAL → `no_encontrado` (no es un error del documento, honestamente no se
+  encontró). Aditivo.
 - **Plan extracción relacional (FASE 1a — mapa OCR global)**: los campos de
   texto se leen del MAPA OCR GLOBAL de la página (1 pasada de `ocrLines` por
   página); el re-OCR del recorte queda SOLO como rescate para campos con
@@ -81,6 +82,19 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
   parseados: ISO, dd/mm/aaaa, dd-mm-aaaa, «24 de noviembre de 2026». Un
   operando sin fecha legible deja la validación NO EVALUABLE (ok: null).
   La igualdad de sumas (`regla: 'igualdad'`) no cambia.
+- **Cota del bypass posicional**: `ancla_solo_textual` solo se concede si el
+  match perfecto es ÚNICO entre todos los perfectos de la página y su
+  desplazamiento al rect esperado es `|dx|+|dy| ≤ 0.3`
+  (`ANCLA_TEXUAL_DESPLAZAMIENTO_MAX`). Sin cota, una etiqueta que aparezca una
+  sola vez en otra zona ancla el campo allí (medido: dos firmas `ok` con valor
+  "true" y `forma_sin_caja`).
+- **Campos de tinta**: `ancla_sin_geometria` — un campo `tipo !== 'texto'`
+  (firma, presencia, checkbox) anclado SOLO por texto no puede quedar `ok`: su
+  evidencia es la geometría (caja/rúbrica), que el bypass no verifica.
+- **Lecturas degeneradas**: `lectura_degenerada` — campo de texto con lectura
+  insuficiente (menos de 8 alfanuméricos, `core/ocr.ts`) y banda vacía o conf
+  < 0.5 termina `no_encontrado` / `requiere_revision`, nunca `ok`. Corta el
+  ruido contado como acierto (`importe_texto` = "o", conf 0.14).
 - **CORRECCIÓN post-verificación (recibo tachado 1700×1519 — P4 + anclaje)**:
   - `ancla_solo_textual` — el ancla se aceptó por match textual PERFECTO y
     ÚNICO (d=0 en orden estricto en exactamente una ventana de la página),
