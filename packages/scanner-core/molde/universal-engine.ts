@@ -145,6 +145,19 @@ export function editDistancePonderada(a: string, b: string): number {
 export interface HitAncla {
   rect: RectNorm;
   score: number;
+  /**
+   * CORRECCIÓN post-verificación (recibo tachado 1700×1519): el hit se aceptó
+   * por MATCH TEXTUAL PERFECTO Y ÚNICO en toda la página, saltándose la
+   * penalización de posición. Ocurre en documentos recortados/escala distinta
+   * de la referencia: la geometría normalizada del ancla queda desplazada
+   * (dy≥0.16 → penalización 1/(1+3d) < 0.72) y un match textual perfecto era
+   * RECHAZADO por posición, condenando el campo al fallback de referencia
+   * (el diagnóstico real: concepto/forma_pago/fecha_pago con dy 0.16-0.21).
+   * El bypass SOLO dispara cuando existe EXACTAMENTE UNA ventana con score
+   * textual 1.0 (match en orden estricto, d=0): ambigüedad → la posición
+   * sigue mandando. La bandera hace el juicio auditable en el forense.
+   */
+  solo_textual?: boolean;
 }
 
 /**
@@ -171,7 +184,12 @@ export function buscarAncla(
   const tol = Math.max(1, Math.floor(objetivo.length * 0.35));
   // Objetivo orden-invariante: mismas palabras sin importar el orden (para fotos rotadas).
   const objetivoOrdenado = normTxt([...objetivoPals].sort((a, b) => a.localeCompare(b)).join(' '));
-  let mejor: HitAncla | null = null;
+  interface Candidato {
+    hit: HitAncla;
+    scoreTextual: number;
+    score: number;
+  }
+  const candidatos: Candidato[] = [];
   for (const l of lineas) {
     const palabras = l.palabras;
     const n = palabras.length;
@@ -181,20 +199,21 @@ export function buscarAncla(
         const frase = normTxt(ventana.map((p) => p.texto).join(' '));
         const fraseOrdenada = normTxt(ventana.map((p) => p.texto).sort((a, b) => a.localeCompare(b)).join(' '));
         if (!frase) continue;
-        let score = -1;
+        let scoreTextual = -1;
         // F1 (variante 1.2): distancia PONDERADA — la sustitución de un dígito
         // por otro cuesta 3x, así las etiquetas vecinas que difieren en un
         // dígito dejan de puntuar como casi idénticas.
         const d = editDistancePonderada(objetivo, frase);
-        if (d <= tol) score = 1 - d / objetivo.length;
-        if (fraseOrdenada && score < 0.95) {
+        if (d <= tol) scoreTextual = 1 - d / objetivo.length;
+        if (fraseOrdenada && scoreTextual < 0.95) {
           const dOrd = editDistancePonderada(objetivoOrdenado, fraseOrdenada);
           if (dOrd <= tol) {
             // Penalización leve: el match en orden correcto siempre gana si existe.
-            score = Math.max(score, (1 - dOrd / objetivo.length) * 0.95);
+            scoreTextual = Math.max(scoreTextual, (1 - dOrd / objetivo.length) * 0.95);
           }
         }
-        if (score < 0) continue;
+        if (scoreTextual < 0) continue;
+        let score = scoreTextual;
         if (rectEsperado) {
           const cx = (palabras[i].bbox[0] + palabras[j].bbox[2]) / 2 / canvasW;
           const cy = (palabras[i].bbox[1] + palabras[j].bbox[3]) / 2 / canvasH;
@@ -208,21 +227,37 @@ export function buscarAncla(
           // d=0.077 y sigue separando etiquetas lejanas (d=0.25 → 0.57).
           score *= 1 / (1 + 3 * (dx + dy));
         }
-        if (!mejor || score > mejor.score) {
-          mejor = {
-            rect: {
-              x: palabras[i].bbox[0] / canvasW,
-              y: palabras[i].bbox[1] / canvasH,
-              w: (palabras[j].bbox[2] - palabras[i].bbox[0]) / canvasW,
-              h: (palabras[j].bbox[3] - palabras[i].bbox[1]) / canvasH,
-            },
-            score,
-          };
-        }
+        const hit: HitAncla = {
+          rect: {
+            x: palabras[i].bbox[0] / canvasW,
+            y: palabras[i].bbox[1] / canvasH,
+            w: (palabras[j].bbox[2] - palabras[i].bbox[0]) / canvasW,
+            h: (palabras[j].bbox[3] - palabras[i].bbox[1]) / canvasH,
+          },
+          score,
+        };
+        candidatos.push({ hit, scoreTextual, score });
       }
     }
   }
-  return mejor;
+  if (!candidatos.length) return null;
+  // CORRECCIÓN post-verificación: bypass posicional para match textual PERFECTO
+  // y ÚNICO (d=0 en orden estricto en EXACTAMENTE UNA ventana de la página).
+  // La penalización de posición existe para DESAMBIGUAR entre candidatos; con
+  // un único candidato textual perfecto no hay nada que desambiguar, y en un
+  // canvas recortado (proporción ≠ referencia) la geometría esperada no aplica:
+  // rechazar el match por posición condena el campo al fallback silencioso.
+  if (rectEsperado) {
+    const perfectos = candidatos.filter((c) => c.scoreTextual >= 0.999);
+    if (perfectos.length === 1) {
+      return { ...perfectos[0].hit, score: perfectos[0].scoreTextual, solo_textual: true };
+    }
+  }
+  let mejor = candidatos[0];
+  for (const c of candidatos) {
+    if (c.score > mejor.score) mejor = c;
+  }
+  return mejor.hit;
 }
 
 export interface RectResuelto {
@@ -249,6 +284,13 @@ export interface RectResuelto {
    * campo termina en requiere_revision.
    */
   ambiguo?: boolean;
+  /**
+   * CORRECCIÓN post-verificación: la ancla se aceptó por bypass posicional
+   * (match textual perfecto y único — ver HitAncla.solo_textual). El campo
+   * lee sobre la posición REAL encontrada; la posición esperada del molde no
+   * coincidía (documento recortado o escala distinta de la referencia).
+   */
+  ancla_solo_textual?: boolean;
 }
 
 /**
@@ -636,7 +678,13 @@ export function resolverRectCampo(
   const hit = buscarAncla(ancla.texto, lineas, canvasW, canvasH, ancla.rect);
   if (hit && hit.score >= ANCLA_SCORE_MIN) {
     if (desambiguado(campo, hit, lineas, canvasW, canvasH)) {
-      return { rect: aplicarOffset(hit.rect), fuente: 'ancla', ancla_encontrada: true, score: hit.score };
+      return {
+        rect: aplicarOffset(hit.rect),
+        fuente: 'ancla',
+        ancla_encontrada: true,
+        score: hit.score,
+        ancla_solo_textual: hit.solo_textual || undefined,
+      };
     }
     desambiguacionFallida = true;
   }
@@ -644,7 +692,13 @@ export function resolverRectCampo(
     const hit2 = buscarAncla(campo.ancla_respaldo, lineas, canvasW, canvasH, ancla.rect);
     if (hit2 && hit2.score >= ANCLA_SCORE_MIN) {
       if (desambiguado(campo, hit2, lineas, canvasW, canvasH)) {
-        return { rect: aplicarOffset(hit2.rect), fuente: 'respaldo', ancla_encontrada: true, score: hit2.score };
+        return {
+          rect: aplicarOffset(hit2.rect),
+          fuente: 'respaldo',
+          ancla_encontrada: true,
+          score: hit2.score,
+          ancla_solo_textual: hit2.solo_textual || undefined,
+        };
       }
       desambiguacionFallida = true;
     }
@@ -830,6 +884,34 @@ async function rescateAntiTachon(
   }
 }
 
+/**
+ * CORRECCIÓN post-verificación (P4 del diagnóstico — recibo tachado): MAPA OCR
+ * DE RESCATE de la página completa. El tachón/revelado rompe la SEGMENTACIÓN
+ * de líneas del OCR global (Tesseract: "Total count=0" — 110 errores reales en
+ * la corrida de diagnóstico): líneas enteras dejan de existir en el mapa y
+ * TODAS las anclas que dependían de ellas caen a fallback silencioso. La
+ * limpieza morfológica (`binarizeNoLines`, misma primitiva del rescate local)
+ * elimina los trazos largos ANTES del OCR: en la corrida real recupera el
+ * título "RECIBO DE PAGO" (psm 4 no lo segmentaba con el tachón del importe).
+ *
+ * Es una SEGUNDA pasada OCR de página completa — POR ESO es PEREZOSA: solo se
+ * construye si algún campo perdió su ancla en el mapa primario (documento
+ * limpio → 1 pasada OCR, costo 0). La calidad del texto binarizado es menor
+ * para VALORES (pierde puntuación fina), así que el mapa primario sigue siendo
+ * la fuente de lectura preferida y este mapa es anclaje + rescate de valor.
+ */
+async function mapaOcrRescate(canvas: HTMLCanvasElement): Promise<LineaOcr[]> {
+  const gray = canvasGrayscale(canvas);
+  const gctx = gray.getContext('2d', { willReadFrequently: true })!;
+  const gimg = gctx.getImageData(0, 0, gray.width, gray.height);
+  const g = new Uint8Array(gray.width * gray.height);
+  for (let i = 0, p = 0; i < g.length; i++, p += 4) g[i] = gimg.data[p];
+  const sinLineas = binarizeNoLines(g, gray.width, gray.height, FRACCION_KERNEL_RESCATE_TACHON);
+  const limpio = binACanvas(sinLineas, gray.width, gray.height);
+  const resc = await proveedorOcr().ocrLines(limpio);
+  return resc.lines;
+}
+
 // ---- FASE 1 (plan extracción relacional): lectura desde el mapa OCR global ----
 
 /**
@@ -950,6 +1032,13 @@ async function evaluarCampo(
   canvas: HTMLCanvasElement,
   lineas: LineaOcr[],
   previews: boolean,
+  /**
+   * CORRECCIÓN post-verificación: mapa OCR de RESCATE perezoso (2ª pasada sobre
+   * el canvas con limpieza anti-tachón). Solo se invoca si el ancla del campo
+   * no apareció en el mapa primario o el valor quedó vacío — documento limpio
+   * nunca la paga. Ver `mapaOcrRescate`.
+   */
+  rescateMapa?: { obtenerLineas: () => Promise<LineaOcr[]> },
 ): Promise<ResultadoCampoUniversal> {
   const base: ResultadoCampoUniversal = {
     id: campo.id,
@@ -965,7 +1054,21 @@ async function evaluarCampo(
     fuente: null,
     banderas: [],
   };
-  const resuelto = resolverRectCampo(campo, lineas, canvas.width, canvas.height, canvas);
+  let resuelto = resolverRectCampo(campo, lineas, canvas.width, canvas.height, canvas);
+  let lineasRescate: LineaOcr[] | null = null;
+  // CORRECCIÓN post-verificación: rescate de ANCLA sobre el mapa limpio. La
+  // segmentación rota por tachones puede haber borrado del mapa primario la
+  // línea del ancla (título "RECIBO DE PAGO" en el recibo tachado). El reintent
+  // usa la MISMA resolución (fuzzy + bypass + desambiguado) sobre el mapa de
+  // rescate; si encuentra, la bandera deja la historia auditable.
+  if (rescateMapa && resuelto && !resuelto.ancla_encontrada && campo.estrategia !== 'zona_fija') {
+    lineasRescate = await rescateMapa.obtenerLineas();
+    const resueltoRescate = resolverRectCampo(campo, lineasRescate, canvas.width, canvas.height, canvas);
+    if (resueltoRescate && resueltoRescate.ancla_encontrada) {
+      resuelto = resueltoRescate;
+      base.banderas.push('ancla_rescate_anti_tachon');
+    }
+  }
   if (!resuelto) {
     base.banderas.push('sin_rect');
     if (campo.estrategia === 'ancla_relativa' || campo.estrategia === 'ancla_relacional') {
@@ -979,6 +1082,9 @@ async function evaluarCampo(
   if (resuelto.fuente === 'respaldo') base.banderas.push('ancla_respaldo');
   // Opción 1.2: el match textual existió pero el contexto exigido no apareció.
   if (resuelto.desambiguacion_fallida) base.banderas.push('desambiguacion_fallida');
+  // CORRECCIÓN: ancla aceptada por match textual perfecto y único (bypass de
+  // posición — documento recortado/escala distinta de la referencia).
+  if (resuelto.ancla_solo_textual) base.banderas.push('ancla_solo_textual');
   // FASE 2 (v3.2.0 — faro): banderas del modo relacional + empate ambiguo.
   if (resuelto.banderasRelacionales?.length) base.banderas.push(...resuelto.banderasRelacionales);
   if (resuelto.ambiguo) base.banderas.push('relacion_ambigua');
@@ -1117,6 +1223,20 @@ async function evaluarCampo(
   const global = textoEnRect(lineas, resuelto.rect, canvas.width, canvas.height);
   let valorFinal = global.texto;
   let confFinal = global.conf;
+  // CORRECCIÓN post-verificación: rescate de VALOR desde el mapa limpio. Solo
+  // cuando el mapa primario no produjo texto en el rect Y la zona tiene tinta
+  // real (una zona vacía de verdad — campo opcional en blanco — no paga la
+  // 2ª pasada). El texto binarizado pierde puntuación fina: por eso el
+  // primario siempre gana y este es SOLO un rescate, con bandera auditable.
+  if (!valorFinal && rescateMapa && ratio > 0) {
+    if (!lineasRescate) lineasRescate = await rescateMapa.obtenerLineas();
+    const rescateValor = textoEnRect(lineasRescate, resuelto.rect, canvas.width, canvas.height);
+    if (rescateValor.texto) {
+      valorFinal = rescateValor.texto;
+      confFinal = rescateValor.conf;
+      base.banderas.push('valor_rescate_anti_tachon');
+    }
+  }
   base.conf = confFinal;
   // N-9/G-3: el OCR puede no reportar confianza (null). Ese caso es "sin
   // señal", NO un 50-60% inventado: se registra como sin_confianza_ocr.
@@ -1626,10 +1746,24 @@ export async function evaluarDocumentoUniversal(
     }
 
     const resultados: ResultadoCampoUniversal[] = [];
+    // CORRECCIÓN post-verificación: mapa OCR de RESCATE (P4 del diagnóstico),
+    // PEREZOSO y memoizado por página: solo se construye si algún campo pierde
+    // su ancla (o su valor) en el mapa primario — documento limpio: costo 0,
+    // se mantiene la métrica del plan «1 OCR por página».
+    let promesaMapaRescate: Promise<LineaOcr[]> | null = null;
+    const obtenerMapaRescate = (): Promise<LineaOcr[]> => {
+      if (!promesaMapaRescate) {
+        onProgreso?.(`Página ${p + 1}: rescate anti-tachón del mapa OCR (2ª pasada)...`);
+        promesaMapaRescate = mapaOcrRescate(pageCanvas).catch(() => []);
+      }
+      return promesaMapaRescate;
+    };
     for (let i = 0; i < camposPagina.length; i++) {
       const c = camposPagina[i];
       onProgreso?.(`Página ${p + 1}: campo ${i + 1}/${camposPagina.length} — ${c.etiqueta}`);
-      const r = await evaluarCampo(c, pageCanvas, ocr.lines, previews);
+      const r = await evaluarCampo(c, pageCanvas, ocr.lines, previews, {
+        obtenerLineas: obtenerMapaRescate,
+      });
       // FASE 1b (plan extracción relacional): el fallback silencioso ya no
       // produce 'ok' en obligatorios (fin del falso positivo de firmas).
       endurecerFallbackNoVerificado(c, r);
@@ -1693,10 +1827,21 @@ export async function evaluarDocumentoUniversal(
     for (const id of v.campos) {
       const r = porId.get(id);
       if (!r) continue;
-      r.banderas.push('validacion_fallida');
-      // La defensa principal: una lectura de cierre que no cuadra jamás
-      // permanece en "ok" (las "2"≠17 y "9"≠17 de la auditoría mueren aquí).
-      if (r.estado === 'ok') r.estado = 'requiere_revision';
+      // CORRECCIÓN post-verificación (recibo tachado): `ok: null` significa NO
+      // EVALUABLE (contrato: "jamás un veredicto inventado") — un operando
+      // ilegible NO impone un veredicto sobre el campo que SÍ se leyó bien.
+      // Caso real: fecha_pago "05/12/2026" leído con conf 0.95 quedaba
+      // `requiere_revision` porque fecha_emision está bajo un revelado y la
+      // validación de rango no pudo evaluarse. Con ok===false (cierre que NO
+      // cuadra) la democión se mantiene: esa es la defensa principal.
+      if (v.ok === false) {
+        r.banderas.push('validacion_fallida');
+        // La defensa principal: una lectura de cierre que no cuadra jamás
+        // permanece en "ok" (las "2"≠17 y "9"≠17 de la auditoría mueren aquí).
+        if (r.estado === 'ok') r.estado = 'requiere_revision';
+      } else {
+        r.banderas.push('validacion_no_evaluable');
+      }
     }
   }
 

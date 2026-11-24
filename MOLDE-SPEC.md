@@ -81,6 +81,25 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
   parseados: ISO, dd/mm/aaaa, dd-mm-aaaa, «24 de noviembre de 2026». Un
   operando sin fecha legible deja la validación NO EVALUABLE (ok: null).
   La igualdad de sumas (`regla: 'igualdad'`) no cambia.
+- **CORRECCIÓN post-verificación (recibo tachado 1700×1519 — P4 + anclaje)**:
+  - `ancla_solo_textual` — el ancla se aceptó por match textual PERFECTO y
+    ÚNICO (d=0 en orden estricto en exactamente una ventana de la página),
+    saltándose la penalización de posición. Dispara en documentos recortados o
+    de escala distinta de la referencia (geometría normalizada desplazada, dy
+    ≥ 0.16 → penalización < 0.72): antes el match perfecto se RECHAZABA por
+    posición y el campo caía al fallback. Con ambigüedad (≥ 2 ventanas
+    perfectas) la posición sigue mandando.
+  - `ancla_rescate_anti_tachon` / `valor_rescate_anti_tachon` — ancla/valor
+    recuperados desde el MAPA OCR DE RESCATE (2ª pasada OCR perezosa sobre el
+    canvas con limpieza anti-tachón — la apertura 1D elimina los trazos largos
+    que rompían la segmentación de líneas del OCR global). Solo se paga si un
+    campo perdió su ancla o su valor en el mapa primario: documento limpio =
+    1 pasada OCR (costo 0). El mapa primario siempre gana para valores.
+  - `validacion_no_evaluable` — una validación con `ok: null` (operando
+    ilegible) NO marca `validacion_fallida` NI degrada el campo que sí se leyó
+    bien (caso real: fecha_pago correcto se degradaba porque fecha_emision
+    estaba bajo un revelado). `ok: false` mantiene la democión (defensa
+    principal). El gate global `requiere_revision` sigue encendido con null.
 - **v3.2.0 — faro (ancla_relacional)**: `ancla_fuera_de_zona` (el texto existe
   PERO fuera del faro — el mapa está mal puesto o la variante es otra; cae a
   referencia), `relacion_sin_candidato` (nada en la dirección pedida →
