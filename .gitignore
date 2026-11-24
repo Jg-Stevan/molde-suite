@@ -45,3 +45,6 @@ docs/investigacion/**/previews/
 # directorio llamado uploads a cualquier profundidad y podría volver a
 # silenciar código futuro (la API vive en src/app/api/upload, sin s).
 /uploads/
+
+# Scratch local de verificación (volcados de BD, capturas)
+_verificacion/
