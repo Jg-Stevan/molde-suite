@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "molde-suite",
+      "devDependencies": {
+        "typescript": "^5",
+      },
     },
     "apps/molde-studio": {
       "name": "docutemplate-studio",
