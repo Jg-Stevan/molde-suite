@@ -1,5 +1,11 @@
 # AGENTS.md — packages/scanner-core
 
+> Visión de producto y **criterio de verificación autónoma** (un documento con
+> todos los datos definidos y legibles NUNCA se rechaza; solo se detiene si falta
+> o no se entiende un dato o una firma) en el `AGENTS.md` de la raíz. Todo cambio
+> del motor debe cumplirlo: nada de falsos `ok` y ninguna revisión por geometría
+> cuando el dato está en el OCR global.
+
 ## Papel del paquete
 
 `@molde-suite/scanner-core` es la **fuente compartida** de Molde Suite: el

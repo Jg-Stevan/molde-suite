@@ -1,5 +1,10 @@
 # AGENTS.md — apps/tamiz
 
+> Visión de producto y **criterio de verificación autónoma** (un documento con
+> todos los datos definidos y legibles NUNCA se rechaza; solo se detiene si falta
+> o no se entiende un dato o una firma) en el `AGENTS.md` de la raíz. El veredicto
+> negativo solo se justifica por contenido ausente/ilegible, nunca por geometría.
+
 ## Papel de la app
 
 Tamiz aplica el molde en campo: captura (cámara o archivo) → detección y
