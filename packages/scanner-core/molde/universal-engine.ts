@@ -31,6 +31,7 @@ import {
   type BinImage,
 } from './imageproc';
 import { canvasJpeg, proveedorOcr, type LineaOcr } from './ocr-tipos';
+import { ocrTextIsValid } from '../core/ocr';
 import { clasificarMarcaSobreCrop, diferencialSiNo, detectarCajasHuecas, metricasFirma } from './marca';
 import {
   hexTipo,
@@ -188,6 +189,7 @@ export function buscarAncla(
     hit: HitAncla;
     scoreTextual: number;
     score: number;
+    desplazamiento: number;
   }
   const candidatos: Candidato[] = [];
   for (const l of lineas) {
@@ -214,6 +216,7 @@ export function buscarAncla(
         }
         if (scoreTextual < 0) continue;
         let score = scoreTextual;
+        let desplazamiento = 0;
         if (rectEsperado) {
           const cx = (palabras[i].bbox[0] + palabras[j].bbox[2]) / 2 / canvasW;
           const cy = (palabras[i].bbox[1] + palabras[j].bbox[3]) / 2 / canvasH;
@@ -226,6 +229,7 @@ export function buscarAncla(
           // 0.72 y caía al fallback. La curva 1/(1+3d) mantiene 0.812 con
           // d=0.077 y sigue separando etiquetas lejanas (d=0.25 → 0.57).
           score *= 1 / (1 + 3 * (dx + dy));
+          desplazamiento = dx + dy;
         }
         const hit: HitAncla = {
           rect: {
@@ -236,7 +240,7 @@ export function buscarAncla(
           },
           score,
         };
-        candidatos.push({ hit, scoreTextual, score });
+        candidatos.push({ hit, scoreTextual, score, desplazamiento });
       }
     }
   }
@@ -248,8 +252,13 @@ export function buscarAncla(
   // canvas recortado (proporción ≠ referencia) la geometría esperada no aplica:
   // rechazar el match por posición condena el campo al fallback silencioso.
   if (rectEsperado) {
+    // La ambigüedad se JUZGA SOBRE TODOS los perfectos: si hay dos ventanas
+    // perfectas (p. ej. las etiquetas «Firma» de ambas firmas) la posición debe
+    // decidir como siempre, sin conceder el bypass a la que caiga dentro de la
+    // cota. Filtrar por cota ANTES de contar convertía un caso ambiguo en
+    // «único» y reabriendo el falso positivo (medido: 2 firmas 'ok' otra vez).
     const perfectos = candidatos.filter((c) => c.scoreTextual >= 0.999);
-    if (perfectos.length === 1) {
+    if (perfectos.length === 1 && perfectos[0].desplazamiento <= ANCLA_TEXUAL_DESPLAZAMIENTO_MAX) {
       return { ...perfectos[0].hit, score: perfectos[0].scoreTextual, solo_textual: true };
     }
   }
@@ -303,6 +312,18 @@ export interface RectResuelto {
  * cuente ambigüedades con EXACTAMENTE el mismo corte que corre en producción.
  */
 export const ANCLA_SCORE_MIN = 0.72;
+
+/**
+ * Desplazamiento máximo (|dx|+|dy| normalizado) que tolera el bypass textual
+ * `solo_textual`. El bypass existe porque en un canvas recortado la geometría
+ * esperada se desplaza (el caso medido: dy 0.16-0.21), NO porque la posición
+ * deje de importar: sin cota, una etiqueta que aparezca una sola vez en otra
+ * zona (membrete, pie, anverso) anclaría el campo allí y leería un vecino
+ * plausible con `fuente: 'ancla'` y conf alta — datos falsos con aspecto de
+ * válidos. 0.30 cubre el recorte medido y sigue rechazando la esquina opuesta
+ * de la página (dx+dy ≈ 1).
+ */
+export const ANCLA_TEXUAL_DESPLAZAMIENTO_MAX = 0.3;
 
 /** Radio normalizado (0-1) en el que debe aparecer cada texto de un
  * `desambiguador` respecto al centro del ancla encontrada (opción 1.2).
@@ -1646,16 +1667,40 @@ const IOU_COLISION = 0.8;
  * lo dice: requiere_revision + bandera `fallback_no_verificado`.
  * Aditivo al contrato: `banderas` es un array libre.
  */
-function endurecerFallbackNoVerificado(campo: CampoUniversal, r: ResultadoCampoUniversal): void {
-  if (
-    campo.obligatorio &&
-    r.estado === 'ok' &&
-    r.fuente === 'referencia' &&
-    r.banderas.includes('ancla_no_encontrada')
-  ) {
-    r.estado = 'requiere_revision';
-    r.banderas.push('fallback_no_verificado');
-  }
+export function endurecerFallbackNoVerificado(
+  campo: CampoUniversal,
+  r: ResultadoCampoUniversal,
+): void {
+  if (r.estado !== 'ok') return;
+  const desdeReferencia = r.fuente === 'referencia';
+  const sinAncla = desdeReferencia && r.banderas.includes('ancla_no_encontrada');
+  // Lectura degenerada: el repo ya considera 1-2 caracteres ruido de OCR
+  // (`core/ocr.ts` → ocrTextIsValid). Una banda vacía o una letra suelta no
+  // puede terminar 'ok' sea el campo obligatorio u opcional; sin esto el score
+  // premia el ruido (medido: `importe_texto` = "o", conf 0.14, ocr_vacio +
+  // zona_vacia contaba como acierto y sumaba 8.3 al score).
+  const ruido =
+    desdeReferencia &&
+    campo.tipo === 'texto' &&
+    typeof r.valor === 'string' &&
+    !ocrTextIsValid(r.valor) &&
+    (r.banderas.includes('ocr_vacio') ||
+      r.banderas.includes('zona_vacia') ||
+      (r.conf ?? 1) < 0.5);
+  // Campo de TINTA (firma / presencia / checkbox): su veredicto ES geometría —
+  // que haya caja y rúbrica. Un ancla obtenida por el bypass solo-textual no lo
+  // prueba: es literalmente el falso positivo del diagnóstico (dos firmas 'ok'
+  // conf 0.97 con `forma_sin_caja`, valor "true"), que volvería a entrar por
+  // esta puerta al pasar `fuente` de 'referencia' a 'ancla'.
+  const tintaSinGeometria =
+    campo.tipo !== 'texto' && r.banderas.includes('ancla_solo_textual');
+  if (!sinAncla && !ruido && !tintaSinGeometria) return;
+  r.banderas.push(
+    sinAncla ? 'fallback_no_verificado' : tintaSinGeometria ? 'ancla_sin_geometria' : 'lectura_degenerada',
+  );
+  // Un opcional sin posición verificada no es un error del documento: honestamente
+  // no se encontró. Un obligatorio sí pasa a revisión (comportamiento FASE 1b).
+  r.estado = campo.obligatorio ? 'requiere_revision' : 'no_encontrado';
 }
 
 /**
