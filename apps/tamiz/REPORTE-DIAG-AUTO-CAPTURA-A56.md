@@ -343,17 +343,38 @@ código, que es lo que era en el origen.
 verificación documental): se mezcla `main` hacia esta rama, nunca al revés, y el
 mapa se regenera con `bun run agent:map` después de la mezcla.
 
-**Sigue abierto (decisiones del dueño, no del agente):**
-1. **Dependencias** — `onnxruntime-web@1.31.1`, `zxing-wasm@^3.1.8`,
-   `jspdf@^4.2.1`, `framer-motion@^14.14.0` entran con el porte y necesitan OK
-   explícito. `onnxruntime-web` además es problema de versión compartida con
-   `packages/dla-onnx` (`^1.20.1`).
+**Pendientes al retomar** (estado del árbol en `5dae3fa`, ya publicado en `main`):
+
+*Código — todo en main y funcionando, pero con herencia o deuda:*
+1. **Enrutado de moldes** — `apps/tamiz/src/lib/e14/molde/evaluacion.ts:226` exige
+   `contexto?.esE14` para marcar `resumen.enrutado`: un documento genérico no se
+   enruta a la biblioteca de moldes.
 2. **`CALIDAD` medida sobre la imagen binarizada** — `pipeline.ts` evalúa
-   `calidadDeActa(warp.processed)` mientras el OCR lee `warpOcr.processed`.
-3. **Enrutado de moldes** — `molde/evaluacion.ts` sigue exigiendo
-   `contexto.esE14` para enrutar, o sea herencia electoral.
-4. **`CameraFrameLoop` / `live.corners` sin cablear** — `useSesionCamara` corre su
-   propio lazo rAF de 250 ms con Laplaciano en vez del lazo k-de-n porteado.
-5. Distribución de scores sobre ≥20 capturas reales antes de tocar
-   `UMBRAL_RECHAZO_SCORE`, y el presupuesto de ~8 s del worker de QR capa 0.
+   `calidadDeActa(warp.processed)` mientras el OCR lee `warpOcr.processed` (raw).
+3. **`CameraFrameLoop` / `live.corners` sin cablear** — `useSesionCamara` corre su
+   propio lazo rAF de 250 ms con Laplaciano en vez del lazo k-de-n porteado
+   (`core/frame-loop.ts`, `core/motion-stabilizer.ts`).
+4. **OCR ONNX incompleto** — RapidOCR es solo fallback y sus 3 `.onnx` no viajan:
+   faltan URL + SHA-256 en `apps/tamiz/scripts/assets.lock.json` (hoy solo fija
+   OpenCV 4.12.0-core y `spa.traineddata.gz`). No bloquea: el motor base es
+   Tesseract spa, que sí se materializa con `bun run preparar`.
+
+*Dependencias:*
+5. `onnxruntime-web@1.31.1`, `zxing-wasm@^3.1.8`, `jspdf@^4.2.1` y
+   `framer-motion@^14.14.0` ya entraron con el porte (orden "monta"); confirmar si
+   se quedan. `onnxruntime-web` además comparte versión con `packages/dla-onnx`
+   (`^1.20.1`): unificar o justificar la divergencia.
+
+*Datos y dispositivo:*
+6. Distribución de scores sobre ≥20 capturas reales antes de tocar
+   `UMBRAL_RECHAZO_SCORE`.
+7. Presupuesto de ~8 s del worker de QR capa 0: subirlo o recortar el ensamble.
+8. Prueba táctil en el Galaxy A56 — `adb` no está instalado en este equipo; lo
+   verificado es headless (8.9/10 ÓPTIMA, verificación 73%, editor con 8 asas,
+   0 errores de runtime).
+
+*Operación:*
+9. `main` tiene protección de rama (PR obligatorio + 3 checks) y el push
+   `0f83cfe..5dae3fa` la saltó con permisos de admin. Decidir si el siguiente
+   cambio va por rama + PR.
 
