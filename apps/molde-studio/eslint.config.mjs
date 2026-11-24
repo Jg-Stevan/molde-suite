@@ -61,15 +61,15 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
   rules: {
     // Fase 3 (migración scanner-core): frontera pública del paquete.
     // apps/* consume por subpath del exports map (p. ej.
-    // '@jg-stevan/scanner-core/contract'), nunca rutas internas src/**.
+    // '@molde-suite/scanner-core/contract'), nunca rutas internas src/**.
     "no-restricted-imports": [
       "error",
       {
         patterns: [
           {
-            group: ["@jg-stevan/scanner-core/src/*"],
+            group: ["@molde-suite/scanner-core/src/*"],
             message:
-              "Usa la frontera pública: subpaths del exports map de @jg-stevan/scanner-core (p. ej. './contract'), no rutas internas src/**.",
+              "Usa la frontera pública: subpaths del exports map de @molde-suite/scanner-core (p. ej. './contract'), no rutas internas src/**.",
           },
         ],
       },

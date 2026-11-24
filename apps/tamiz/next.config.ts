@@ -73,9 +73,9 @@ const nextConfig: NextConfig = {
   // Monorepo: Turbopack debe resolver desde la raíz del workspace (lockfile),
   // dos niveles arriba; con la raíz en la app no encuentra `next/package.json`.
   turbopack: { root: path.resolve(__dirname, "..", "..") },
-  // El motor vive en el PAQUETE (@jg-stevan/scanner-core, TypeScript fuente
+  // El motor vive en el PAQUETE (@molde-suite/scanner-core, TypeScript fuente
   // vía bun workspaces) — se transpila junto a la app.
-  transpilePackages: ["@jg-stevan/scanner-core", "@jg-stevan/dla-onnx", "@jg-stevan/layout-core"],
+  transpilePackages: ["@molde-suite/scanner-core", "@jg-stevan/dla-onnx", "@jg-stevan/layout-core"],
   env: dlaEnv,
   // NOTA (eliminación del módulo masiva): la API route del ledger remoto
   // (src/app/api/e14/envios) se retiró con la cola MASIVA.

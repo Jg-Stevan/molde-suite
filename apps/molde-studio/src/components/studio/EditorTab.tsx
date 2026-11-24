@@ -16,7 +16,7 @@ import {
 } from 'react';
 // Fase 3 (migración scanner-core): protocolo del sobre con checksum
 // compartido con Tamiz (D5) — el SHA-256 vive en el contrato.
-import { crearSobreMolde } from '@jg-stevan/scanner-core/contract/sobre';
+import { crearSobreMolde } from '@molde-suite/scanner-core/contract/sobre';
 import {
   AlertTriangle,
   ArrowLeft,

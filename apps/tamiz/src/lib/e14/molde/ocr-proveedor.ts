@@ -9,8 +9,8 @@
 // (molde/ocr-mapeo) y es compartido con Molde Studio (D3) — misma
 // normalización de confianza y misma regla N-9.
 
-import type { LineaOcr, ProveedorOcr } from '@jg-stevan/scanner-core/molde/ocr-tipos';
-import { lineasDesdeBlocksTesseract } from '@jg-stevan/scanner-core/molde/ocr-mapeo';
+import type { LineaOcr, ProveedorOcr } from '@molde-suite/scanner-core/molde/ocr-tipos';
+import { lineasDesdeBlocksTesseract } from '@molde-suite/scanner-core/molde/ocr-mapeo';
 import { getWorker } from '../bridge/ocr-worker';
 
 /** OCR de página completa con líneas/palabras y bboxes (px del canvas). */

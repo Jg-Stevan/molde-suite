@@ -17,13 +17,13 @@
 
 ## Estado de la entrega
 
-**Ejecutable (decisión D8, opción B — ver `docs/auditoria/03-informe-final.md` en la raíz del monorepo).** El paquete de motor `@jg-stevan/scanner-core` ahora existe como paquete mínimo dentro del repo (`packages/scanner-core`) y los módulos que faltaban (pipeline, captura, calidad, ocr, política, obs, puente, hooks de cámara…) están implementados en `src/lib/e14/`. La app compila (`bun run typecheck`/`lint` en 0) y construye estática (`BUILD_STATIC=1 bun run build`).
+**Ejecutable (decisión D8, opción B — ver `docs/auditoria/03-informe-final.md` en la raíz del monorepo).** El paquete de motor `@molde-suite/scanner-core` ahora existe como paquete mínimo dentro del repo (`packages/scanner-core`) y los módulos que faltaban (pipeline, captura, calidad, ocr, política, obs, puente, hooks de cámara…) están implementados en `src/lib/e14/`. La app compila (`bun run typecheck`/`lint` en 0) y construye estática (`BUILD_STATIC=1 bun run build`).
 
 Lo que el núcleo mínimo NO trae todavía (camino A, por partes): detección de bordes con perspectivas completas (hoy bounding-rect por gradientes), OCR de bandas calibrado con el corpus Nairobi/El Cairo de la auditoría, hub de envío real para el puente (hoy honesto: "sin hub configurado") y PWA con service worker propio. Divipol de demostración.
 
 ## Stack
 
-Next.js (App Router, convención `proxy`) · React · Zustand · TypeScript. OCR y visión viven en el paquete de motor privado (`@jg-stevan/scanner-core`, no incluido).
+Next.js (App Router, convención `proxy`) · React · Zustand · TypeScript. OCR y visión viven en el paquete de motor privado (`@molde-suite/scanner-core`, no incluido).
 
 ## Biblioteca de moldes y enrutamiento universal (Etapa B)
 

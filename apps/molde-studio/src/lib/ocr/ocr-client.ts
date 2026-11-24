@@ -24,7 +24,7 @@
 import type { Worker as TesseractWorker } from 'tesseract.js';
 import { canvasGrayscale, otsuThreshold } from '@/lib/molde/imageproc';
 // Fase 3 (migración scanner-core): mapeo OCR compartido con Tamiz (D3).
-import { lineasDesdeBlocksTesseract } from '@jg-stevan/scanner-core/molde/ocr-mapeo';
+import { lineasDesdeBlocksTesseract } from '@molde-suite/scanner-core/molde/ocr-mapeo';
 import { tesseractWorkerOptions } from '@/lib/ocr/ocr-core-resolver';
 import type { LineaOcr, PalabraOcr } from '@/lib/molde/types';
 

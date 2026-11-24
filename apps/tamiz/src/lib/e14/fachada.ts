@@ -1,10 +1,10 @@
 // Fachada de la librería e14: LO ÚNICO que importan los componentes de UI.
 // Re-exporta el contrato (scanner-core) + los helpers de presentación.
 
-import type { Acta, ActaStatus, EtapaAnalisis, FuenteCaptura, HistorialRow, ProgresoAnalisis } from '@jg-stevan/scanner-core/dominio/types';
-import type { ClasificacionE14, DivipolRef } from '@jg-stevan/scanner-core/dominio/clasificador';
-import type { Quad } from '@jg-stevan/scanner-core/core/types';
-import { defaultQuad } from '@jg-stevan/scanner-core/core/types';
+import type { Acta, ActaStatus, EtapaAnalisis, FuenteCaptura, HistorialRow, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/types';
+import type { ClasificacionE14, DivipolRef } from '@molde-suite/scanner-core/dominio/clasificador';
+import type { Quad } from '@molde-suite/scanner-core/core/types';
+import { defaultQuad } from '@molde-suite/scanner-core/core/types';
 import { getBridge } from './get-bridge';
 import { esperarWorkerCaliente } from './bridge/captura';
 

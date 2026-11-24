@@ -15,7 +15,7 @@
 //
 // Sin DOM, sin React, sin ORT: corre en bun test, en worker y en navegador.
 
-import type { ReglaLayout } from '@jg-stevan/scanner-core/molde/universal-types';
+import type { ReglaLayout } from '@molde-suite/scanner-core/molde/universal-types';
 import { normalizarClase } from './clases';
 import { area, clamp01, iou as iouDe } from './geom';
 import { nmsClaseAgnostico, type CajaConScore } from './nms';

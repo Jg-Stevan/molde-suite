@@ -10,7 +10,7 @@ const estatico = process.env.NEXT_PUBLIC_STATIC === "1";
 // (TS fuente, sin build previo) — transpilarlo como parte del app.
 // PLAN-AGENTE-LAYOUT F2/F3: las señales ONNX (dla-onnx) y el evaluador de
 // reglas estructurales (layout-core) también son TS fuente de workspace.
-const transpile = ["@jg-stevan/scanner-core", "@jg-stevan/dla-onnx", "@jg-stevan/layout-core"];
+const transpile = ["@molde-suite/scanner-core", "@jg-stevan/dla-onnx", "@jg-stevan/layout-core"];
 
 // Los paquetes de workspace leen process.env en runtime; Turbopack no los
 // inlinea dentro de node_modules del workspace. `env` los fija en build para

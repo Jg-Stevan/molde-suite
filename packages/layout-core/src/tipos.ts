@@ -3,7 +3,7 @@
 // bun test, en el worker de dla-onnx y en el navegador. Las detecciones
 // entran como cajas en PIXELS de la página (W/H los da el llamador).
 
-import type { ClaseLayout, ReglaLayout } from '@jg-stevan/scanner-core/molde/universal-types';
+import type { ClaseLayout, ReglaLayout } from '@molde-suite/scanner-core/molde/universal-types';
 
 export type { ClaseLayout, ReglaLayout };
 

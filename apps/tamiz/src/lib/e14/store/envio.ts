@@ -16,9 +16,9 @@ import {
   tipoPaginaDe,
   tituloYUbicacionDe,
   type ClasificacionE14,
-} from "@jg-stevan/scanner-core/dominio/clasificador";
+} from "@molde-suite/scanner-core/dominio/clasificador";
 import { etiquetaFormulario } from "../checklist";
-import type { HistorialRow } from "@jg-stevan/scanner-core/dominio/types";
+import type { HistorialRow } from "@molde-suite/scanner-core/dominio/types";
 import { marcarPaginaOK, refrescarMesasDeArchivo } from "./guion";
 import type { ActaArchivada, E14Get, E14Set, E14Store, HuecoArchivado, PuestoActual } from "./tipos";
 

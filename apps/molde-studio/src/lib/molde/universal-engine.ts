@@ -10,8 +10,8 @@
 //      alinearAnclas, sugerirUmbral, sugerirUmbralClustering, …) para que
 //      las rutas `@/lib/molde/universal-engine` sigan funcionando sin cambios.
 import { ocrLines, ocrTextoUnico } from '@/lib/ocr/ocr-client';
-import { configurarProveedorOcr } from '@jg-stevan/scanner-core/molde/ocr-tipos';
+import { configurarProveedorOcr } from '@molde-suite/scanner-core/molde/ocr-tipos';
 
 configurarProveedorOcr({ ocrLines, ocrTextoUnico });
 
-export * from '@jg-stevan/scanner-core/molde/universal-engine';
+export * from '@molde-suite/scanner-core/molde/universal-engine';

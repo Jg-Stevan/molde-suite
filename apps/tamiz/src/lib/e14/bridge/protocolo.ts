@@ -12,17 +12,17 @@ import type {
   ActaStatus,
   EstructuraActa,
   ProgresoAnalisis,
-} from "@jg-stevan/scanner-core/dominio/types";
-import type { OpcionesEscaneo } from "@jg-stevan/scanner-core/dominio/bridge";
+} from "@molde-suite/scanner-core/dominio/types";
+import type { OpcionesEscaneo } from "@molde-suite/scanner-core/dominio/bridge";
 import type {
   PageFilter,
   PageQuality,
   Quad,
-} from "@jg-stevan/scanner-core/core/types";
+} from "@molde-suite/scanner-core/core/types";
 import {
   PATRON_CABECERA,
   type ClasificacionE14,
-} from "@jg-stevan/scanner-core/dominio/clasificador";
+} from "@molde-suite/scanner-core/dominio/clasificador";
 import type { ImagenSimuladaId } from "../simulacion-imagenes";
 // 7.1 (plan de remediación, cierra C3) — umbrales con nombre, ÚNICA fuente
 // de verdad de los números del producto (./politica/umbrales.ts).
@@ -191,7 +191,7 @@ export type CamposActa = {
   /** Clasificación de cabecera (SPEC-cabecera-clasificacion §4/§6). */
   clasificacion?: ClasificacionE14 | null;
   /** FASE 0 (blueprint DLA): evaluación del molde activo tras el gate. */
-  evaluacionMolde?: import("@jg-stevan/scanner-core/dominio/types").ResumenMoldeActa | null;
+  evaluacionMolde?: import("@molde-suite/scanner-core/dominio/types").ResumenMoldeActa | null;
   /** PLAN-AGENTE-LAYOUT F4: veredicto del gate estructural (etapa LAYOUT).
    *  null = molde sin layout o modelo no configurado (etapa saltada). */
   estructura?: EstructuraActa | null;
@@ -280,7 +280,7 @@ export type PasosMolde = {
   evaluarMolde: (
     fotoProcesada: string,
     contexto?: { esE14: boolean },
-  ) => Promise<import("@jg-stevan/scanner-core/dominio/types").ResumenMoldeActa | null>;
+  ) => Promise<import("@molde-suite/scanner-core/dominio/types").ResumenMoldeActa | null>;
 };
 
 /**

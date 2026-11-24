@@ -1,5 +1,5 @@
 {
-  "name": "@jg-stevan/scanner-core",
+  "name": "@molde-suite/scanner-core",
   "version": "0.3.0",
   "private": true,
   "description": "Contrato del núcleo de escaneo de Molde Suite (decisión D8, opción B del plan de implementación): tipos de dominio del documento (Acta), bridge de análisis, primitivas de imagen/OCR, el MOTOR UNIVERSAL v3 compartido (unificación Studio↔Tamiz) y —desde la migración Fase 2a/2b— primitivas de canvas/hash/calidad absorbidas de apps/tamiz y el CONTRATO del molde .json (src/contract: guardas + sobre con checksum + fixtures golden).",

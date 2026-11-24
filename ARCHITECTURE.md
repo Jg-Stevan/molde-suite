@@ -69,7 +69,7 @@ paquetes; layout-core depende de scanner-core (tipos de reglas). Ver
 ## 4. Fronteras (invariantes)
 
 1. `packages/*` nunca importa `apps/*`; las apps solo consumen subpaths
-   públicos (`@jg-stevan/scanner-core/...`), nunca `src/**` interno.
+   públicos (`@molde-suite/scanner-core/...`), nunca `src/**` interno.
 2. El motor es agnóstico del documento y del proveedor de OCR: lo que cambia
    entre documentos es el molde; lo que cambia entre apps es el proveedor.
 3. La capa host de Tamiz (store/obs/dla/bridge de producto) no se absorbe al

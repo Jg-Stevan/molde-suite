@@ -1,7 +1,7 @@
 // Captura: entrada del pipeline (File o dataUrl), decodificación memoizada,
 // captura síncrona de frames de video y entradas de simulación.
 
-import { defaultQuad, type Quad } from '@jg-stevan/scanner-core/core/types';
+import { defaultQuad, type Quad } from '@molde-suite/scanner-core/core/types';
 import { dibujarImagenSimulada, type ImagenSimuladaId } from '../simulacion-imagenes';
 
 /**

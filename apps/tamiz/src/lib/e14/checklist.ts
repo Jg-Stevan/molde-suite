@@ -22,8 +22,8 @@
  * (RECHAZADA→crit · ADVERTENCIA/EN_RH→warn · resto→ok), como el mock.
  */
 
-import type { Acta } from "@jg-stevan/scanner-core/dominio/types";
-import { tipoDeBanda } from "@jg-stevan/scanner-core/dominio/clasificador";
+import type { Acta } from "@molde-suite/scanner-core/dominio/types";
+import { tipoDeBanda } from "@molde-suite/scanner-core/dominio/clasificador";
 
 /** Estado de UN item del checklist (semáforo del mock). */
 export type EstadoChecklist = "ok" | "alerta" | "fallo";

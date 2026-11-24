@@ -45,7 +45,7 @@
     "zustand": "^5.0.6",
     "@jg-stevan/dla-onnx": "workspace:*",
     "@jg-stevan/layout-core": "workspace:*",
-    "@jg-stevan/scanner-core": "workspace:*"
+    "@molde-suite/scanner-core": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

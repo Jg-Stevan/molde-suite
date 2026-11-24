@@ -18,7 +18,7 @@ import { metricas } from '../src/matcher';
 import { normalizarClase } from '../src/clases';
 import { nmsClaseAgnostico } from '../src/nms';
 import type { CajaLayout } from '../src/tipos';
-import type { ReglaLayout } from '@jg-stevan/scanner-core/molde/universal-types';
+import type { ReglaLayout } from '@molde-suite/scanner-core/molde/universal-types';
 
 import gtJson from '../fixtures/e14-p1-gt.json';
 import reglasJson from '../fixtures/e14-p1-reglas.json';

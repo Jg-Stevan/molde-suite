@@ -11,7 +11,7 @@ la rama `main` del monorepo.
 **Fecha:** 2026-11-21 · **Estado:** EJECUTADA (opción B)
 
 **Contexto:** Tamiz (el digitalizador automático) se publicó como capa
-UI/puente sin el paquete de motor `@jg-stevan/scanner-core` ni ~35 módulos
+UI/puente sin el paquete de motor `@molde-suite/scanner-core` ni ~35 módulos
 hermanos del monorepo privado original: no compilaba y el README raíz lo
 prometía como app completa.
 

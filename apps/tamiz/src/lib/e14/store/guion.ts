@@ -1,7 +1,7 @@
 // Guion de la jornada: derivación de mesas desde lo archivado.
 
-import type { Mesa } from '@jg-stevan/scanner-core/dominio/types';
-import type { PaginaObjetivo } from '@jg-stevan/scanner-core/dominio/bridge';
+import type { Mesa } from '@molde-suite/scanner-core/dominio/types';
+import type { PaginaObjetivo } from '@molde-suite/scanner-core/dominio/bridge';
 import type { E14Get, E14Set } from './tipos';
 import { mesasRealesDe } from '../jornada';
 
