@@ -39,6 +39,10 @@ function argValor(flag: string): string | null {
 }
 const URL_STUDIO = argValor('--url') ?? process.env.STUDIO_URL ?? 'http://localhost:3000';
 const NOMBRE_MOLDE = argValor('--molde') ?? 'Recibo de pago';
+// Etiqueta del artefacto: sin ella el archivo sale con timestamp y nadie sabe
+// a qué código ni a qué imagen corresponde (los resultados entregados hubo que
+// renombrarlos a mano y perdieron todo vínculo con el commit).
+const ETIQUETA = argValor('--etiqueta');
 // La imagen es el primer argumento posicional (no flag ni valor de flag).
 const IMAGEN =
   args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--url' && args[i - 1] !== '--molde') ??
@@ -59,12 +63,50 @@ interface CampoReporte {
 interface ReporteUniversal {
   archivo: string;
   score: number;
-  ok_count: number;
-  total: number;
+  ok_count?: number;
+  total?: number;
   requiere_revision: boolean;
+  // El diálogo forense de Studio emite `campos` plano; el reporte crudo del motor
+  // emite `paginas[].campos`. El arnés acepta AMBAS formas (antes solo la
+  // segunda, así que imprimía 0 campos sobre sus propios artefactos).
   paginas?: { pagina: number; campos: CampoReporte[] }[];
+  campos?: CampoReporte[];
+  molde?: string;
+  fecha?: string;
   validaciones?: { id: string; ok: boolean | null; detalle: string }[];
   obligatorios_faltantes?: string[];
+}
+
+/** Banderas que anulan la lectura: el campo NO es un acierto genuino. */
+export const BANDERAS_NO_LECTURA = ['ancla_no_encontrada', 'ocr_vacio', 'zona_vacia', 'fallback_no_verificado'];
+
+export function normalizarCampos(r: ReporteUniversal): CampoReporte[] {
+  return r.campos ?? (r.paginas ?? []).flatMap((p) => p.campos);
+}
+
+/**
+ * Métricas recalculadas AQUÍ, desde los estados y banderas del reporte. No se
+ * copian del motor: el motor ya no puntúa `no_encontrado`, pero un campo
+ * opcional o con la banda vacía puede llegar a `ok` por rutas distintas, y el
+ * arnés tiene que poder discrepar (motivo de esta corrección: el 50.0 de la
+ * entrega contaba `importe_texto` = "o" con conf 0.14 como acierto).
+ */
+export function metricas(campos: CampoReporte[]) {
+  const ok = campos.filter((c) => c.estado === 'ok');
+  const sucias = ok.filter((c) => (c.banderas ?? []).some((b) => BANDERAS_NO_LECTURA.includes(b)));
+  const vacias = ok.filter(
+    (c) => (c.valor === null || c.valor === undefined || String(c.valor).replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñü]/g, '').length < 2) && c.valor !== true,
+  );
+  const noGenuinas = new Set([...sucias, ...vacias].map((c) => c.id));
+  return {
+    total: campos.length,
+    ok: ok.length,
+    score: campos.length ? Math.round((ok.length / campos.length) * 1000) / 10 : 0,
+    score_genuino: campos.length
+      ? Math.round(((ok.length - noGenuinas.size) / campos.length) * 1000) / 10
+      : 0,
+    no_genuinas: [...noGenuinas],
+  };
 }
 
 async function main(): Promise<void> {
@@ -197,22 +239,47 @@ Pasos que automatiza (referencia manual):
     const reporte = JSON.parse(json) as ReporteUniversal;
 
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const destino = resolve(DIR_SALIDA, `${stamp}.json`);
-    writeFileSync(destino, JSON.stringify(reporte, null, 2), 'utf8');
+    const nombre = `${ETIQUETA ? ETIQUETA + '-' : ''}${stamp}.json`;
+    const destino = resolve(DIR_SALIDA, nombre);
+    const campos = normalizarCampos(reporte);
+    const m = metricas(campos);
+    const git = (argsGit: string[]) =>
+      Bun.spawnSync({ cmd: ['git', ...argsGit], cwd: import.meta.dir }).stdout.toString().trim();
+    const escrito = {
+      // Metadatos de trazabilidad: sin esto un JSON de resultados no dice ni de
+      // qué código salió ni con qué imagen, y la comparación queda en el aire.
+      _meta: {
+        generado_por: 'scripts/verificar-molde.ts',
+        fecha_iso: new Date().toISOString(),
+        commit: git(['rev-parse', 'HEAD']),
+        rama: git(['rev-parse', '--abbrev-ref', 'HEAD']),
+        url_studio: URL_STUDIO,
+        imagen: absImagen,
+        molde_etiqueta: NOMBRE_MOLDE,
+        score_arnes: m.score,
+        score_genuino_arnes: m.score_genuino,
+        campos_no_genuinos: m.no_genuinas,
+      },
+      ...reporte,
+    };
+    writeFileSync(destino, JSON.stringify(escrito, null, 2), 'utf8');
     console.log(`[arnés] Reporte guardado: ${destino}`);
 
     // 7) Resumen comparable con el baseline.
-    const campos = (reporte.paginas ?? []).flatMap((p) => p.campos);
     const ok = campos.filter((c) => c.estado === 'ok');
     const revision = campos.filter((c) => c.estado === 'requiere_revision');
     const noEncontrado = campos.filter((c) => c.estado === 'no_encontrado');
     const fallback = campos.filter((c) => c.fuente === 'referencia');
+    const soloTexto = campos.filter((c) => (c.banderas ?? []).includes('ancla_solo_textual'));
     console.log('\n===== RESUMEN =====');
     console.log(`archivo:            ${reporte.archivo}`);
-    console.log(`score:              ${reporte.score} (ok ${reporte.ok_count}/${reporte.total})`);
+    console.log(`score motor:        ${reporte.score} (ok ${reporte.ok_count ?? ok.length}/${reporte.total ?? m.total})`);
+    console.log(`score arnés:        ${m.score}  ·  genuino: ${m.score_genuino} (ok ${m.ok}/${m.total})`);
+    if (m.no_genuinas.length) console.log(`  ok no genuinos:   ${m.no_genuinas.join(', ')}`);
     console.log(`requiere_revision:  ${reporte.requiere_revision}`);
     console.log(`estados:            ok ${ok.length} · revisión ${revision.length} · no_encontrado ${noEncontrado.length}`);
     console.log(`fuente referencia:  ${fallback.length}/${campos.length}`);
+    console.log(`anclas solo-texto:  ${soloTexto.length}/${campos.length}  (bypass posicional)`);
     if (reporte.validaciones?.length) {
       for (const v of reporte.validaciones) console.log(`validación ${v.id}: ok=${v.ok} (${v.detalle})`);
     }
@@ -237,7 +304,9 @@ Pasos que automatiza (referencia manual):
   }
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
