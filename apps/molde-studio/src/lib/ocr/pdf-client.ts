@@ -100,18 +100,3 @@ export async function renderArchivos(files: File[]): Promise<RenderizadoDocument
   }
   return { canvases, numPaginas: canvases.length, renderMsPorPagina };
 }
-
-/** JPEG (dataURL) de una pagina, reducido para enviar al VLM. */
-export function canvasToJpeg(canvas: HTMLCanvasElement, maxW = 1400, q = 0.85): string {
-  let src = canvas;
-  if (canvas.width > maxW) {
-    src = document.createElement('canvas');
-    src.width = maxW;
-    src.height = Math.round((canvas.height * maxW) / canvas.width);
-    const ctx = src.getContext('2d', { willReadFrequently: true })!;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(canvas, 0, 0, src.width, src.height);
-  }
-  return src.toDataURL('image/jpeg', q);
-}
