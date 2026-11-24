@@ -56,7 +56,10 @@ medidas (evidencia en `lessons/recibo_pago/2026-11-24-tachado-posicion-ancla.md`
    0.95) porque `fecha_emision` es ilegible (revelado). Corrección:
    `validacion_no_evaluable` NO degrada campos individuales; `ok: false` sí.
 
-Resultado corregido en la imagen tachada: **score 50.0** — ok genuinos:
+Resultado corregido en la imagen tachada: **score 50.0** del motor — **41.7
+genuino** (uno de esos `ok` es `importe_texto` = "o" con conf 0.14, y las dos
+firmas `ok` de esta corrida son falso positivo por `ancla_solo_textual`; ver la
+sección de re-puntuación más abajo). `ok` legítimos:
 `titulo`, `datos_pagador`, `concepto`, `forma_pago`, `fecha_pago` (valores
 EXACTOS); los fallos restantes son datos bajo revelado negro (ilegibles de
 verdad) y limitaciones geométricas que la FASE 5 resolverá — todos con
@@ -70,10 +73,56 @@ residual geométrico desplaza los recortes. Es el caso de uso explícito de la
 FASE 5 del plan (arnés geométrico con homografía), que requiere las URLs de
 los modelos ONNX (las provee el dueño — FASE 0a).
 
+## Re-puntuación y procedencia de estos artefactos (2da sesión, 2026-11-24)
+
+Los JSON de arriba reportan el `score` del propio motor (divide `ok/todos`), así
+que un campo-promesa los infla. Re-puntuados con `metricas()` del arnés
+corregido, que excluye los `ok` con bandera que anula la lectura y los valores
+degenerados (< 2 alfanuméricos):
+
+| Archivo | motor | arnés | genuino | `ok` no genuinos |
+|---|---|---|---|---|
+| `baseline-main-limpia-pag01.json` | 100 | 100 | **100** | — |
+| `feat-nuevo-limpia-pag01.json` | 100 | 100 | **100** | — |
+| `corregido-limpia-pag01.json` | 100 | 100 | **100** | — |
+| `baseline-main-rotada12.json` | 75 | 75 | **75** | — |
+| `feat-nuevo-rotada12.json` | 75 | 75 | **75** | — |
+| `corregido-rotada12.json` | 75 | 75 | **75** | `datos_pagador` (ruido) |
+| `entregado-tachado-1519.json` | 16.7 | 16.7 | **8.3** | `titulo` (fuera de banda) |
+| `corregido-tachado-1519.json` | 50.0 | 50.0 | **41.7** | `importe_texto` = "o", conf 0.14 |
+
+Procedencia verificable de los archivos (no todos salieron del mismo camino):
+
+- **`baseline-main-*` y `feat-nuevo-*` llevan UTF-8 doblemente codificado**
+  (`TÃ­tulo`: 44, 41, 28 y 10 ocurrencias respectivamente). `corregido-*` y
+  `entregado-*` están limpios. Un texto que sale del DOM del diálogo no puede
+  llegar doblemente codificado: esos cuatro no pasaron por el arnés ni por el
+  diálogo, son JSON reensamblados a mano desde otra fuente. Sus dos familias
+  **no son comparables entre sí con garantía** (molde declarado v1.3.1 frente a
+  v1.3.2 y camino de extracción distinto).
+- **Ningún archivo tiene `_meta`**: no identifican commit, rama ni imagen (el
+  arnés commiteado tampoco la escribía; ahora sí, ver `--etiqueta`).
+- **No existe artefacto del baseline 33.3** de la imagen tachada, aunque la
+  narrativa lo cita como término de comparación.
+
+Medición independiente (Studio real, mismo método end-to-end, misma imagen
+`recibo-tachado.png` 1700×1519, rama tal como se entregó): main **33.3** ·
+feat corrida 1 **41.7** · feat corridas 2 y 3 **50.0**. Es decir: el 33.3 citado
+se reproduce, pero el número publicado no es reproducible y el score oscila
+±8.3 entre corridas del mismo binario sobre la misma imagen — las dos firmas
+vuelven a `ok` por `ancla_solo_textual`.
+
 ## Cómo reproducir
 
 ```bash
-# Studio en :3000 con el molde cargado + imagen de prueba
-bun scripts/verificar-molde.ts "ruta/a/imagen.png" --url http://localhost:3000
-# El JSON queda en scripts/resultados/<timestamp>.json con resumen impreso
+# Studio arrancado y el molde cargado (ver --url si no es :3000)
+bun scripts/verificar-molde.ts "ruta/a/imagen.png" \
+  --url http://localhost:3000 --molde "Recibo de pago" --etiqueta feat-fixa
+# → scripts/resultados/feat-fixa-<timestamp>.json, con _meta (commit, rama,
+#   imagen) y el resumen score motor / score arnés / genuino impreso
 ```
+
+Los JSON ya guardados se re-puntúan importando `metricas()` y
+`normalizarCampos()` desde `scripts/verificar-molde.ts` (el módulo no ejecuta
+nada al importarse).
+
