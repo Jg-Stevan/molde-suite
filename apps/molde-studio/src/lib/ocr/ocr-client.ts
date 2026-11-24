@@ -23,6 +23,8 @@
 
 import type { Worker as TesseractWorker } from 'tesseract.js';
 import { canvasGrayscale, otsuThreshold } from '@/lib/molde/imageproc';
+// Fase 3 (migración scanner-core): mapeo OCR compartido con Tamiz (D3).
+import { lineasDesdeBlocksTesseract } from '@jg-stevan/scanner-core/molde/ocr-mapeo';
 import { tesseractWorkerOptions } from '@/lib/ocr/ocr-core-resolver';
 import type { LineaOcr, PalabraOcr } from '@/lib/molde/types';
 
@@ -139,61 +141,11 @@ export async function ocrLines(
       {},
       { text: true, blocks: true, hocr: false, tsv: false },
     );
-    const data = ret.data as unknown as {
-      confidence: number;
-      blocks: Array<{
-        paragraphs: Array<{
-          lines: Array<{
-            text: string;
-            confidence: number;
-            bbox: { x0: number; y0: number; x1: number; y1: number };
-            words: Array<{
-              text: string;
-              confidence: number;
-              bbox: { x0: number; y0: number; x1: number; y1: number };
-            }>;
-          }>;
-        }>;
-      }> | null;
-    };
-    const lines: LineaOcr[] = [];
-    for (const b of data.blocks ?? []) {
-      for (const p of b.paragraphs ?? []) {
-        for (const l of p.lines ?? []) {
-          const palabras: PalabraOcr[] = (l.words ?? [])
-            .map(
-              (w): PalabraOcr => ({
-                texto: (w.text ?? '').trim(),
-                // tesseract.js reporta confianza de palabra en escala 0-100; se
-                // normaliza a 0-1 para que TODOS los consumidores (overlay del
-                // editor, lista «Estructura OCR», umbrales de color) compartan
-                // la misma escala que la conf de página y de ocrTextoUnico
-                // (antes: mezcla 0-100/0-1 → etiquetas "8783%" y colores mal).
-                conf: typeof w.confidence === 'number' ? w.confidence / 100 : -1,
-                bbox: [w.bbox.x0, w.bbox.y0, w.bbox.x1, w.bbox.y1],
-              }),
-            )
-            .filter((w) => w.texto.length > 0);
-          if (palabras.length === 0) continue;
-          const x0 = Math.min(...palabras.map((w) => w.bbox[0]), l.bbox.x0);
-          const y0 = Math.min(...palabras.map((w) => w.bbox[1]), l.bbox.y0);
-          const x1 = Math.max(...palabras.map((w) => w.bbox[2]), l.bbox.x1);
-          const y1 = Math.max(...palabras.map((w) => w.bbox[3]), l.bbox.y1);
-          lines.push({
-            texto: palabras.map((w) => w.texto).join(' '),
-            bbox: [x0, y0, x1, y1],
-            palabras,
-          });
-        }
-      }
-    }
-    lines.sort((a, b) => a.bbox[1] - b.bbox[1] || a.bbox[0] - b.bbox[0]);
-    // N-9: sin confianza reportada → null (antes 0.5 inventado). El motor trata
-    // «sin señal» como conf_baja, no como un 50%.
-    return {
-      lines,
-      conf: typeof data.confidence === 'number' && data.confidence >= 0 ? data.confidence / 100 : null,
-    };
+    // Fase 3 (migración scanner-core): mapeo compartido con Tamiz (D3) —
+    // misma normalización 0-100 → 0-1 y misma regla N-9 (sin confianza
+    // reportada → null, nunca un número inventado).
+    const data = ret.data as unknown as Parameters<typeof lineasDesdeBlocksTesseract>[0];
+    return lineasDesdeBlocksTesseract(data);
   });
 }
 

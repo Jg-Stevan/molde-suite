@@ -20,6 +20,7 @@
     "./contract/sobre": "./src/contract/sobre.ts",
     "./obs-base/breadcrumbs": "./obs-base/breadcrumbs.ts",
     "./molde/ocr-tipos": "./molde/ocr-tipos.ts",
+    "./molde/ocr-mapeo": "./molde/ocr-mapeo.ts",
     "./molde/universal-types": "./molde/universal-types.ts",
     "./molde/imageproc": "./molde/imageproc.ts",
     "./molde/tabla-detect": "./molde/tabla-detect.ts",

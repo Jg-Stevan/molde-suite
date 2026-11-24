@@ -14,6 +14,9 @@ import {
   startTransition,
   useState,
 } from 'react';
+// Fase 3 (migración scanner-core): protocolo del sobre con checksum
+// compartido con Tamiz (D5) — el SHA-256 vive en el contrato.
+import { crearSobreMolde } from '@jg-stevan/scanner-core/contract/sobre';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -1515,18 +1518,10 @@ export default function EditorTab() {
   async function descargarJsonConChecksum() {
     if (!molde) return;
     try {
-      const cuerpo = JSON.stringify(molde);
-      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cuerpo));
-      const checksum = Array.from(new Uint8Array(digest))
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
-      const sobre = {
-        tipo: 'universal' as const,
-        version: molde.version,
-        nombre: molde.nombre,
-        checksum,
-        molde,
-      };
+      // Fase 3 (migración): el sobre { tipo, version, nombre, checksum, molde }
+      // se construye con el protocolo compartido (scanner-core/contract/sobre).
+      const sobre = await crearSobreMolde(molde);
+      if (!sobre) throw new Error('contexto sin crypto.subtle');
       const blob = new Blob([JSON.stringify(sobre, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
