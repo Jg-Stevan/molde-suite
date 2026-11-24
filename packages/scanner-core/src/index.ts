@@ -1,0 +1,60 @@
+// Barrel público de @molde-suite/scanner-core — Fase de auditoría (bloque 2).
+//
+// Entrada principal del paquete (exports ".": "./src/index.ts"): expone la
+// API de ALTO NIVEL que cualquier consumidor del workspace necesita para el
+// flujo del contrato del molde — validación (contrato), sobre con checksum
+// (protocolo Studio -> Tamiz) y tipos de dominio del documento (Acta).
+//
+// NOTA de frontera: el barrel es LIGERO a propósito. Las primitivas pesadas
+// (canvas/imagen, OCR, motor universal, calidad, hash) siguen disponibles SOLO
+// por subpaths del exports map (./core/*, ./molde/*, ./dominio/*) — así el
+// consumidor declara explícitamente qué capa usa y el bundle no arrastra
+// módulos que no necesita. Los subpaths NO cambian: retrocompatible.
+//
+// Guardas MANUALES (D4a), cero dependencias nuevas.
+
+// ── Contrato del molde .json (validación estructural + guardas) ──
+export {
+  esMoldeUniversal,
+  erroresMolde,
+  erroresContrato,
+  MOLDE_UNIVERSAL_VERSION,
+  CLAVES_TOP_LEVEL,
+} from './contract/contrato';
+export type { MoldeUniversal } from './contract/contrato';
+
+// ── Sobre con checksum (protocolo byte a byte Studio -> Tamiz) ──
+export {
+  esSobreConMolde,
+  checksumDeMolde,
+  crearSobreMolde,
+  verificarSobreMolde,
+} from './contract/sobre';
+export type { SobreMolde, VerificacionSobre } from './contract/sobre';
+
+// ── Tipos de dominio del documento (Acta y afines) ──
+export {
+  UMBRAL_ADMISIBLE_SCORE,
+  statusDeScore,
+} from '../dominio/types';
+export type {
+  Acta,
+  ActaStatus,
+  ActaFirma,
+  DiagnosticoActa,
+  EstructuraActa,
+  EtapaAnalisis,
+  FuenteCaptura,
+  HistorialRow,
+  Mesa,
+  MesaPagina,
+  MetricasActa,
+  PaginaActa,
+  ProgresoAnalisis,
+  RechazoActa,
+  ResumenMoldeActa,
+  ResumenMoldeCampo,
+  TipoPagina,
+  UbicacionActa,
+  Quad,
+} from '../dominio/types';
