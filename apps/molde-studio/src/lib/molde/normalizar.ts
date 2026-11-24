@@ -83,7 +83,12 @@ export async function normalizarPagina(
   const quad: Quad = defaultQuad();
   const filtro: PageFilter = 'original';
   try {
-    const foto = canvasEntrada.toDataURL('image/jpeg', 0.92);
+    // F-E1 (E2E Chromium): el re-encode JPEG 0.92 ANTES de la rotación degradaba
+    // el OCR del valor (articulo conf 0.4 < 0.5 → revisión falsa a 5°, score 90).
+    // PNG es sin pérdida: mismos píxeles que midió el chip de deskew. Sin
+    // matemática nueva — cambia solo el transporte de entrada a processImage
+    // (la función de producción, intacta).
+    const foto = canvasEntrada.toDataURL('image/png');
     const procesada = await processImage(foto, quad, filtro, 0, { deskew: true });
     const canvas = escalarCanvas(await decodificarCanvas(procesada.processed), 1000);
     return { canvas, deskewGrados, warped: quadSesgado(quad) };

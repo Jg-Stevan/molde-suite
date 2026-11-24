@@ -1,3 +1,30 @@
+# Cambios — prueba E2E en Chromium real del paquete verificado (plan de navegador)
+
+- Fecha: 2026-11-24
+- Base: commit `6e06646` (correcciones C1-C4 de la auditoría con variantes) en `origin/main`
+- Objeto: cubrir lo que la auditoría headless NO pudo probar — HTML5 Canvas real, UI interactiva (Verificación, importador Chandra, editor de faro, kill-switch de deskew) y UI táctica de Tamiz — con Chromium (Playwright) contra los servidores dev reales.
+- Veredicto: **APROBADO — 1 hallazgo de producción (F-E1) detectado y corregido (C5); 6 suites E2E en verde después de corregir.**
+
+## Corrección aplicada
+
+| # | Archivo | Cambio | Hallazgo |
+|---|---|---|---|
+| C5 | `apps/molde-studio/src/lib/molde/normalizar.ts` | El transporte de entrada a `processImage` pasa de `toDataURL('image/jpeg', 0.92)` a `toDataURL('image/png')` (sin pérdida) | **F-E1**: en el Studio real (Chromium), un escaneo a 5° con deskew ON daba **score 90 con `requiere_revision` falso** en `articulo` (conf 0.4 < 0.5 → `conf_baja`), aunque el chip medía `deskew +5.0°` honesto. Causa: el re-encode JPEG ANTES de la rotación generaba artefactos que la rotación + el JPEG 0.85 interno de `processImage` amplificaban; el arnés Node no hacía ese re-encode y por eso la auditoría headless no lo vio. Con PNG el mismo documento da **100 sin revisión** (y el A/B OFF sigue degradando a 70 como debe). Sin matemática nueva: `homografia.ts` y `core/image-processor.ts` quedan INTACTOS; solo cambia el transporte de entrada en el facade (cero cambios en Tamiz). |
+
+## Resultados E2E (todas las suites en verde tras C5)
+
+- **A1/A2 paridad Canvas vs Node (Studio, 10 corridas OCR completas):** `comp-completo` y `rec-completo` **100/100 sin revisión**; `sin-firma` honesto (`firma_ausente`); `rec-campos-faltantes` firma emisor presente → `firma_dudosa` (NUNCA `firma_ausente`); `manuscrito` a revisión por diseño; `repo pag-01` 100/100. Ratios de tinta Chromium vs Node: firma_emisor Δ2.3%, firma_pagador Δ5.4% (paridad); firma_comprador (rúbrica fina) 0.0318 vs 0.0079 — la zona depende del bbox OCR del ancla y del antialiasing del canvas; el umbral 0.0035 conserva margen seguro en AMBOS entornos (vacío 0.0000, banda dudosa 0.0021).
+- **AB kill-switch deskew (5°):** ON → chip `deskew +5.0°` + **100 sin revisión**; OFF → degrada a **70 con revisión**. El interruptor de la UI afecta al pipeline real.
+- **B importador Chandra:** tabla de revisión con `grupo`/`orden`/matriz de obligatorios; firma mapeada `tipo: firma` + `firma_esperada: true` + `min_trazos: 1` + relación `arriba` + faro presente (verificado en el molde creado vía IndexedDB); NO existe botón «Generar borrador» ni llamadas sidecar; errores exactos y accionables para JSON sin páginas, sin bloques mapeables y formato no reconocido.
+- **C editor de faro:** el faro se renderiza («FARO · zona_busqueda»), se edita por inputs (`Faro x`) y el overlay se mueve; el validador BLOQUEA el guardado de un faro degenerado (w=0) con el mensaje exacto «exige zona_busqueda (el faro) válida y dentro de la página — sin faro NO hay búsqueda (nunca global)».
+- **D UI táctica Tamiz:** `completo` → acordeón **colapsado** por defecto (`100% OK`); `campos-faltantes` y `sin-firma` → **desplegado** con `RECHAZADO`/solo faltantes (2 items) y la firma listada. `abiertaPorDefecto` (L358) funciona en pantalla real.
+
+## Re-verificación después de C5
+
+typecheck (2 apps) ✓ · lint (2 apps) ✓ · `test-faro-relacional` (corpus v3.2.0) ✓ · `test-motor-unit` ✓ · retrocompat 6/6 ✓ · E2E completo (6 suites, 23 casos, ~70 checks) ✓ — evidencias en `pruebas-arnes/e2e/` (resultados JSON + capturas), entregado junto al paquete.
+
+---
+
 # Cambios — auditoría con variantes reales (post-ejecución Fases 1-4)
 
 - Fecha: 2026-11-24
