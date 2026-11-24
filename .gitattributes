@@ -1,0 +1,7 @@
+# El detection-worker viaja como asset con su md5 fijado
+# (packages/scanner-core/assets.lock.json) y scripts/construir-workers.mjs lo
+# verifica BYTE A BYTE. Con core.autocrlf=true de Windows el checkout convertiría
+# sus LF a CRLF (+1938 bytes), el md5 del pin dejaría de cuadrar y el build
+# quedaría BLOQUEADO en cualquier clon de Windows. Se fija eol=lf.
+packages/scanner-core/assets/scanner/detection-worker.js text eol=lf
+apps/tamiz/public/scanner/detection-worker.js text eol=lf

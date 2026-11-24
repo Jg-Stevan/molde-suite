@@ -1,0 +1,14 @@
+{
+  "_comentario": "Assets versionados del paquete: el detection-worker es una IIFE PRECOMPILADA del proyecto vendorizado de origen (web-scanner · feba267 · v0.4.1) SIN fuente compilable en la suite. No se reconstruye: viaja como asset con su md5 fijado y procedencia documentada. Portado de e14-suite/packages/scanner-core con el mismo md5.",
+  "assets": [
+    {
+      "ruta": "assets/scanner/detection-worker.js",
+      "md5": "8afc886aad39ffaca4c814f273cea3c3",
+      "origen": "web-scanner · feba267 · v0.4.1 (vendorizado, precompilado)",
+      "bytes": 71012
+    }
+  ],
+  "referencias_md5_por_deploy": {
+    "apps/tamiz/public/scanner/detection-worker.js": "8afc886aad39ffaca4c814f273cea3c3"
+  }
+}
