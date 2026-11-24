@@ -1,0 +1,240 @@
+{
+  "molde": "cmwuvn5wp0000pz8bkamboxrk",
+  "archivo": "recibo-rotado-12.png",
+  "score": 75,
+  "requiere_revision": true,
+  "fecha": "2026-11-24T16:06:13.625Z",
+  "campos": [
+    {
+      "id": "titulo",
+      "etiqueta": "TÃ­tulo del documento",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "RECIBO DE PAGO",
+      "ratio": 0.1336224283985478,
+      "conf": 0.96,
+      "rect": {
+        "x": 0.39799999999999996,
+        "y": 0.10144500846023688,
+        "w": 0.26,
+        "h": 0.026
+      },
+      "fuente": "ancla",
+      "banderas": []
+    },
+    {
+      "id": "fecha_emision",
+      "etiqueta": "Fecha de emisiÃ³n",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "3 de diciembre de 2026",
+      "ratio": 0.07346938775510205,
+      "conf": 0.91,
+      "rect": {
+        "x": 0.5660000000000001,
+        "y": 0.13574788494077833,
+        "w": 0.3,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "rescate_anti_tachon"
+      ]
+    },
+    {
+      "id": "numero_recibo",
+      "etiqueta": "N.Âº de recibo",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "requiere_revision",
+      "valor": "PAGO",
+      "ratio": 0.0819531696173615,
+      "conf": 0.96,
+      "rect": {
+        "x": 0.511,
+        "y": 0.10544500846023688,
+        "w": 0.2,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "rescate_fallido",
+        "patron_no_cumple"
+      ]
+    },
+    {
+      "id": "datos_emisor",
+      "etiqueta": "Datos del receptor/emisor (nombre, DNI, cargo, empresa, CIF)",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "requiere_revision",
+      "valor": "N Recibo: REC-2026-0314",
+      "ratio": 0.03372908796546142,
+      "conf": 0.83,
+      "rect": {
+        "x": 0.07,
+        "y": 0.16,
+        "w": 0.86,
+        "h": 0.024
+      },
+      "fuente": "fija",
+      "banderas": [
+        "rescate_fallido",
+        "patron_no_cumple"
+      ]
+    },
+    {
+      "id": "datos_pagador",
+      "etiqueta": "Datos del pagador (nombre, DNI, cargo, empresa, CIF)",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "Carmen OrdÃ³Ã±ez Vidal, con DNI 52.340.987, en calidad de Directora administrativa,",
+      "ratio": 0.10392480211081795,
+      "conf": 0.96,
+      "rect": {
+        "x": 0.248,
+        "y": 0.27111167512690354,
+        "w": 0.76,
+        "h": 0.028
+      },
+      "fuente": "ancla",
+      "banderas": []
+    },
+    {
+      "id": "importe",
+      "etiqueta": "Importe numÃ©rico",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "2.480,50 â¬ (dos",
+      "ratio": 0.1509433962264151,
+      "conf": 0.96,
+      "rect": {
+        "x": 0.266,
+        "y": 0.34217766497461927,
+        "w": 0.1,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": []
+    },
+    {
+      "id": "importe_texto",
+      "etiqueta": "Importe en letras",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "2.480,50 â¬ (dos mil cuatrocientos ochenta euros con cincuenta cÃ©ntimos)",
+      "ratio": 0.10521739130434783,
+      "conf": 0.96,
+      "rect": {
+        "x": 0.266,
+        "y": 0.34217766497461927,
+        "w": 0.68,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": []
+    },
+    {
+      "id": "concepto",
+      "etiqueta": "Concepto del pago",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "del 50 % de la factura F-2026-092, por servicio de transporte de",
+      "ratio": 0.0886231884057971,
+      "conf": 0.92,
+      "rect": {
+        "x": 0.301,
+        "y": 0.3853248730964467,
+        "w": 0.68,
+        "h": 0.028
+      },
+      "fuente": "ancla",
+      "banderas": []
+    },
+    {
+      "id": "forma_pago",
+      "etiqueta": "Forma de pago",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "Transferencia bancaria â cuenta ES76 2077 0024 0031 0442 9015",
+      "ratio": 0.10244493837138816,
+      "conf": 0.95,
+      "rect": {
+        "x": 0.29800000000000004,
+        "y": 0.4572368866328257,
+        "w": 0.7,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": []
+    },
+    {
+      "id": "fecha_pago",
+      "etiqueta": "Fecha de pago",
+      "tipo": "texto",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": "05/12/2026",
+      "ratio": 0.07296466973886329,
+      "conf": 0.84,
+      "rect": {
+        "x": 0.29600000000000004,
+        "y": 0.4783874788494078,
+        "w": 0.18,
+        "h": 0.024
+      },
+      "fuente": "ancla",
+      "banderas": []
+    },
+    {
+      "id": "firma_emisor",
+      "etiqueta": "Firma emisor (receptor)",
+      "tipo": "firma",
+      "pagina": 1,
+      "estado": "ok",
+      "valor": true,
+      "ratio": 0.03359858532272325,
+      "conf": 0.84,
+      "rect": {
+        "x": 0.145,
+        "y": 0.5258307952622674,
+        "w": 0.34,
+        "h": 0.06
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "forma_borrosa",
+        "forma_sin_caja"
+      ]
+    },
+    {
+      "id": "firma_pagador",
+      "etiqueta": "Firma pagador",
+      "tipo": "firma",
+      "pagina": 1,
+      "estado": "requiere_revision",
+      "valor": true,
+      "ratio": 0.025825228411435308,
+      "conf": 0.67,
+      "rect": {
+        "x": 0.49,
+        "y": 0.5334450084602369,
+        "w": 0.34,
+        "h": 0.06
+      },
+      "fuente": "ancla",
+      "banderas": [
+        "forma_borrosa",
+        "forma_sin_caja",
+        "umbral_al_borde"
+      ]
+    }
+  ]
+}
