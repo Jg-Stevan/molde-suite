@@ -44,9 +44,12 @@ const NOMBRE_MOLDE = argValor('--molde') ?? 'Recibo de pago';
 // renombrarlos a mano y perdieron todo vínculo con el commit).
 const ETIQUETA = argValor('--etiqueta');
 // La imagen es el primer argumento posicional (no flag ni valor de flag).
-const IMAGEN =
-  args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--url' && args[i - 1] !== '--molde') ??
-  'recibo-tachado.png';
+const IMAGEN_POSICIONAL =
+  args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--url' && args[i - 1] !== '--molde') ?? null;
+const IMAGEN = IMAGEN_POSICIONAL ?? 'recibo-tachado.png';
+// Con imagen propia el pipeline arranca con la subida: «Probar Plantilla»
+// solo re-ejecutaría la corrida anterior (y contaminaría la señal de fin).
+const imagenPropia = IMAGEN_POSICIONAL !== null;
 
 const DIR_SALIDA = resolve(import.meta.dir, 'resultados');
 
@@ -184,59 +187,106 @@ Pasos que automatiza (referencia manual):
     await elegido.click();
     console.log('[arnés] Editor abierto');
 
-    // 3) «Probar Plantilla» (re-ejecuta la última corrida si la hay).
+    // 3) «Probar Plantilla» SOLO si no venía imagen: re-ejecuta la última
+    //    corrida. Con imagen propia es un desperdicio (2-4 min de OCR) y su
+    //    persistencia competía con la de nuestra corrida en el paso 5.
     const probar = pagina.getByRole('button', { name: /Probar Plantilla/i }).first();
-    if (await probar.count()) {
+    if (!imagenPropia && (await probar.count())) {
       await probar.click();
-      console.log('[arnés] «Probar Plantilla» pulsado');
+      console.log('[arnés] «Probar Plantilla» pulsado (sin imagen propia)');
       await pagina.waitForTimeout(2_000);
     }
 
     // 4) Subir imagen por el input oculto de Verificación (Playwright ignora
     //    la visibilidad del input). El onChange dispara el pipeline completo.
+    //    Señal de fin: al terminar, el cliente PERSISTE la corrida (POST
+    //    /api/pruebas, o PUT si re-ejecuta en sitio). Se promete ANTES de
+    //    subir para no perderla si llega rápido.
+    const persistida = pagina
+      .waitForResponse(
+        (r) =>
+          r.url().includes('/api/pruebas') &&
+          ['POST', 'PUT'].includes(r.request().method()) &&
+          r.status() < 400,
+        { timeout: 8 * 60_000 },
+      )
+      .catch(() => null);
     const input = pagina.locator('input[type="file"]').first();
     await input.setInputFiles(absImagen);
     console.log('[arnés] Imagen cargada — esperando fin del pipeline (OCR puede tardar minutos)…');
 
-    // 5) Esperar fin: sin «Cargando corrida...» y sin overlay de progreso.
+    // 5) Esperar fin: la persistencia (determinista) y, después, tres sondeos
+    //    sin overlay. El heurístico busy→idle del original NUNCA salía si el
+    //    pipeline terminaba antes del primer sondeo: el arnés agotaba los 8 min
+    //    y moría en exit 3 sin artefacto (perdido real en una corrida de control).
     await pagina
       .getByText('Cargando corrida...')
       .waitFor({ state: 'hidden', timeout: 120_000 })
       .catch(() => {});
-    await pagina
-      .getByText('Reporte JSON')
-      .waitFor({ state: 'visible', timeout: 120_000 })
-      .catch(() => {});
     const fin = Date.now() + 8 * 60_000; // OCR de página completa: hasta 8 min
-    let ocupadoPrevio = false;
-    while (Date.now() < fin) {
-      const overlay = await pagina
-        .locator('p', { hasText: /^(Procesando\.\.\.|OCR|Página)/ })
-        .count();
-      const ocupado = overlay > 0;
-      if (ocupadoPrevio && !ocupado) break;
-      ocupadoPrevio = ocupado;
+    const ocupado = () =>
+      pagina.locator('p', { hasText: /^(Procesando\.\.\.|OCR|Página)/ }).count().then((c) => c > 0);
+    const respuesta = await persistida;
+    if (respuesta) console.log(`[arnés] Corrida persistida (${respuesta.request().method()} ${respuesta.status()})`);
+    else console.warn('[arnés] Sin señal de persistencia: me guío solo por el overlay.');
+    let quietas = 0;
+    while (Date.now() < fin && quietas < 3) {
+      quietas = (await ocupado()) ? 0 : quietas + 1;
       await pagina.waitForTimeout(2_000);
     }
-    if (ocupadoPrevio) {
+    if (quietas < 3) {
       console.error('[arnés] Timeout: el pipeline no terminó a tiempo.');
       process.exit(3);
     }
     console.log('[arnés] Corrida terminada');
 
-    // 6) «Reporte JSON» → extraer del diálogo forense.
-    await pagina.getByRole('button', { name: /Reporte JSON/i }).click();
-    const dialogo = pagina.locator('[role="dialog"][aria-label*="Reporte forense"]');
-    await dialogo.waitFor({ state: 'visible', timeout: 15_000 });
-    const texto = (await dialogo.innerText()).trim();
-    const inicio = texto.indexOf('{');
-    const finJson = texto.lastIndexOf('}');
-    if (inicio < 0 || finJson <= inicio) {
-      console.error('[arnés] No se pudo extraer el JSON del diálogo.');
+    // 6) Fuente del reporte: la corrida PERSISTIDA por la app. El diálogo
+    //    forense se quedó mostrando la corrida ANTERIOR mientras la UI no
+    //    refrescaba: una corrida medida como 50.0 por el diálogo era 33.3 en
+    //    la BD (con las firmas ya en requiere_revision). Leer la BD del
+    //    propio Studio elimina esa clase de mentira.
+    let reporte: ReporteUniversal | null = null;
+    if (respuesta) {
+      try {
+        const cuerpo = (await respuesta.json()) as { id?: string };
+        if (cuerpo?.id) {
+          const d = (await fetch(`${URL_STUDIO}/api/pruebas/${cuerpo.id}`).then((x) => x.json())) as {
+            score?: number;
+            requiere_revision?: boolean;
+            resultados?: unknown;
+          };
+          const r = (typeof d.resultados === 'string' ? JSON.parse(d.resultados) : d.resultados) as
+            | ReporteUniversal
+            | null;
+          if (r) {
+            r.score = r.score ?? d.score ?? 0;
+            r.requiere_revision = r.requiere_revision ?? d.requiere_revision ?? false;
+            reporte = r;
+            console.log(`[arnés] Reporte de la corrida persistida ${cuerpo.id}`);
+          }
+        }
+      } catch (e) {
+        console.warn('[arnés] No se pudo leer la corrida persistida:', e);
+      }
+    }
+    if (!reporte) {
+      await pagina.getByRole('button', { name: /Reporte JSON/i }).click();
+      const dialogo = pagina.locator('[role="dialog"][aria-label*="Reporte forense"]');
+      await dialogo.waitFor({ state: 'visible', timeout: 15_000 });
+      const texto = (await dialogo.innerText()).trim();
+      const inicio = texto.indexOf('{');
+      const finJson = texto.lastIndexOf('}');
+      if (inicio < 0 || finJson <= inicio) {
+        console.error('[arnés] No se pudo extraer el JSON del diálogo.');
+        process.exit(4);
+      }
+      reporte = JSON.parse(texto.slice(inicio, finJson + 1)) as ReporteUniversal;
+      console.warn('[arnés] Reporte tomado del DIÁLOGO (sin persistencia): puede estar obsoleto.');
+    }
+    if (!reporte) {
+      console.error('[arnés] Sin reporte (ni persistido ni diálogo).');
       process.exit(4);
     }
-    const json = texto.slice(inicio, finJson + 1);
-    const reporte = JSON.parse(json) as ReporteUniversal;
 
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const nombre = `${ETIQUETA ? ETIQUETA + '-' : ''}${stamp}.json`;
