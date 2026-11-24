@@ -330,7 +330,6 @@ export default function VerificacionTab() {
   const ausenteCount = campos.filter((c) => c.estado === 'no_encontrado').length;
   const datosVariables = campos.filter((c) => c.tipo === 'texto' && typeof c.valor === 'string' && c.valor.trim());
   const anclas = campos.filter((c) => c.rect && c.fuente);
-  const recortes = campos.filter((c) => c.crop);
 
   // ---- FASE 4 (v3.2.0 — interfaz táctica): Datos Variables AGRUPADOS por
   // `grupo` del molde y ordenados por `orden` (Encabezado → Identificación →
@@ -340,6 +339,13 @@ export default function VerificacionTab() {
   const defsPorId = useMemo(
     () => new Map((molde?.campos ?? []).map((c) => [c.id, c])),
     [molde],
+  );
+
+  // Evidencia visual SOLO para marcas físicas no impresas: firmas, casillas y
+  // marcas de presencia, y texto manuscrito (HTR). El recorte de texto impreso
+  // es ruido: su verificación es el par Clave : Valor del panel de datos.
+  const recortes = campos.filter(
+    (c) => c.crop && (c.tipo !== 'texto' || defsPorId.get(c.id)?.htr === true),
   );
   const datosVariablesAgrupados = useMemo(() => {
     if (!datosVariables.some((c) => (defsPorId.get(c.id)?.grupo ?? '').trim() !== '')) return null;
@@ -1506,7 +1512,9 @@ export default function VerificacionTab() {
                   </div>
                   {recortes.length === 0 ? (
                     <p className="py-8 text-center text-xs text-on-surface-variant">
-                      Esta corrida no generó recortes (crops). Ejecuta la prueba desde el navegador para capturarlos.
+                      Sin evidencia física que inspeccionar: este molde no declara firmas, sellos ni
+                      campos manuscritos. Los datos impresos se verifican como Clave : Valor en
+                      «Datos variables extraídos».
                     </p>
                   ) : (
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
