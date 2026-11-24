@@ -20,56 +20,56 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `crearDetectorCasillas` | function | 15 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<{}>; }>` |
+| `crearDetectorCasillas` | function | 15 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<DeteccionCasilla[]>; }>` |
 | `DeteccionCasilla` | interface | 9 | `any` |
 
 ### packages/dla-onnx/src/index.ts
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `bandasDesdeRegiones` | function | 9 | `(regiones: {}) => { sup: { y0: number; y1: number; }; inf: { y0: number; y1: number; }; }` |
+| `bandasDesdeRegiones` | function | 9 | `(regiones: Deteccion[]) => { sup: { y0: number; y1: number; }; inf: { y0: number; y1: number; }; }` |
 | `Caja` | interface | 4 | `any` |
-| `configuracionLista` | function | 9 | `(key: string \| number \| symbol) => boolean` |
-| `configurarModelo` | function | 9 | `(key: string \| number \| symbol, url: string) => void` |
-| `crearDetector` | function | 9 | `(key: string \| number \| symbol) => Promise<Detector>` |
-| `crearDetectorCasillas` | function | 9 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<{}>; }>` |
-| `crearDetectorLayout` | function | 9 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<{}>; }>` |
-| `crearDetectorManuscrito` | function | 9 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<{}>; }>` |
+| `configuracionLista` | function | 9 | `(key: "casillas" \| "layout" \| "manuscrito") => boolean` |
+| `configurarModelo` | function | 9 | `(key: "casillas" \| "layout" \| "manuscrito", url: string) => void` |
+| `crearDetector` | function | 9 | `(key: "casillas" \| "layout" \| "manuscrito") => Promise<Detector>` |
+| `crearDetectorCasillas` | function | 9 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<DeteccionCasilla[]>; }>` |
+| `crearDetectorLayout` | function | 9 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<Deteccion[]>; }>` |
+| `crearDetectorManuscrito` | function | 9 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<Deteccion[]>; }>` |
 | `Deteccion` | interface | 9 | `any` |
 | `DeteccionCasilla` | interface | 9 | `any` |
 | `MensajeWorker` | typealias | 9 | `any` |
 | `PresetKey` | typealias | 9 | `any` |
 | `PresetOnnx` | interface | 9 | `any` |
 | `PRESETS` | variable | 9 | `Record<"casillas" \| "layout" \| "manuscrito", PresetOnnx>` |
-| `regionesManuscritas` | function | 9 | `(canvas: HTMLCanvasElement) => Promise<{}>` |
+| `regionesManuscritas` | function | 9 | `(canvas: HTMLCanvasElement) => Promise<Deteccion[]>` |
 | `RespuestaWorker` | typealias | 9 | `any` |
-| `urlModelo` | function | 9 | `(key: string \| number \| symbol) => string` |
+| `urlModelo` | function | 9 | `(key: "casillas" \| "layout" \| "manuscrito") => string` |
 
 ### packages/dla-onnx/src/manuscrito.ts
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `crearDetectorManuscrito` | function | 10 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<{}>; }>` |
-| `regionesManuscritas` | function | 19 | `(canvas: HTMLCanvasElement) => Promise<{}>` |
+| `crearDetectorManuscrito` | function | 10 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<Deteccion[]>; }>` |
+| `regionesManuscritas` | function | 19 | `(canvas: HTMLCanvasElement) => Promise<Deteccion[]>` |
 
 ### packages/dla-onnx/src/regiones.ts
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `bandasDesdeRegiones` | function | 24 | `(regiones: {}) => { sup: { y0: number; y1: number; }; inf: { y0: number; y1: number; }; }` |
-| `crearDetectorLayout` | function | 10 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<{}>; }>` |
+| `bandasDesdeRegiones` | function | 24 | `(regiones: Deteccion[]) => { sup: { y0: number; y1: number; }; inf: { y0: number; y1: number; }; }` |
+| `crearDetectorLayout` | function | 10 | `() => Promise<{ detectar: (canvas: HTMLCanvasElement, confMin?: number) => Promise<Deteccion[]>; }>` |
 
 ### packages/dla-onnx/src/runtime.ts
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `configuracionLista` | function | 36 | `(key: string \| number \| symbol) => boolean` |
-| `configurarModelo` | function | 13 | `(key: string \| number \| symbol, url: string) => void` |
-| `crearDetector` | function | 48 | `(key: string \| number \| symbol) => Promise<Detector>` |
+| `configuracionLista` | function | 36 | `(key: "casillas" \| "layout" \| "manuscrito") => boolean` |
+| `configurarModelo` | function | 13 | `(key: "casillas" \| "layout" \| "manuscrito", url: string) => void` |
+| `crearDetector` | function | 48 | `(key: "casillas" \| "layout" \| "manuscrito") => Promise<Detector>` |
 | `Deteccion` | exportspecifier | 108 | `any` |
 | `PresetKey` | exportspecifier | 108 | `any` |
 | `PRESETS` | exportspecifier | 107 | `Record<"casillas" \| "layout" \| "manuscrito", PresetOnnx>` |
-| `urlModelo` | function | 18 | `(key: string \| number \| symbol) => string` |
+| `urlModelo` | function | 18 | `(key: "casillas" \| "layout" \| "manuscrito") => string` |
 
 ### packages/dla-onnx/src/tipos.ts
 
@@ -87,7 +87,7 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `CLASES_CANONICAS` | variable | 12 | `{}` |
+| `CLASES_CANONICAS` | variable | 12 | `readonly ClaseLayout[]` |
 | `esCanonica` | function | 26 | `(c: string) => c is ClaseLayout` |
 | `normalizarClase` | function | 86 | `(c: string) => string` |
 
@@ -100,7 +100,7 @@
 | `DEFAULT_MARGEN` | variable | 31 | `0.02` |
 | `DEFAULT_MIN_SCORE` | variable | 33 | `0.2` |
 | `DEFAULT_NMS_INTERNO` | variable | 32 | `0.5` |
-| `evaluarEstructura` | function | 194 | `(detecciones: {}, reglas: {}, W: number, H: number, opts?: OpcionesEstructura) => ResultadoEstructura` |
+| `evaluarEstructura` | function | 194 | `(detecciones: CajaLayout[], reglas: ReglaLayout[], W: number, H: number, opts?: OpcionesEstructura) => ResultadoEstructura` |
 | `iou` | exportspecifier | 268 | `(a: RectXYXY, b: RectXYXY) => number` |
 
 ### packages/layout-core/src/geom.ts
@@ -126,7 +126,7 @@
 | `clamp01` | function | 23 | `(v: number) => number` |
 | `clampPagina` | function | 23 | `<T extends RectXYXY>(c: T, w: number, h: number) => T` |
 | `ClaseLayout` | exportspecifier | 10 | `any` |
-| `CLASES_CANONICAS` | exportspecifier | 7 | `{}` |
+| `CLASES_CANONICAS` | exportspecifier | 7 | `readonly ClaseLayout[]` |
 | `conModelo` | exportspecifier | 16 | `(res: ResultadoEstructura, modelo: ModeloLayout) => ResultadoEstructura` |
 | `contencion` | function | 23 | `(a: RectXYXY, b: RectXYXY) => number` |
 | `ContratoModeloLayout` | exportspecifier | 12 | `any` |
@@ -135,17 +135,17 @@
 | `DEFAULT_NMS_INTERNO` | exportspecifier | 20 | `0.5` |
 | `DeteccionLayout` | interface | 23 | `any` |
 | `esCanonica` | exportspecifier | 7 | `(c: string) => c is ClaseLayout` |
-| `evaluarEstructura` | exportspecifier | 15 | `(detecciones: {}, reglas: {}, W: number, H: number, opts?: OpcionesEstructura) => ResultadoEstructura` |
+| `evaluarEstructura` | exportspecifier | 15 | `(detecciones: CajaLayout[], reglas: ReglaLayout[], W: number, H: number, opts?: OpcionesEstructura) => ResultadoEstructura` |
 | `inter` | function | 11 | `(a: RectXYXY, b: RectXYXY) => number` |
 | `iou` | function | 22 | `(a: RectXYXY, b: RectXYXY) => number` |
 | `LayoutEngine` | interface | 23 | `any` |
-| `matchVsGt` | exportspecifier | 22 | `<P extends RectXYXY & { score?: number; }, G extends RectXYXY>(preds: {}, gts: {}, minIou?: number, minCont?: number) => { tp: number; pairs: {}; }` |
-| `metricas` | exportspecifier | 22 | `<P extends RectXYXY & { score?: number; }, G extends RectXYXY>(preds: {}, gts: {}, minIou?: number, minCont?: number) => MetricasMatch` |
+| `matchVsGt` | exportspecifier | 22 | `<P extends RectXYXY & { score?: number; }, G extends RectXYXY>(preds: P[], gts: G[], minIou?: number, minCont?: number) => { tp: number; pairs: ParMatch<P, G>[]` |
+| `metricas` | exportspecifier | 22 | `<P extends RectXYXY & { score?: number; }, G extends RectXYXY>(preds: P[], gts: G[], minIou?: number, minCont?: number) => MetricasMatch` |
 | `MetricasMatch` | exportspecifier | 22 | `any` |
-| `metricasVacias` | exportspecifier | 22 | `(gt: {}) => MetricasMatch` |
+| `metricasVacias` | exportspecifier | 22 | `(gt: RectXYXY[]) => MetricasMatch` |
 | `ModeloLayout` | typealias | 11 | `any` |
 | `MODELOS_LAYOUT` | exportspecifier | 10 | `Record<ModeloLayout, ContratoModeloLayout>` |
-| `nmsClaseAgnostico` | exportspecifier | 8 | `<T extends CajaConScore>(cajas: {}, iouUmbral: number) => {}` |
+| `nmsClaseAgnostico` | exportspecifier | 8 | `<T extends CajaConScore>(cajas: T[], iouUmbral: number) => T[]` |
 | `normalizarClase` | exportspecifier | 7 | `(c: string) => string` |
 | `OpcionesEstructura` | interface | 23 | `any` |
 | `ParteReglaLayout` | interface | 23 | `any` |
@@ -160,10 +160,10 @@
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
 | `CajaGT` | interface | 8 | `any` |
-| `matchVsGt` | function | 36 | `<P extends RectXYXY & { score?: number; }, G extends RectXYXY>(preds: {}, gts: {}, minIou?: number, minCont?: number) => { tp: number; pairs: {}; }` |
-| `metricas` | function | 66 | `<P extends RectXYXY & { score?: number; }, G extends RectXYXY>(preds: {}, gts: {}, minIou?: number, minCont?: number) => MetricasMatch` |
+| `matchVsGt` | function | 36 | `<P extends RectXYXY & { score?: number; }, G extends RectXYXY>(preds: P[], gts: G[], minIou?: number, minCont?: number) => { tp: number; pairs: ParMatch<P, G>[]` |
+| `metricas` | function | 66 | `<P extends RectXYXY & { score?: number; }, G extends RectXYXY>(preds: P[], gts: G[], minIou?: number, minCont?: number) => MetricasMatch` |
 | `MetricasMatch` | interface | 22 | `any` |
-| `metricasVacias` | function | 87 | `(gt: {}) => MetricasMatch` |
+| `metricasVacias` | function | 87 | `(gt: RectXYXY[]) => MetricasMatch` |
 | `ParMatch` | interface | 15 | `any` |
 
 ### packages/layout-core/src/modelos.ts
@@ -181,7 +181,7 @@
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
 | `CajaConScore` | interface | 10 | `any` |
-| `nmsClaseAgnostico` | function | 19 | `<T extends CajaConScore>(cajas: {}, iouUmbral: number) => {}` |
+| `nmsClaseAgnostico` | function | 19 | `<T extends CajaConScore>(cajas: T[], iouUmbral: number) => T[]` |
 
 ### packages/layout-core/src/tipos.ts
 
@@ -213,7 +213,7 @@
 |---|---|---|---|
 | `canvasDesdeDataUrl` | function | 20 | `(dataUrl: string, opciones?: OpcionesCanvasDesdeDataUrl) => Promise<HTMLCanvasElement>` |
 | `estirarContrasteEnCanvas` | function | 70 | `(c: HTMLCanvasElement) => void` |
-| `grisesDesdeCanvas` | function | 54 | `(c: HTMLCanvasElement) => { g: Float32Array; w: number; h: number; }` |
+| `grisesDesdeCanvas` | function | 54 | `(c: HTMLCanvasElement) => { g: Float32Array<ArrayBufferLike>; w: number; h: number; }` |
 | `OpcionesCanvasDesdeDataUrl` | typealias | 10 | `any` |
 
 ### packages/scanner-core/core/hash.ts
@@ -268,7 +268,7 @@
 | `claveDeMesa` | function | 71 | `(c: ClasificacionE14) => string` |
 | `claveDePuesto` | function | 61 | `(c: ClasificacionE14) => string` |
 | `DivipolRef` | interface | 8 | `any` |
-| `PATRON_CABECERA` | variable | 42 | `{}` |
+| `PATRON_CABECERA` | variable | 42 | `RegExp` |
 | `tipoDeBanda` | function | 45 | `(textoOcr: string) => "TRANSMISION" \| "DELEGADOS"` |
 | `tipoPaginaDe` | function | 52 | `(tipo: string) => TipoPagina` |
 | `tituloYUbicacionDe` | function | 78 | `(c: ClasificacionE14) => { titulo: string; ubicacion: { departamento: string; municipio: string; zona: string; puesto: string; mesa: string; }; }` |
@@ -308,43 +308,43 @@
 | `corregirDeskew` | function | 261 | `(src: HTMLCanvasElement, anguloCorrector: number) => HTMLCanvasElement` |
 | `Matriz8` | typealias | 19 | `any` |
 | `quadSesgado` | function | 89 | `(quad: Quad, eps?: number) => boolean` |
-| `resolverHomografia` | function | 23 | `(src: {}, dst: {}) => Matriz8` |
+| `resolverHomografia` | function | 23 | `(src: { x: number; y: number; }[], dst: { x: number; y: number; }[]) => Matriz8` |
 | `warpPerspectiva` | function | 111 | `(src: HTMLCanvasElement, quad: Quad, ancho: number) => HTMLCanvasElement` |
 
 ### packages/scanner-core/molde/imageproc.ts
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `adaptiveThresholdInv` | function | 84 | `(gray: Uint8Array, w: number, h: number, blockSize?: number, C?: number) => BinImage` |
-| `binarizeNoLines` | function | 163 | `(gray: Uint8Array, w: number, h: number, kernelLineaFrac?: number) => BinImage` |
+| `adaptiveThresholdInv` | function | 84 | `(gray: Uint8Array<ArrayBufferLike>, w: number, h: number, blockSize?: number, C?: number) => BinImage` |
+| `binarizeNoLines` | function | 163 | `(gray: Uint8Array<ArrayBufferLike>, w: number, h: number, kernelLineaFrac?: number) => BinImage` |
 | `BinImage` | interface | 7 | `any` |
 | `canvasGrayscale` | function | 350 | `(src: HTMLCanvasElement) => HTMLCanvasElement` |
 | `canvasOtsu` | function | 435 | `(src: HTMLCanvasElement) => HTMLCanvasElement` |
 | `canvasRealce` | function | 372 | `(src: HTMLCanvasElement, escala?: number) => HTMLCanvasElement` |
 | `CompStats` | interface | 13 | `any` |
-| `connectedComponents` | function | 181 | `(bin: Uint8Array, w: number, h: number) => { labels: Int32Array; stats: {}; }` |
+| `connectedComponents` | function | 181 | `(bin: Uint8Array<ArrayBufferLike>, w: number, h: number) => { labels: Int32Array<ArrayBufferLike>; stats: CompStats[]; }` |
 | `FiltroLinea` | interface | 228 | `any` |
-| `grayFromImageData` | function | 21 | `(img: ImageData) => Uint8Array` |
+| `grayFromImageData` | function | 21 | `(img: ImageData) => Uint8Array<ArrayBufferLike>` |
 | `inkRatio` | function | 234 | `(bin: BinImage, zone: [number, number, number, number], filtro?: FiltroLinea) => number` |
 | `medidaCelda` | function | 280 | `(bin: BinImage, zone: [number, number, number, number], cfg: MedidaComponentesCfg, filtro?: FiltroLinea) => { nBig: number; dens: number; }` |
 | `MedidaComponentesCfg` | interface | 273 | `any` |
-| `opening1D` | function | 114 | `(bin: BinImage, k: number, dir: "h" \| "v") => Uint8Array` |
-| `otsuThreshold` | function | 322 | `(gray: Uint8Array) => number` |
+| `opening1D` | function | 114 | `(bin: BinImage, k: number, dir: "h" \| "v") => Uint8Array<ArrayBufferLike>` |
+| `otsuThreshold` | function | 322 | `(gray: Uint8Array<ArrayBufferLike>) => number` |
 
 ### packages/scanner-core/molde/marca.ts
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `cajasHuecasEnBin` | function | 247 | `(bin: BinImage) => {}` |
+| `cajasHuecasEnBin` | function | 247 | `(bin: BinImage) => { x: number; y: number; w: number; h: number; puntaje: number; }[]` |
 | `clasificarMarcaBin` | function | 98 | `(bin: BinImage) => MetricaMarca` |
 | `clasificarMarcaSobreCrop` | function | 196 | `(crop: HTMLCanvasElement) => MetricaMarca` |
-| `detectarCajasHuecas` | function | 270 | `(canvas: HTMLCanvasElement, limite?: RectNorm) => {}` |
+| `detectarCajasHuecas` | function | 270 | `(canvas: HTMLCanvasElement, limite?: RectNorm) => RectNorm[]` |
 | `diferencialSiNo` | function | 376 | `(crop: HTMLCanvasElement, ventanas: VentanasSiNo) => "si" \| "no"` |
 | `EstadoMarca` | typealias | 23 | `any` |
 | `MetricaMarca` | interface | 25 | `any` |
 | `metricasFirma` | function | 318 | `(crop: HTMLCanvasElement) => MetricasFirma` |
 | `MetricasFirma` | interface | 303 | `any` |
-| `senalCajaHueca` | function | 224 | `(bin: BinImage, labels: Int32Array, stats: {}, i: number, zw: number, zh: number) => SenalCajaHueca` |
+| `senalCajaHueca` | function | 224 | `(bin: BinImage, labels: Int32Array<ArrayBufferLike>, stats: CompStats[], i: number, zw: number, zh: number) => SenalCajaHueca` |
 | `SenalCajaHueca` | interface | 209 | `any` |
 | `VentanasSiNo` | interface | 342 | `any` |
 
@@ -352,7 +352,7 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `lineasDesdeBlocksTesseract` | function | 37 | `(data: RespuestaBlocksTesseract) => { lines: {}; conf: number; }` |
+| `lineasDesdeBlocksTesseract` | function | 37 | `(data: RespuestaBlocksTesseract) => { lines: LineaOcr[]; conf: number; }` |
 | `RespuestaBlocksTesseract` | interface | 18 | `any` |
 
 ### packages/scanner-core/molde/ocr-tipos.ts
@@ -372,8 +372,8 @@
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
 | `CeldaTabla` | interface | 22 | `any` |
-| `detectarTabla` | function | 150 | `(lines: {}, zona: RectNorm, dims: { w: number; h: number; }, opts?: { maxFilas?: number; maxCols?: number; }) => TablaDetectada` |
-| `detectarTablaCompleta` | function | 265 | `(lines: {}, zona: RectNorm, dims: { w: number; h: number; }, canvas?: HTMLCanvasElement, opts?: { maxFilas?: number; maxCols?: number; }) => TablaDetectada` |
+| `detectarTabla` | function | 150 | `(lines: LineaOcr[], zona: RectNorm, dims: { w: number; h: number; }, opts?: { maxFilas?: number; maxCols?: number; }) => TablaDetectada` |
+| `detectarTablaCompleta` | function | 265 | `(lines: LineaOcr[], zona: RectNorm, dims: { w: number; h: number; }, canvas?: HTMLCanvasElement, opts?: { maxFilas?: number; maxCols?: number; }) => TablaDetect` |
 | `TablaDetectada` | interface | 29 | `any` |
 
 ### packages/scanner-core/molde/tabla-imagen.ts
@@ -381,7 +381,7 @@
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
 | `Banda` | interface | 24 | `any` |
-| `bandasAContenido` | function | 146 | `(reglas: {}, desde: number, hasta: number) => {}` |
+| `bandasAContenido` | function | 146 | `(reglas: Banda[], desde: number, hasta: number) => Banda[]` |
 | `KERNEL_MIN` | exportspecifier | 169 | `24` |
 | `reticulaDesdeImagen` | function | 96 | `(canvas: HTMLCanvasElement, zona: RectNorm) => ReticulaImagen` |
 | `ReticulaImagen` | interface | 29 | `any` |
@@ -390,31 +390,31 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `alinearAnclas` | function | 1764 | `(molde: MoldeUniversal, canvas: HTMLCanvasElement, pagina?: number) => Promise<{ molde: MoldeUniversal; encontradas: number; total: number; detalles: Record<str` |
-| `ANCLA_SCORE_MIN` | variable | 263 | `0.72` |
-| `buscarAncla` | function | 161 | `(texto: string, lineas: {}, canvasW: number, canvasH: number, rectEsperado?: RectNorm) => HitAncla` |
+| `alinearAnclas` | function | 1912 | `(molde: MoldeUniversal, canvas: HTMLCanvasElement, pagina?: number) => Promise<{ molde: MoldeUniversal; encontradas: number; total: number; detalles: Record<str` |
+| `ANCLA_SCORE_MIN` | variable | 305 | `0.72` |
+| `buscarAncla` | function | 174 | `(texto: string, lineas: LineaOcr[], canvasW: number, canvasH: number, rectEsperado?: RectNorm) => HitAncla` |
 | `editDistance` | function | 60 | `(a: string, b: string) => number` |
 | `editDistancePonderada` | function | 118 | `(a: string, b: string) => number` |
-| `evaluarDocumentoUniversal` | function | 1561 | `(canvases: {}, molde: MoldeUniversal, nombreArchivo: string, onProgreso?: (msg: string) => void, renderMs?: number, opts?: { previews?: boolean; }) => Promise<R` |
-| `FARO_MARGEN` | variable | 310 | `0.01` |
-| `hexTipo` | exportspecifier | 2106 | `(tipo: string) => string` |
+| `evaluarDocumentoUniversal` | function | 1684 | `(canvases: HTMLCanvasElement[], molde: MoldeUniversal, nombreArchivo: string, onProgreso?: (msg: string) => void, renderMs?: number, opts?: { previews?: boolean` |
+| `FARO_MARGEN` | variable | 352 | `0.01` |
+| `hexTipo` | exportspecifier | 2254 | `(tipo: string) => string` |
 | `HitAncla` | interface | 145 | `any` |
-| `lineasEnFaro` | function | 326 | `(lineas: {}, canvasW: number, canvasH: number, faro: RectNorm) => {}` |
-| `MIN_CORRIDAS_CLUSTERING` | variable | 1887 | `3` |
+| `lineasEnFaro` | function | 368 | `(lineas: LineaOcr[], canvasW: number, canvasH: number, faro: RectNorm) => LineaOcr[]` |
+| `MIN_CORRIDAS_CLUSTERING` | variable | 2035 | `3` |
 | `normTxt` | function | 50 | `(s: string) => string` |
-| `parsearFechaTexto` | function | 1322 | `(valor: string) => number` |
-| `parsearIgualdad` | function | 1278 | `(expresion: string) => { izq: string; der: Array<{ tipo: "id" \| "num"; valor: string; }>; }` |
-| `parsearRango` | function | 1301 | `(expresion: string) => { izq: string; op: ">=" \| "<="; der: string; }` |
-| `RADIO_DESAMBIGUACION` | variable | 268 | `0.3` |
-| `rectEditor` | function | 665 | `(campo: CampoUniversal) => RectNorm` |
-| `RectResuelto` | interface | 228 | `any` |
-| `resolverRectCampo` | function | 607 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
-| `resolverRectRelacional` | function | 476 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
-| `sugerirUmbral` | function | 1812 | `(resultados: ResultadoUniversal, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; motivo?: "sin_mediciones" \| "sin_tinta" \| "si` |
-| `sugerirUmbralClustering` | function | 1989 | `(corridas: {}, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; metodo: "clustering" \| "corte_fijo"; corridasConMediciones: num` |
-| `TECHO_RUIDO` | variable | 1884 | `0.02` |
-| `textoEnRect` | function | 853 | `(lineas: {}, rect: RectNorm, canvasW: number, canvasH: number) => { texto: string; conf: number; palabras: number; }` |
-| `valorNumerico` | function | 1257 | `(r: ResultadoCampoUniversal) => number` |
+| `parsearFechaTexto` | function | 1442 | `(valor: string) => number` |
+| `parsearIgualdad` | function | 1398 | `(expresion: string) => { izq: string; der: { tipo: "id" \| "num"; valor: string; }[]; }` |
+| `parsearRango` | function | 1421 | `(expresion: string) => { izq: string; op: ">=" \| "<="; der: string; }` |
+| `RADIO_DESAMBIGUACION` | variable | 310 | `0.3` |
+| `rectEditor` | function | 719 | `(campo: CampoUniversal) => RectNorm` |
+| `RectResuelto` | interface | 263 | `any` |
+| `resolverRectCampo` | function | 649 | `(campo: CampoUniversal, lineas: LineaOcr[], canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
+| `resolverRectRelacional` | function | 518 | `(campo: CampoUniversal, lineas: LineaOcr[], canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
+| `sugerirUmbral` | function | 1960 | `(resultados: ResultadoUniversal, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; motivo?: "sin_mediciones" \| "sin_tinta" \| "si` |
+| `sugerirUmbralClustering` | function | 2137 | `(corridas: ResultadoUniversal[], campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; metodo: "clustering" \| "corte_fijo"; corridas` |
+| `TECHO_RUIDO` | variable | 2032 | `0.02` |
+| `textoEnRect` | function | 935 | `(lineas: LineaOcr[], rect: RectNorm, canvasW: number, canvasH: number) => { texto: string; conf: number; palabras: number; }` |
+| `valorNumerico` | function | 1377 | `(r: ResultadoCampoUniversal) => number` |
 
 ### packages/scanner-core/molde/universal-types.ts
 
@@ -424,7 +424,7 @@
 | `CampoUniversal` | interface | 76 | `any` |
 | `ClaseLayout` | typealias | 238 | `any` |
 | `COLOR_TIPO` | variable | 347 | `Record<TipoCampo, string>` |
-| `erroresMolde` | function | 690 | `(obj: unknown) => {}` |
+| `erroresMolde` | function | 690 | `(obj: unknown) => string[]` |
 | `esMoldeUniversal` | function | 639 | `(obj: unknown) => obj is MoldeUniversal` |
 | `EstrategiaCampo` | typealias | 32 | `any` |
 | `hexTipo` | function | 354 | `(tipo: string) => string` |
@@ -456,8 +456,8 @@
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
 | `CLAVES_TOP_LEVEL` | variable | 24 | `readonly ["tipo", "version", "nombre", "descripcion", "documento", "idioma", "paginasRef", "campos", "validaciones", "layout", "meta"]` |
-| `erroresContrato` | function | 45 | `(obj: unknown) => {}` |
-| `erroresMolde` | exportspecifier | 20 | `(obj: unknown) => {}` |
+| `erroresContrato` | function | 45 | `(obj: unknown) => string[]` |
+| `erroresMolde` | exportspecifier | 20 | `(obj: unknown) => string[]` |
 | `esMoldeUniversal` | exportspecifier | 20 | `(obj: unknown) => obj is MoldeUniversal` |
 | `MOLDE_UNIVERSAL_VERSION` | exportspecifier | 20 | `"3.2.0"` |
 | `MoldeUniversal` | exportspecifier | 21 | `any` |
@@ -484,8 +484,8 @@
 | `CLAVES_TOP_LEVEL` | exportspecifier | 22 | `readonly ["tipo", "version", "nombre", "descripcion", "documento", "idioma", "paginasRef", "campos", "validaciones", "layout", "meta"]` |
 | `crearSobreMolde` | exportspecifier | 30 | `(molde: MoldeUniversal) => Promise<SobreMolde>` |
 | `DiagnosticoActa` | exportspecifier | 44 | `any` |
-| `erroresContrato` | exportspecifier | 20 | `(obj: unknown) => {}` |
-| `erroresMolde` | exportspecifier | 19 | `(obj: unknown) => {}` |
+| `erroresContrato` | exportspecifier | 20 | `(obj: unknown) => string[]` |
+| `erroresMolde` | exportspecifier | 19 | `(obj: unknown) => string[]` |
 | `esMoldeUniversal` | exportspecifier | 18 | `(obj: unknown) => obj is MoldeUniversal` |
 | `esSobreConMolde` | exportspecifier | 28 | `(p: unknown) => p is { checksum: string; molde: unknown; }` |
 | `EstructuraActa` | exportspecifier | 45 | `any` |
