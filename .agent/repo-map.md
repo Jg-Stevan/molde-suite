@@ -231,7 +231,7 @@
 | `detectDocumentEdgesDetail` | function | 56 | `(foto: string) => Promise<{ quad: Quad; origen: OrigenQuad; }>` |
 | `ErrorRescateHeic` | class | 23 | `typeof ErrorRescateHeic` |
 | `OrigenQuad` | typealias | 15 | `any` |
-| `processImage` | function | 156 | `(foto: string, quad: Quad, filtro: PageFilter, rotation: number, opts?: { manual?: boolean; deskew?: boolean; }) => Promise<{ processed: string; width: number; ` |
+| `processImage` | function | 157 | `(foto: string, quad: Quad, filtro: PageFilter, rotation: number, opts?: { manual?: boolean; deskew?: boolean; }) => Promise<{ processed: string; width: number; ` |
 
 ### packages/scanner-core/core/ocr.ts
 
@@ -303,9 +303,9 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `anguloDeskew` | function | 179 | `(src: HTMLCanvasElement) => number` |
+| `anguloDeskew` | function | 188 | `(src: HTMLCanvasElement) => number` |
 | `aplicarHomografia` | function | 79 | `(H: Matriz8, x: number, y: number) => { x: number; y: number; }` |
-| `corregirDeskew` | function | 251 | `(src: HTMLCanvasElement, anguloCorrector: number) => HTMLCanvasElement` |
+| `corregirDeskew` | function | 261 | `(src: HTMLCanvasElement, anguloCorrector: number) => HTMLCanvasElement` |
 | `Matriz8` | typealias | 19 | `any` |
 | `quadSesgado` | function | 89 | `(quad: Quad, eps?: number) => boolean` |
 | `resolverHomografia` | function | 23 | `(src: {}, dst: {}) => Matriz8` |
@@ -390,28 +390,31 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `alinearAnclas` | function | 1419 | `(molde: MoldeUniversal, canvas: HTMLCanvasElement, pagina?: number) => Promise<{ molde: MoldeUniversal; encontradas: number; total: number; detalles: Record<str` |
-| `ANCLA_SCORE_MIN` | variable | 255 | `0.72` |
-| `buscarAncla` | function | 153 | `(texto: string, lineas: {}, canvasW: number, canvasH: number, rectEsperado?: RectNorm) => HitAncla` |
-| `editDistance` | function | 52 | `(a: string, b: string) => number` |
-| `editDistancePonderada` | function | 110 | `(a: string, b: string) => number` |
-| `evaluarDocumentoUniversal` | function | 1220 | `(canvases: {}, molde: MoldeUniversal, nombreArchivo: string, onProgreso?: (msg: string) => void, renderMs?: number, opts?: { previews?: boolean; }) => Promise<R` |
-| `FARO_MARGEN` | variable | 302 | `0.01` |
-| `hexTipo` | exportspecifier | 1761 | `(tipo: string) => string` |
-| `HitAncla` | interface | 137 | `any` |
-| `lineasEnFaro` | function | 318 | `(lineas: {}, canvasW: number, canvasH: number, faro: RectNorm) => {}` |
-| `MIN_CORRIDAS_CLUSTERING` | variable | 1542 | `3` |
-| `normTxt` | function | 42 | `(s: string) => string` |
-| `parsearIgualdad` | function | 1088 | `(expresion: string) => { izq: string; der: Array<{ tipo: "id" \| "num"; valor: string; }>; }` |
-| `RADIO_DESAMBIGUACION` | variable | 260 | `0.3` |
-| `rectEditor` | function | 657 | `(campo: CampoUniversal) => RectNorm` |
-| `RectResuelto` | interface | 220 | `any` |
-| `resolverRectCampo` | function | 599 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
-| `resolverRectRelacional` | function | 468 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
-| `sugerirUmbral` | function | 1467 | `(resultados: ResultadoUniversal, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; motivo?: "sin_mediciones" \| "sin_tinta" \| "si` |
-| `sugerirUmbralClustering` | function | 1644 | `(corridas: {}, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; metodo: "clustering" \| "corte_fijo"; corridasConMediciones: num` |
-| `TECHO_RUIDO` | variable | 1539 | `0.02` |
-| `valorNumerico` | function | 1067 | `(r: ResultadoCampoUniversal) => number` |
+| `alinearAnclas` | function | 1764 | `(molde: MoldeUniversal, canvas: HTMLCanvasElement, pagina?: number) => Promise<{ molde: MoldeUniversal; encontradas: number; total: number; detalles: Record<str` |
+| `ANCLA_SCORE_MIN` | variable | 263 | `0.72` |
+| `buscarAncla` | function | 161 | `(texto: string, lineas: {}, canvasW: number, canvasH: number, rectEsperado?: RectNorm) => HitAncla` |
+| `editDistance` | function | 60 | `(a: string, b: string) => number` |
+| `editDistancePonderada` | function | 118 | `(a: string, b: string) => number` |
+| `evaluarDocumentoUniversal` | function | 1561 | `(canvases: {}, molde: MoldeUniversal, nombreArchivo: string, onProgreso?: (msg: string) => void, renderMs?: number, opts?: { previews?: boolean; }) => Promise<R` |
+| `FARO_MARGEN` | variable | 310 | `0.01` |
+| `hexTipo` | exportspecifier | 2106 | `(tipo: string) => string` |
+| `HitAncla` | interface | 145 | `any` |
+| `lineasEnFaro` | function | 326 | `(lineas: {}, canvasW: number, canvasH: number, faro: RectNorm) => {}` |
+| `MIN_CORRIDAS_CLUSTERING` | variable | 1887 | `3` |
+| `normTxt` | function | 50 | `(s: string) => string` |
+| `parsearFechaTexto` | function | 1322 | `(valor: string) => number` |
+| `parsearIgualdad` | function | 1278 | `(expresion: string) => { izq: string; der: Array<{ tipo: "id" \| "num"; valor: string; }>; }` |
+| `parsearRango` | function | 1301 | `(expresion: string) => { izq: string; op: ">=" \| "<="; der: string; }` |
+| `RADIO_DESAMBIGUACION` | variable | 268 | `0.3` |
+| `rectEditor` | function | 665 | `(campo: CampoUniversal) => RectNorm` |
+| `RectResuelto` | interface | 228 | `any` |
+| `resolverRectCampo` | function | 607 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
+| `resolverRectRelacional` | function | 476 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
+| `sugerirUmbral` | function | 1812 | `(resultados: ResultadoUniversal, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; motivo?: "sin_mediciones" \| "sin_tinta" \| "si` |
+| `sugerirUmbralClustering` | function | 1989 | `(corridas: {}, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; metodo: "clustering" \| "corte_fijo"; corridasConMediciones: num` |
+| `TECHO_RUIDO` | variable | 1884 | `0.02` |
+| `textoEnRect` | function | 853 | `(lineas: {}, rect: RectNorm, canvasW: number, canvasH: number) => { texto: string; conf: number; palabras: number; }` |
+| `valorNumerico` | function | 1257 | `(r: ResultadoCampoUniversal) => number` |
 
 ### packages/scanner-core/molde/universal-types.ts
 
@@ -419,26 +422,26 @@
 |---|---|---|---|
 | `AnclaUniversal` | interface | 63 | `any` |
 | `CampoUniversal` | interface | 76 | `any` |
-| `ClaseLayout` | typealias | 229 | `any` |
-| `COLOR_TIPO` | variable | 338 | `Record<TipoCampo, string>` |
-| `erroresMolde` | function | 681 | `(obj: unknown) => {}` |
-| `esMoldeUniversal` | function | 630 | `(obj: unknown) => obj is MoldeUniversal` |
+| `ClaseLayout` | typealias | 238 | `any` |
+| `COLOR_TIPO` | variable | 347 | `Record<TipoCampo, string>` |
+| `erroresMolde` | function | 690 | `(obj: unknown) => {}` |
+| `esMoldeUniversal` | function | 639 | `(obj: unknown) => obj is MoldeUniversal` |
 | `EstrategiaCampo` | typealias | 32 | `any` |
-| `hexTipo` | function | 345 | `(tipo: string) => string` |
-| `LayoutMolde` | interface | 288 | `any` |
-| `MOLDE_UNIVERSAL_VERSION` | variable | 335 | `"3.2.0"` |
-| `MoldeUniversal` | interface | 298 | `any` |
-| `nuevoIdCampo` | function | 746 | `() => string` |
+| `hexTipo` | function | 354 | `(tipo: string) => string` |
+| `LayoutMolde` | interface | 297 | `any` |
+| `MOLDE_UNIVERSAL_VERSION` | variable | 344 | `"3.2.0"` |
+| `MoldeUniversal` | interface | 307 | `any` |
+| `nuevoIdCampo` | function | 755 | `() => string` |
 | `RectNorm` | interface | 22 | `any` |
-| `ReglaLayout` | interface | 243 | `any` |
+| `ReglaLayout` | interface | 252 | `any` |
 | `RelacionAncla` | interface | 39 | `any` |
-| `ResultadoCampoUniversal` | interface | 360 | `any` |
-| `ResultadoPaginaUniversal` | interface | 412 | `any` |
-| `ResultadoUniversal` | interface | 431 | `any` |
-| `ResultadoValidacion` | interface | 421 | `any` |
+| `ResultadoCampoUniversal` | interface | 369 | `any` |
+| `ResultadoPaginaUniversal` | interface | 421 | `any` |
+| `ResultadoUniversal` | interface | 440 | `any` |
+| `ResultadoValidacion` | interface | 430 | `any` |
 | `TipoCampo` | typealias | 29 | `any` |
-| `UMBRAL_APROBADO` | variable | 751 | `98` |
-| `ValidacionMolde` | interface | 197 | `any` |
+| `UMBRAL_APROBADO` | variable | 760 | `98` |
+| `ValidacionMolde` | interface | 198 | `any` |
 
 ### packages/scanner-core/obs-base/breadcrumbs.ts
 
@@ -510,4 +513,4 @@
 
 ---
 
-Total: 312 símbolos en 36 archivos de 3 paquetes.
+Total: 315 símbolos en 36 archivos de 3 paquetes.
