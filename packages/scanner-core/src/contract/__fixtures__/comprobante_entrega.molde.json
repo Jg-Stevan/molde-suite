@@ -1,0 +1,283 @@
+{
+  "tipo": "universal",
+  "version": "1.3.1",
+  "nombre": "Comprobante de entrega del producto",
+  "descripcion": "Recalibrado (1.3.0) contra la plantilla HTML vigente (VAR 1-6 de variantes-prueba): título centrado, fecha de entrega BAJO el rótulo, dirección en 4 celdas y firma sobre el rótulo \"Firma del comprador o autorizado\". Datos impresos: los obligatorios de texto ya no usan htr (los manuscritos fallan patrón y caen a revisión igualmente).",
+  "documento": "generico/comprobante_entrega",
+  "idioma": "es",
+  "campos": [
+    {
+      "id": "titulo",
+      "etiqueta": "Título del documento",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.01,
+        "y": -0.006,
+        "w": 0.63,
+        "h": 0.026
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+        "rect": {
+          "x": 0.197,
+          "y": 0.054,
+          "w": 0.605,
+          "h": 0.014
+        }
+      },
+      "patron": ".*COMPROBANTE\\s+DE\\s+ENTREGA.*",
+      "nota": "Identidad del documento. 1.3.0: título centrado en la plantilla HTML (antes x≈0.094).",
+      "destacado": true
+    },
+    {
+      "id": "nombre_comprador",
+      "etiqueta": "Nombre y apellido del comprador",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.003,
+        "y": 0.012,
+        "w": 0.39,
+        "h": 0.021
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Nombre y apellido",
+        "rect": {
+          "x": 0.088,
+          "y": 0.136,
+          "w": 0.12,
+          "h": 0.01
+        }
+      },
+      "realce": true,
+      "nota": "Valor impreso dentro del recuadro (área bajo el rótulo). 1.3.0: htr=false — los datos de este formato se imprimen; un llenado a mano ilegible cae a revisión por patrón/OCR vacío."
+    },
+    {
+      "id": "documento_comprador",
+      "etiqueta": "Número de documento",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.003,
+        "y": 0.013,
+        "w": 0.24,
+        "h": 0.021
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Número de Documento",
+        "rect": {
+          "x": 0.087,
+          "y": 0.186,
+          "w": 0.154,
+          "h": 0.008
+        }
+      },
+      "patron": "(CC|C\\.?C\\.?|DNI|C[eé]dula)?\\s*\\d{1,3}(\\.\\d{3}){1,3}",
+      "realce": true,
+      "nota": "Acepta CC 1.098.234.567 / 79.884.120. htr=false (impreso)."
+    },
+    {
+      "id": "telefono",
+      "etiqueta": "Teléfono",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.002,
+        "y": 0.013,
+        "w": 0.2,
+        "h": 0.021
+      },
+      "umbral": 0.02,
+      "obligatorio": false,
+      "ancla": {
+        "texto": "Teléfono",
+        "rect": {
+          "x": 0.581,
+          "y": 0.186,
+          "w": 0.058,
+          "h": 0.008
+        }
+      },
+      "patron": "\\d{3}[\\s.-]?\\d{3}[\\s.-]?\\d{4}",
+      "realce": true,
+      "nota": "Opcional."
+    },
+    {
+      "id": "direccion",
+      "etiqueta": "Dirección de entrega",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.004,
+        "y": 0.045,
+        "w": 0.845,
+        "h": 0.022
+      },
+      "umbral": 0.02,
+      "obligatorio": false,
+      "ancla": {
+        "texto": "Dirección de entrega",
+        "rect": {
+          "x": 0.074,
+          "y": 0.238,
+          "w": 0.149,
+          "h": 0.012
+        }
+      },
+      "realce": true,
+      "nota": "Una zona sobre la FILA DE VALORES de las 4 celdas (CALLE/NRO/PISO/DPTO), sin incluir la fila de rótulos de las casillas."
+    },
+    {
+      "id": "articulo",
+      "etiqueta": "Artículo",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.003,
+        "y": 0.014,
+        "w": 0.47,
+        "h": 0.021
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Artículo",
+        "rect": {
+          "x": 0.084,
+          "y": 0.367,
+          "w": 0.055,
+          "h": 0.014
+        }
+      },
+      "realce": true,
+      "nota": "Valor impreso. Si queda vacío → falta obligatorio (VAR 5)."
+    },
+    {
+      "id": "numero_operacion",
+      "etiqueta": "N.º de operación",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.019,
+        "y": 0.014,
+        "w": 0.22,
+        "h": 0.021
+      },
+      "umbral": 0.02,
+      "obligatorio": false,
+      "ancla": {
+        "texto": "Operación",
+        "rect": {
+          "x": 0.674,
+          "y": 0.369,
+          "w": 0.07,
+          "h": 0.01
+        }
+      },
+      "patron": "[IO]P-\\d{4}-\\d{6}",
+      "realce": true,
+      "nota": "Opcional; patrón OP-AAAA-NNNNNN. 1.3.1 (auditoría): el OCR lee de forma consistente «IP-» por «OP-» en esta caja pequeña (conf 0.82 con la fuente impresa de la plantilla; documentado en cabeza y en las variantes sintéticas) — el patrón acepta la confusión I↔O del prefijo y mantiene los dígitos estrictos; rechaza lecturas sin prefijo («P-…») o con texto extra."
+    },
+    {
+      "id": "descripcion",
+      "etiqueta": "Descripción",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.003,
+        "y": 0.013,
+        "w": 0.79,
+        "h": 0.034
+      },
+      "umbral": 0.02,
+      "obligatorio": false,
+      "ancla": {
+        "texto": "Descripción",
+        "rect": {
+          "x": 0.088,
+          "y": 0.419,
+          "w": 0.078,
+          "h": 0.01
+        }
+      },
+      "realce": true,
+      "nota": "Opcional; abarca dos líneas en VAR 1."
+    },
+    {
+      "id": "firma_comprador",
+      "etiqueta": "Firma comprador",
+      "pagina": 1,
+      "tipo": "firma",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.002,
+        "y": -0.073,
+        "w": 0.46,
+        "h": 0.062
+      },
+      "umbral": 0.0035,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Firma del comprador",
+        "rect": {
+          "x": 0.086,
+          "y": 0.613,
+          "w": 0.142,
+          "h": 0.011
+        }
+      },
+      "nota": "Rúbrica manuscrita sobre la línea impresa. Zona SOLO sobre la rúbrica (sin la línea ni el rótulo). Calibrada con el motor: VAR 1 ratio 0.0123 (trazo fino), VAR 3 0.0413; sin firma 0.0000. 1.3.1 (auditoría con variantes): el umbral 0.006 dejaba el trazo fino real (ratio medido 0.0087 en pag-01 y en la variante completa 1700×2200) DENTRO de la banda de indeterminación 0.0036-0.0084 (estado oscilante ok↔requiere_revision). Nuevo umbral 0.0035 (banda 0.0021-0.0049): separa el vacío medido (0.0000) del trazo más fino (0.0087) con margen en ambos lados. Verificado en 8 imágenes."
+    },
+    {
+      "id": "fecha_entrega",
+      "etiqueta": "Fecha de entrega",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.003,
+        "y": 0.01,
+        "w": 0.26,
+        "h": 0.022
+      },
+      "umbral": 0.03,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Fecha de entrega",
+        "rect": {
+          "x": 0.616,
+          "y": 0.564,
+          "w": 0.114,
+          "h": 0.01
+        }
+      },
+      "nota": "PRESENCIA de tinta bajo el rótulo (impresa o manuscrita; no se exige lectura exacta). 1.3.0: en la plantilla HTML el valor queda DEBAJO del rótulo (antes arriba). Calibrada VAR 1/VAR 2: ratio 0.098-0.111; vacía ≤0.0126 → umbral 0.03."
+    }
+  ],
+  "validaciones": [],
+  "meta": {
+    "orden": 10,
+    "etiquetaCampos": "Campos",
+    "etiquetas": {
+      "texto": "Texto",
+      "presencia": "Presencia",
+      "firma": "Firma",
+      "checkbox": "Casilla"
+    }
+  }
+}
