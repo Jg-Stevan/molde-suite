@@ -7,11 +7,10 @@ let caliente = false;
 export function tessPrecalentar(): void {
   if (caliente) return;
   caliente = true;
-  void import('tesseract.js')
-    .then(async ({ createWorker }) => {
-      const worker = await createWorker('spa', 1);
-      await worker.setParameters({ tessedit_pageseg_mode: '3' as never });
-      await worker.terminate();
+  void import('../bridge/ocr-worker')
+    .then(async ({ getWorker }) => {
+      // Mismo criterio P7a: el singleton compartido es el que se calienta.
+      await getWorker();
     })
     .catch(() => {
       /* silencioso por diseño (kill-switch del mantenedor) */

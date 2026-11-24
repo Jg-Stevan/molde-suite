@@ -114,6 +114,12 @@ export function PanelClasificacion() {
   // §1.3: carga en arranque (idempotente, caché de módulo). Nunca falla:
   // base vacía → estado "fallo" → panel en texto libre.
   useEffect(() => {
+    // Bloque 2.6 — el catálogo DEMO (NAIROBI/KENIA/BARCELONA) SOLO alimenta
+    // el modo SIMULACIÓN: en jornada real el panel arranca vacío (sin base).
+    if (!useE14Store.getState().modoSimulacion) {
+      setBase(null);
+      return;
+    }
     void cargarDivipol().then(setBase);
   }, []);
 

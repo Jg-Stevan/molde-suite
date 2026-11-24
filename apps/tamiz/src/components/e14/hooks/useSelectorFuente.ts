@@ -18,7 +18,7 @@ export function useSelectorFuente({
 }: {
   procesandoRef: RefObject<boolean>;
   mostrarAviso: (texto: string, tono: 'crit' | 'warn', ms?: number) => void;
-  archivoDentroDeTope: (archivo: File) => { ok: boolean; razon?: string };
+  archivoDentroDeTope: (archivo: File, robusto: boolean) => Promise<File | null>;
   setArchivoPendiente: (f: File | null) => void;
   setFuente: (f: FuenteCaptura) => void;
   dispararEscaneo: () => Promise<void>;
@@ -32,7 +32,7 @@ export function useSelectorFuente({
   const [reintentoCamara, setReintentoCamara] = useState(0);
 
   const alElegir = useCallback(
-    (e: ChangeEvent<HTMLInputElement>, desdeCamara: boolean) => {
+    async (e: ChangeEvent<HTMLInputElement>, desdeCamara: boolean) => {
       const archivo = e.target.files?.[0];
       e.target.value = '';
       if (!archivo) return;
@@ -40,19 +40,29 @@ export function useSelectorFuente({
         mostrarAviso(TEXTO_MOTIVO.ARCHIVO_INVALIDO, 'crit');
         return;
       }
-      const control = archivoDentroDeTope(archivo);
-      if (!control.ok) {
-        mostrarAviso((control.razon ?? 'ARCHIVO FUERA DE TOPE').toUpperCase(), 'warn');
-        return;
-      }
       if (procesandoRef.current) return;
       if (desdeCamara) {
-        // Foto de cámara (input capture): misma vía que el obturador.
+        // Foto de cámara (input capture): misma vía que el obturador
+        // (despacharArchivo aplica el tope por dentro — upstream).
+        setFuente('CAMARA');
         despacharArchivo(archivo, true);
         return;
       }
+      // IMPORTAR: tope por gama con la capa del destello (decode único +
+      // re-escalado fuera del hilo). null = HEIC/fallo → aviso clasificado.
+      let final: File | null = null;
+      try {
+        final = await archivoDentroDeTope(archivo, true);
+      } catch (e) {
+        void e; // ErrorRescateHeic: el catch del store ya lo clasifica
+        final = null;
+      }
+      if (!final) {
+        mostrarAviso('ARCHIVO FUERA DE TOPE — IMPORTA UNA FOTO JPEG MENOR A 12 MP', 'warn');
+        return;
+      }
       setFuente('ARCHIVO');
-      setArchivoPendiente(archivo);
+      setArchivoPendiente(final);
       void dispararEscaneo();
     },
     [

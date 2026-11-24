@@ -22,6 +22,12 @@ import type { EntradaPipeline } from './bridge/captura';
 // biblioteca (documento no electoral reconocido por el motor universal).
 import { veredictoDeResumen } from './molde/enrutamiento';
 import { logger } from '../logger';
+import { probeOrientacion, rotarDataUrl } from './orientacion';
+import type { ProbeOrientacion } from './orientacion';
+import { decodificarQrCapa0Camara } from '@molde-suite/scanner-core/qr/capa0-qr.client';
+// 2.4 — política universal del gate (C3 lectura + escudo-fondo).
+import { aplicarPoliticaUniversal } from './politica/gate';
+import { senalDeLectura } from '@molde-suite/scanner-core/dominio/senal-lectura';
 
 function marcar(parcial: ParcialPipeline, fase: string, t0: number): void {
   parcial.msParciales = { ...(parcial.msParciales ?? {}), [fase]: Math.round(performance.now() - t0) };
@@ -62,6 +68,17 @@ export async function correrPipelineL2(
   const fotoOriginal =
     'archivo' in entrada ? await pasos.decodeArchivoMemo(entrada.archivo) : entrada.dataUrl;
   parcial.fotoOriginal = fotoOriginal;
+  // e64-qr T-2.1 (upstream pipeline.ts:192-201) — CAPA 0 QR en WORKER,
+  // EN PARALELO con todo el pipeline: alimenta parcial.qrCam (contrato ya
+  // cableado en construirActa/checklist) y la brújula de orientación.
+  const qrCamPromesa: Promise<ParcialPipeline['qrCam']> = (async () => {
+    try {
+      const r = await decodificarQrCapa0Camara(fotoOriginal);
+      return r && 'payload' in r ? { payload: r.payload } : null;
+    } catch {
+      return null;
+    }
+  })();
   marcar(parcial, 'decode', t0);
 
   // ---- DETECCIÓN de bordes ----
@@ -69,11 +86,8 @@ export async function correrPipelineL2(
   emitir(pasos.conRampa('DETECTANDO', 0.6));
   let quad = pasos.quadIdentidad;
   let origenDeteccion: string | null = null;
-  // Un ARCHIVO subido ya ES el documento (escaneo/recorte previo): volver a
-  // recortarlo con la heurística de gradientes engancha recuadros internos del
-  // formulario (p. ej. la tabla de nivelación del E-14) y el pipeline —gate y
-  // OCR— termina viendo solo un fragmento. La detección queda para la cámara.
-  const esArchivoSubido = 'archivo' in entrada;
+  // La cámara también entrega un File; solo los archivos importados omiten la detección.
+  const esArchivoSubido = 'archivo' in entrada && opciones.fuente !== 'CAMARA';
   try {
     if (esArchivoSubido) {
       origenDeteccion = 'archivo-identidad';
@@ -98,7 +112,38 @@ export async function correrPipelineL2(
   const warp = await processImage(fotoOriginal, quad, filtro, 0, {
     deskew: pasos.deskewHabilitado,
   });
+  // D2 (§D8.2 upstream) — VARIANTE OCR ORIGINAL: el OCR JAMÁS lee la
+  // variante binarizada ('bw'/'contrast'); corre sobre un warp SIN filtro.
+  // Con el worker fallback-canvas el segundo warp sale del hilo principal.
+  const warpOcr =
+    filtro === 'original'
+      ? warp
+      : await processImage(fotoOriginal, quad, 'original', 0, {
+          deskew: pasos.deskewHabilitado,
+        });
+  let fotoOcr = warpOcr.processed;
+  let fotoProcesada = warp.processed;
   marcar(parcial, 'proceso', t0);
+
+  // ---- ORIENTACIÓN ----
+  t0 = performance.now();
+  emitir(pasos.conRampa('RECORTANDO', 0.9));
+  let probeOri: ProbeOrientacion | null = null;
+  const qrCam = await qrCamPromesa;
+  if (qrCam) parcial.qrCam = qrCam;
+  if (opciones.fuente !== 'SIMULACION') {
+    try {
+      probeOri = await probeOrientacion(fotoOcr);
+    } catch {
+      probeOri = null;
+    }
+    if (probeOri?.aplicado) {
+      fotoOcr = await rotarDataUrl(fotoOcr, probeOri.rot);
+      fotoProcesada = await rotarDataUrl(fotoProcesada, probeOri.rot);
+    }
+  }
+  if (probeOri != null) parcial.probeMsOrientacion = probeOri.ms;
+  marcar(parcial, 'orientacion', t0);
 
   // ---- CALIDAD ----
   t0 = performance.now();
@@ -116,7 +161,7 @@ export async function correrPipelineL2(
   t0 = performance.now();
   emitir(pasos.conRampa('LAYOUT', 0.4));
   try {
-    estructura = (await pasos.evaluarEstructuraActa?.(warp.processed)) ?? null;
+    estructura = (await pasos.evaluarEstructuraActa?.(fotoProcesada)) ?? null;
   } catch {
     estructura = null; // fallo honesto: el escaneo continúa sin gate
   }
@@ -138,7 +183,7 @@ export async function correrPipelineL2(
       // conocido viaja para el diagnóstico y el overlay en REVISIÓN.
       quadDetectado: quad,
       calidad,
-      fotoProcesada: warp.processed,
+      fotoProcesada,
       filtro,
       ocrTexto: '',
       score: 0,
@@ -152,19 +197,19 @@ export async function correrPipelineL2(
   // ---- OCR ----
   t0 = performance.now();
   emitir(pasos.conRampa('OCR', 0.15));
-  let ocrTexto = await pasos.reconocerRapidOcrEscalonado(warp.processed);
+  let ocrTexto = await pasos.reconocerRapidOcrEscalonado(fotoOcr);
   if (ocrTexto.length < 60) {
-    ocrTexto = await pasos.reconocerRapidOcrCascada(warp.processed);
+    ocrTexto = await pasos.reconocerRapidOcrCascada(fotoOcr);
   }
   // FASE B3 (blueprint DLA): banda DINÁMICA desde regiones de layout cuando
   // el paso inyectado la provee (flag + modelo); caída a las bandas fijas
   // 16%/20% de siempre sin señal (Nivel 1 intacto).
   const banda =
-    (await pasos.ocrBandaDinamica?.(warp.processed, "sup")) ??
-    (await pasos.ocrBanda(warp.processed));
+    (await pasos.ocrBandaDinamica?.(fotoOcr, "sup")) ??
+    (await pasos.ocrBanda(fotoOcr));
   const bandaInf =
-    (await pasos.ocrBandaDinamica?.(warp.processed, "inf")) ??
-    (await pasos.ocrBandaInferior(warp.processed));
+    (await pasos.ocrBandaDinamica?.(fotoOcr, "inf")) ??
+    (await pasos.ocrBandaInferior(fotoOcr));
   marcar(parcial, 'ocr', t0);
   emitir(pasos.conRampa('OCR', 1));
 
@@ -175,22 +220,28 @@ export async function correrPipelineL2(
   const tinta = await razonTinta(warp.processed);
   const procesadaVacia = tinta < 0.002;
 
-  // ---- GATE ----
-  // Techos (§D1/§K): sin señal de contenido o recorte detectado, el score
-  // NO puede pasar los techos del sitio.
-  let score = scoreVisual;
+  // ---- GATE (2.4 — política universal; paridad escaneo↔recorte) ----
+  // C3 PRIMERO (pitfall §9.4): el OCR manda — piso FUERTE / techo DEBIL por
+  // la LECTURA del texto, antes de cualquier techo del sitio.
+  const politica = aplicarPoliticaUniversal({
+    score: scoreVisual,
+    nivelLectura: senalDeLectura(textoCompleto).nivel,
+    // El fork no mide `level`: sin proxy de `poor`, el piso de lectura
+    // vence al techo fair (decisión del kit «el OCR manda» §3).
+    calidadPoor: false,
+    contrasteEfectivo: pasos.contrasteEfectivoDe(calidad),
+    completa: esquinas.completa,
+    manual: false, // el ESCANEO jamás es manual (el recorte del editor va por pipeline-recorte)
+  });
+  let score = politica.score;
   let clasificacion: ClasificacionE14 | null = clasificacionBase;
   if (clasificacionBase && !pasos.senalDeContenido(textoCompleto, clasificacionBase)) {
     score = Math.min(score, pasos.TECHO_SIN_SENAL);
     clasificacion = null; // sin señal no se afianza la identificación
   }
-  if (pasos.contrasteEfectivoDe(calidad) < 0.18) {
-    // Escudo de fondo: el flash/sombra sepulta el documento.
-    score = Math.min(score, pasos.TECHO_ESCUDO_FONDO);
-  }
 
   const campos: CamposActa = {
-    fotoProcesada: warp.processed,
+    fotoProcesada,
     procesadaVacia,
     recortada: !esquinas.completa,
     recorteLado: esquinas.ladoEsquina,
@@ -248,7 +299,7 @@ export async function correrPipelineL2(
   // sigue).
   let evaluacionMolde: CamposActa['evaluacionMolde'] = null;
   try {
-    evaluacionMolde = await pasos.evaluarMolde(warp.processed, {
+    evaluacionMolde = await pasos.evaluarMolde(fotoProcesada, {
       esE14: (clasificacionBase?.tipo ?? null) !== null,
     });
   } catch (e) {

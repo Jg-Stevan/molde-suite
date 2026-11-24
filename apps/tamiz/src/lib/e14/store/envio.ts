@@ -138,23 +138,38 @@ export async function registrarEnvio(
   const fila: HistorialRow = {
     id: idHistorial(),
     titulo: tituloPagina,
-    estado: "ENVIADO",
+    // Bloque 2.6 — HONESTO: nada se transmite (sin hub); el documento se
+    // GUARDA LOCALMENTE y queda exportable a PDF.
+    estado: "GUARDADO_LOCAL",
     hora,
   };
-  let colaOffline = get().colaOffline;
-  let hash: string | undefined;
-  if (online) {
-    // C-08 — SHA-256 REAL (hex 64) de los bytes de la evidencia procesada.
-    // SIM incluido: los bytes sintéticos se hashean igual de real. Sin
-    // crypto.subtle (contexto no seguro) el campo queda AUSENTE — jamás
-    // un relleno (doctrina e14-sin-relleno).
-    hash = actaFuente?.fotoProcesada
-      ? ((await sha256HexDeDataUrl(actaFuente.fotoProcesada)) ?? undefined)
-      : undefined;
-  } else {
-    colaOffline += 1;
-    hash = "EN COLA";
-  }
+  // Bloque 2.6 — SIN servidor: no hay cola falsa ni dicotomía online. El
+  // hash SHA-256 REAL es integridad LOCAL de la evidencia (C-08 intacto:
+  // jamás un relleno — doctrina sin-relleno).
+  const colaOffline = 0;
+  const hash = actaFuente?.fotoProcesada
+    ? ((await sha256HexDeDataUrl(actaFuente.fotoProcesada)) ?? undefined)
+    : undefined;
+
+  // Libro de PDF de la sesión: JPEG DOWNSCALADO (≤1280, q0.8) del documento —
+  // RAM acotada (tope FIFO 30). Nada de dataURLs de 12 MP (lección D23).
+  const fotoLibro = actaFuente?.fotoProcesada
+    ? await fotoParaLibro(actaFuente.fotoProcesada)
+    : actaFuente?.fotoOriginal
+      ? await fotoParaLibro(actaFuente.fotoOriginal)
+      : null;
+  const pdfLibro = [
+    {
+      id: fila.id,
+      titulo: fila.titulo,
+      estado: fila.estado,
+      score: actaFuente?.score ?? null,
+      hora,
+      foto: fotoLibro,
+      qr: actaFuente?.qrPayload ?? null,
+    },
+    ...get().pdfLibro,
+  ].slice(0, 30);
   // KIT e14-sin-relleno-v1: conteo HONESTO de envíos reales (antes el cap
   // «Math.min(+1, asignadasHoy)» era herencia del seed demo 12/9 — con
   // asignadasHoy 0 congelaba el contador a cero para siempre).
@@ -179,6 +194,7 @@ export async function registrarEnvio(
   }
   set({
     historial: [fila, ...historial],
+    pdfLibro,
     completadas: completadas + 1,
     colaOffline,
     mesas: mesasActualizadas,
@@ -220,7 +236,7 @@ export async function registrarEnvio(
   // hueco nuevo se conserva la marca inline de la página objetivo (sin
   // clasificación AUTO no hay hueco que derive).
   if (archivadasNuevas !== archivadas) refrescarMesasDeArchivo(set, get);
-  return { online, hora };
+  return { online: true, hora }; // compat de firma — ya no hay red que consultar
 }
 
 export function tituloPaginaActual(get: E14Get): string {
@@ -278,11 +294,12 @@ export function crearEnvio(
         return;
       }
       await registrarEnvio(set, get, tituloPaginaActual(get));
+      // Bloque 2.6 — HONESTO: el documento queda GUARDADO LOCALMENTE (su
+      // status real no cambia — no hay servidor que lo reciba). El PDF va en
+      // ACTAS/RESUMEN (botón PDF del libro de la sesión).
       set({
-        actaActual: { ...get().actaActual!, status: "ENVIADA" },
         vista: "revision",
       });
-      // Envío OK / cola offline → NUBE del TopBar + bloque ENVIADO (§4.3).
     },
 
     escalarRevisionHumana: () => {
@@ -340,4 +357,23 @@ export function crearEnvio(
       if (nuevas !== archivadas) refrescarMesasDeArchivo(set, get);
     },
   };
+}
+
+/** JPEG ≤1280 px para el libro de PDF (memoria acotada — nunca 12 MP). */
+async function fotoParaLibro(dataUrl: string): Promise<string | null> {
+  try {
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+    const long = Math.max(img.naturalWidth, img.naturalHeight);
+    if (!long) return null;
+    const escala = Math.min(1, 1280 / long);
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * escala));
+    c.height = Math.max(1, Math.round(img.naturalHeight * escala));
+    c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.8);
+  } catch {
+    return null;
+  }
 }

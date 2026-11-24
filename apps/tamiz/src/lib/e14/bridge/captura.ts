@@ -17,14 +17,22 @@ export type EntradaPipeline = { archivo: File } | { dataUrl: string };
 /** Captura un frame del video a dataURL JPEG (síncrono; null si no hay señal). */
 export function capturarFrame(video: HTMLVideoElement): string | null {
   if (video.readyState < 2 || !video.videoWidth) return null;
-  const c = document.createElement('canvas');
-  c.width = video.videoWidth;
-  c.height = video.videoHeight;
-  c.getContext('2d', { willReadFrequently: true })!.drawImage(video, 0, 0);
-  return c.toDataURL('image/jpeg', 0.92);
+  try {
+    const c = document.createElement('canvas');
+    c.width = video.videoWidth;
+    c.height = video.videoHeight;
+    c.getContext('2d', { willReadFrequently: true })!.drawImage(video, 0, 0);
+    return c.toDataURL('image/jpeg', 0.92);
+  } catch {
+    // Upstream: el grab es un camino de captura — null honesto, no excepción.
+    return null;
+  }
 }
 
-const cacheDecode = new Map<File, string>();
+// PR-2 upstream (kit e14-masiva-tiempos-v1): memo POR INSTANCIA con WeakMap —
+// el GC puede liberar el File y su dataURL; un Map<File,string> fijo retenía
+// hasta 12 dataURLs completos (~50-100 MB en RAM con fotos de 12 MP).
+const cacheDecode = new WeakMap<File, string>();
 
 /** Decodifica un File a dataURL con caché (evita re-leer el mismo archivo). */
 export async function decodeArchivoMemo(archivo: File): Promise<string> {
@@ -36,7 +44,6 @@ export async function decodeArchivoMemo(archivo: File): Promise<string> {
     fr.onerror = () => reject(fr.error ?? new Error('No se pudo leer el archivo'));
     fr.readAsDataURL(archivo);
   });
-  if (cacheDecode.size > 12) cacheDecode.clear(); // control de memoria
   cacheDecode.set(archivo, dataUrl);
   return dataUrl;
 }

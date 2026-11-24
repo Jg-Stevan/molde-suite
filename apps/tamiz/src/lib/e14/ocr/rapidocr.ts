@@ -10,9 +10,11 @@ export async function rapidOcrPrecalentar(): Promise<void> {
   if (promesa) return promesa;
   promesa = (async () => {
     try {
-      const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker('spa', 1);
-      await worker.terminate();
+      // Calienta el SINGLETON real del pipeline (bridge/ocr-worker.getWorker):
+      // crear y DESTRUIR un worker propio deja el motor real frío y la 1.ª
+      // captura paga la inicialización completa (~4-8 s en gama media).
+      const { getWorker } = await import('../bridge/ocr-worker');
+      await getWorker();
       caliente = true;
     } catch {
       /* el precalentamiento jamás rompe el arranque */

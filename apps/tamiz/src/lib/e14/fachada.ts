@@ -5,6 +5,12 @@ import type { Acta, ActaStatus, EtapaAnalisis, FuenteCaptura, HistorialRow, Prog
 import type { ClasificacionE14, DivipolRef } from '@molde-suite/scanner-core/dominio/clasificador';
 import type { Quad } from '@molde-suite/scanner-core/core/types';
 import { defaultQuad } from '@molde-suite/scanner-core/core/types';
+import {
+  detectDocumentEdgesDetail,
+  ErrorRescateHeic,
+  fileToCaptureDataUrl,
+  jpegDimensionsFromBlob,
+} from '@molde-suite/scanner-core/core/image-processor';
 import { getBridge } from './get-bridge';
 import { esperarWorkerCaliente } from './bridge/captura';
 
@@ -14,9 +20,28 @@ export type TipoCopia = 'TRANSMISION' | 'DELEGADOS';
 
 export { defaultQuad, getBridge };
 
+export type Point = Quad[number];
+
+/** loadImage (contrato upstream del QuadEditor): decodifica un data URL. */
+export function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+  const img = new Image();
+  img.src = dataUrl;
+  return img.decode().then(() => img);
+}
+
+export { ErrorRescateHeic, fileToCaptureDataUrl, jpegDimensionsFromBlob };
+
+/** detectDocumentEdges (contrato upstream): quad del detector sobre la foto. */
+export function detectDocumentEdges(foto: string): Promise<Quad> {
+  return detectDocumentEdgesDetail(foto).then((d) => d.quad);
+}
+
 /** Precalienta el motor de procesado (warm-up del canvas/worker). */
 export function warmUpScannerWorker(): void {
-  void esperarWorkerCaliente();
+  // D19 — warm-up del worker OpenCV REAL (public/scanner/detection-worker.js
+  // vía detector-client del fork). Sin worker listo, detectDocumentEdges cae
+  // a su detector Sobel local (contrato del cliente — null honesto).
+  void import('@molde-suite/scanner-core/core/detector-client').then((m) => m.warmUpScannerWorker());
 }
 
 /** Nombre de archivo de exportación desde la clasificación. */

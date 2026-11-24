@@ -157,6 +157,10 @@ export function ScanView() {
   const visorRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const procesandoRef = useRef(false);
+  /** Candado del OBTURADOR (toma ZSL + foto + burst), distinto del del
+   *  ANÁLISIS (`procesandoRef`, dueño: `despacharArchivo`). Ver
+   *  `capturarInteligente`. */
+  const capturandoRef = useRef(false);
   const cooldownRef = useRef(0);
   // D9 (SPEC-e14-guard-borde Rev. 2): captura automática ARMADA por defecto —
   // REVISA el default OFF de D22/D24 por mandato del mantenedor («cuando se habra
@@ -411,82 +415,93 @@ export function ScanView() {
    *  3. Sin foto → burst {zsl, snapA, snap} por lapVar → encode del ganador.
    *  4. Sin NADA → grab del video vivo vía frameActual del bridge. */
   const capturarInteligente = useCallback(async (): Promise<void> => {
-    if (procesandoRef.current) return;
+    // DOS CANDADOS, DOS DUEÑOS. `capturandoRef` = obturador en vuelo (lo toma
+    // y lo suelta ESTA función, siempre por finally); `procesandoRef` = análisis
+    // en vuelo (lo toma y lo suelta `despacharArchivo`). Con un solo ref
+    // compartido había que apagarlo justo antes del hand-off, y cualquier
+    // excepción en el camino (canvas roto, tope, `takePhoto` colgado) dejaba la
+    // cámara sorda para siempre: el gate del loop ya no vuelve a llamar.
+    if (capturandoRef.current || procesandoRef.current) return;
     if (cooldownRef.current > Date.now()) return;
-    loopRef.current?.notifyCaptured();
-    cooldownRef.current = Date.now() + COOLDOWN_MS;
-    procesandoRef.current = true;
+    capturandoRef.current = true;
     setProcesando(true);
+    try {
+      loopRef.current?.notifyCaptured();
+      cooldownRef.current = Date.now() + COOLDOWN_MS;
 
-    const zsl = tomarZsl();
-    // §5.4 — frame A ANTES de la foto: si takePhoto cuelga y cae (8 s),
-    // ya queda un candidato válido medido del momento real del tap.
-    // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L843-L845
-    // (remediación H3 — snapA existe antes del disparo; el burst de respaldo
-    //  queda [zsl, snapA, snapB] con snapA del instante correcto).
-    const snapA = instantanea();
-    // G3/G5 (lab L1770): canPhoto = gate de plataforma (CAN_TAKEPHOTO, ya en
-    // el ref) Y lista negra temporal NO activa — un sensor con el takePhoto
-    // colgado no vuelve a pagar los 8 s en cada disparo.
-    const puedeFotoAhora = puedeTomarFotoRef.current && !takePhotoBrokenRef.current;
-    const fotoBlob = puedeFotoAhora
-      ? await tomarFoto((upgrade) => void mejorarSilenciosa(upgrade))
-      : null;
-    if (fotoBlob) {
-      // La foto full-sensor gana: suelta los frames de respaldo (R-14).
-      if (zsl) liberarCanvas(zsl.canvas);
-      if (snapA) liberarCanvas(snapA.canvas);
-      // Capa 3 H2: decode único + tope por GAMA antes del bridge (el blob ya
-      // viene ≤tope de las capas 1-2 — aquí es verificación barata, como el
-      // dispatch L574-589 del lab).
-      void despacharArchivo(fotoBlob, false);
-      return;
-    }
-    if (puedeFotoAhora && camEstado === "viva") {
-      // takePhoto colgó (> 8 s) o no existe → aviso honesto del fallback
-      // (franja del visor — redesign-stitch §3.1.4).
-      mostrarAviso(
-        "CAPTURA A RESOLUCIÓN DEL VISOR — la foto del sensor no respondió; se analiza el mejor fotograma reciente.",
-        "warn",
-        5000,
+      const zsl = tomarZsl();
+      // §5.4 — frame A ANTES de la foto: si takePhoto cuelga y cae (8 s),
+      // ya queda un candidato válido medido del momento real del tap.
+      // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L843-L845
+      // (remediación H3 — snapA existe antes del disparo; el burst de respaldo
+      //  queda [zsl, snapA, snapB] con snapA del instante correcto).
+      const snapA = instantanea();
+      // G3/G5 (lab L1770): canPhoto = gate de plataforma (CAN_TAKEPHOTO, ya en
+      // el ref) Y lista negra temporal NO activa — un sensor con el takePhoto
+      // colgado no vuelve a pagar los 8 s en cada disparo.
+      const puedeFotoAhora = puedeTomarFotoRef.current && !takePhotoBrokenRef.current;
+      const fotoBlob = puedeFotoAhora
+        ? await tomarFoto((upgrade) => void mejorarSilenciosa(upgrade))
+        : null;
+      if (fotoBlob) {
+        // La foto full-sensor gana: suelta los frames de respaldo (R-14).
+        if (zsl) liberarCanvas(zsl.canvas);
+        if (snapA) liberarCanvas(snapA.canvas);
+        // Capa 3 H2: decode único + tope por GAMA antes del bridge (el blob ya
+        // viene ≤tope de las capas 1-2 — aquí es verificación barata, como el
+        // dispatch L574-589 del lab).
+        void despacharArchivo(fotoBlob, true);
+        return;
+      }
+      if (puedeFotoAhora && camEstado === "viva") {
+        // takePhoto colgó (> 8 s) o no existe → aviso honesto del fallback
+        // (franja del visor — redesign-stitch §3.1.4).
+        mostrarAviso(
+          "CAPTURA A RESOLUCIÓN DEL VISOR — la foto del sensor no respondió; se analiza el mejor fotograma reciente.",
+          "warn",
+          5000,
+        );
+      }
+      const snapB = instantanea();
+      const candidatos = [zsl, snapA, snapB].filter(
+        (f): f is { canvas: HTMLCanvasElement; lapVar: number } => f !== null,
       );
-    }
-    const snapB = instantanea();
-    const candidatos = [zsl, snapA, snapB].filter(
-      (f): f is { canvas: HTMLCanvasElement; lapVar: number } => f !== null,
-    );
-    if (candidatos.length === 0) {
-      // Último recurso (lab B8 → e14): grab del video vivo por el bridge
-      // (frameActual → canvas a resolución del stream).
-      const video = videoRef.current;
-      if (video && video.readyState >= 2 && video.videoWidth) {
-        destellar();
-        procesandoRef.current = false;
-        setProcesando(false);
-        void dispararEscaneo();
+      if (candidatos.length === 0) {
+        // Último recurso (lab B8 → e14): grab del video vivo por el bridge
+        // (frameActual → canvas a resolución del stream). No hay blob que
+        // despachar: el escaneo usa `framePendiente` y el gate del loop se
+        // protege solo con `analisisEnVuelo` del store.
+        const video = videoRef.current;
+        if (video && video.readyState >= 2 && video.videoWidth) {
+          setArchivoPendiente(null);
+          setFramePendiente(video);
+          destellar();
+          setProcesando(false);
+          void dispararEscaneo();
+        } else {
+          setProcesando(false);
+          mostrarAviso("NO SE PUDO CAPTURAR — inténtalo de nuevo.", "crit");
+        }
+        return;
+      }
+      const ganador = candidatos.reduce((a, b) => (b.lapVar > a.lapVar ? b : a));
+      const blob = await canvasABlob(ganador.canvas);
+      for (const c of candidatos) {
+        // FIX (auditoría 2-b #8): TODOS los canvases se liberan (antes el
+        // ganador quedaba vivo esperando al GC — inconsistente con la
+        // disciplina iOS del propio módulo, error #22 del lab).
+        liberarCanvas(c.canvas);
+      }
+      if (blob) {
+        // Capa 3 H2: el frame ganador también pasa por el tope (decode único,
+        // verificación barata — frames de preview, muy por debajo del tope).
+        void despacharArchivo(blob, true);
       } else {
-        procesandoRef.current = false;
         setProcesando(false);
         mostrarAviso("NO SE PUDO CAPTURAR — inténtalo de nuevo.", "crit");
       }
-      return;
-    }
-    const ganador = candidatos.reduce((a, b) => (b.lapVar > a.lapVar ? b : a));
-    const blob = await canvasABlob(ganador.canvas);
-    for (const c of candidatos) {
-      // FIX (auditoría 2-b #8): TODOS los canvases se liberan (antes el
-      // ganador quedaba vivo esperando al GC — inconsistente con la
-      // disciplina iOS del propio módulo, error #22 del lab).
-      liberarCanvas(c.canvas);
-    }
-    if (blob) {
-      // Capa 3 H2: el frame ganador también pasa por el tope (decode único,
-      // verificación barata — frames de preview, muy por debajo del tope).
-      void despacharArchivo(blob, false);
-    } else {
-      procesandoRef.current = false;
-      setProcesando(false);
-      mostrarAviso("NO SE PUDO CAPTURAR — inténtalo de nuevo.", "crit");
+    } finally {
+      capturandoRef.current = false;
     }
   }, [
     tomarZsl,

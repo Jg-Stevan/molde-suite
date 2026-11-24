@@ -28,6 +28,24 @@
     "./molde/tabla-imagen": "./molde/tabla-imagen.ts",
     "./molde/universal-engine": "./molde/universal-engine.ts",
     "./molde/marca": "./molde/marca.ts",
-    "./molde/homografia": "./molde/homografia.ts"
+    "./molde/homografia": "./molde/homografia.ts",
+    "./src/captura/reescalo-worker": "./src/captura/reescalo-worker.ts",
+    "./core/detector-client": "./core/detector-client.ts",
+    "./dominio/entorno": "./dominio/entorno.ts",
+    "./dominio/image-utils": "./dominio/image-utils.ts",
+    "./dominio/senal-lectura": "./dominio/senal-lectura.ts",
+    "./dominio/logger": "./dominio/logger.ts",
+    "./dominio/plan": "./dominio/plan.ts",
+    "./geom/orientacion": "./geom/orientacion.ts",
+    "./qr/identidad-qr": "./qr/identidad-qr.ts",
+    "./qr/capa0-qr.client": "./qr/capa0-qr.client.ts",
+    "./ocr/rapidocr": "./ocr/rapidocr.ts",
+    "./ocr/crop-geometria": "./ocr/crop-geometria.ts",
+    "./ocr/db-postprocess": "./ocr/db-postprocess.ts",
+    "./ocr/db-postprocess-client": "./ocr/db-postprocess-client.ts"
+  },
+  "dependencies": {
+    "onnxruntime-web": "1.31.1",
+    "zxing-wasm": "^3.1.8"
   }
 }

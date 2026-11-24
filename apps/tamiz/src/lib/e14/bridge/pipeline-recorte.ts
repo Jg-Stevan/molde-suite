@@ -2,10 +2,13 @@
 // sea el del editor manual o el re-detectado en mejorarResolución). Comparte
 // calidad + OCR + gate con el pipeline de escaneo (helper único §4.4).
 
+// 2.4 — política universal del gate (C3 lectura + escudo-fondo + escudo-MANUAL).
+import { aplicarPoliticaUniversal } from '../politica/gate';
+import { senalDeLectura } from '@molde-suite/scanner-core/dominio/senal-lectura';
 import { clasificarDesdeOcr, type ClasificacionE14 } from '@molde-suite/scanner-core/dominio/clasificador';
 import { processImage } from '@molde-suite/scanner-core/core/image-processor';
 import type { Quad } from '@molde-suite/scanner-core/core/types';
-import type { ActaFirma, ActaStatus, Acta, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/types';
+import type { Acta, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/types';
 import type { OrigenQuad } from '@molde-suite/scanner-core/core/image-processor';
 import type { ResultadoGate } from './protocolo';
 import { conRampa } from './progreso';
@@ -14,7 +17,11 @@ import { ocrBanda, ocrBandaInferior, reconocerRapidOcrEscalonado } from './ocr';
 import { senalDeContenido } from './protocolo';
 import { TECHO_SIN_SENAL } from '../politica/umbrales';
 
-export const RECORTE_TIMEOUT_MS = 15_000;
+// KIT e14-recorte-manual-v1 (T1, upstream): el warp del editor mide 14–17.4 s
+// en el equipo del mantenedor — con 15 s el recorte manual VENCE el timeout y
+// el acta vuelve RECHAZADA ILEGIBLE con el parcial (no aplica). 30 s = upstream
+// (apps/digielect14/src/lib/e14/bridge/pipeline-recorte.ts:115).
+export const RECORTE_TIMEOUT_MS = 30_000;
 
 /** Parcial YA HORNEADO del recorte (se llena apenas el warp completa). */
 export interface ParcialRecorte {
@@ -25,7 +32,7 @@ export interface ParcialRecorte {
   recorteLado?: string | null;
 }
 
-/** Dependencias del bridge (gate + firmas — helper único §4.4). */
+/** Dependencias del gate. */
 export interface DepsRecorte {
   evaluarGate: (
     score: number,
@@ -34,7 +41,6 @@ export interface DepsRecorte {
     intento: number,
     maxIntentos: number,
   ) => ResultadoGate;
-  firmasPorStatus: (firmas: ActaFirma[], status: ActaStatus) => ActaFirma[];
 }
 
 export async function correrPipelineRecorte(
@@ -53,6 +59,12 @@ export async function correrPipelineRecorte(
   emitir(conRampa('RECORTANDO', 0.1));
   const filtro = (acta.filtro ?? 'bw') as 'original' | 'bw' | 'contrast';
   const warp = await processImage(fotoOriginal, quad, filtro, rotacion, { manual: true });
+  // D2 (§D8.2) — VARIANTE OCR ORIGINAL en el recorte: el OCR JAMÁS lee la
+  // variante binarizada; segundo warp SIN filtro (worker fallback-canvas).
+  const warpOcr =
+    filtro === 'original'
+      ? warp
+      : await processImage(fotoOriginal, quad, 'original', rotacion, { manual: true });
   // El parcial se hornea apenas el warp completa (T1): si vence el timeout,
   // el acta de tiempo muestra ESTE recorte, no la foto anterior.
   parcial.fotoProcesada = warp.processed;
@@ -67,9 +79,9 @@ export async function correrPipelineRecorte(
 
   // ---- OCR + bandas ----
   emitir(conRampa('OCR', 0.2));
-  const ocrTexto = await reconocerRapidOcrEscalonado(warp.processed);
-  const banda = await ocrBanda(warp.processed);
-  const bandaInf = await ocrBandaInferior(warp.processed);
+  const ocrTexto = await reconocerRapidOcrEscalonado(warpOcr.processed);
+  const banda = await ocrBanda(warpOcr.processed);
+  const bandaInf = await ocrBandaInferior(warpOcr.processed);
   emitir(conRampa('OCR', 1));
 
   // ---- CLASIFICACIÓN + completitud ----
@@ -79,26 +91,24 @@ export async function correrPipelineRecorte(
   parcial.recortada = !esquinas.completa;
   parcial.recorteLado = esquinas.ladoEsquina;
 
-  let score = scoreVisual;
+  // 2.4 — política UNIVERSAL (paridad con el escaneo) con manual: true:
+  // C3 lectura → escudo-fondo → escudo-MANUAL (Q2): el recorte del editor
+  // JAMÁS se veto por el guard (el operador VIO el papel); si la geometría
+  // sospecha, el score degrada al techo 7.9 y decide el gate por intentos.
+  const politica = aplicarPoliticaUniversal({
+    score: scoreVisual,
+    nivelLectura: senalDeLectura(textoCompleto).nivel,
+    // El fork no mide `level` (piso de lectura vence — «el OCR manda»).
+    calidadPoor: false,
+    contrasteEfectivo: contrasteEfectivoDe(calidad),
+    completa: esquinas.completa,
+    manual: true,
+  });
+  let score = politica.score;
   let clasificacion: ClasificacionE14 | null = clasificacionBase;
   if (clasificacionBase && !senalDeContenido(textoCompleto, clasificacionBase)) {
     score = Math.min(score, TECHO_SIN_SENAL);
     clasificacion = null;
-  }
-  if (contrasteEfectivoDe(calidad) < 0.18) {
-    score = Math.min(score, TECHO_SIN_SENAL);
-  }
-
-  if (!esquinas.completa) {
-    return {
-      ...acta,
-      ...parcial,
-      score: 0,
-      status: 'RECHAZADA',
-      rechazo: { tipo: 'INCOMPLETA', detalle: 'EL DOCUMENTO ESTÁ CORTADO EN EL ENCUADRE — ALÉJATE UN POCO Y CAPTURA EL DOCUMENTO COMPLETO' },
-      firmas: deps.firmasPorStatus(acta.firmas, 'RECHAZADA'),
-      clasificacion: undefined,
-    };
   }
 
   const clasifFinal: ClasificacionE14 = clasificacion ?? {
@@ -127,7 +137,6 @@ export async function correrPipelineRecorte(
       brightness: calidad.brightness,
       contrast: calidad.contrast,
     },
-    firmas: deps.firmasPorStatus(acta.firmas, gate.status),
     clasificacion: gate.clasificacion ?? undefined,
   };
 }

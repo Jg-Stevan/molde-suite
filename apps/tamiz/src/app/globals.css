@@ -92,3 +92,15 @@ body {
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 .tap-action { touch-action: manipulation; }
+
+/* P4 (editor de recorte) — pulso de las asas de esquina del QuadEditor
+   (reemplazo CSS del motion del lab; 1.6 s, bucle infinito). */
+@keyframes handle-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.45); opacity: 0.15; }
+}
+.animate-handle-pulse { animation: handle-pulse 1.6s ease-out infinite; }
+
+/* P4 — borde tenue del footer del editor (par del patrón Stitch del lab). */
+:root { --color-brand-borderdim: rgba(255, 255, 255, 0.08); }
+.border-brand-borderdim { border-color: var(--color-brand-borderdim); }
