@@ -165,8 +165,12 @@ revisa el `package.json` de cada workspace antes de llamar.
 - **Local y offline**: prohibido enviar documentos, fotos o moldes a
   servidores, y prohibido añadir backend, login, multiusuario o sincronización
   en la nube.
-- **Nada de datos pesados/sensibles al repo**: nunca commitear ONNX, PDFs,
-  fotos de documentos ni bytes de modelos. Ver `.gitignore`.
+- **Nada de pesos de modelos al repo**: nunca commitear ONNX ni bytes de
+  modelos (rompen el clone; los modelos son stock y se sirven por URL). Las
+  **fotos de documento de prueba SÍ se versionan**, por decisión del dueño
+  (2026-11-24): son el banco de verificación y viven en
+  `scripts/resultados/fixtures/`. Los artefactos de cada corrida (incluidos sus
+  recortes) viven en `scripts/resultados/`.
 - **Push a `main` solo con autorización explícita del dueño.** El flujo por
   defecto es rama + PR.
 - **Sin dependencias nuevas** sin confirmación explícita del dueño.
