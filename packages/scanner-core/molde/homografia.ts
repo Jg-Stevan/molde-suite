@@ -175,6 +175,15 @@ export function warpPerspectiva(
  * está horizontal; inclinado, el perfil se aplana). Barrido grueso 2° + fino
  * 0.5° alrededor del mejor. Devuelve el ángulo CORRECTOR (grados, con signo:
  * rotar el canvas por -ángulo endereza el texto).
+ *
+ * FASE 2 (plan extracción relacional): el rango de búsqueda se amplía a ±25°
+ * (antes ±10°, límite artificial — el algoritmo de perfil de proyección
+ * funciona para cualquier ángulo y fotos de campo rotan más de 10°). El
+ * barrido grueso de 2° barre [-25, 25] y el fino de 0.5° afina ±2° alrededor
+ * del mejor. PRECAUCIÓN documentada: ángulos grandes (>15°) dejan márgenes
+ * blancos tras corregirDeskew (rotación con relleno blanco) — el OCR los
+ * tolera; corregirDeskew rellena con blanco, no con negro, y el perfil de
+ * proyección se mide sobre binarización adaptativa que ignora el fondo blanco.
  */
 export function anguloDeskew(src: HTMLCanvasElement): number {
   const W = 200;
@@ -201,10 +210,11 @@ export function anguloDeskew(src: HTMLCanvasElement): number {
     return perfil.reduce((a, b) => a + (b - media) * (b - media), 0) / H;
   };
 
-  // Barrido grueso (paso 2°) y refinado (paso 0.5°) alrededor del mejor.
+  // Barrido grueso (paso 2°, ±25° — FASE 2 del plan: antes ±10°) y refinado
+  // (paso 0.5°) alrededor del mejor.
   let mejorAng = 0;
   let mejorVar = -1;
-  for (let a = -10; a <= 10; a += 2) {
+  for (let a = -25; a <= 25; a += 2) {
     const v = varianzaPerfil(a);
     if (v > mejorVar) {
       mejorVar = v;
