@@ -62,6 +62,58 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
 - Banderas relevantes al diseñar: `ancla_no_encontrada`, `ancla_colision`,
   `desambiguacion_fallida`, `umbral_al_borde`, `pagina_faltante`,
   `posible_pagina_equivocada`, `rotacion_180_corregida`.
+- **Plan extracción relacional (FASE 1b — fin del falso positivo de firmas)**:
+  `fallback_no_verificado` — ningún campo queda `ok` con `fuente: 'referencia'` +
+  `ancla_no_encontrada`: la posición no fue verificada (el motor midió sobre la
+  banda de referencia, no sobre la zona real). OBLIGATORIO → `requiere_revision`;
+  OPCIONAL → `no_encontrado` (no es un error del documento, honestamente no se
+  encontró). Aditivo.
+- **Plan extracción relacional (FASE 1a — mapa OCR global)**: los campos de
+  texto se leen del MAPA OCR GLOBAL de la página (1 pasada de `ocrLines` por
+  página); el re-OCR del recorte queda SOLO como rescate para campos con
+  `realce`. OCRs por página: 13+ → 1 (+ rescates).
+- **Plan extracción relacional (FASE 4 — anti-tachón)**: `rescate_anti_tachon`
+  (la limpieza morfológica local recuperó el texto bajo tachones) y
+  `rescate_fallido` (se intentó el rescate y no mejoró — el resultado original
+  se conserva). Solo campos obligatorios con tinta y lectura inválida; nunca
+  global.
+- **Plan extracción relacional (FASE 3 — validaciones)**: `regla: 'rango'`
+  compara FECHAS entre dos campos (`"fecha_pago >= fecha_emision"`). Formatos
+  parseados: ISO, dd/mm/aaaa, dd-mm-aaaa, «24 de noviembre de 2026». Un
+  operando sin fecha legible deja la validación NO EVALUABLE (ok: null).
+  La igualdad de sumas (`regla: 'igualdad'`) no cambia.
+- **Cota del bypass posicional**: `ancla_solo_textual` solo se concede si el
+  match perfecto es ÚNICO entre todos los perfectos de la página y su
+  desplazamiento al rect esperado es `|dx|+|dy| ≤ 0.3`
+  (`ANCLA_TEXUAL_DESPLAZAMIENTO_MAX`). Sin cota, una etiqueta que aparezca una
+  sola vez en otra zona ancla el campo allí (medido: dos firmas `ok` con valor
+  "true" y `forma_sin_caja`).
+- **Campos de tinta**: `ancla_sin_geometria` — un campo `tipo !== 'texto'`
+  (firma, presencia, checkbox) anclado SOLO por texto no puede quedar `ok`: su
+  evidencia es la geometría (caja/rúbrica), que el bypass no verifica.
+- **Lecturas degeneradas**: `lectura_degenerada` — campo de texto con lectura
+  insuficiente (menos de 8 alfanuméricos, `core/ocr.ts`) y banda vacía o conf
+  < 0.5 termina `no_encontrado` / `requiere_revision`, nunca `ok`. Corta el
+  ruido contado como acierto (`importe_texto` = "o", conf 0.14).
+- **CORRECCIÓN post-verificación (recibo tachado 1700×1519 — P4 + anclaje)**:
+  - `ancla_solo_textual` — el ancla se aceptó por match textual PERFECTO y
+    ÚNICO (d=0 en orden estricto en exactamente una ventana de la página),
+    saltándose la penalización de posición. Dispara en documentos recortados o
+    de escala distinta de la referencia (geometría normalizada desplazada, dy
+    ≥ 0.16 → penalización < 0.72): antes el match perfecto se RECHAZABA por
+    posición y el campo caía al fallback. Con ambigüedad (≥ 2 ventanas
+    perfectas) la posición sigue mandando.
+  - `ancla_rescate_anti_tachon` / `valor_rescate_anti_tachon` — ancla/valor
+    recuperados desde el MAPA OCR DE RESCATE (2ª pasada OCR perezosa sobre el
+    canvas con limpieza anti-tachón — la apertura 1D elimina los trazos largos
+    que rompían la segmentación de líneas del OCR global). Solo se paga si un
+    campo perdió su ancla o su valor en el mapa primario: documento limpio =
+    1 pasada OCR (costo 0). El mapa primario siempre gana para valores.
+  - `validacion_no_evaluable` — una validación con `ok: null` (operando
+    ilegible) NO marca `validacion_fallida` NI degrada el campo que sí se leyó
+    bien (caso real: fecha_pago correcto se degradaba porque fecha_emision
+    estaba bajo un revelado). `ok: false` mantiene la democión (defensa
+    principal). El gate global `requiere_revision` sigue encendido con null.
 - **v3.2.0 — faro (ancla_relacional)**: `ancla_fuera_de_zona` (el texto existe
   PERO fuera del faro — el mapa está mal puesto o la variante es otra; cae a
   referencia), `relacion_sin_candidato` (nada en la dirección pedida →

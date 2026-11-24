@@ -193,10 +193,19 @@ export interface CampoUniversal {
   nota?: string;
 }
 
-/** Validación aritmética de cierre (Fase 2.2). */
+/** Validación de cierre entre campos (Fase 2.2 igualdad; FASE 3 del plan
+ * extracción relacional añade `rango`, ADITIVO). */
 export interface ValidacionMolde {
   id: string;
-  regla: 'igualdad';
+  /**
+   * igualdad: sumas entre IDs y números ("a == b + c + 5").
+   * rango (FASE 3 — plan extracción relacional): comparación de FECHAS entre
+   * dos campos de texto ("fecha_pago >= fecha_emision"). Los valores se
+   * parsean en los formatos del contrato español (dd/mm/aaaa, dd-mm-aaaa,
+   * «12 de noviembre de 2026», ISO aaaa-mm-dd); un operando sin fecha legible
+   * deja la validación "no evaluable" (ok: null) — nunca inventa.
+   */
+  regla: 'igualdad' | 'rango';
   /**
    * Igualdad de sumas entre IDs de campos y números, p. ej.:
    *   "suma_total == votos_candidato_1 + votos_candidato_2 + votos_blanco + 1"

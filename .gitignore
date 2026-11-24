@@ -64,3 +64,6 @@ apps/tamiz/public/scanner/db-postprocess.worker.js
 apps/tamiz/public/scanner/fallback-canvas.worker.js
 apps/tamiz/public/scanner/reescalar-import.worker.js
 apps/tamiz/public/scanner/heartbeat.worker.js
+
+# Scratch local de verificación (volcados de BD, capturas)
+_verificacion/
