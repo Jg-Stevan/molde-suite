@@ -1,0 +1,16 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "medidoEn": "2026-11-25T13:53:58.286Z",
+  "filas": [
+    {
+      "fixture": "recibo_pago/pag-01 (limpia)",
+      "segundos": 9,
+      "score": "10.0/10",
+      "veredicto": "ÓPTIMA",
+      "banner": "RECIBO DE PAGO",
+      "verificacion": "100% OK",
+      "molde": null,
+      "captura": "a56-01-pag-01.png"
+    }
+  ]
+}

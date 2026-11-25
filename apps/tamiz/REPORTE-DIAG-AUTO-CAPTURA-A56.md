@@ -502,3 +502,49 @@ studio; la de studio añade `paginasRef` a propósito).
 
 **Pendiente real de dispositivo (sin cambios):** prueba táctil A56 + ≥20
 capturas reales antes de mover cualquier umbral.
+
+## §12. Verificación en dispositivo real (Galaxy A56, 2026-11-25)
+
+Canal: `adb reverse tcp:3100` (localhost seguro → cámara/PWA) + CDP sobre
+`adb forward tcp:9223 localabstract:chrome_devtools_remote`. Chrome Android
+no puede leer `/sdcard` desde `DOM.setFileInputFiles`, así que los fixtures se
+sirven en `/dev-fixtures/` y se inyectan como `File` in-page (fetch +
+DataTransfer + `change` burbujeante: mismo camino que el picker). Herramientas
+consolidadas en `scripts/entrega/a56-comun.mjs` (conexión CDP, toque táctil
+real con `Input.dispatchTouchEvent`, capturas `adb screencap`, limpieza PWA,
+importación in-page); las usan `verificar-a56.mjs` (banco), 
+`verificar-a56-editor.mjs` (editor) y `diag-a56-hit.mjs` (hit-test/CSSOM).
+
+**Banco completo 7/7 sin fallos** (`scripts/resultados/a56-importacion-2026-11-25T13-56-21-839Z.json`,
+9–12 s por fixture; distribución idéntica al banco de escritorio):
+
+| fixture | score | veredicto | verificación |
+|---|---|---|---|
+| recibo_pago/pag-01 (limpia) | 10.0/10 | ÓPTIMA | 100% OK |
+| recibo-tachado | 8.7/10 | REVISIÓN HUMANA | 18% ALERTA |
+| recibo-datos-nuevos | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| recibo-sin-firmas | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| recorte-60pct-usuario | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| recorte-66pct-sin-firma | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| rotada-12 | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+
+**Prueba táctil del editor 6/6** (`a56-editor-2026-11-25T14-07-00-462Z.json`;
+todos los toques por `Input.dispatchTouchEvent`, capturas `a56-editor-*.png`):
+abrir QuadEditor → ROTAR 90° local → CANCELAR → reabrir → APLICAR RECORTE
+(el pipeline re-corrió: 8.5/10 REVISIÓN HUMANA, 12/12 campos OK, 100% ALERTA)
+→ ROTAR 90° de toolbar (gira la procesada, sin OCR). Consulta del 2026-11-25
+resuelta: la toolbar "Rotar 90°" NO re-ejecuta el pipeline (F-ROT-RAPID).
+
+**Hallazgo UI corregido — CTA verdes transparentes:** `globals.css` define a
+mano las utilidades `brand-*` pero faltaba `.bg-brand-green` (13 usos reales:
+DETECCIÓN AUTOMÁTICA / APLICAR RECORTE del QuadEditor, botones de
+PanelMoldes/PanelModelos/ReviewView/primitives). Los CTA sólidos verdes se
+pintaban transparentes (dejaban ver la vista de resultados detrás; en el A56
+se veía como un problema de apilamiento). Fix: se añadió la utilidad con el
+mismo patrón de sus vecinas (`background-color: var(--color-brand-green)`).
+`next dev` servía el chunk CSS compilado sin recomputar → reinicio del dev
+server tras el cambio. El banco del editor ahora verifica explícitamente que
+overlay/footer/APLICAR computen fondos opacos (regresión → FALLA).
+
+**Pendiente real (sin cambios):** captura en vivo con la cámara del A56 por el
+operador y ≥20 capturas reales antes de mover cualquier umbral.
