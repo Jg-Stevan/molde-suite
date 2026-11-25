@@ -138,12 +138,12 @@ const ESTADO_ESTRUCTURA_TONO: Record<
 /** Tope de rects del overlay (señal visual, no auditoría — memoria/DOM). */
 const MAX_CAJAS_OVERLAY = 20;
 
-/* Overlay por campo: azul=ancla, verde=ok, rojo=faltante, ámbar=revisión. */
-const TONO_CAMPO: Record<"ok" | "revision" | "faltante" | "ancla", string> = {
+/* Overlay por campo (solo VALORES — mantenedor 2026-11-25d): verde=ok,
+ * ámbar=revisión, rojo=faltante. Las anclas ya no se pintan. */
+const TONO_CAMPO: Record<"ok" | "revision" | "faltante", string> = {
   ok: "#10b981",
   revision: "#f59e0b",
   faltante: "#ef4444",
-  ancla: "#3b82f6",
 };
 
 type CajaCampo = {
@@ -151,11 +151,10 @@ type CajaCampo = {
   y: number;
   w: number;
   h: number;
-  clase: "ok" | "revision" | "faltante" | "ancla";
+  clase: "ok" | "revision" | "faltante";
   etiqueta: string;
-  /** Palabra pintada sobre la foto (pedido del mantenedor 2026-11-25c):
-   *  ancla → la etiqueta del campo («Fecha» en azul); valor → el texto
-   *  reconocido (o la etiqueta si no hay texto, p. ej. firmas). */
+  /** Palabra pintada sobre la foto: el texto reconocido (o la etiqueta si no
+   *  hay texto, p. ej. firmas). */
   palabra: string;
 };
 
@@ -166,7 +165,6 @@ type CajaCampo = {
 function CajasCampos({ cajas }: { cajas: CajaCampo[] }) {
   return cajas.map((c, i) => {
     const tono = TONO_CAMPO[c.clase];
-    const esAncla = c.clase === "ancla";
     return (
       <span
         key={`campo-${i}`}
@@ -176,10 +174,6 @@ function CajasCampos({ cajas }: { cajas: CajaCampo[] }) {
         style={{
           left: `${c.x * 100}%`,
           top: `${c.y * 100}%`,
-          // La etiqueta del ancla se eleva SOBRE su línea para no chocar con
-          // la palabra del valor (que nace en el mismo renglón).
-          transform: esAncla ? "translateY(-100%)" : undefined,
-          zIndex: esAncla ? 2 : 3,
           color: tono,
           backgroundColor: "rgba(2,6,12,0.78)",
           border: `1px solid ${tono}`,
@@ -314,31 +308,27 @@ export function ReviewView() {
   }, [acta?.id]);
 
   // Palabras del overlay por campo (sobre la foto PROCESADA, coordenadas 0-1):
-  // una palabra de VALOR por cada campo con rect + una palabra de ANCLA azul
-  // donde el OCR halló la etiqueta. `requiere_revision` y `no_encontrado` van
-  // en rojo (no es un reconocimiento confiable); `ok` en verde.
+  // SOLO los valores reconocidos (mantenedor 2026-11-25d — las anclas no se
+  // pintan). `requiere_revision` y `no_encontrado` van en rojo/ámbar (no es un
+  // reconocimiento confiable); `ok` en verde.
   const cajasCampos = useMemo<CajaCampo[]>(() => {
     const campos = acta?.evaluacionMolde?.campos ?? [];
     const recorte = (s: string) => (s.length > 28 ? `${s.slice(0, 27)}…` : s);
     const out: CajaCampo[] = [];
     for (const c of campos) {
-      if (c.rect) {
-        const texto =
-          typeof c.valor === "string" && c.valor.trim() && c.tipo !== "firma" && c.tipo !== "checkbox"
-            ? c.valor.trim()
-            : c.etiqueta;
-        out.push({
-          ...c.rect,
-          clase: c.estado === "ok" ? "ok" : c.estado === "requiere_revision" ? "revision" : "faltante",
-          etiqueta: c.etiqueta,
-          palabra: recorte(texto),
-        });
-      }
-      if (c.ancla_rect) {
-        out.push({ ...c.ancla_rect, clase: "ancla", etiqueta: c.etiqueta, palabra: recorte(c.etiqueta) });
-      }
+      if (!c.rect) continue;
+      const texto =
+        typeof c.valor === "string" && c.valor.trim() && c.tipo !== "firma" && c.tipo !== "checkbox"
+          ? c.valor.trim()
+          : c.etiqueta;
+      out.push({
+        ...c.rect,
+        clase: c.estado === "ok" ? "ok" : c.estado === "requiere_revision" ? "revision" : "faltante",
+        etiqueta: c.etiqueta,
+        palabra: recorte(texto),
+      });
     }
-    return out.slice(0, MAX_CAJAS_OVERLAY * 2);
+    return out.slice(0, MAX_CAJAS_OVERLAY);
   }, [acta?.evaluacionMolde?.campos]);
 
   // L5: Esc cierra el visor (el cierre por toque lo resuelve el
@@ -523,7 +513,7 @@ export function ReviewView() {
             type="button"
             aria-pressed={camposVisibles}
             aria-label={camposVisibles ? "Ocultar campos" : "Mostrar campos"}
-            title="Palabras: anclas (azul) · reconocidos (verde) · por confirmar (ámbar) · no leídos (rojo)"
+            title="Palabras: reconocidos (verde) · por confirmar (ámbar) · no leídos (rojo)"
             data-testid="toggle-campos"
             onClick={(e) => {
               e.stopPropagation();
@@ -537,8 +527,8 @@ export function ReviewView() {
             }`}
           >
             <span aria-hidden className="inline-flex gap-0.5">
-              <span className="h-3 w-1 rounded-sm bg-[#3b82f6]" />
               <span className="h-3 w-1 rounded-sm bg-[#10b981]" />
+              <span className="h-3 w-1 rounded-sm bg-[#f59e0b]" />
               <span className="h-3 w-1 rounded-sm bg-[#ef4444]" />
             </span>
             <span className="font-mono text-[9px] font-bold uppercase tracking-wide">
