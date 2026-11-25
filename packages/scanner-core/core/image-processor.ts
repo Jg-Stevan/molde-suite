@@ -6,6 +6,11 @@
 import type { PageFilter, Quad } from './types';
 // R-46 — prefijo público de assets por INYECCIÓN lazy (dominio/entorno del fork).
 import { publicBaseEfectivo } from '../dominio/entorno';
+// Plan §B (rotada-12): guardas anti-degenerados del quad compartidas con el
+// gemelo worker (core/quad-guardas.ts — misma matemática, mismo commit) y
+// logger del paquete para la telemetría de salida vacía.
+import { anchoSalidaDeQuad, sanearQuad } from './quad-guardas';
+import { logger } from '../dominio/logger';
 
 /** Tope técnico ÚNICO del lado mayor procesado (fix v3 upstream): 4032 px —
  *  4032×3024 ≈ 12.2 MP, lejos del límite de canvas de iOS (~16.7 MP). */
@@ -329,6 +334,7 @@ async function processImageViaFallbackWorker(
   rotation: number,
 ): Promise<{ processed: string; width: number; height: number } | null> {
   if (!fallbackCanvasHabilitado()) return null;
+  const t0Worker = performance.now();
   try {
     const blobSrc = await (await fetch(foto)).blob();
     const bitmap = await createImageBitmap(blobSrc);
@@ -362,7 +368,16 @@ async function processImageViaFallbackWorker(
           fr.onerror = () => resolve("");
           fr.readAsDataURL(r.png);
         });
-        if (!processed) return null;
+        // Telemetría §B (rotada-12): salida VACÍA con entrada decodificable
+        // — una línea con ms y dims. null = la ruta local termina el trabajo
+        // (degradación contenida de siempre, sin '' silencioso).
+        if (!processed) {
+          logger.warn(
+            "[image-processor] PNG del worker indigerible como data URL (cae a ruta local)",
+            { ms: Math.round(performance.now() - t0Worker), dims: `${r.ancho}x${r.alto}` },
+          );
+          return null;
+        }
         return { processed, width: r.ancho, height: r.alto };
       } finally {
         clearTimeout(reloj);
@@ -395,26 +410,39 @@ export async function processImage(
     const viaWorker = await processImageViaFallbackWorker(foto, quad, filtro, rotation);
     if (viaWorker) return viaWorker;
   }
+  const t0 = performance.now();
   const img = await decodificar(foto);
   const src = imgACanvas(img);
   const w = img.naturalWidth;
   const h = img.naturalHeight;
-  const sesgado = quadSesgado(quad);
+  // Guarda §B: un quad con NaN/±Inf (detector caído, JSON corrupto) envenena
+  // AMBAS rutas — crop → Math.min/max NaN → canvas 0×0 → drawImage no-op
+  // SILENCIOSO → toDataURL '' (foto vacía en el acta); warp → hypot(NaN) →
+  // ancho NaN. Se sana a identidad ANTES de decidir (degradación honesta,
+  // mismo convenio del catch de detección del pipeline) y se registra.
+  const saneado = sanearQuad(quad);
+  if (saneado.saneado) {
+    logger.warn('[image-processor] quad con coordenadas no finitas → identidad', {
+      dims: `${w}x${h}`,
+    });
+  }
+  const quadSano = saneado.quad;
+  const sesgado = quadSesgado(quadSano);
   let out: HTMLCanvasElement;
   if (sesgado) {
     // Warp de perspectiva real: la salida conserva el ancho efectivo del
     // documento (media de lados cortos/largos lo decide warpPerspectiva).
-    const anchoDoc = Math.round(
-      (Math.hypot((quad[1].x - quad[0].x) * w, (quad[1].y - quad[0].y) * h) +
-        Math.hypot((quad[2].x - quad[3].x) * w, (quad[2].y - quad[3].y) * h)) / 2,
-    );
+    // Guarda §B: la fórmula vive en anchoSalidaDeQuad (quad-guardas,
+    // compartida con el gemelo worker) — clamp [1, 4032]; un quad degenerado
+    // ya NO puede producir NaN (antes Math.min(4032, NaN) = NaN → canvas 0×0).
+    const anchoDoc = Math.round(anchoSalidaDeQuad(quadSano, w, h, PROCESSED_MAX_LONG_SIDE));
     // PROCESSED_MAX_LONG_SIDE = 4032 (upstream image-processor.ts:67 — bug v3
     // de CALIDAD: 3200 recortaba las fotos de 12 MP; 4032×3024 ≈ 12.2 MP).
-    out = warpPerspectiva(src, quad, Math.max(200, Math.min(4032, anchoDoc)));
+    out = warpPerspectiva(src, quadSano, Math.max(200, anchoDoc));
   } else {
     // Rect del quad (bounding) en px — camino equivalente al recorte histórico.
-    const xs = quad.map((p) => p.x * w);
-    const ys = quad.map((p) => p.y * h);
+    const xs = quadSano.map((p) => p.x * w);
+    const ys = quadSano.map((p) => p.y * h);
     const x0 = Math.max(0, Math.floor(Math.min(...xs)));
     const y0 = Math.max(0, Math.floor(Math.min(...ys)));
     const x1 = Math.min(w, Math.ceil(Math.max(...xs)));
@@ -502,10 +530,21 @@ export async function processImage(
     }
     rc.putImageData(data, 0, 0);
   }
+  // R-10 (upstream): los 3 filtros del producto salen PNG — sin ringing
+  // JPEG sobre la tinta (degrada OCR y la comparación del visor).
+  const processed = rotado.toDataURL('image/png');
+  // Telemetría §B (rotada-12): salida VACÍA con entrada decodificable — una
+  // línea con ms y dims (el pipeline de Tamiz lanza con causa explícita; un
+  // '' jamás viaja como fotoProcesada, contrato §D4 del visor).
+  if (!processed) {
+    logger.warn('[image-processor] salida procesada VACÍA con entrada decodificable', {
+      dimsEntrada: `${w}x${h}`,
+      dimsSalida: `${rotado.width}x${rotado.height}`,
+      ms: Math.round(performance.now() - t0),
+    });
+  }
   return {
-    // R-10 (upstream): los 3 filtros del producto salen PNG — sin ringing
-    // JPEG sobre la tinta (degrada OCR y la comparación del visor).
-    processed: rotado.toDataURL('image/png'),
+    processed,
     width: rotado.width,
     height: rotado.height,
   };

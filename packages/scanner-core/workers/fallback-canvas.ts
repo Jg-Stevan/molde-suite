@@ -41,6 +41,11 @@
  *    main lo reserva para sí — ver processImageCanvas.
  */
 import { enhanceToRgba, unsharpRgba, type EnhanceMode } from "../core/image-modes";
+// Plan §B (rotada-12): guarda anti-degenerados del quad — MISMA matemática
+// que el gemelo del hilo principal (image-processor.ts usa sanearQuad de
+// core/quad-guardas.ts; aquí la variante PLANA del mensaje). Corregir en el
+// mismo commit (regla de casa de los gemelos).
+import { sanearQuadPlano } from "../core/quad-guardas";
 
 interface PeticionFallback {
   id: number;
@@ -331,13 +336,28 @@ function aplicarFiltroAPixeles(
  *  sale como `{ok:false}` (red line del kit). */
 async function procesar(p: PeticionFallback): Promise<RespuestaFallback> {
   try {
+    // Guarda §B (gemelo de sanearQuad en image-processor.ts): un quad plano
+    // con NaN/±Inf envenena warpQuadAPixeles (dist/hypot NaN → w0 NaN →
+    // return null) Y cropQuadCanvas (min/max NaN → OffscreenCanvas NaN →
+    // canvas 0×0). Se sana a identidad ANTES de tocar píxeles: degradación
+    // honesta idéntica a la del hilo principal.
+    const saneado = sanearQuadPlano(p.quad);
+    const quad = saneado.plano;
     const fuente = pixelesDe(p.bitmap);
-    const warp = warpQuadAPixeles(fuente, p.quad, p.maxLongSide);
+    if (saneado.saneado) {
+      // Telemetría §B: el worker no tiene el logger del paquete (obs-base
+      // arrastra IndexedDB) — una línea de consola es visible en devtools
+      // y no altera el contrato {ok:true} (la salida es VÁLIDA, identidad).
+      console.warn("[fallback-canvas] quad no finito → identidad", {
+        dims: `${fuente.sw}x${fuente.sh}`,
+      });
+    }
+    const warp = warpQuadAPixeles(fuente, quad, p.maxLongSide);
     let canvas: OffscreenCanvas;
     if (warp !== null) {
       canvas = rotarCanvas(canvasDePixeles(warp), p.rotation);
     } else {
-      canvas = cropQuadCanvas(fuente, p.quad, p.rotation, p.maxLongSide); // último recurso bbox
+      canvas = cropQuadCanvas(fuente, quad, p.rotation, p.maxLongSide); // último recurso bbox
     }
     aplicarFiltroAPixeles(canvas, p.filter);
     // R-10: los 3 filtros del producto salen PNG (sin ringing sobre tinta) —
