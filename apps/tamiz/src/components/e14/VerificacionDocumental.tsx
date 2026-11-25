@@ -286,6 +286,9 @@ export function VerificacionDocumental({
   // las FILAS del motor universal con el semáforo de siempre (B.3). El
   // nombre del documento vive en el banner (acta.titulo) y en el caption.
   const molde = acta.evaluacionMolde?.enrutado ? acta.evaluacionMolde : null;
+  // Plan primera ola (Fase 4): molde evaluado que NO sustituye el veredicto
+  // del gate → pista de una línea (el % y las filas del checklist NO cambian).
+  const moldeAditivo = acta.evaluacionMolde && !acta.evaluacionMolde.enrutado ? acta.evaluacionMolde : null;
   // Filas del motor universal → items del checklist (derivación barata; el
   // compilador de React memoiza automáticamente).
   const filasMolde = useMemo(() => molde?.campos ?? [], [molde]);
@@ -430,6 +433,18 @@ export function VerificacionDocumental({
           </span>
         </span>
       </button>
+
+      {/* Pista ADITIVA del molde (solo si evaluó pero no enrutó): hace visible
+          la identificación sin tocar el % ni las filas del checklist. */}
+      {moldeAditivo && (
+        <p
+          data-testid="molde-pista"
+          className="px-2.5 -mt-0.5 font-mono text-[10px] text-slate-400/90 truncate"
+        >
+          MOLDE: {moldeAditivo.moldeNombre.toUpperCase()} · {Math.round(moldeAditivo.score)}% ·{' '}
+          {moldeAditivo.ok}/{moldeAditivo.total}
+        </p>
+      )}
 
       {/* Panel desplegado — flota SOBRE la imagen (blur oscuro semitransparente).
           En overlay llena el área disponible (flex-1) y scrollea por dentro;

@@ -1,0 +1,28 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "medidoEn": "2026-11-25T15:14:18.658Z",
+  "pasos": [
+    {
+      "paso": "worker OpenCV del visor listo",
+      "ok": true,
+      "worker": {
+        "ready": true,
+        "dead": false
+      }
+    },
+    {
+      "paso": "importación rotada-12 con veredicto",
+      "ok": true,
+      "veredicto": "RECHAZADA"
+    },
+    {
+      "paso": "detección OpenCV devuelve quad real (no marco completo)",
+      "ok": false,
+      "antes": "0.00,0.00 100.00,0.00 100.00,100.00 0.00,100.00",
+      "despues": "0.00,0.00 100.00,0.00 100.00,100.00 0.00,100.00",
+      "ms": 0,
+      "captura": "a56-warp-02-editor-quad-detectado.png",
+      "nota": "el quad no cambió — ¿worker no listo o detección vacía?"
+    }
+  ]
+}

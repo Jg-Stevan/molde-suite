@@ -1,0 +1,71 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:48.354416500 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:48.355414400 -0500
+@@ -210,13 +210,11 @@
+       // D5 (#19): vibrarSeguro hace el guard de gesto/API y es no-op silencioso
+       // si la llamada sería bloqueada (antes ensuciaba la consola del campo).
+       vibrarSeguro(30);
+-      procesandoRef.current = false;
+-      setProcesando(false);
+-      void dispararEscaneo().then(() => {
++      return dispararEscaneo().then(() => {
+         actaObjetivoRef.current = useE14Store.getState().actaActual;
+       });
+     },
+-    [destellar, dispararEscaneo, setArchivoPendiente, setProcesando, procesandoRef],
++    [destellar, dispararEscaneo, setArchivoPendiente],
+   );
+ 
+   // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L574-L589
+@@ -289,28 +287,34 @@
+    *  store → ANALIZANDO inmediato (el destello lo pinta el shell). */
+   const despacharArchivo = useCallback(
+     async (blobOArchivo: Blob, robusto: boolean) => {
+-      const base =
+-        blobOArchivo instanceof File
+-          ? blobOArchivo
+-          : new File([blobOArchivo], `acta-camara-${Date.now()}.jpg`, {
+-              type: blobOArchivo.type || "image/jpeg",
+-            });
+-      let final: File;
++      if (procesandoRef.current) return;
++      procesandoRef.current = true;
++      setProcesando(true);
+       try {
+-        final = (await archivoDentroDeTope(base, robusto)) ?? base;
+-      } catch (e) {
+-        if (e instanceof ErrorRescateHeic) {
+-          // Sin este corte el rechazo dejaba solo una línea en el registro: el
+-          // operario veía el destello y el visor de vuelta, sin explicación.
+-          logger.warn("[e14] captura rechazada por el tope HEIC", { mensaje: e.message });
+-          mostrarAviso(MSG_HEIC_TOPADO, "crit", HEIC_AVISO_MS);
+-          return;
++        const base =
++          blobOArchivo instanceof File
++            ? blobOArchivo
++            : new File([blobOArchivo], `acta-camara-${Date.now()}.jpg`, {
++                type: blobOArchivo.type || "image/jpeg",
++              });
++        let final: File;
++        try {
++          final = (await archivoDentroDeTope(base, robusto)) ?? base;
++        } catch (e) {
++          if (e instanceof ErrorRescateHeic) {
++            logger.warn("[e14] captura rechazada por el tope HEIC", { mensaje: e.message });
++            mostrarAviso(MSG_HEIC_TOPADO, "crit", HEIC_AVISO_MS);
++            return;
++          }
++          final = base;
+         }
+-        final = base; // lo imprevisto sigue el camino de siempre: despacho intacto
++        await despacharCaptura(final);
++      } finally {
++        procesandoRef.current = false;
++        setProcesando(false);
+       }
+-      despacharCaptura(final);
+     },
+-    [archivoDentroDeTope, despacharCaptura, mostrarAviso],
++    [archivoDentroDeTope, despacharCaptura, mostrarAviso, procesandoRef, setProcesando],
+   );
+ 
+   // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L1806-1842

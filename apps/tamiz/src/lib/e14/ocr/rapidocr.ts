@@ -1,20 +1,18 @@
-// Precalentamiento del motor OCR principal (Tesseract spa — el mismo que usa
-// Molde Studio; el producto original hablaba de RapidOCR).
+// Precalentamiento del motor OCR principal — RapidOCR PP-OCRv4 (el motor de
+// producción de digielect14): det/cls/rec en worker, singleton de sesión.
 
 let caliente = false;
 let promesa: Promise<void> | null = null;
 
-/** Idempotente: fuerza la carga del worker + modelo la primera vez. */
+/** Idempotente: fuerza la carga del motor la primera vez. */
 export async function rapidOcrPrecalentar(): Promise<void> {
   if (caliente) return;
   if (promesa) return promesa;
   promesa = (async () => {
     try {
-      // Calienta el SINGLETON real del pipeline (bridge/ocr-worker.getWorker):
-      // crear y DESTRUIR un worker propio deja el motor real frío y la 1.ª
-      // captura paga la inicialización completa (~4-8 s en gama media).
-      const { getWorker } = await import('../bridge/ocr-worker');
-      await getWorker();
+      const motor = await import('@molde-suite/scanner-core/ocr/rapidocr');
+      await motor.rapidOcrInit();
+      await motor.rapidOcrPrecalentar();
       caliente = true;
     } catch {
       /* el precalentamiento jamás rompe el arranque */

@@ -1,0 +1,49 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:50.181102700 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:50.182104400 -0500
+@@ -1,14 +1,13 @@
+ "use client";
+ 
+ /**
+- * TopBar — solo en REVISIÓN. STITCH REDESIGN (SPEC-e14-redesign-stitch
+- * §3.2.1, mock 6/2/4): [retro ← verde w-10 h-10] · [píldora de estado:
+- * dot ping del color + score font-mono del color + label blanco uppercase
+- * 11px; contenedor bg-brand-surface con borde del color (rechazada
++ * TopBar — solo en REVISIÓN. MOCK del mantenedor (2026-11-16): [retro ← w-10
++ * h-10] · [píldora de estado: dot ping del color + score font-mono del color
++ * + label blanco uppercase; contenedor con borde del color (rechazada
+  * border-red-500/40 · advertencia bg-amber-950/60 + glow · óptima
+- * border-brand-green/30 + glow verde)] · [nube de transmisión: verde
+- * (bg-brand-greenDark) online+transmitida · roja offline/rechazada ·
+- * ámbar pendiente de envío — mapeo §6.4/AC11].
++ * border-brand-green/30 + glow verde)] · [botón circular derecho: nube de
++ * transmisión verde (online+transmitida) · roja offline/rechazada · ámbar
++ * pendiente de envío — mapeo §6.4/AC11].
+  * La lógica de datos (palabra real por estado, score real, alternar
+  * conexión) queda INTACTA de D1 — solo re-vestida.
+  */
+@@ -140,7 +139,7 @@
+             <PillEstado acta={acta} />
+           ) : (
+             <h1 className="font-mono font-bold text-[11px] uppercase tracking-wider text-brand-green text-center">
+-              REVISIÓN DE ACTA
++              REVISIÓN DE DOCUMENTO
+             </h1>
+           )}
+           {modoDev && (
+@@ -164,13 +163,12 @@
+             }
+             title={
+               online
+-                ? "En línea — los envíos se transmiten al servidor"
++                ? "En línea — los envíos salen al servidor"
+                 : "Sin conexión — los envíos se acumulan en cola local"
+             }
+-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs tap-action transition-colors hover:bg-brand-surfacelight focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/60 ${nube}`}
++            className={`flex w-10 h-10 items-center justify-center rounded-full border tap-action transition-colors hover:bg-brand-surfacelight focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/60 ${nube}`}
+           >
+-            <StitchCloudCheckIcon className="w-4 h-4" />
+-            <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden />
++            <StitchCloudCheckIcon className="w-4.5 h-4.5" />
+           </button>
+         ) : (
+           <div className="w-10 h-10" aria-hidden />

@@ -1,0 +1,150 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:43.652468100 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:43.653466400 -0500
+@@ -7,17 +7,22 @@
+  * las sub-interfaces de pasos inyectables (FASE F / 7.8 ISP).
+  * Move-only: byte a byte con el original (solo cambian las rutas de import).
+  */
+-import type { Acta, ActaStatus, ProgresoAnalisis } from "@jg-stevan/scanner-core/dominio/types";
+-import type { OpcionesEscaneo } from "@jg-stevan/scanner-core/dominio/bridge";
++import type {
++  Acta,
++  ActaStatus,
++  EstructuraActa,
++  ProgresoAnalisis,
++} from "@molde-suite/scanner-core/dominio/types";
++import type { OpcionesEscaneo } from "@molde-suite/scanner-core/dominio/bridge";
+ import type {
+   PageFilter,
+   PageQuality,
+   Quad,
+-} from "@jg-stevan/scanner-core/core/types";
++} from "@molde-suite/scanner-core/core/types";
+ import {
+   PATRON_CABECERA,
+   type ClasificacionE14,
+-} from "@jg-stevan/scanner-core/dominio/clasificador";
++} from "@molde-suite/scanner-core/dominio/clasificador";
+ import type { ImagenSimuladaId } from "../simulacion-imagenes";
+ // 7.1 (plan de remediación, cierra C3) — umbrales con nombre, ÚNICA fuente
+ // de verdad de los números del producto (./politica/umbrales.ts).
+@@ -37,10 +42,10 @@
+ /** Techos/labels del mapeo §4 y el gate §4.2. */
+ export const DETALLE_ILEGIBLE = "CÓDIGO DE BARRAS Y CABECERA NO DETECTADOS";
+ export const DETALLE_TIMEOUT = "TIEMPO DE PROCESADO EXCEDIDO";
+-export const DETALLE_GENERICO = "SCORE INSUFICIENTE PARA TRANSMISIÓN";
++export const DETALLE_GENERICO = "SCORE INSUFICIENTE PARA ENVIAR";
+ // §F-5 (SPEC-camara-funcional): detalle del rechazo por acta INCOMPLETA —
+ // la captura corta el papel aunque la cabecera sea legible.
+-export const DETALLE_INCOMPLETA = "EL ACTA ESTÁ CORTADA EN EL ENCUADRE — ALÉJATE UN POCO Y CAPTURA EL ACTA COMPLETA";
++export const DETALLE_INCOMPLETA = "EL DOCUMENTO ESTÁ CORTADO EN EL ENCUADRE — ALÉJATE UN POCO Y CAPTURA EL DOCUMENTO COMPLETO";
+ // KIT e63d-escaneo-ya-recortado-v1 (F3.4): copy de la rama escaneo RETIRADO
+ // junto con el módulo masiva (el origen del archivo era señal exclusiva del
+ // runner MASIVA — sin cola no hay flujos «escaneo»).
+@@ -48,11 +53,14 @@
+ // OBLIGATORIO de votos fallido — copy CORTO y descriptivo (decisión del
+ // mantenedor: SIN guía de cámara). El rechazo directo regresa el flujo a
+ // captura (comportamiento existente de RECHAZADA).
+-export const DETALLE_SIN_VOTOS = "ACTA SIN VOTOS VISIBLES";
++export const DETALLE_SIN_VOTOS = "DOCUMENTO SIN DATOS VISIBLES";
+ // §D1/KIT: los NÚMEROS de la política (TECHO_SIN_SENAL, TECHO_ESCUDO_FONDO,
+ // techos del score, umbral de rechazo) viven en politica/umbrales.ts desde
+ // 7.1 (C3 — única fuente de verdad); el copy BAJO queda aquí.
+-export const DETALLE_BAJO = "NO SE RECONOCE INFORMACIÓN DEL ACTA — REPITA LA FOTO";
++export const DETALLE_BAJO = "NO SE RECONOCE INFORMACIÓN DEL DOCUMENTO — REPITA LA FOTO";
++// PLAN-AGENTE-LAYOUT F4: rechazo temprano por el gate estructural (etapa
++// LAYOUT entre CALIDAD y OCR). El detalle lleva la regla exacta y su motivo.
++export const DETALLE_ESTRUCTURA = "EL DOCUMENTO NO CORRESPONDE A LA PLANTILLA DEL MOLDE ACTIVO";
+ 
+ /**
+  * §D1 (SPEC-e14-score-ocr): SEÑAL DE CONTENIDO del acta — se calcula DESPUÉS
+@@ -140,6 +148,8 @@
+ export interface ParcialPipeline {
+   fotoOriginal?: string;
+   qrCam?: { payload: string } | null;
++  /** D57 T2 — ms del probe de orientación (aditivo, diagnóstico). */
++  probeMsOrientacion?: number | null;
+   /** KIT e14-remediacion-movil-v1 (B1 — P0 #3): parciales de TIEMPO ya
+    *  medidos al vencer el watchdog — el acta de timeout deja de emitir una
+    *  muestra sin cuerpo. El pipeline (pipeline.ts) sincroniza este objeto en
+@@ -182,6 +192,11 @@
+   rechazo: Acta["rechazo"];
+   /** Clasificación de cabecera (SPEC-cabecera-clasificacion §4/§6). */
+   clasificacion?: ClasificacionE14 | null;
++  /** FASE 0 (blueprint DLA): evaluación del molde activo tras el gate. */
++  evaluacionMolde?: import("@molde-suite/scanner-core/dominio/types").ResumenMoldeActa | null;
++  /** PLAN-AGENTE-LAYOUT F4: veredicto del gate estructural (etapa LAYOUT).
++   *  null = molde sin layout o modelo no configurado (etapa saltada). */
++  estructura?: EstructuraActa | null;
+ };
+ 
+ /**
+@@ -203,6 +218,8 @@
+   decodeArchivoMemo: typeof decodeArchivoMemo;
+   quadIdentidad: Quad;
+   esperarWorkerCaliente: typeof esperarWorkerCaliente;
++  /** FASE A3 (blueprint DLA): deskew residual activado por flag del operador. */
++  deskewHabilitado: boolean;
+ };
+ /** Etapa CALIDAD: warp/crop → métricas → score bruto (§4.1). */
+ export type PasosCalidad = {
+@@ -216,6 +233,15 @@
+   reconocerRapidOcrCascada: typeof reconocerRapidOcrCascada;
+   ocrBanda: typeof ocrBanda;
+   ocrBandaInferior: typeof ocrBandaInferior;
++  /**
++   * FASE B3 (blueprint DLA): banda OCR DINÁMICA desde regiones de layout
++   * (PP-DocLayout ONNX). Opcional: null/ausente = bandas fijas 16%/20% de
++   * siempre (Nivel 1). Devuelve el texto de la banda o null sin señal.
++   */
++  ocrBandaDinamica?: (
++    fotoProcesada: string,
++    parte: "sup" | "inf",
++  ) => Promise<string | null>;
+ };
+ /** Etapa GATE: señales, clasificación y desenlace (§4.2 — la política vive
+  *  además en politica/gate.ts desde 7.2; estas piezas llegan inyectadas). */
+@@ -243,4 +269,43 @@
+   TECHO_ESCUDO_FONDO: typeof TECHO_ESCUDO_FONDO;
+ };
+ 
+-export type PasosPipelineL2 = PasosCaptura & PasosCalidad & PasosOcr & PasosGate;
++/**
++ * ETAPA B (plan "interfaz única E-14"): etapa MOLDE — evaluación universal
++ * tras el gate. El paso recibe el CONTEXTO del acta (¿el clasificador E-14
++ * reconoció el tipo?) y devuelve el resumen del motor universal; cuando el
++ * documento no es un E-14 y la biblioteca lo identifica, el resumen viene
++ * marcado `enrutado: true` y su veredicto SUSTITUYE al del gate E-14
++ * (score/estado/banner del molde). En el resto de casos el resultado viaja
++ * ADITIVO en `acta.evaluacionMolde` sin tocar score/status.
++ */
++export type PasosMolde = {
++  evaluarMolde: (
++    fotoProcesada: string,
++    contexto?: { esE14: boolean },
++    /** Plan primera ola (Fase 4): misma geometría sin binarizar (`fotoOcr`)
++     *  para el A/B medido cuando la binarizada no produce lecturas. */
++    opciones?: { fotoOriginal?: string },
++  ) => Promise<import("@molde-suite/scanner-core/dominio/types").ResumenMoldeActa | null>;
++};
++
++/**
++ * PLAN-AGENTE-LAYOUT F4: etapa LAYOUT — gate estructural ANTES del OCR.
++ * null/ausente = molde sin layout o modelo no configurado (la etapa se salta).
++ */
++export type PasosEstructura = {
++  evaluarEstructuraActa?: (fotoProcesada: string) => Promise<EstructuraActa | null>;
++};
++
++export type PasosPipelineL2 =
++  PasosCaptura &
++  PasosCalidad &
++  PasosOcr &
++  PasosGate &
++  PasosMolde &
++  PasosEstructura;
++
++// PLAN-AGENTE-LAYOUT F4: la forma de `EstructuraActa` vive en scanner-core
++// (ÚNICA fuente de verdad — `Acta.estructura` y este contrato la comparten);
++// se re-exporta aquí para que los consumidores del protocolo la resuelvan
++// desde el mismo módulo que `CamposActa`/`PasosEstructura`.
++export type { EstructuraActa };

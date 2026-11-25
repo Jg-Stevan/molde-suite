@@ -1,0 +1,794 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:43.139895700 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:43.140894100 -0500
+@@ -1,702 +1,104 @@
+-/**
+- * R-28 (H-18, auditoría 2026-11-16) — partición de scanner-core-bridge.ts:
+- * OCR — los MOTORES del pipeline: RapidOCR escalonado (KIT ocr-escalonado),
+- * la CASCADA con Tesseract best (KIT ocr-cascada + GO-B) y las pasadas
+- * dirigidas de banda (KIT consenso-frankfurt + sección-inferior).
+- * Move-only: byte a byte con el original (solo cambian las rutas de import).
+- */
+-import {
+-  clasificarCabecera,
+-  tipoDeBanda,
+-} from "@jg-stevan/scanner-core/dominio/clasificador";
+-import { cargarDivipol } from "@jg-stevan/scanner-core/dominio/divipol";
+-// KIT e14-optimizacion-v1 (T1): los 4 decodes del bridge (calidad ×2,
+-// esquinas, banda) pasan por el memo FIFO tope 2 de image-utils — misma
+-// imagen, una sola decodificación por dataURL del acta en vuelo.
+-import { loadImageMemo } from "@jg-stevan/scanner-core/dominio/image-utils";
+-import { canvasCon } from "@jg-stevan/scanner-core/dominio/image-utils"; // SPRINT-A A3 — factory de canvas
+-// KIT e14-score-lectura-v1: señal de LECTURA del score v2 (módulo puro — §4-A).
+-import { senalDeLectura } from "@jg-stevan/scanner-core/dominio/senal-lectura";
+-// KIT e14-ocr-escalonado-v1 (§2): caps del det-preprocess (op4) expuestos por
+-// el motor + decisión/elegir del módulo PURO nuevo (testable headless — bun).
+-import {
+-  anclasDe,
+-  elegirMejor,
+-  necesitaSegunda,
+-  rescateAporta,
+-} from "@jg-stevan/scanner-core/dominio/ocr-escalonado";
+-// KIT e14-ocr-cascada-v1 (K3 fase 2): núcleo PURO de la cascada (gate entre
+-// motores + rescate ROI) — flag ocrCascada (default OFF ⇒ escalonado
+-// de siempre byte a byte). Decision/eleccion de siempre: NEEDS ocr-escalonado.
+-import {
+-  correrCascadaOcr,
+-  ROI_FRACCIONES,
+-  type DepsOcrCascada,
+-  type PasadaCascada,
+-} from "@jg-stevan/scanner-core/orquestacion/cascada";
+-// FASE C del plan post-v2.3 (medición §6.7): resumen de UNA corrida de
+-// lectura (motor aceptante, intentos con gate, ms por motor) — se persiste
+-// en `PerfActa.lectura` junto al perf del acta.
+-import {
+-  colectorLectura,
+-  type ResumenLectura,
+-} from "@jg-stevan/scanner-core/obs-base/eventos-lectura";
+-// KIT e14-motor-rapidocr-v1 (PROD-2 §3): motor de OCR de producción — módulo
+-// compartido con el informe (singleton de sesión ÚNICO, pitfall §9.6). El
+-// requestOcr del core SOLO vive en motores.ts (celda «actual» de la matriz —
+-// instrumento congelado, pitfall §9.2).
+-import {
+-  DET_CAP_PROD,
+-  DET_CAP_RAPIDO,
+-  rapidOcrInit,
+-  rapidOcrReconocer,
+-} from "../ocr/rapidocr";
+-// KIT e14-gama-baja-20s-v1: knobs OCR por tier (SYNC/barato — adaptacion/plan.ts).
+-// KIT e14-ocr-tessbest-v1 (GO-B del mantenedor): TESSERACT BEST como intento 1
+-// de la cascada (vendido + worker propio + budget) y el presupuesto del
+-// escaneo por tier (BAJO 480 s · MEDIO 240 s · ALTO 120 s — P0 del informe
+-// sim-gama-baja: el timeout fijo de 120 s rechazaba actas perfectas en
+-// mono-hilo). Import dinámico dentro del módulo: el bundle principal no
+-// descarga tesseract hasta la 1.ª cascada real.
+-import { tessReconocer } from "../ocr/tesseract";
+-import { planAdaptativo } from "../adaptacion/plan";
+-import { leerFlags } from "../flags";
+-import {
+-  BANDA_IZQ_FRACCION,
+-  BANDA_ARRIBA_FRACCION,
+-  BANDA_DER_FRACCION,
+-  BANDA_ABAJO_FRACCION,
+-  BANDA_INFERIOR_IZQ_FRACCION,
+-  BANDA_INFERIOR_ARRIBA_FRACCION,
+-  BANDA_INFERIOR_DER_FRACCION,
+-  BANDA_INFERIOR_ABAJO_FRACCION,
+-  CALIDAD_JPEG_ENVIO,
+-  CALIDAD_JPEG_REVISION,
+-} from "../politica/umbrales";
+-import { logger } from "../../logger"; // SPRINT-A A6 — console→logger (mensajes byte-idénticos)
++// OCR del bridge (puerta al motor de Molde Studio, D8 opción B): el texto se
++// reconoce con Tesseract.js (spa) — el MISMO motor que usa Molde Studio, así
++// el acta se puede verificar luego contra el molde v3. Escalonado = varias
++// escalas; Cascada = reintento con realce cuando la primera lectura es débil.
++
++import { logger } from '../../logger';
++// FASE 0 (blueprint DLA): el singleton del worker vive ahora en ./ocr-worker
++// y lo comparte con el proveedor OCR del motor universal (molde/ocr-proveedor).
++import { getWorker } from './ocr-worker';
++// Fase 3 (migración scanner-core): el realce p5-p95 vive en el paquete (D2).
++import { canvasDesdeDataUrl, estirarContrasteEnCanvas } from '@molde-suite/scanner-core/core/canvas-imagen';
+ 
+-/**
+- * KIT consenso-frankfurt-v1 (FASE 4, §5): segunda pasada OCR DIRIGIDA del
+- * sello de la banda — el sello TRANSMISIÓN es BLANCO-sobre-negro y tesseract
+- * (psm6, página completa) NO lo lee: 0 menciones en la captura de Frankfurt
+- * 746 (§0-F4). Recorta la franja de la banda (x 22-88% · y 3-13% — la banda
+- * vive bajo el encabezado), la INVIERTE (255-lum → tinta oscura sobre claro,
+- * la geometría del sello se vuelve legible) y la escala ×2 antes del OCR
+- * del core. Corre UNA sola vez y SOLO cuando `tipoDeBanda(texto)` es null
+- * (presupuesto ~1-3 s, dentro del TIMEOUT_MS de 15 s del core — si venció,
+- * se descarta igual). NO re-OCR del acta completa. Fallo → "" (sin banda
+- * nueva: la cascada sigue con el d9 del consenso — nunca condena).
+- */
+-// SPRINT-A (perf/decode-once-v1) A4: las dead stores ultimoOcrConf/Det/Rec
+-// (PROD-2 §4-C5) fueron eliminadas — se escribían 9× y NUNCA se leían
+-// (knip + review 23-oct; sin anclas en scripts/qa-*.ts). La traza real del
+-// motor vive en las líneas ocr=rapidocr de los pipelines, que capturan
+-// conf/det/rec de ocrEsc directamente (confOcr/detOcr/recOcr — vivas).
+-/** Motor de producción (PROD-2): RapidOCR PP-OCRv4 sobre el recorte original.
+- *  Mismo contrato que requestOcr: texto + progreso 0→1. Sin fallback de motor
+- *  (pitfall §9.3): el fallo sigue el mismo camino controlado de hoy (§5 del
+- *  kit — texto vacío → gate decide). */
+-export async function reconocerRapidOcr(
+-  dataUrl: string,
+-  onProgress?: (p: number) => void,
+-): Promise<string> {
+-  const rt = await rapidOcrInit(); // singleton de sesión (pre-warm en bg)
+-  const r = await rapidOcrReconocer(rt, dataUrl, onProgress);
+-  return r.texto;
+-}
+-
+-/** OCR principal de un pipeline — KIT e14-ocr-escalonado-v1 (§2): 1.ª pasada
+- *  con det cap RÁPIDO (1280, ~0.44× del det) → si la lectura sale débil,
+- *  re-OCR completo a 1920 y QUEDARSE CON EL MEJOR (anclas de ANCLAS_LECTURA,
+- *  luego conf — NUNCA automáticamente la 2.ª, §2.4). Sesión ÚNICA (§2.1): el
+- *  cap es del preprocess (op4), no del modelo — el singleton no cambia.
+- *  · SIM: OMITIDO (§3) — flujo de hoy a 1920, UNA pasada, 0 trazas (chips
+- *    8.2/7.0/4.3 intactos por construcción).
+- *  · Presupuesto (§3): el timeout EXISTENTE del pipeline manda — si la 1.ª
+- *    pasada lo consume, NO hay 2.ª (sin presupuestos nuevos).
+- *  · Progreso (§3): la 2.ª pasada reusa el MISMO emit de OCR (ANALIZANDO no
+- *    se queda colgado).
+- *  · Traza (§2.5) en línea PROPIA — append-only, parseable por el rastreador
+- *    (sin línea en SIM):
+- *      [e14] ocr-escalonado pasada1=1280 lectura=DEBIL reocr=1 elegido=1920 anclas1=2 anclas2=9 ms1=8200 ms2=14100
+- *      [e14] ocr-escalonado pasada1=1280 lectura=FUERTE reocr=0 elegido=1280 anclas1=7 ms1=8200
+- *  El downstream (banda condicional, clasificación, gate, diagnostico)
+- *  consume SOLO el texto elegido (§2.4) — el caller recibe el texto ya
+- *  resuelto y las métricas de la pasada elegida (SPRINT-A A4: la referencia
+- *  a ultimoOcr* fue removida con sus dead stores). */
+-interface OcrEscalonadoSalida {
+-  texto: string;
+-  conf: number | null;
+-  detMs: number;
+-  recMs: number;
+-  /** KIT e14-remediacion-movil-v1 — traza de la CASCADA (qué pasadas se pagaron y
+-   *  cuánto). Aditiva: el escalonado de siempre y SIM no la llenan (n/d). */
+-  traza?: TrazaOcr;
+-  /** FASE C (medición §6.7) — resumen de la corrida para `PerfActa.lectura`:
+-   *  motor aceptante, intentos con gate y ms por motor. Solo la cascada lo
+-   *  llena (el escalonado de siempre / SIM quedan sin telemetría nueva). */
+-  lectura?: ResumenLectura;
+-  /** KIT e14-remediacion-movil-v1 (B3 — P1 #9): tramos del OCR sin atribuir
+-   *  que la 2.ª pasada del escalonado pagaba FUERA de la cascada (el hueco
+-   *  medido de 9,5-11,5 s). msCrops = recortes (pasada 1 + 2.ª); msSegundaPasada
+-   *  = la 2.ª completa (ms2 del re-OCR 1920 o msRoi del rescate ROI). SIM no
+-   *  lo llena (0 trazas — §3). */
+-  tramos?: {
+-    msCrops?: number | null;
+-    msSegundaPasada?: number | null;
+-  };
+-}
+-
+-/** Trazas de la cascada — el acta dice desde IndexedDB cuántas pasadas se
+- *  pagaron (antes solo lo decía una logger.info que el build de producción
+- *  recorta: en campo el OCR era un agujero de 6 s sin explicación). */
+-export interface TrazaOcr {
+-  /** "intento1" | "1280" | "1920" | "roi" | "rescate-motor" — dónde quedó. */
+-  paso: string;
+-  /** cap de la pasada ELEGIDA (1280 | 1920 | "roi" | "tess"). */
+-  elegidoCap: string;
+-  motorIntento1: string;
+-  msIntento1: number;
+-  ms1280: number | null;
+-  ms1920: number | null;
+-  msRoi: number | null;
+-  msMotor: number | null;
+-  /** true = el rescate ROI entró a elegirMejor (gane o pierda). */
+-  rescate: boolean;
+-  /** det/rec de la pasada ELEGIDA (0 = n/d si el motor no separa). */
+-  detMs: number;
+-  recMs: number;
+-  /** Tamaño de la pasada ELEGIDA — el rec es casi lineal en nLineas×W; sin
+-   *  esto el acta no explica por qué un rec cuesta 3.5 s y otro 6 s. */
+-  nBoxes: number;
+-  nLineas: number;
+-  /** ms esperando el run() del rec (wasm + IPC con el worker del proxy);
+-   *  `recMs − msRunRec` = hilo principal (tensores + CTC decode). */
+-  msRunRec: number;
+-}
+-
+-/** Pasada con métricas para elegirMejor (§2.4) — el ganador viaja por
+- *  REFERENCIA con su cap (1280|1920) para la traza elegido=. */
+-interface PasadaEscalonada {
+-  texto: string;
+-  conf: number;
+-  detMs: number;
+-  recMs: number;
+-  cap: number;
+-}
+-
+-export async function reconocerRapidOcrEscalonado(
+-  fotoOcr: string,
+-  onProgress: (p: number) => void,
+-  escalonado: {
+-    /** true → SIM: flujo de hoy a 1920, una pasada, 0 trazas (§3). */
+-    simular: boolean;
+-    /** Presupuesto del pipeline (timeout EXISTENTE, §3 — sin nuevos). */
+-    presupuestoMs: number;
+-    /** performance.now del INICIO del pipeline (base del presupuesto). */
+-    inicioMs: number;
+-    /** KIT e14-velocidad-5s-v1 — la ORIENTACIÓN ya está decidida por otra
+-     *  señal (brújula QR). El sondeo cls del motor (¿esta línea va boca
+-     *  abajo?) responde la MISMA pregunta del cuadrante del QR; con true se
+-     *  omite en TODAS las pasadas de esta llamada. Ausente/false = hoy. */
+-    orientacionDecidida?: boolean;
+-    /** KIT e14-velocidad-5s-v1 — RECHAZO TEMPRANO: el veredicto ya está
+-     *  bloqueado antes del OCR (ver `rechazoTemprano` en el pipeline), así que
+-     *  la 2.ª pasada no puede cambiar el desenlace. true = no escalar. */
+-    corteIncompleta?: boolean;
+-  },
+-): Promise<OcrEscalonadoSalida> {
+-  const rt = await rapidOcrInit(); // sesión ÚNICA (§2.1 — pre-warm en bg)
+-  const omitirCls = escalonado.orientacionDecidida === true;
+-  if (escalonado.simular) {
+-    // SIM: EXACTAMENTE el flujo de hoy (det 1920, una pasada, 0 trazas).
+-    const r = await rapidOcrReconocer(rt, fotoOcr, onProgress);
+-    return { texto: r.texto, conf: r.confMedia, detMs: r.msDet, recMs: r.msRec };
+-  }
+-  // 1.ª pasada — det cap RÁPIDO (1280) → cls → rec (igual que hoy, §2.2).
+-  const t1 = performance.now();
+-  const r1 = await rapidOcrReconocer(rt, fotoOcr, onProgress, {
+-    detCap: DET_CAP_RAPIDO,
+-    omitirCls,
+-    sinRescateBordes: escalonado.corteIncompleta === true,
+-  });
+-  const ms1 = Math.round(performance.now() - t1);
+-  const senal1 = senalDeLectura(r1.texto);
+-  // §2.3 decisión + §3 presupuesto (el timeout existente manda): vencido →
+-  // NO hay 2.ª (mismo desenlace que hoy: el timeout del pipeline resuelve).
+-  // KIT e14-gama-baja-20s-v1 — knobs del plan adaptativo (SYNC, barato):
+-  // en BAJO el intento extra se acota a su PROPIO presupuesto pared
+-  // (ocrSegundaPresupuestoMs = 15000) y cambia el MODO del 2.º intento
+-  // (rescate ROI cabecera en vez del re-OCR 1920 completo). MEDIO/ALTO y
+-  // adaptación OFF ⇒ histórico byte a byte (null = sin tope adicional —
+-  // manda el presupuesto EXISTENTE del pipeline, §3 del kit escalonado).
+-  const planOcr = planAdaptativo();
+-  // KIT e14-velocidad-5s-v1 — DOS perillas de la escalada (A/B por override, sin
+-  // tocar el plan de hardware). La evidencia del corpus (2026-11-05, A56): en
+-  // 084939 la 1.ª pasada con rescate interno costó 4,78 s y AUNQUE NO SALIÓ
+-  // FUERTE el re-OCR 1920 (+3,99 s) y el ROI (+3,37 s) tampoco cambiaron el
+-  // desenlace — acabó en REVISIÓN HUMANA con el mismo texto. Es decir: en las
+-  // fotos duras el multiplicador no es el motor, es la ESCALADA que corre por
+-  // inercia. `ocrSegundaTopeMs` (>0) pone el tope PARED que el tier MEDIO/ALTO
+-  // no trae; `ocrReOcrRoi` fuerza el rescate ROI-cabecera (franja 0-25 % a cap
+-  // 1920, ~1/2,5 del re-OCR completo) aunque el plan diga "completo".
+-  const fEscalada = leerFlags();
+-  const modoReOcr =
+-    fEscalada.ocrReOcrRoi || (planOcr.adaptado && planOcr.ocrReOcrModo === "roi-cabecera")
+-      ? "roi-cabecera"
+-      : "completo";
+-  const presupuestoSegunda =
+-    fEscalada.ocrSegundaPresupuestoMs != null && fEscalada.ocrSegundaPresupuestoMs > 0
+-      ? Math.min(escalonado.presupuestoMs, fEscalada.ocrSegundaPresupuestoMs)
+-      : fEscalada.ocrSegundaTopeMs > 0
+-        ? Math.min(escalonado.presupuestoMs, fEscalada.ocrSegundaTopeMs)
+-        : planOcr.adaptado && planOcr.ocrSegundaPresupuestoMs != null
+-          ? Math.min(escalonado.presupuestoMs, planOcr.ocrSegundaPresupuestoMs)
+-          : escalonado.presupuestoMs;
+-  // KIT e14-remediacion-movil-v1 (A1 — P0 #1/#2): CONDICIÓN DE ARRANQUE CON
+-  // MARGEN REAL. La condición vieja solo preguntaba cuánto llevaba el
+-  // pipeline (`transcurrido < ventana`) — NADA limitaba cuánto iba a DURAR
+-  // la pasada en vuelo: en el A13 una 2.ª completa arrancaba «con margen» a
+-  // los 35 s y terminaba DESPUÉS del watchdog de 120 s → RECHAZADA 0.0 de un
+-  // acta legible (informe §5). Ahora la pasada SOLO se abre si su coste
+-  // ESTIMADO cabe en el presupuesto restante:
+-  //   arrancar si (k · ms1) < (presupuesto − transcurrido − margen)
+-  // · k según MODO (medido en el A13): 2.5 re-OCR completo · 1.2 ROI-cabecera
+-  //   (su coste ≈ ms1 — NO se reusa el 2.5 del modo completo).
+-  // · margen 8 s: lo que queda por pagar tras el OCR (gate + clasificación +
+-  //   banda + emisión) antes del watchdog.
+-  // Respeta la decisión de proyecto «nunca se abandona una pasada a mitad»
+-  // (docs/archivo/REPORTE-e14-gama-baja-20s-v1): aquí no se aborta nada — se decide
+-  // NO ABRIR la pasada que no cabe. Toda apertura tardía que aun así venciera
+-  // queda MEDIDA (B1 emite la muestra `vencido: true` desde el watchdog).
+-  const K_SEGUNDA_COMPLETO = 2.5; // A13: re-OCR 1920 ≈ 2,5× la 1.ª pasada
+-  const K_SEGUNDA_ROI = 1.2; // A13: ROI cabecera ≈ 1,0-1,2× la 1.ª pasada
+-  const MARGEN_SEGUNDA_MS = 8_000;
+-  const transcurridoAlDecidir = performance.now() - escalonado.inicioMs;
+-  const kSegunda = modoReOcr === "roi-cabecera" ? K_SEGUNDA_ROI : K_SEGUNDA_COMPLETO;
+-  const costeEstimadoSegunda = Math.round(ms1 * kSegunda);
+-  const tocaSegunda =
+-    necesitaSegunda(r1.texto) &&
+-    escalonado.corteIncompleta !== true &&
+-    transcurridoAlDecidir < presupuestoSegunda &&
+-    costeEstimadoSegunda <
+-      escalonado.presupuestoMs - transcurridoAlDecidir - MARGEN_SEGUNDA_MS;
+-  let elegido: PasadaEscalonada = {
+-    texto: r1.texto,
+-    conf: r1.confMedia,
+-    detMs: r1.msDet,
+-    recMs: r1.msRec,
+-    cap: DET_CAP_RAPIDO,
+-  };
+-  let ms2: number | null = null;
+-  let anclas2: number | null = null;
+-  // B3 — acumulador de tramos mudos (crops de la 1.ª + los de la 2.ª si abre).
+-  let msCropsTotal = r1.msCrops;
+-  let msSegundaPasada: number | null = null;
+-  if (tocaSegunda) {
+-    if (modoReOcr === "roi-cabecera") {
+-      // KIT e14-gama-baja-20s-v1 — rescate ROI CABECERA: franja top 0-25%
+-      // re-escalada a cap 1920 (MISMO helper y fracciones de la cascada K3 —
+-      // recortarRoiDataUrl + ROI_FRACCIONES.top) en vez del re-OCR 1920
+-      // COMPLETO. En gama baja el re-OCR completo cuesta ~2.5× la 1.ª pasada
+-      // (det ≈ (1920/1280)² + cls + rec de TODO el acta) y es el
+-      // multiplicador dominante del pipeline (126 s low-end mono-hilo,
+-      // sim-recursos). El candidato compuesto (cabecera del ROI + cuerpo de
+-      // la 1.ª pasada) se adopta SOLO si AÑADE anclas (`rescateAporta` —
+-      // información puramente aditiva; conf de la pasada BASE). JAMÁS
+-      // tumba: cualquier fallo del crop/OCR → r1 queda como está.
+-      const tR = performance.now();
+-      const roiUrl = await recortarRoiDataUrl(
+-        fotoOcr,
+-        ROI_FRACCIONES.top[0],
+-        ROI_FRACCIONES.top[1],
+-      );
+-      let msRoi = Math.round(performance.now() - tR);
+-      let adoptado = 0;
+-      if (roiUrl) {
+-        try {
+-          const rRoi = await rapidOcrReconocer(rt, roiUrl, onProgress);
+-          msRoi = Math.round(performance.now() - tR);
+-          msCropsTotal += rRoi.msCrops; // B3 — crops de la 2.ª (ROI)
+-          const texto2 =
+-            rRoi.texto.trim().length > 0
+-              ? rRoi.texto.trim() + "\n" + r1.texto.trim()
+-              : r1.texto;
+-          anclas2 = anclasDe(texto2);
+-          if (rescateAporta(r1.texto, texto2)) {
+-            elegido = {
+-              texto: texto2,
+-              conf: r1.confMedia, // conf de la pasada BASE — conservador
+-              detMs: r1.msDet,
+-              recMs: r1.msRec,
+-              cap: DET_CAP_RAPIDO,
+-            };
+-            adoptado = 1;
+-          }
+-        } catch {
+-          /* fallo del rescate → r1 queda como está (jamás tumba) */
+-        }
+-      }
+-      // Traza PROPIA (línea NUEVA — los parsers de ocr-escalonado intactos;
+-      // la línea de abajo sigue imprimiendo reocr=0 elegido=1280 en este modo).
+-      msSegundaPasada = msRoi; // B3 — la 2.ª de este modo ES el rescate ROI
+-      logger.info(
+-        `[e14] ocr-rescate-cabecera y0=${ROI_FRACCIONES.top[0]} y1=${ROI_FRACCIONES.top[1]} ` +
+-          `ms=${msRoi} anclas1=${anclasDe(r1.texto)} anclas2=${anclas2 ?? "-"} adoptado=${adoptado}`,
+-      );
+-    } else {
+-      // 2.ª pasada — det cap PROD (1920) → cls → rec (§2.4); MISMO emit de
+-      // progreso (§3). Elegir el MEJOR — NUNCA automáticamente la 2.ª.
+-      const t2 = performance.now();
+-      const r2 = await rapidOcrReconocer(rt, fotoOcr, onProgress, {
+-        detCap: DET_CAP_PROD,
+-        omitirCls,
+-      });
+-      ms2 = Math.round(performance.now() - t2);
+-      msCropsTotal += r2.msCrops; // B3 — crops de la 2.ª (completa)
+-      msSegundaPasada = ms2; // B3
+-      anclas2 = anclasDe(r2.texto);
+-      const ganadora = elegirMejor(
+-        { texto: r1.texto, conf: r1.confMedia, detMs: r1.msDet, recMs: r1.msRec, cap: DET_CAP_RAPIDO },
+-        { texto: r2.texto, conf: r2.confMedia, detMs: r2.msDet, recMs: r2.msRec, cap: DET_CAP_PROD },
+-      );
+-      elegido = ganadora; // MISMA referencia — la ganadora trae sus métricas
+-    }
+-  }
+-  // Traza propia (§2.5 — línea PROPIA, append-only; SIN línea en SIM).
+-  // KIT e14-remediacion-movil-v1 (A1): tokens ADITIVOS AL FINAL de la
+-  // decisión de arranque (los parsers conocidos solo leen hasta anclas2/ms2):
+-  // ventana (tope pared del intento extra) · est (k·ms1 estimado) · abre.
+-  logger.info(
+-    `[e14] ocr-escalonado pasada1=${DET_CAP_RAPIDO} lectura=${senal1.nivel} ` +
+-      `reocr=${ms2 != null ? 1 : 0} elegido=${elegido.cap} anclas1=${anclasDe(r1.texto)}` +
+-      (ms2 != null
+-        ? ` anclas2=${anclas2} ms1=${ms1} ms2=${ms2}`
+-        : ` ms1=${ms1}`) +
+-      (escalonado.corteIncompleta === true ? " corte=1" : "") +
+-      ` ventana=${presupuestoSegunda} k=${kSegunda} est=${costeEstimadoSegunda} abre=${tocaSegunda ? 1 : 0}`,
+-  );
+-  return { texto: elegido.texto, conf: elegido.conf, detMs: elegido.detMs, recMs: elegido.recMs, tramos: { msCrops: msCropsTotal, msSegundaPasada: msSegundaPasada } };
+-}
+-
+-/**
+- * KIT e14-ocr-cascada-v1 (K3 fase 2 — plan flujo-mantenedor paso 6) — recorte de
+- * UN ROI del warp para el rescate OCR: franja horizontal [y0Frac, y1Frac]
+- * re-escalada a cap DET_CAP_PROD (1920 — brief K3: «re-escalado a cap 1920»)
+- * → dataUrl JPEG 0.92 (entrada de OCR, tolerante; el MISMO patrón de crop
+- * invertido de ocrBanda §5). SOLO corre tras el warp full-res (la entrada
+- * es fotoOcr — el recorte SIN filtro del PROD-1 §4.1). JAMÁS lanza: null =
+- * el ROI se descarta y la cascada continúa (doctrina del conservador).
+- */
+-async function recortarRoiDataUrl(
+-  foto: string,
+-  y0Frac: number,
+-  y1Frac: number,
+-): Promise<string | null> {
++async function ocrDataUrl(dataUrl: string, psm?: string): Promise<{ texto: string; conf: number | null }> {
+   try {
+-    const img = await loadImageMemo(foto);
+-    const W = img.naturalWidth;
+-    const H = img.naturalHeight;
+-    if (!W || !H) return null;
+-    const y0 = Math.round(Math.max(0, Math.min(1, y0Frac)) * H);
+-    const y1 = Math.round(Math.max(0, Math.min(1, y1Frac)) * H);
+-    const hSrc = Math.max(1, y1 - y0);
+-    // Re-escalado a cap 1920 del lado largo (el ROI lejos del cap remonta
+-    // resolución de lectura — brief K3 fase 1, cascadas B/C).
+-    const escala = Math.min(1, DET_CAP_PROD / Math.max(W, hSrc));
+-    const wDst = Math.max(1, Math.round(W * escala));
+-    const hDst = Math.max(1, Math.round(hSrc * escala));
+-    const canvas = canvasCon(wDst, hDst); // SPRINT-A A3 — factory
+-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+-    if (!ctx) return null;
+-    ctx.drawImage(img, 0, y0, W, hSrc, 0, 0, wDst, hDst);
+-    // 7.1: CALIDAD_JPEG_REVISION (0.92) desde politica/umbrales.ts.
+-    return canvas.toDataURL("image/jpeg", CALIDAD_JPEG_REVISION);
+-  } catch {
+-    return null; // jamás tumba — el rescate se descarta
++    const worker = await getWorker();
++    if (psm) {
++      await worker.setParameters({ tessedit_pageseg_mode: psm });
++    }
++    const ret = await worker.recognize(dataUrl);
++    const conf = ret.data.confidence;
++    return {
++      texto: (ret.data.text ?? '').trim(),
++      conf: typeof conf === 'number' && conf >= 0 ? conf / 100 : null,
++    };
++  } catch (e) {
++    logger.warn('[ocr] recognize falló', { mensaje: (e as Error).message });
++    // Bloque 3b — FALLBACK AUTOMÁTICO: si el motor ganador (Tesseract, ver
++    // benchmark /tmp/benchmark-ocr.ts) no inicializa, el SECOND motor
++    // (RapidOCR ONNX del fork) toma el turno. null honesto si también cae.
++    const fb = await ocrRapidoFallback(dataUrl, psm);
++    if (fb) return { texto: fb, conf: null };
++    return { texto: '', conf: null };
+   }
+ }
+ 
+-/**
+- * KIT e14-ocr-cascada-v1 (K3 fase 2) + GO-B — la CASCADA en el pipeline,
+- * SOLO con `leerFlags().ocrCascada` ON (default ON — decisión del mantenedor
+- * 2026-11; kill-switch override {"ocrCascada": false} ⇒ esta función nunca
+- * se invoca y el camino es `reconocerRapidOcrEscalonado` byte a byte):
+- *
+- *   intento 1 (TESSERACT BEST — ocr/tesseract.ts, vendido, worker propio,
+- *   budget 60 s capado al restante del pipeline) → GATE (clasificador
+- *   puro, nivel AUTO) ⇒ listo; Tess fallo/vencido ⇒ RapidOCR 1280 de
+- *   siempre como intento 1 (reusable); si no AUTO ⇒ core RapidOCR COMO
+- *   HOY (1280 → necesitaSegunda → 1920 → elegirMejor); si débil y sin
+- *   AUTO ⇒ rescate por ROIs top 0-25% / bottom 75-100% (cap 1920) →
+- *   elegirMejor SOLO entre pasadas RapidOCR (entre motores decidió el
+- *   GATE).
+- *
+- * El GATE usa el clasificador REAL de producción (clasificarCabecera +
+- * cargarDivipol — el MISMO juez que decide el acta más abajo en el
+- * pipeline, FASE 6). GO-B OTORGADO (mantenedor 2026-11: «dejemos como primer
+- * motor de ocr tess best y escalonado a pp ocr»): `ocr/tesseract.ts`
+- * (tesseract.js 5 vendido, worker propio — JAMÁS main thread) hace el
+- * intento 1 con texto SOLO-vía-GATE (jamás elegirMejor) + budget propio
+- * (dato del banco K3: 60 000 ms — decisión D76); cae honesto a
+- * RapidOCR 1280 (pasada motor:"rapidocr" — la cascada la REUSA y el
+- * escalonado a PP-OCR sigue byte a byte).
+- */
+-const OCR_CASCADA_TESSERACT_GO = true; // GO-B del mantenedor (2026-11) — kill-switch: flag `ocrCascada` OFF
+-/** KIT e14-velocidad-5s-v1 — pasada Tesseract best (worker propio de la lib).
+- *  El texto vale SOLO por el GATE (jamás `elegirMejor` — regla §1 del kit
+- *  cascada). null = no disponible (presupuesto corto, lib rota, sin texto):
+- *  el caller sigue con lo que tenga; jamás tumba el pipeline. */
+-async function tessPasadaParaGate(
+-  foto: string,
+-  cfg: { presupuestoMs: number; inicioMs: number },
+-): Promise<PasadaCascada | null> {
+-  const restante = cfg.presupuestoMs - (performance.now() - cfg.inicioMs);
++/** Fallback RapidOCR (motor B del benchmark): solo navegador; los modelos
++ *  viajan self-hosted (/models/rapidocr, sha256 en PanelModelos). Cualquier
++ *  fallo ⇒ null (el pipeline sigue sin OCR — jamás lanza). */
++async function ocrRapidoFallback(dataUrl: string, psm?: string): Promise<string | null> {
++  void psm; // el rec de RapidOCR no usa psm (bloques DB propios)
++  if (typeof window === 'undefined') return null;
+   try {
+-    // tessReconocer decide sola: vence si el restante no alcanza el mínimo
+-    // honesto (< 20 s — falla segura), la CREACIÓN lleva presupuesto propio de
+-    // 180 s (descarga vendida de la 1.ª vez) capado por este restante, y la
+-    // recognize 60 s (bench).
+-    const r = await tessReconocer(foto, restante);
+-    logger.info(`[e14] tess-best ok conf=${r.conf.toFixed(2)} chars=${r.texto.length}`);
+-    return { texto: r.texto, conf: r.conf, cap: "tess", motor: "tesseract" };
++    const motor = await import('@molde-suite/scanner-core/ocr/rapidocr');
++    const rt = await motor.asegurarRapidOcr();
++    const r = await motor.rapidOcrReconocer(rt, dataUrl);
++    return r?.texto || null;
+   } catch (e) {
+-    logger.warn("[e14] tess-best no disponible", {
+-      motivo: e instanceof Error ? e.message : String(e),
++    logger.warn('[ocr] fallback RapidOCR falló (se sigue sin texto)', {
++      mensaje: (e as Error).message,
+     });
+     return null;
+   }
+ }
+-export async function reconocerRapidOcrCascada(
+-  fotoOcr: string,
+-  onProgress: (p: number) => void,
+-  cfg: {
+-    presupuestoMs: number;
+-    inicioMs: number;
+-    orientacionDecidida?: boolean;
+-    /** KIT e14-velocidad-5s-v1 — RECHAZO TEMPRANO: con el veredicto bloqueado
+-     *  antes del OCR, el presupuesto restante se declara vencido (la cascada
+-     *  cobra SU 1.ª pasada y para: ni re-OCR 1920, ni ROI, ni motor de rescate
+-     *  — ninguna de ellas puede volver completa un acta que el guard ya
+-     *  condenó con geometría + fiduciales). */
+-    corteIncompleta?: boolean;
+-  },
+-): Promise<OcrEscalonadoSalida> {
+-  const rt = await rapidOcrInit(); // sesión ÚNICA (§2.1 — pre-warm en bg)
+-  const base = await cargarDivipol(); // cacheada — 0 costo tras la 1.ª
+-  // KIT e14-velocidad-5s-v1 — ORDEN de la cascada. Flag ON (default): el
+-  // INTENTO 1 es la pasada RÁPIDA de RapidOCR (det 1280) y Tesseract best
+-  // queda como RESCATE final, solo para el acta que esa pasada no ubicó.
+-  // Flag OFF ⇒ GO-B del mantenedor de siempre (Tess primero). El TEXTO elegido es
+-  // el mismo en los dos órdenes: entre motores siempre decidió el GATE.
+-  const rapidaPrimero = leerFlags().ocrPrimeraPasadaRapida === true;
+-  // KIT e14-velocidad-5s-v1 — la brújula QR ya fijó el cuadrante del acta:
+-  // el sondeo cls (¿línea boca abajo?) responde la MISMA pregunta con menos
+-  // evidencia, así que se omite en TODAS las pasadas de esta cascada.
+-  const omitirCls = cfg.orientacionDecidida === true;
+-  const rapid = (foto: string, cap: number): Promise<PasadaCascada> =>
+-    rapidOcrReconocer(rt, foto, onProgress, {
+-      detCap: cap,
+-      omitirCls,
+-      sinRescateBordes: cfg.corteIncompleta === true,
+-    }).then((r) => ({
+-      ...aPasada(r, cap),
+-      motor: "rapidocr" as const,
+-    }));
+-  const rapid1280 = (foto: string): Promise<PasadaCascada> => rapid(foto, DET_CAP_RAPIDO);
+-  // GATE = el clasificador REAL de prod (mismo juez, FASE 6 del pipeline).
+-  const clasificarNivel = (texto: string): "AUTO" | "SUGERIDA" | "MANUAL" =>
+-    clasificarCabecera(texto, base).nivel;
+-  const aPasada = (
+-    r: Awaited<ReturnType<typeof rapidOcrReconocer>>,
+-    cap: number | "roi",
+-  ): PasadaCascada => ({
+-    texto: r.texto,
+-    conf: r.confMedia,
+-    cap,
+-    msDet: r.msDet,
+-    msRec: r.msRec,
+-    nBoxes: r.nBoxes,
+-    nLineas: r.lineas.length,
+-    msRunRec: r.msRunRec,
+-  });
+-  // FASE C (medición §6.7): el sink REAL de la telemetría ya existe en el
+-  // paquete — aquí se colecta por acta y el resumen viaja al perf.
+-  const colector = colectorLectura();
+-  const deps: DepsOcrCascada = {
+-    intento1: async (foto) => {
+-      // D88 (2026-11-10) — default OFF: el intento 1 es Tesseract fast y la
+-      // pasada RÁPIDA de RapidOCR queda de respaldo (código debajo intacto).
+-      // RECHAZO TEMPRANO: con el veredicto bloqueado el orden manda poco, pero
+-      // el motor de rescate NO se paga — Tess es 20-60 s de presupuesto para un
+-      // acta que ya es RECHAZADA; acá se va directo por la rápida.
+-      if (rapidaPrimero || cfg.corteIncompleta === true) return rapid1280(foto);
+-      // GO-B (mantenedor 2026-11): TESSERACT BEST primero (worker propio de la
+-      // lib, budget capado al restante del pipeline) → su texto vale SOLO
+-      // por el GATE. Cualquier fallo/vencido/sin-presupuesto-suficiente ⇒
+-      // RapidOCR 1280 de SIEMPRE («escalonado a pp ocr») — pasada marcada
+-      // motor:"rapidocr" para que la cascada la REUSE como 1.ª pasada
+-      // (jamás se paga dos veces la misma pasada del mismo motor).
+-      if (OCR_CASCADA_TESSERACT_GO) {
+-        const p = await tessPasadaParaGate(foto, cfg);
+-        if (p) return p;
+-      }
+-      return rapid1280(foto);
+-    },
+-    mismoMotorIntento1: !OCR_CASCADA_TESSERACT_GO || rapidaPrimero,
+-    ocr1280: rapid1280,
+-    ocr1920: async (foto) => rapid(foto, DET_CAP_PROD),
+-    // ROI a cap PROD (1920) — brief K3: «RapidOCR sobre ROIs re-escalados a
+-    // cap 1920». Sin opts = detCap default DET_CAP_PROD (rapidocr.ts).
+-    ocrRoi: async (roiDataUrl) => rapid(roiDataUrl, DET_CAP_PROD),
+-    recortarRoi: recortarRoiDataUrl,
+-    clasificarNivel,
+-    // KIT e14-velocidad-5s-v1 — Tesseract best SOLO como rescate final: el
+-    // acta que el core RapidOCR no ubicó (gate ≠ AUTO) puede salvarla otro
+-    // motor. Con el intento 1 rápido, el caso fácil NUNCA lo paga.
+-    rescateMotor: rapidaPrimero
+-      ? (foto) => tessPasadaParaGate(foto, cfg)
+-      : undefined,
+-    // KIT e14-remediacion-movil-v1 (D6 — P2 #12): deps del rescate QUE APORTA.
+-    // anclasFaltantes: campos del GATE aún sin leer (dep/mun/zon/puesto/mesa
+-    // contados con el MISMO clasificador de producción — si ya están todos,
+-    // ningún texto cambia el desenlace y el rescate no se paga).
+-    anclasFaltantes: (texto) => {
+-      const c = clasificarCabecera(texto, base);
+-      let faltan = 0;
+-      if (!c.departamento) faltan++;
+-      if (!c.municipio) faltan++;
+-      if (!c.zona) faltan++;
+-      if (!c.puesto) faltan++;
+-      if (c.mesa === null) faltan++;
+-      return faltan;
+-    },
+-    // presupuestoRestanteMs: la MISMA señal del presupuestoVencido (cfg),
+-    // pero en ms — el rescate midió 11-13 s (RESCATE_COSTE_ESPERADO_MS).
+-    presupuestoRestanteMs: () =>
+-      cfg.presupuestoMs - (performance.now() - cfg.inicioMs),
+-    // Presupuesto EXISTENTE del pipeline (§3 del kit escalonado — sin
+-    // presupuestos nuevos). RECHAZO TEMPRANO: se declara vencido de entrada,
+-    // que es exactamente lo que significa «quedan 0 s de OCR por cobrar» — las
+-    // tres escaladas (1920, ROI, rescate de motor) ya están guardadas por esta
+-    // misma señal en el módulo puro, sin regla nueva.
+-    presupuestoVencido: () =>
+-      cfg.corteIncompleta === true ||
+-      performance.now() - cfg.inicioMs >= cfg.presupuestoMs,
+-    onEvento: colector.sink,
+-  };
+-  const s = await correrCascadaOcr(fotoOcr, deps);
+-  // Traza PROPIA (D51 — línea nueva, SOLO con flag ON; parseable).
+-  const ms1 = s.ms1280 != null ? s.ms1280 + s.msIntento1 : s.msIntento1;
+-  logger.info(
+-    `[e14] ocr-cascada intento1=${s.motorIntento1 === "tesseract" ? "tess-best" : DET_CAP_RAPIDO} ` +
+-      `gate1=${s.paso === "intento1" ? "AUTO" : "NO"} elegido=${s.elegidoCap} ` +
+-      `rescate=${s.rescate ? 1 : 0} ms1=${ms1}` +
+-      (s.ms1920 != null ? ` ms2=${s.ms1920}` : " ms2=-") +
+-      (s.msRoi != null ? ` msRoi=${s.msRoi}` : " msRoi=-") +
+-      (s.msMotor != null ? ` msMotor=${s.msMotor}` : " msMotor=-") +
+-      (cfg.corteIncompleta === true ? " corte=1" : ""),
+-  );
+-  // El downstream (banda condicional, clasificación, gate, diagnóstico)
+-  // consume SOLO el texto elegido — mismas métricas de la pasada elegida
+-  // (0 = n/d honesto si el motor elegido no separa det/rec — Tesseract).
+-  return {
+-    texto: s.texto,
+-    conf: s.conf,
+-    detMs: s.detMs ?? 0,
+-    recMs: s.recMs ?? 0,
+-    traza: {
+-      paso: s.paso,
+-      elegidoCap: String(s.elegidoCap),
+-      motorIntento1: s.motorIntento1,
+-      msIntento1: s.msIntento1,
+-      ms1280: s.ms1280,
+-      ms1920: s.ms1920,
+-      msRoi: s.msRoi,
+-      msMotor: s.msMotor,
+-      rescate: s.rescate,
+-      detMs: s.detMs ?? 0,
+-      recMs: s.recMs ?? 0,
+-      nBoxes: s.nBoxes ?? 0,
+-      nLineas: s.nLineas ?? 0,
+-      msRunRec: Math.round(s.msRunRec ?? 0),
+-    },
+-    lectura: colector.resumen(),
+-  };
+-}
+ 
+-export async function ocrBanda(fotoProcesada: string): Promise<string> {
+-  try {
+-    const img = await loadImageMemo(fotoProcesada);
+-    const W = img.naturalWidth;
+-    const H = img.naturalHeight;
+-    if (!W || !H) return "";
+-    // 7.1: fracciones de la banda (0.22/0.03/0.88/0.13) desde
+-    // politica/umbrales.ts — la franja del sello KIT.
+-    const x0 = Math.round(W * BANDA_IZQ_FRACCION);
+-    const y0 = Math.round(H * BANDA_ARRIBA_FRACCION);
+-    const w = Math.max(1, Math.round(W * BANDA_DER_FRACCION) - x0);
+-    const h = Math.max(1, Math.round(H * BANDA_ABAJO_FRACCION) - y0);
+-    const canvas = canvasCon(w * 2, h * 2); // escala ×2 (§5) — SPRINT-A A3 factory
+-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+-    if (!ctx) return "";
+-    ctx.drawImage(img, x0, y0, w, h, 0, 0, w * 2, h * 2);
+-    const d = ctx.getImageData(0, 0, w * 2, h * 2);
+-    // INVERTIDO (§5): el sello es blanco-sobre-negro → 255-lum por canal.
+-    for (let i = 0; i < d.data.length; i += 4) {
+-      d.data[i] = 255 - d.data[i];
+-      d.data[i + 1] = 255 - d.data[i + 1];
+-      d.data[i + 2] = 255 - d.data[i + 2];
+-    }
+-    ctx.putImageData(d, 0, 0);
+-    // KIT e14-motor-rapidocr-v1 (PROD-2 §2-C3): la banda pasa al ÚNICO motor
+-    // de producción — el canvas invertido ×2 ya es polaridad normal y
+-    // RapidOCR lo lee (campos 6/6 en Frankfurt incluyen lo que aporta la
+-    // banda). Escape hatch documentado (§5): revert puntual de C3.
+-    // 7.1: CALIDAD_JPEG_ENVIO (0.9) desde politica/umbrales.ts.
+-    const dataUrl = canvas.toDataURL("image/jpeg", CALIDAD_JPEG_ENVIO);
+-    // KIT e14-banda-rapida-v1 — la franja es texto GRANDE y la orientación ya
+-    // quedó fijada por el warp: mismo motor, menos maquinaria (cap rápido
+-    // 1280, sin sondeo cls, sin rescate de bordes). flag OFF = pasada de
+-    // siempre byte a byte.
+-    if (leerFlags().ocrBandaRapida) {
+-      const rt = await rapidOcrInit();
+-      const r = await rapidOcrReconocer(rt, dataUrl, undefined, {
+-        detCap: DET_CAP_RAPIDO,
+-        omitirCls: true,
+-        sinRescateBordes: true,
+-      });
+-      return r.texto;
+-    }
+-    return await reconocerRapidOcr(dataUrl);
+-  } catch {
+-    return ""; // fallo de decode/canvas/OCR → sin banda nueva (nunca condena)
+-  }
++/** OCR base (RapidOCR en el producto original; aquí Tesseract spa). */
++export async function reconocerRapidOcr(dataUrl: string): Promise<string> {
++  const r = await ocrDataUrl(dataUrl);
++  return r.texto;
+ }
+ 
+-/** KIT e14-seccion-inferior-banda-v1: OCR DEDICADO de la franja del PIE —
+- *  «SUMA TOTAL» (pág 1) / «FIRMA» (pág ≥2). Solo se cobra cuando el OCR
+- *  rápido no leyó la sección. No invierte: el pie es tinta oscura sobre
+- *  papel claro; ×2 y RapidOCR, igual que `ocrBanda`. */
+-export async function ocrBandaInferior(fotoProcesada: string): Promise<string> {
+-  try {
+-    const img = await loadImageMemo(fotoProcesada);
+-    const W = img.naturalWidth;
+-    const H = img.naturalHeight;
+-    if (!W || !H) return "";
+-    const x0 = Math.round(W * BANDA_INFERIOR_IZQ_FRACCION);
+-    const y0 = Math.round(H * BANDA_INFERIOR_ARRIBA_FRACCION);
+-    const x1 = Math.round(W * BANDA_INFERIOR_DER_FRACCION);
+-    const y1 = Math.round(H * BANDA_INFERIOR_ABAJO_FRACCION);
+-    const w = Math.max(1, x1 - x0);
+-    const h = Math.max(1, y1 - y0);
+-    const canvas = canvasCon(w * 2, h * 2);
+-    const ctx = canvas.getContext("2d");
+-    if (!ctx) return "";
+-    ctx.drawImage(img, x0, y0, w, h, 0, 0, w * 2, h * 2);
+-    return await reconocerRapidOcr(canvas.toDataURL("image/jpeg", CALIDAD_JPEG_ENVIO));
+-  } catch {
+-    // la franja del pie es señal extra: "" no condena — el gate decide con lo que ya leyó
+-    return "";
+-  }
++/** OCR escalonado: página completa y, si sale débil, reintento ampliado. */
++export async function reconocerRapidOcrEscalonado(dataUrl: string): Promise<string> {
++  const primera = await ocrDataUrl(dataUrl, '4');
++  if (primera.texto.length >= 40) return primera.texto;
++  const segunda = await ocrDataUrl(dataUrl, '3');
++  return segunda.texto.length > primera.texto.length ? segunda.texto : primera.texto;
++}
++
++/** OCR en cascada: primera lectura + reintento con realce si salió débil. */
++export async function reconocerRapidOcrCascada(dataUrl: string): Promise<string> {
++  const primera = await reconocerRapidOcrEscalonado(dataUrl);
++  if (primera.length >= 60) return primera;
++  // Realce: escala de grises + estiramiento p5-p95 antes del reintento
++  // (implementación compartida en scanner-core/core/canvas-imagen — D2).
++  const c = await canvasDesdeDataUrl(dataUrl);
++  estirarContrasteEnCanvas(c);
++  const segunda = await ocrDataUrl(c.toDataURL('image/jpeg', 0.92), '4');
++  return segunda.texto.length > primera.length ? segunda.texto : primera;
++}
++
++/** OCR de la banda superior (cabecera/título del acta). */
++export async function ocrBanda(dataUrl: string): Promise<string> {
++  const img = new Image();
++  img.src = dataUrl;
++  await img.decode();
++  const c = document.createElement('canvas');
++  c.width = img.naturalWidth;
++  c.height = Math.max(1, Math.round(img.naturalHeight * 0.16));
++  c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height, 0, 0, c.width, c.height);
++  return (await ocrDataUrl(c.toDataURL('image/jpeg', 0.92), '6')).texto;
++}
++
++/** OCR de la banda inferior (sello/firmas del acta). */
++export async function ocrBandaInferior(dataUrl: string): Promise<string> {
++  const img = new Image();
++  img.src = dataUrl;
++  await img.decode();
++  const c = document.createElement('canvas');
++  const h16 = Math.max(1, Math.round(img.naturalHeight * 0.2));
++  c.width = img.naturalWidth;
++  c.height = h16;
++  c.getContext('2d')!.drawImage(img, 0, img.naturalHeight - h16, c.width, h16, 0, 0, c.width, h16);
++  return (await ocrDataUrl(c.toDataURL('image/jpeg', 0.92), '6')).texto;
+ }

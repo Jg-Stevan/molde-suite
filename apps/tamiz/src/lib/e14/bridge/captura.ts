@@ -2,6 +2,7 @@
 // captura síncrona de frames de video y entradas de simulación.
 
 import { defaultQuad, type Quad } from '@molde-suite/scanner-core/core/types';
+import { getScannerWorker } from '@molde-suite/scanner-core/core/detector-client';
 import { dibujarImagenSimulada, type ImagenSimuladaId } from '../simulacion-imagenes';
 
 /**
@@ -56,12 +57,32 @@ export async function entradaSimDeImagen(id: ImagenSimuladaId): Promise<{ archiv
   return { archivo };
 }
 
+/** Tope del warm-up: cubre el arranque en frío del worker en móvil (medido
+ *  2.7–6.7 s en el A56) sin colgar el escaneo si el worker no arranca. */
+const ESPERA_WORKER_MS = 10_000;
+
 let workerCaliente = false;
 
-/** Warm-up del worker de procesado (canvas en esta implementación mínima). */
+/** Warm-up REAL del worker OpenCV — la MISMA vía que detecta el quad. Tras
+ *  recargar la PWA el worker arranca en frío; sin esta espera la detección
+ *  caía al Sobel/identidad y la «procesada» era el fotograma entero. */
 export async function esperarWorkerCaliente(): Promise<void> {
   if (workerCaliente) return;
-  // Doble requestAnimationFrame: fuerza la compilación JIT de los paths de canvas.
+  try {
+    const worker = getScannerWorker();
+    if (worker && !worker.isDead) {
+      const listo = await Promise.race([
+        worker.waitReady(),
+        new Promise<boolean>((res) => window.setTimeout(() => res(false), ESPERA_WORKER_MS)),
+      ]);
+      if (listo) {
+        workerCaliente = true;
+        return;
+      }
+    }
+  } catch {
+    /* worker roto → el detector cae al Sobel del core */
+  }
+  // Sin worker: deja el hilo en condiciones para el fallback canvas.
   await new Promise<void>((res) => requestAnimationFrame(() => requestAnimationFrame(() => res())));
-  workerCaliente = true;
 }
