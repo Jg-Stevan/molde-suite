@@ -107,6 +107,15 @@ export interface ResumenMoldeCampo {
   conf: number | null;
   /** Rectángulo normalizado resuelto (para el overlay). */
   rect?: { x: number; y: number; w: number; h: number } | null;
+  /**
+   * Overlay: dónde el OCR encontró el texto del ANCLA (normalizado). null si
+   * no hubo hit real (zona_fija / referencia / arnés). Aditivo.
+   */
+  ancla_rect?: { x: number; y: number; w: number; h: number } | null;
+  /** Procedencia del rect resuelto — el overlay la usa para el color del ancla. */
+  fuente?: "ancla" | "respaldo" | "referencia" | "fija" | "arnes" | null;
+  /** Banderas del motor para este campo (forense / tooltip del overlay). */
+  banderas?: string[];
   /** Presentación (G-7): el valor se resalta en la lista. */
   destacado?: boolean;
   obligatorio?: boolean;

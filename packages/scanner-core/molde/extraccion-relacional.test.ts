@@ -11,6 +11,7 @@ import {
   endurecerFallbackNoVerificado,
   parsearFechaTexto,
   parsearRango,
+  resolverRectCampo,
   textoEnRect,
 } from './universal-engine';
 import type { CampoUniversal, RectNorm, ResultadoCampoUniversal } from './universal-types';
@@ -248,5 +249,31 @@ describe('endurecerFallbackNoVerificado (FASE 1b)', () => {
     });
     endurecerFallbackNoVerificado(campo(true, 'firma'), r);
     expect(r.estado).toBe('ok');
+  });
+});
+
+describe('resolverRectCampo — ancla_rect para el overlay (aditivo)', () => {
+  const campo: CampoUniversal = {
+    id: 'fecha',
+    etiqueta: 'Fecha',
+    pagina: 1,
+    tipo: 'texto',
+    estrategia: 'ancla_relativa',
+    zona: { x: 0.2, y: 0.02, w: 0.2, h: 0.02 },
+    ancla: { texto: 'Fecha:', rect: { x: 0.1, y: 0.5, w: 0.1, h: 0.02 } },
+  };
+  test('ancla encontrada → ancla_rect = rect del hit (normalizado)', () => {
+    // El hit vive en cy = 0.5·H → su bbox normalizado y ≈ 0.5 (no la referencia).
+    const r = resolverRectCampo(campo, [linea('Fecha:', 0.5 * H)], W, H);
+    expect(r?.fuente).toBe('ancla');
+    expect(r?.ancla_rect).toBeDefined();
+    expect(r!.ancla_rect!.y).toBeCloseTo(0.5 - 12 / H, 2);
+    expect(r!.ancla_rect!.x).toBeCloseTo(100 / W, 3);
+  });
+  test('referencia (ancla no encontrada) → sin ancla_rect', () => {
+    const sinHit = resolverRectCampo(campo, [linea('Otra cosa', 0.9 * H)], W, H);
+    expect(sinHit?.fuente).toBe('referencia');
+    expect(sinHit?.ancla_encontrada).toBe(false);
+    expect(sinHit?.ancla_rect).toBeUndefined();
   });
 });

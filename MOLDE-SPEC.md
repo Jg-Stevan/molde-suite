@@ -64,6 +64,17 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
 
 - Estados de campo: `ok` / `no_encontrado` / `requiere_revision` — el motor
   NUNCA inventa lecturas (conf null ≠ 0.5; manuscritos `htr` siempre a revisión).
+- **Overlay por campo (aditivo)**: cada `ResultadoCampoUniversal` trae `rect`
+  (dónde se leyó el valor) y `ancla_rect` (dónde el OCR encontró el texto del
+  ANCLA; `null` en `zona_fija`/`referencia`/`arnés`, donde no hubo hit real que
+  señalar). La app Tamiz los pinta sobre la foto procesada como PALABRAS
+  coloreadas (pedido del mantenedor 2026-11-25): la etiqueta del ancla en
+  AZUL («Fecha»), y el valor reconocido en verde (`ok`), ámbar
+  (`requiere_revision`) o rojo (`no_encontrado`/firma faltante). También en el
+  visor a pantalla completa: la capa vive dentro del wrapper de zoom y
+  escala/panea con la foto (se oculta al comparar el original). Los rects son
+  normalizados (0-1) sobre el canvas de la foto PROCESADA — el overlay solo
+  se ofrece con esa foto (jamás sobre la original).
 - Banderas relevantes al diseñar: `ancla_no_encontrada`, `ancla_colision`,
   `desambiguacion_fallida`, `umbral_al_borde`, `pagina_faltante`,
   `posible_pagina_equivocada`, `rotacion_180_corregida`.

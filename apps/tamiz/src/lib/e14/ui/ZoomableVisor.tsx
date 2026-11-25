@@ -72,7 +72,7 @@
  * interactivo para que levantar una pinza nunca cierre el visor.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { AnimatePresence, animate, motion, useMotionValue } from "framer-motion";
 // KIT e14-remediacion-movil-v1 (D5 — #19): única desviación del contrato de
 // pureza de la copia vendorizada — la vibración de comparación la dispara un
@@ -143,6 +143,11 @@ export interface ZoomableVisorProps {
   /** Gate del hint didáctico (default true). El visor también lo oculta al
    *  ampliar; el consumidor puede apagarlo tras su primera muestra. */
   showHint?: boolean;
+  /** ADICIÓN Tamiz (overlay por campo): capa dibujada EXACTAMENTE sobre el
+   *  rectángulo de la imagen y DENTRO del wrapper de zoom — escala/panea con
+   *  la foto. Se oculta durante la comparación (las coordenadas pertenecen a
+   *  la procesada). Solo modal. */
+  overlay?: ReactNode;
 }
 
 export function ZoomableVisor({
@@ -154,6 +159,7 @@ export function ZoomableVisor({
   onClose,
   carousel,
   showHint = true,
+  overlay,
 }: ZoomableVisorProps) {
   const esCard = mode === "card";
   // ── F-ZOOM — zoom del visor (pinza · pan · doble toque · rueda) ────────
@@ -276,6 +282,23 @@ export function ZoomableVisor({
   useEffect(() => {
     resetZoom();
   }, [src, resetZoom]);
+
+  // ADICIÓN Tamiz (overlay por campo): caja RENDERIZADA del <img> (object-
+  // contain centrado) para encajar la capa del consumidor px a px. Client
+  // size = layout, no transform → la capa escala junto al wrapper del zoom.
+  const [overlayBox, setOverlayBox] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const img = zoomImgRef.current;
+    if (!img || !overlay) {
+      setOverlayBox(null);
+      return;
+    }
+    const medir = () => setOverlayBox({ w: img.clientWidth, h: img.clientHeight });
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(img);
+    return () => ro.disconnect();
+  }, [overlay, src]);
 
   // FIX v8 (8.1) — cinturón y tirantes: WebKit puede quedar con el gesto
   // (rubber-band residual / heurística de doble toque) y disparar
@@ -621,7 +644,9 @@ export function ZoomableVisor({
           /* FIX v6 (6.3): touch-none también en el WRAPPER del pan —
            * WebKit solo respeta el touch-action del elemento donde NACE el
            * toque, no el de los ancestros. */
-          className="flex h-full w-full touch-none items-center justify-center"
+          /* ADICIÓN Tamiz: relative = containing block de la capa overlay
+           * (centrada a 50% del wrapper = centro del <img> centrado). */
+          className="relative flex h-full w-full touch-none items-center justify-center"
         >
           <img
             ref={zoomImgRef}
@@ -639,6 +664,19 @@ export function ZoomableVisor({
                 : "max-h-full max-w-full touch-none select-none rounded-[6px] object-contain shadow-[0_18px_60px_rgba(0,0,0,0.65)]"
             }
           />
+          {/* ADICIÓN Tamiz — capa del consumidor SOBRE el rectángulo exacto
+              del <img>; vive dentro del wrapper escalado (zoom/pan con la
+              foto) y se oculta mientras se compara el original. */}
+          {!esCard && overlay && !comparing && overlayBox && (
+            <div
+              aria-hidden="true"
+              data-testid="visor-overlay"
+              className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
+              style={{ width: overlayBox.w, height: overlayBox.h }}
+            >
+              {overlay}
+            </div>
+          )}
           {/* Comparación antes/después: el ORIGINAL mientras se mantiene pulsado.
               ZOOM-INLINE: SOLO fullscreen — en card NO se monta. */}
           {!esCard && (

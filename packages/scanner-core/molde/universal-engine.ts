@@ -279,6 +279,12 @@ export function buscarAncla(
 
 export interface RectResuelto {
   rect: RectNorm;
+  /**
+   * Overlay (azul): rect normalizado DONDE el OCR encontró el texto del ancla
+   * (no la referencia del molde). Solo presente cuando `ancla_encontrada` es
+   * true; ausente en fija/referencia/arnés (no hubo hit real que señalar).
+   */
+  ancla_rect?: RectNorm;
   fuente: 'ancla' | 'respaldo' | 'referencia' | 'fija';
   ancla_encontrada: boolean;
   score?: number;
@@ -407,6 +413,8 @@ function contextoPresente(
 interface VotoAncla {
   /** Rect FINAL del campo (zona offseteada desde el hit de esta ancla). */
   rect: RectNorm;
+  /** Rect del HIT del ancla (overlay azul). */
+  anclaRect: RectNorm;
   /** Score textual del hit (el mismo que se reporta en resolución simple). */
   score: number;
   /** Texto de la ancla que votó (forense). */
@@ -481,6 +489,7 @@ function resolverPorVoto(
     }
     votos.push({
       rect: aplicarOffset(hit.rect, a.zona ?? campo.zona),
+      anclaRect: hit.rect,
       score: hit.score,
       texto: a.texto,
       solo_textual: hit.solo_textual === true,
@@ -509,6 +518,7 @@ function resolverPorVoto(
     if (mejorCluster.length >= 2) {
       return {
         rect: rectConsensuado(mejorCluster),
+        ancla_rect: mejorCluster[0].anclaRect,
         fuente: 'ancla',
         ancla_encontrada: true,
         ancla_consensuada: true,
@@ -540,6 +550,7 @@ function resolverPorVoto(
     // Un único voto = ancla única de siempre (retrocompatibilidad total).
     return {
       rect: votos[0].rect,
+      ancla_rect: votos[0].anclaRect,
       fuente: 'ancla',
       ancla_encontrada: true,
       score: votos[0].score,
@@ -792,6 +803,7 @@ export function resolverRectRelacional(
     const banda = bandaAdyacente(rectAncla, faro, relacion.direccion);
     return {
       rect: clampRect(aplicarFinura(banda, campo.zona)),
+      ancla_rect: rectAncla,
       fuente: fuenteAncla,
       ancla_encontrada: true,
       score,
@@ -820,6 +832,7 @@ export function resolverRectRelacional(
     }
     return {
       rect: clampRect(aplicarFinura(sel.elegido, campo.zona)),
+      ancla_rect: rectAncla,
       fuente: fuenteAncla,
       ancla_encontrada: true,
       score,
@@ -850,6 +863,7 @@ export function resolverRectRelacional(
   }
   return {
     rect: clampRect(aplicarFinura(selCaja.elegido, campo.zona)),
+    ancla_rect: rectAncla,
     fuente: fuenteAncla,
     ancla_encontrada: true,
     score,
@@ -904,6 +918,7 @@ export function resolverRectCampo(
     if (desambiguado(campo, hit, lineas, canvasW, canvasH)) {
       return {
         rect: aplicarOffset(hit.rect),
+        ancla_rect: hit.rect,
         fuente: 'ancla',
         ancla_encontrada: true,
         score: hit.score,
@@ -918,6 +933,7 @@ export function resolverRectCampo(
       if (desambiguado(campo, hit2, lineas, canvasW, canvasH)) {
         return {
           rect: aplicarOffset(hit2.rect),
+          ancla_rect: hit2.rect,
           fuente: 'respaldo',
           ancla_encontrada: true,
           score: hit2.score,
@@ -1298,6 +1314,7 @@ async function evaluarCampo(
     valor: null,
     conf: null,
     rect: null,
+    ancla_rect: null,
     crop: null,
     crop_dims: null,
     fuente: null,
@@ -1329,6 +1346,7 @@ async function evaluarCampo(
     return base;
   }
   base.rect = resuelto.rect;
+  base.ancla_rect = resuelto.ancla_rect ?? null;
   base.fuente = resuelto.fuente;
   if (!resuelto.ancla_encontrada) base.banderas.push('ancla_no_encontrada');
   if (resuelto.fuente === 'respaldo') base.banderas.push('ancla_respaldo');

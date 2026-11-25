@@ -420,27 +420,27 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `Acta` | interface | 147 | `any` |
+| `Acta` | interface | 156 | `any` |
 | `ActaFirma` | interface | 31 | `any` |
 | `ActaStatus` | typealias | 10 | `any` |
 | `DiagnosticoActa` | interface | 49 | `any` |
-| `EstructuraActa` | interface | 129 | `any` |
-| `EtapaAnalisis` | typealias | 210 | `any` |
+| `EstructuraActa` | interface | 138 | `any` |
+| `EtapaAnalisis` | typealias | 219 | `any` |
 | `FuenteCaptura` | typealias | 18 | `any` |
-| `HistorialRow` | interface | 188 | `any` |
-| `Mesa` | interface | 202 | `any` |
-| `MesaPagina` | interface | 196 | `any` |
+| `HistorialRow` | interface | 197 | `any` |
+| `Mesa` | interface | 211 | `any` |
+| `MesaPagina` | interface | 205 | `any` |
 | `MetricasActa` | interface | 42 | `any` |
 | `PaginaActa` | interface | 62 | `any` |
-| `ProgresoAnalisis` | interface | 218 | `any` |
+| `ProgresoAnalisis` | interface | 227 | `any` |
 | `Quad` | exportspecifier | 8 | `any` |
 | `RechazoActa` | interface | 37 | `any` |
 | `ResumenMoldeActa` | interface | 73 | `any` |
 | `ResumenMoldeCampo` | interface | 99 | `any` |
-| `statusDeScore` | function | 230 | `(score: number) => ActaStatus` |
+| `statusDeScore` | function | 239 | `(score: number) => ActaStatus` |
 | `TipoPagina` | typealias | 21 | `any` |
 | `UbicacionActa` | interface | 23 | `any` |
-| `UMBRAL_ADMISIBLE_SCORE` | variable | 228 | `8.5` |
+| `UMBRAL_ADMISIBLE_SCORE` | variable | 237 | `8.5` |
 
 ### packages/scanner-core/geom/orientacion.ts
 
@@ -555,51 +555,51 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `alinearAnclas` | function | 2941 | `(molde: MoldeUniversal, canvas: HTMLCanvasElement, pagina?: number) => Promise<{ molde: MoldeUniversal; encontradas: number; total: number; detalles: Record<str` |
-| `ANCLA_SCORE_MIN` | variable | 333 | `0.72` |
-| `ANCLA_TEXUAL_DESPLAZAMIENTO_MAX` | variable | 345 | `0.3` |
-| `ARNES_ANCLAS_MIN` | variable | 2037 | `3` |
-| `ARNES_CONF_PROY_MIN` | variable | 2042 | `0.8` |
-| `ARNES_TEXTO_CONF_MIN` | variable | 2044 | `0.7` |
-| `ARNES_VOTO_TOL` | variable | 2040 | `0.02` |
+| `alinearAnclas` | function | 2959 | `(molde: MoldeUniversal, canvas: HTMLCanvasElement, pagina?: number) => Promise<{ molde: MoldeUniversal; encontradas: number; total: number; detalles: Record<str` |
+| `ANCLA_SCORE_MIN` | variable | 339 | `0.72` |
+| `ANCLA_TEXUAL_DESPLAZAMIENTO_MAX` | variable | 351 | `0.3` |
+| `ARNES_ANCLAS_MIN` | variable | 2055 | `3` |
+| `ARNES_CONF_PROY_MIN` | variable | 2060 | `0.8` |
+| `ARNES_TEXTO_CONF_MIN` | variable | 2062 | `0.7` |
+| `ARNES_VOTO_TOL` | variable | 2058 | `0.02` |
 | `buscarAncla` | function | 183 | `(texto: string, lineas: {}, canvasW: number, canvasH: number, rectEsperado?: RectNorm) => HitAncla` |
-| `CajaLayout` | interface | 2031 | `any` |
-| `CandidatoHuella` | interface | 2376 | `any` |
+| `CajaLayout` | interface | 2049 | `any` |
+| `CandidatoHuella` | interface | 2394 | `any` |
 | `editDistance` | function | 69 | `(a: string, b: string) => number` |
 | `editDistancePonderada` | function | 127 | `(a: string, b: string) => number` |
-| `endurecerFallbackNoVerificado` | function | 1979 | `(campo: CampoUniversal, r: ResultadoCampoUniversal) => void` |
-| `evaluarDocumentoUniversal` | function | 2670 | `(canvases: {}, molde: MoldeUniversal, nombreArchivo: string, onProgreso?: (msg: string) => void, renderMs?: number, opts?: { previews?: boolean; lineas?: {}; oc` |
-| `evaluarGrupos` | function | 2315 | `(grupos: {}, campos: {}, resultados: {}) => void` |
-| `evaluarValidaciones` | function | 1805 | `(molde: MoldeUniversal, porId: Map<string, ResultadoCampoUniversal>) => {}` |
-| `FARO_MARGEN` | variable | 565 | `0.01` |
-| `hexTipo` | exportspecifier | 3283 | `(tipo: string) => string` |
+| `endurecerFallbackNoVerificado` | function | 1997 | `(campo: CampoUniversal, r: ResultadoCampoUniversal) => void` |
+| `evaluarDocumentoUniversal` | function | 2688 | `(canvases: {}, molde: MoldeUniversal, nombreArchivo: string, onProgreso?: (msg: string) => void, renderMs?: number, opts?: { previews?: boolean; lineas?: {}; oc` |
+| `evaluarGrupos` | function | 2333 | `(grupos: {}, campos: {}, resultados: {}) => void` |
+| `evaluarValidaciones` | function | 1823 | `(molde: MoldeUniversal, porId: Map<string, ResultadoCampoUniversal>) => {}` |
+| `FARO_MARGEN` | variable | 576 | `0.01` |
+| `hexTipo` | exportspecifier | 3301 | `(tipo: string) => string` |
 | `HitAncla` | interface | 154 | `any` |
-| `IdentificacionCascada` | interface | 2389 | `any` |
-| `identificarDocumento` | function | 2419 | `(lineas: {}, canvasW: number, canvasH: number, totalPaginas: number, candidatos: {}) => IdentificacionCascada` |
-| `lineasEnFaro` | function | 581 | `(lineas: {}, canvasW: number, canvasH: number, faro: RectNorm) => {}` |
-| `MIN_CORRIDAS_CLUSTERING` | variable | 3064 | `3` |
+| `IdentificacionCascada` | interface | 2407 | `any` |
+| `identificarDocumento` | function | 2437 | `(lineas: {}, canvasW: number, canvasH: number, totalPaginas: number, candidatos: {}) => IdentificacionCascada` |
+| `lineasEnFaro` | function | 592 | `(lineas: {}, canvasW: number, canvasH: number, faro: RectNorm) => {}` |
+| `MIN_CORRIDAS_CLUSTERING` | variable | 3082 | `3` |
 | `normTxt` | function | 59 | `(s: string) => string` |
-| `parsearFechaTexto` | function | 1763 | `(valor: string) => number` |
-| `parsearIgualdad` | function | 1719 | `(expresion: string) => { izq: string; der: Array<{ tipo: "id" \| "num"; valor: string; }>; }` |
-| `parsearRango` | function | 1742 | `(expresion: string) => { izq: string; op: ">=" \| "<="; der: string; }` |
-| `patronEfectivo` | function | 1273 | `(campo: CampoUniversal, herencia?: Partial<Record<TipoCampo, { umbral?: number; patron?: string; }>>) => string` |
-| `proponerAnclas` | function | 2524 | `(lineas: {}, canvasW: number, canvasH: number, zona: RectNorm, maximo?: number) => {}` |
-| `PropuestaAncla` | interface | 2480 | `any` |
-| `proyectarPorArnes` | function | 2063 | `(campos: {}, resultados: {}, lineas: {}, canvasW: number, canvasH: number, opts?: { canvas?: HTMLCanvasElement; cajasLayout?: {}; herencia?: Partial<Record<Tipo` |
-| `RADIO_DESAMBIGUACION` | variable | 350 | `0.3` |
-| `rectEditor` | function | 943 | `(campo: CampoUniversal) => RectNorm` |
+| `parsearFechaTexto` | function | 1781 | `(valor: string) => number` |
+| `parsearIgualdad` | function | 1737 | `(expresion: string) => { izq: string; der: Array<{ tipo: "id" \| "num"; valor: string; }>; }` |
+| `parsearRango` | function | 1760 | `(expresion: string) => { izq: string; op: ">=" \| "<="; der: string; }` |
+| `patronEfectivo` | function | 1289 | `(campo: CampoUniversal, herencia?: Partial<Record<TipoCampo, { umbral?: number; patron?: string; }>>) => string` |
+| `proponerAnclas` | function | 2542 | `(lineas: {}, canvasW: number, canvasH: number, zona: RectNorm, maximo?: number) => {}` |
+| `PropuestaAncla` | interface | 2498 | `any` |
+| `proyectarPorArnes` | function | 2081 | `(campos: {}, resultados: {}, lineas: {}, canvasW: number, canvasH: number, opts?: { canvas?: HTMLCanvasElement; cajasLayout?: {}; herencia?: Partial<Record<Tipo` |
+| `RADIO_DESAMBIGUACION` | variable | 356 | `0.3` |
+| `rectEditor` | function | 959 | `(campo: CampoUniversal) => RectNorm` |
 | `RectResuelto` | interface | 280 | `any` |
-| `resolverRectCampo` | function | 862 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
-| `resolverRectRelacional` | function | 731 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
-| `ResultadoArn` | interface | 2051 | `any` |
-| `ResultadoFixture` | interface | 2582 | `any` |
-| `sugerirUmbral` | function | 2989 | `(resultados: ResultadoUniversal, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; motivo?: "sin_mediciones" \| "sin_tinta" \| "si` |
-| `sugerirUmbralClustering` | function | 3166 | `(corridas: {}, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; metodo: "clustering" \| "corte_fijo"; corridasConMediciones: num` |
-| `TECHO_RUIDO` | variable | 3061 | `0.02` |
-| `textoEnRect` | function | 1162 | `(lineas: {}, rect: RectNorm, canvasW: number, canvasH: number) => { texto: string; conf: number; palabras: number; }` |
-| `umbralEfectivo` | function | 1265 | `(campo: CampoUniversal, herencia?: Partial<Record<TipoCampo, { umbral?: number; patron?: string; }>>) => number` |
-| `valorNumerico` | function | 1632 | `(r: ResultadoCampoUniversal) => number` |
-| `verificarFixture` | function | 2608 | `(resultado: ResultadoUniversal, fixture: FixtureMolde) => ResultadoFixture` |
+| `resolverRectCampo` | function | 876 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
+| `resolverRectRelacional` | function | 742 | `(campo: CampoUniversal, lineas: {}, canvasW: number, canvasH: number, canvas?: HTMLCanvasElement) => RectResuelto` |
+| `ResultadoArn` | interface | 2069 | `any` |
+| `ResultadoFixture` | interface | 2600 | `any` |
+| `sugerirUmbral` | function | 3007 | `(resultados: ResultadoUniversal, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; motivo?: "sin_mediciones" \| "sin_tinta" \| "si` |
+| `sugerirUmbralClustering` | function | 3184 | `(corridas: {}, campoId: string) => { sugerido: number; minConTinta: number; maxSinTinta: number; metodo: "clustering" \| "corte_fijo"; corridasConMediciones: num` |
+| `TECHO_RUIDO` | variable | 3079 | `0.02` |
+| `textoEnRect` | function | 1178 | `(lineas: {}, rect: RectNorm, canvasW: number, canvasH: number) => { texto: string; conf: number; palabras: number; }` |
+| `umbralEfectivo` | function | 1281 | `(campo: CampoUniversal, herencia?: Partial<Record<TipoCampo, { umbral?: number; patron?: string; }>>) => number` |
+| `valorNumerico` | function | 1650 | `(r: ResultadoCampoUniversal) => number` |
+| `verificarFixture` | function | 2626 | `(resultado: ResultadoUniversal, fixture: FixtureMolde) => ResultadoFixture` |
 
 ### packages/scanner-core/molde/universal-types.ts
 
@@ -609,8 +609,8 @@
 | `CampoUniversal` | interface | 103 | `any` |
 | `ClaseLayout` | typealias | 391 | `any` |
 | `COLOR_TIPO` | variable | 517 | `Record<TipoCampo, string>` |
-| `erroresMolde` | function | 896 | `(obj: unknown) => {}` |
-| `esMoldeUniversal` | function | 809 | `(obj: unknown) => obj is MoldeUniversal` |
+| `erroresMolde` | function | 901 | `(obj: unknown) => {}` |
+| `esMoldeUniversal` | function | 814 | `(obj: unknown) => obj is MoldeUniversal` |
 | `EstrategiaCampo` | typealias | 32 | `any` |
 | `FixtureMolde` | interface | 363 | `any` |
 | `GrupoMolde` | interface | 297 | `any` |
@@ -621,19 +621,19 @@
 | `MAX_ANCLAS_VOTO` | variable | 101 | `6` |
 | `MOLDE_UNIVERSAL_VERSION` | variable | 514 | `"3.3.0"` |
 | `MoldeUniversal` | interface | 460 | `any` |
-| `nuevoIdCampo` | function | 1212 | `() => string` |
+| `nuevoIdCampo` | function | 1217 | `() => string` |
 | `RectNorm` | interface | 22 | `any` |
 | `ReglaLayout` | interface | 405 | `any` |
 | `RelacionAncla` | interface | 39 | `any` |
 | `RestriccionesGrupo` | interface | 282 | `any` |
 | `ResultadoCampoUniversal` | interface | 539 | `any` |
-| `ResultadoPaginaUniversal` | interface | 591 | `any` |
-| `ResultadoUniversal` | interface | 610 | `any` |
-| `ResultadoValidacion` | interface | 600 | `any` |
+| `ResultadoPaginaUniversal` | interface | 596 | `any` |
+| `ResultadoUniversal` | interface | 615 | `any` |
+| `ResultadoValidacion` | interface | 605 | `any` |
 | `SCHEMA_VERSION_MOLDE` | variable | 356 | `1` |
 | `TipoCampo` | typealias | 29 | `any` |
 | `TOLERANCIA_GRUPO_DEFAULT` | variable | 321 | `0.02` |
-| `UMBRAL_APROBADO` | variable | 1217 | `98` |
+| `UMBRAL_APROBADO` | variable | 1222 | `98` |
 | `ValidacionMolde` | interface | 246 | `any` |
 | `VOTO_CONSENSO_DIST` | variable | 97 | `0.02` |
 
