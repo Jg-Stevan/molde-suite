@@ -80,3 +80,16 @@ página; 5 campos del mismo bloque central con el mismo desplazamiento;
   (`validacion_no_evaluable` ≠ `validacion_fallida`).
 
 **Lecciones:** recibo_pago/2026-11-24-tachado-posicion-ancla.md
+
+## P6 — Confianza geométrica medida con residual de modelo exacto (F5)
+
+**Síntomas:** el arnés de proyección nunca dispara (`confProy` ≈ 0.3-0.4 pese a
+anclas coherentes), 0 campos con `fuente: 'arnes'`; con 3-4 anclas el residuo
+es 0 SIEMPRE (modelo exacto) y no discrimina un voto dellado de tres buenos.
+
+**Mitigación (ya en el motor, FASE 5):** confianza = fracción de votos
+soportados en leave-one-out (tolerancia `ARNES_VOTO_TOL` 0.02); el modelo
+final se reajusta solo sobre votos soportados. Adopción `ok` además exige
+patrón + conf OCR ≥ 0.7 (votación 2/3), nunca geometría sola.
+
+**Lecciones:** recibo_pago/2026-11-25-arnes-loo-soporte.md
