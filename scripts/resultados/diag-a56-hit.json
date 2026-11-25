@@ -1,0 +1,188 @@
+{
+  "viewport": {
+    "w": 491,
+    "h": 946,
+    "dpr": 2.200000047683716,
+    "vv": {
+      "h": 945.9090576171875,
+      "offTop": 0
+    }
+  },
+  "aplicar": {
+    "x": 16,
+    "y": 753,
+    "w": 459,
+    "h": 44
+  },
+  "cancelar": {
+    "x": 12,
+    "y": 67,
+    "w": 87,
+    "h": 30
+  },
+  "rotarEditor": {
+    "x": 16,
+    "y": 684,
+    "w": 226,
+    "h": 44
+  },
+  "centroAplicar": {
+    "x": 245.5,
+    "y": 775
+  },
+  "elementoArriba": {
+    "tag": "SPAN",
+    "aria": null,
+    "texto": "APLICAR RECORTE",
+    "clase": "",
+    "z": "auto",
+    "pos": "static"
+  },
+  "pila": [
+    {
+      "tag": "SPAN",
+      "aria": null,
+      "texto": "APLICAR RECORTE",
+      "clase": "",
+      "z": "auto",
+      "pos": "static"
+    },
+    {
+      "tag": "BUTTON",
+      "aria": "Aplicar el recorte",
+      "texto": "APLICAR RECORTE",
+      "clase": "w-full h-12 lg:h-14 py-3 px-5 bg-brand-green hover:bg-emerald-400 text-black font-extrabold text-sm uppercase tracking-w",
+      "z": "auto",
+      "pos": "static"
+    },
+    {
+      "tag": "DIV",
+      "aria": null,
+      "texto": "ROTAR 90°DETECCIÓN AUTOMÁTICAArrastra la",
+      "clase": "w-full max-w-2xl mx-auto flex flex-col gap-1.5",
+      "z": "auto",
+      "pos": "static"
+    },
+    {
+      "tag": "FOOTER",
+      "aria": null,
+      "texto": "ROTAR 90°DETECCIÓN AUTOMÁTICAArrastra la",
+      "clase": "shrink-0 border-t border-brand-borderdim bg-[#0a0e0c]/90 backdrop-blur-md px-4 lg:px-6 pt-2.5 pb-safe",
+      "z": "auto",
+      "pos": "static"
+    },
+    {
+      "tag": "DIV",
+      "aria": "Ajuste de bordes del documento",
+      "texto": "CANCELARAjustar bordes8 ASAS · 3×ROTAR 9",
+      "clase": "fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col animate-editor-enter",
+      "z": "50",
+      "pos": "fixed"
+    },
+    {
+      "tag": "SPAN",
+      "aria": null,
+      "texto": "Rotar 90°",
+      "clase": "",
+      "z": "auto",
+      "pos": "static"
+    }
+  ],
+  "estilos": {
+    "aplicar": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "opacity": "1",
+      "filter": "none",
+      "blend": "normal"
+    },
+    "footer": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "opacity": "1",
+      "backdrop": "blur(12px)",
+      "filter": "none"
+    },
+    "dialog": {
+      "bg": "rgba(0, 0, 0, 0)",
+      "opacity": "1",
+      "backdrop": "blur(8px)",
+      "filter": "none",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)"
+    }
+  },
+  "animaciones": [],
+  "totalAnimaciones": 1,
+  "ancestros": [
+    {
+      "tag": "BUTTON",
+      "aria": "Aplicar el recorte",
+      "texto": "APLICAR RECORTE",
+      "clase": "w-full h-12 lg:h-14 py-3 px-5 bg-brand-green hover:bg-emerald-400 text-black font-extrabold text-sm uppercase tracking-w",
+      "z": "auto",
+      "pos": "static"
+    },
+    {
+      "tag": "DIV",
+      "aria": null,
+      "texto": "ROTAR 90°DETECCIÓN AUTOMÁTICAArrastra la",
+      "clase": "w-full max-w-2xl mx-auto flex flex-col gap-1.5",
+      "z": "auto",
+      "pos": "static"
+    },
+    {
+      "tag": "FOOTER",
+      "aria": null,
+      "texto": "ROTAR 90°DETECCIÓN AUTOMÁTICAArrastra la",
+      "clase": "shrink-0 border-t border-brand-borderdim bg-[#0a0e0c]/90 backdrop-blur-md px-4 lg:px-6 pt-2.5 pb-safe",
+      "z": "auto",
+      "pos": "static"
+    },
+    {
+      "tag": "DIV",
+      "aria": "Ajuste de bordes del documento",
+      "texto": "CANCELARAjustar bordes8 ASAS · 3×ROTAR 9",
+      "clase": "fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col animate-editor-enter",
+      "z": "50",
+      "pos": "fixed"
+    },
+    {
+      "tag": "DIV",
+      "aria": null,
+      "texto": "RECIBO DE PAGOFoto procesada✗Verificació",
+      "clase": "flex-1 min-h-0 flex flex-col",
+      "z": "auto",
+      "pos": "static"
+    },
+    {
+      "tag": "DIV",
+      "aria": null,
+      "texto": "RECIBO DE PAGOFoto procesada✗Verificació",
+      "clase": "flex-1 min-h-0 flex flex-col animate-view-enter",
+      "z": "auto",
+      "pos": "static"
+    },
+    {
+      "tag": "MAIN",
+      "aria": null,
+      "texto": "RECIBO DE PAGOFoto procesada✗Verificació",
+      "clase": "flex-1 min-h-0 flex flex-col relative overflow-hidden",
+      "z": "auto",
+      "pos": "relative"
+    },
+    {
+      "tag": "DIV",
+      "aria": null,
+      "texto": "7.5/10RECHAZADARECIBO DE PAGOFoto proces",
+      "clase": "flex-1 min-w-0 flex flex-col relative",
+      "z": "auto",
+      "pos": "relative"
+    },
+    {
+      "tag": "DIV",
+      "aria": null,
+      "texto": "DIGITALIZADOR DE DOCUMENTOSPrecisión doc",
+      "clase": "h-dvh bg-[#090d12] text-slate-100 flex font-sans overflow-hidden",
+      "z": "auto",
+      "pos": "static"
+    }
+  ]
+}

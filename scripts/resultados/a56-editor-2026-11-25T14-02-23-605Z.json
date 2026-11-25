@@ -1,0 +1,58 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "medidoEn": "2026-11-25T14:02:23.605Z",
+  "pasos": [
+    {
+      "paso": "abrir QuadEditor (Recortar)",
+      "ok": true,
+      "captura": "a56-editor-01-quad-abierto.png",
+      "via": "touch-cdp"
+    },
+    {
+      "paso": "overlay con fondos opacos (CSS fresco, no SW viejo)",
+      "ok": false,
+      "fondos": {
+        "dialogo": "oklab(0 0 0 / 0.85)",
+        "footer": "lab(3.65507 -1.45726 0.461862 / 0.9)",
+        "aplicar": "rgba(0, 0, 0, 0)"
+      },
+      "nota": "fondos transparentes: CSS cacheado — revisar limpiarPwa"
+    },
+    {
+      "paso": "rotar 90° dentro del editor",
+      "ok": true,
+      "captura": "a56-editor-02-quad-rotado.png",
+      "via": "touch-cdp"
+    },
+    {
+      "paso": "cancelar y volver",
+      "ok": true,
+      "captura": "a56-editor-03-cancelado.png",
+      "via": "touch-cdp",
+      "nota": ""
+    },
+    {
+      "paso": "aplicar recorte (pipeline)",
+      "ok": true,
+      "captura": "a56-editor-04a-aplicar.png",
+      "capturaResultado": "a56-editor-05-aplicado.png",
+      "via": "touch-cdp",
+      "veredictoAntes": "ÓPTIMA",
+      "veredictoDespues": "REVISIÓN HUMANA",
+      "segundos": 9,
+      "errorRecorte": false,
+      "nota": ""
+    },
+    {
+      "paso": "rotar 90° desde la toolbar (foto girada, sin re-pipeline)",
+      "ok": true,
+      "captura": "a56-editor-06-rotar-toolbar.png",
+      "via": "touch-cdp",
+      "srcAntes": 309598,
+      "srcDespues": 304879,
+      "veredictoAntes": "REVISIÓN HUMANA",
+      "veredictoDespues": "REVISIÓN HUMANA",
+      "nota": ""
+    }
+  ]
+}
