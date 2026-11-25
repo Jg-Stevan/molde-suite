@@ -1,0 +1,35 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "medidoEn": "2026-11-25T13:57:19.672Z",
+  "pasos": [
+    {
+      "paso": "abrir QuadEditor (Recortar)",
+      "ok": true,
+      "captura": "a56-editor-01-quad-abierto.png",
+      "via": "touch-cdp",
+      "nota": ""
+    },
+    {
+      "paso": "rotar 90° dentro del editor",
+      "ok": true,
+      "captura": "a56-editor-02-quad-rotado.png",
+      "via": "touch-cdp"
+    },
+    {
+      "paso": "cancelar y volver",
+      "ok": true,
+      "captura": "a56-editor-03-cancelado.png",
+      "via": "touch-cdp",
+      "nota": ""
+    },
+    {
+      "paso": "rotar 90° desde la toolbar (pipeline)",
+      "ok": true,
+      "captura": "a56-editor-04-rotar-toolbar.png",
+      "via": "touch-cdp",
+      "veredictoAntes": "RECHAZADA",
+      "veredictoDespues": "RECHAZADA",
+      "nota": ""
+    }
+  ]
+}

@@ -1,0 +1,1599 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:48.779490000 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:48.780492200 -0500
+@@ -1,676 +1,416 @@
+-"use client";
++'use client';
+ 
+-/**
+- * useSesionCamara — SPRINT-B (B1, refactor/ui-hooks-v1): hook dedicado a la
+- * SESIÓN DE CÁMARA. MOVIMIENTO PURO desde screens/ScanView.tsx (mismos
+- * cuerpos, mismos refs, MISMO ORDEN de efectos y MISMAS dependencias).
+- *
+- * Contiene (extraído tal cual de ScanView.tsx):
+- *  · Constantes de plataforma/preview/escalera (IS_ANDROID, CAN_TAKEPHOTO,
+- *    IDEAL_PREVIEW_*, FOTO_LADDER, esCalidadPrimero, TAKEPHOTO_TIMEOUT_MS).
+- *  · F-LENS v4/v5 — sondas secuenciales y elección de la cámara principal
+- *    (BACK/FRONT_CAMERA_RE, CameraProbeResult, probeCamera, chooseMainProbe,
+- *    caché e14-main-camera-v1, PROBE_TIMEOUT_MS) + esIOS. v5 (fix-camara-
+- *    principal): clasificación por facingMode REAL de cada sonda + guard de
+- *    apertura (facing "user" → cascada) + saneo de caché venenada — el bug
+- *    de campo «abrió la frontal» no puede repetirse ni persistir.
+- *  · tomarFoto (DUAL PIPELINE — escalera FOTO_LADDER + carrera 8 s + lista
+- *    negra + upgrade LOTE 5.4).
+- *  · Efectos, EN EL MISMO ORDEN RELATIVO del original: ARRANQUE (lab
+- *    L996-1252, con su cierre/cleanup byte a byte) → re-asignar stream →
+- *    «playing» → FRAME LOOP REAL (detección en vivo + k-de-n + feed ZSL).
+- *  · avisoCamara («denied»/«perdido» — §E).
+- *
+- * Todas las dependencias externas son INYECTADAS con la misma identidad que
+- * en el original: videoRef/streamRef (ScanView), camEstado/setCamEstado
+- * (ScanView), reintentoCamara (useSelectorFuente — token del §E), autoRef/
+- * setAutoArmado (D9), procesandoRef/cooldownRef/capturarRef (captura),
+- * setLive/mostrarAviso (HUD), setFramePendiente (bridge), flashRef/
+- * torchOnRef/aplicarLinternaGuardada/setTorchDisponible (useLinterna),
+- * alimentarAnillo/liberarAnillo (useAnilloBestShot — feed ZSL del loop).
+- */
+-import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+-import { CameraFrameLoop, type FrameLoopTelemetry } from "@/lib/e14/core/frame-loop";
++// Sesión de cámara: getUserMedia con reintentos, loop de frames que alimenta
++// el anillo best-shot y calcula la calidad viva (score 0..1 + esquinas
++// aproximadas para el overlay). Toma de foto con degradación honesta si el
++// navegador rompe ImageCapture/takePhoto.
++
++import { useCallback, useEffect, useRef, useState } from 'react';
++import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
++import type { SensorProfile } from '@/lib/e14/core/sensor-profiler';
+ import {
+   clampBlobToSafeCap,
+   getSensorSafeCap,
+-  profileSensor,
+-  type SensorProfile,
+-} from "@/lib/e14/core/sensor-profiler";
+-import type { Quad } from "@/lib/e14/fachada";
+-import { useE14Store } from "@/lib/e14/store";
++  profileActiveSensor,
++} from '@/lib/e14/core/sensor-profiler';
++import { TEXTO_MOTIVO } from '@/lib/e14/errores';
++import { leerFlags } from '@/lib/e14/flags';
++import { abrirCamaraTrasera } from '@/lib/e14/core/camara-principal';
++// P2-D (tarea D): TIPO del bucle del core — la clase se importa DINÁMICAMENTE
++// solo con el flag ON (import type no viaja al bundle; con el flag OFF ni
++// siquiera se carga el módulo: mismo grafo que hoy).
++import type { CameraFrameLoop } from '@/lib/e14/core/frame-loop';
++import { logger } from '@/lib/logger';
+ 
+-/* ── Tipos compartidos del skin (extraídos tal cual de ScanView.tsx) ─────── */
++export type CamEstado = 'iniciando' | 'viva' | 'denegada' | 'sin-camara' | 'cerrada';
+ 
+-/** Telemetría reducida para el UI (throttle ~100 ms — LiveUi del lab). */
+ export interface LiveUi {
+-  corners: Quad | null;
++  corners: { x: number; y: number }[] | null;
+   score: number | null;
+ }
+ 
+-type CamEstado = "iniciando" | "viva" | "no-disponible";
+-export type { CamEstado };
+-
+-/** iOS/Safari NO implementa ImageCapture en ninguna versión (lab §5.2). */
+ export function esIOS(): boolean {
+-  if (typeof navigator === "undefined") return false;
+-  const ua = navigator.userAgent;
+-  if (/iPad|iPhone|iPod/.test(ua)) return true;
+-  // iPadOS 13+ se presenta como Mac con touch.
+-  return /Mac/.test(ua) && typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 1;
++  if (typeof navigator === 'undefined') return false;
++  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
+ }
+ 
+-/* ── Constantes de cámara (lab CameraView.tsx, adaptadas al task §2) ─────── */
++/* ── Constantes de cámara (upstream useSesionCamara — DUAL PIPELINE D7) ──── */
++
++// FIX v6 6.1 del lab — Safari moderno expone ImageCapture pero takePhoto()
++// se cuelga: el régimen se decide por UA Android, no por typeof ImageCapture.
++const IS_ANDROID = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
++/** takePhoto() fiable SOLO en Android (Chrome). */
++const CAN_TAKEPHOTO = IS_ANDROID && typeof ImageCapture !== 'undefined';
+ 
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L142-151
+-// (FIX v6 6.1 del lab — IS_ANDROID / CAN_TAKEPHOTO): Safari MODERNO (iOS
+-// 17+/26) TAMBIÉN expone ImageCapture (con un takePhoto() que se cuelga) —
+-// el reparto de regímenes ya NO puede decidirse por «typeof ImageCapture»:
+-// se decide por UA Android (la única plataforma donde takePhoto funciona de
+-// verdad). La exclusión de iOS vuelve a ser automática y Android queda igual.
+-const IS_ANDROID =
+-  typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
+-/** takePhoto() fiable SOLO en Android (Chrome). Safari moderno expone
+- *  ImageCapture pero takePhoto() se cuelga → NO usar en iOS. */
+-const CAN_TAKEPHOTO = IS_ANDROID && typeof ImageCapture !== "undefined";
+-
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L156-176
+-// (LOTE 5.1 — REVERT de F5-B): preview POR PLATAFORMA. Android gama baja:
+-// 960×540@30 (evidencia diag v6 SM-A135M: 1080p en gama baja = 2 fps, 216
+-// long tasks — el preview ligero 540p es el régimen de Android y el loop de
+-// detección de e14 ya remuestrea a ~400 px → análisis idéntico desde 540p);
+-// iOS/resto: 1920×1440 (el disparo manual es input nativo y el régimen alto
+-// ya es probado). La foto real de Android llega por la escalera FOTO_LADDER
+-// (~1 s en 2048×1536) — DUAL PIPELINE intacto. Regla E3 intacta: SOLO
+-// `ideal`, nunca `exact/min` (no rechaza).
+-const IDEAL_PREVIEW_WIDTH = CAN_TAKEPHOTO ? 960 : 1920;
+-const IDEAL_PREVIEW_HEIGHT = CAN_TAKEPHOTO ? 540 : 1440;
+-/** Tope suave de FPS del preview (lab L173-175): «ideal» NO rechaza cámaras
+- *  que solo ofrecen 60, solo evita negociar 60 cuando el hardware lo permite. */
+-const IDEAL_PREVIEW_FPS = 30;
+-
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L155-161
+-// (LOTE 5, F5-A — escalera rápida de photoSettings para takePhoto en
+-// Android. Evidencia cam-lab SM-A135M 2026-10-14: el takePhoto DESNUDO
+-// (sin photoSettings) tarda ~15 s (proceso full-res del ISP) y 2048×1536
+-// tarda ~1.0 s. El desnudo queda como ÚLTIMO recurso (ningún dispositivo
+-// queda peor que hoy: cada peldaño solo se intenta si el anterior falló
+-// RÁPIDO).)
++// LOTE 5 (F5-A) — escalera rápida de photoSettings: el takePhoto DESNUDO
++// tarda ~15 s (ISP full-res); 2048×1536 tarda ~1.0 s. El desnudo queda como
++// ÚLTIMO recurso (con carrera de 8 s).
+ const FOTO_LADDER: Array<{ imageWidth: number; imageHeight: number }> = [
+   { imageWidth: 2048, imageHeight: 1536 },
+   { imageWidth: 1280, imageHeight: 960 },
+ ];
+ 
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L178-188
+-// (LOTE 5.5 — ¿esta captura va a «calidad primero»?): ADAPTACIÓN e14 — no
+-// hay ajustes de photoMode (el lab lee su store) → modo «auto» EXACTO del
+-// lab: SOLO los equipos con 8+ GB (deviceMemory === 8) pagan la espera del
+-// desnudo full-res. Se lee en cada captura, NUNCA en render (cero
+-// re-renders). try/catch: navegador sin datos → rápido.
++// LOTE 5.5 — «calidad primero»: SOLO equipos con 8+ GB pagan la espera del
++// desnudo full-res. Se lee en cada captura, NUNCA en render.
+ function esCalidadPrimero(): boolean {
+   try {
+     const dm = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+     return CAN_TAKEPHOTO && dm === 8;
+   } catch {
+-    // navegador sin deviceMemory: al camino rápido (la espera full-res es solo para 8 GB)
+     return false;
+   }
+ }
+ 
+-/** takePhoto puede colgarse (lab error #29): carrera de 8 s — KIT
+- *  camara-visor G3: la carrera queda SOLO para el ÚLTIMO peldaño de la
+- *  escalera (el desnudo, el que puede tardar ~15 s del ISP); los peldaños
+- *  intermedios fallan RÁPIDO si las constraints son rechazadas. */
++/** takePhoto puede colgarse (lab error #29): carrera de 8 s SOLO para el
++ *  último peldaño (el desnudo); los intermedios fallan rápido. */
+ const TAKEPHOTO_TIMEOUT_MS = 8000;
+ 
+-/** Throttle de la telemetría que va al UI (lab L1371). */
+-const TELEMETRIA_UI_MS = 100;
+-
+-/** QA/diagnóstico: telemetría viva del loop + lente elegida (F-LENS v4)
+- *  desde la consola.
+- *  KIT e14-remediacion-movil-v1 (C4 — P1 #10/P2 #15): `qrWorkerHardKills`
+- *  es un campo DEFENSIVO aditivo — nº de hard-kills del worker QR de la
+- *  capa 0 en esta sesión de página (contador de módulo del cliente QR,
+- *  expuesto aquí para verlo desde consola sin tocar el pipeline). Puede
+- *  ser `undefined` mientras el cliente QR no cargó (carga perezosa). */
+-declare global {
+-  interface Window {
+-    __e14Telemetria?: FrameLoopTelemetry & { qrWorkerHardKills?: number };
+-    __cameraChoice?: unknown;
+-  }
+-}
+-
+-/* ── C4 — expositor DEFENSIVO del contador de hard-kills del worker QR ──
+- *  El contador vive en el cliente QR del paquete (hardKillsQrWorker(),
+- *  módulo @/lib/e14/qr/capa0-qr.client — el MISMO que pipeline.ts importa
+- *  perezosamente tras la 1.ª captura). Este hook NO lo importa estático
+- *  (no cambiar el grafo de carga de la cámara): la import se dispara UNA
+- *  vez, en diferido, y si falla la telemetría sigue sin el campo — jamás
+- *  tumba el frame loop. */
+-let leerQrHardKills: (() => number) | null = null;
+-let qrKillsImportDisparada = false;
+-function qrHardKillsDefensivo(): number | undefined {
+-  if (leerQrHardKills) {
+-    try {
+-      return leerQrHardKills();
+-    } catch {
+-      // contador solo-diagnóstico de consola: undefined y la telemetría sigue sin el campo
+-      return undefined;
+-    }
+-  }
+-  if (!qrKillsImportDisparada) {
+-    qrKillsImportDisparada = true;
+-    void import("@/lib/e14/qr/capa0-qr.client")
+-      .then((m) => {
+-        leerQrHardKills = m.hardKillsQrWorker;
+-      })
+-      .catch(() => {
+-        /* sin cliente QR (SSR/test) → el campo queda undefined y listo */
+-      });
+-  }
+-  return undefined;
+-}
+-
+-/* ── F-LENS v4/v5 — selección de la cámara PRINCIPAL (puerto EXACTO del lab) ──
+- *  Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L76-L92
+- *  (comentario E4/F-LENS v4) + L116-L223 (código). Remedición H1 del
+- *  SPEC-auditoria-copias.md: la fase lógica dejó solo la cascada
+- *  facingMode (la red de seguridad del lab) y el bug visible en producción
+- *  fue la GRAN ANGULAR en vez de la principal 50MP.
+- *
+- *  F-LENS v5 (kit fix-camara-principal, bug de campo del mantenedor: «en un
+- *  dispositivo abrió la cámara FRONTAL y no se pudo hacer las pruebas»):
+- *  tres vectores confirmados en el código y sus contramedidas —
+- *     A) Sondas ciegas al facing: probeCamera leía caps de AF/torch/resolución
+- *        pero DESHECHABA track.getSettings().facingMode — la señal MÁS
+- *        confiable del oriente físico. Sin labels útiles (genéricos o en
+- *        otro idioma) el pool de respaldo era TODAS las cámaras y la
+- *        frontal podía ganar por AF/resolución. → v5 captura facingMode en
+- *        cada sonda y la elección clasifica por facing primero, label
+- *        después (esSondaFrontal/esSondaTrasera); frontal solo si el
+- *        dispositivo no tiene otra.
+- *     B) Caché venenada sin cura: e14-main-camera-v1 solo se invalidaba por
+- *        FALLO de apertura — y abrir la frontal NUNCA falla → el dispositivo
+- *        quedó pegado a la frontal para siempre (por eso «no se pudo hacer
+- *        las pruebas» ni recargando). → v5 sanea la caché al leerla (entrada
+- *        frontal por facing/label se borra y fuerza re-sondeo) y JAMÁS escribe
+- *        una frontal.
+- *     C) Apertura sin verificación: el stream ganador se aceptaba sin mirar
+- *        el facing real del track. → v5 guarda de apertura: stream con
+- *        facing "user" se cierra y cae a la cascada (facingMode exact
+- *        "environment"); la cascada ya tenía la red de seguridad para
+- *        dispositivos solo-frontales. */
+-
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L76-L92 (E4/F-LENS v4):
+-// E4: facingMode NO es confiable en iPhone (puede ganar la frontal o
+-//     ignorarse) → tras permiso se re-selecciona por LABEL + deviceId
+-//     exact, con facingMode como constrain inicial únicamente.
+-// F-LENS v4 (bug v3: "no cambia nada ni el flash" — y codigo-test SÍ
+-// funciona en el MISMO teléfono): dos causas de raíz encontradas al
+-// comparar con el CameraController de codigo-test:
+-//     A) v3 sondeaba las demás lentes CON el stream actual aún abierto →
+-//        en muchos Android abrir una 2ª cámara con otra activa lanza
+-//        NotReadableError → TODAS las sondas fallaban → nunca cambiaba
+-//        de lente ni encontraba el LED. codigo-test sondea SECUENCIAL-
+-//        MENTE cerrando cada cámara antes de abrir la siguiente y ANTES
+-//        de abrir la definitiva (puerto exacto de probeDevice +
+-//        chooseMainCamera: autofocus real → mayor resolución).
+-//     B) el botón flash se deshabilitaba salvo que getCapabilities()
+-//        reportara torch; hay Chrome que NO lo anuncian pero SÍ lo
+-//        aplican → ahora el botón está habilitado en cámara real y la
+-//        verdad se descubre APLICANDO y leyendo getSettings().torch.
+-
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L116-L117
+-const BACK_CAMERA_RE = /back|rear|environment|trasera|posterior|arri[eè]re/i;
+-const FRONT_CAMERA_RE = /front|delantera|anterior|face|facial|selfie/i;
+-
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L129-L137
+-/** Resultado de sondear UNA cámara (puerto de CameraProbe de codigo-test).
+- *  F-LENS v5: `facingMode` — lo que el track REAL reporta ("user"/"environment"
+- *  /undefined); manda sobre el label a la hora de clasificar. */
+-interface CameraProbeResult {
+-  deviceId: string;
+-  label: string;
+-  focusModes: string[];
+-  torch: boolean;
+-  maxWidth: number;
+-  maxHeight: number;
+-  facingMode?: string;
+-}
+-
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L139-L144
+-/** Modos de foco que cuentan como autofocus REAL (regla D3 de codigo-test). */
+-const REAL_AF_MODES = new Set(["continuous", "single-shot"]);
+-
+-function tieneRealAF(modes: string[]): boolean {
+-  return modes.some((m) => REAL_AF_MODES.has(m.toLowerCase()));
+-}
+-
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L146-L148
+-function readCapsNum(v: unknown): number {
+-  return typeof v === "number" && Number.isFinite(v) ? v : 0;
+-}
+-
+-// F-LENS v5 — el facing REAL del track ya abierto (la verdad en apertura;
+-// puede existir aunque la sonda no lo hubiera capturado). undefined = sin
+-// reporte (Safari escritorio, webcams USB).
+-function leerFacingDeStream(stream: MediaStream): string | undefined {
+-  try {
+-    const track = stream.getVideoTracks()[0];
+-    if (!track || typeof track.getSettings !== "function") return undefined;
+-    const st = track.getSettings() as { facingMode?: string } | undefined;
+-    return st?.facingMode;
+-  } catch {
+-    // getSettings puede lanzar (Safari/webcams USB): sin facing, la clasificación cae al label
+-    return undefined;
+-  }
+-}
+-
+-// F-LENS v5 — clasificación de ORIENTACIÓN de una sonda: el facing reportado
+-// por el track MANDA sobre el label (los labels son localizados/mutables;
+-// facingMode es el dato del driver). Sin facing, solo el regex E4 decide.
+-function esSondaFrontal(p: CameraProbeResult): boolean {
+-  if (p.facingMode === "user") return true;
+-  if (p.facingMode === "environment") return false;
+-  return FRONT_CAMERA_RE.test(p.label) && !BACK_CAMERA_RE.test(p.label);
+-}
+-
+-function esSondaTrasera(p: CameraProbeResult): boolean {
+-  if (p.facingMode === "environment") return true;
+-  if (p.facingMode === "user") return false;
+-  return BACK_CAMERA_RE.test(p.label) && !FRONT_CAMERA_RE.test(p.label);
+-}
+-
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L150-L188
+-/** Abre UNA cámara SOLO para leer sus capabilities y la CIERRA (puerto de
+- *  probeDevice de codigo-test). SIN constraints de resolución en la sonda:
+- *  medir el sensor real requiere abrir la cámara "pelada". Devuelve null
+- *  si la cámara no se pudo abrir (queda descartada). El `finally` CIERRA
+- *  el stream SIEMPRE — nunca hay dos cámaras abiertas a la vez (era la
+- *  causa del bug v3: sondas con el stream vivo → NotReadableError).
+- *  FIX v5 (5.3) del lab — `timeoutMs` opcional: una sonda colgada
+- *  (getUserMedia que nunca resuelve, típico en algún driver Android)
+- *  caduca y devuelve null; si la apertura llega TARDE, su stream se cierra
+- *  igualmente para no dejar la cámara ocupada para siempre. */
+-async function probeCamera(
+-  media: MediaDevices,
+-  deviceId: string,
+-  label: string,
+-  timeoutMs = 0,
+-): Promise<CameraProbeResult | null> {
+-  let stream: MediaStream | null = null;
+-  let timedOut = false;
+-  try {
+-    const opening = media.getUserMedia({
+-      video: { deviceId: { exact: deviceId } },
+-      audio: false,
+-    });
+-    if (timeoutMs > 0) {
+-      stream = await Promise.race([
+-        opening,
+-        new Promise<null>((resolve) => {
+-          window.setTimeout(() => {
+-            timedOut = true;
+-            resolve(null);
+-          }, timeoutMs);
+-        }),
+-      ]);
+-      if (timedOut || stream === null) {
+-        // La sonda caducó: si la apertura resuelve después, cerrarla (sin
+-        // esto la cámara quedaría abierta y las siguientes sondas darían
+-        // NotReadableError en cadena).
+-        void opening
+-          .then((s) => {
+-            s.getTracks().forEach((t) => t.stop());
+-          })
+-          .catch(() => undefined);
+-        return null;
+-      }
+-    } else {
+-      stream = await opening;
+-    }
+-    const track = stream.getVideoTracks()[0];
+-    if (!track) return null;
+-    const caps = (track.getCapabilities?.() ?? {}) as {
+-      focusMode?: string[];
+-      torch?: boolean;
+-      width?: { max?: number };
+-      height?: { max?: number };
+-      facingMode?: string | string[];
+-    };
+-    // F-LENS v5: el facing REAL del track (getSettings manda; caps de
+-    // respaldo — algunos drivers solo lo anuncian en capabilities).
+-    const stFacing = (track.getSettings?.() ?? {}) as { facingMode?: string };
+-    const capsFacing = Array.isArray(caps.facingMode)
+-      ? caps.facingMode[0]
+-      : caps.facingMode;
+-    return {
+-      deviceId,
+-      label: label || track.label,
+-      focusModes: Array.isArray(caps.focusMode) ? caps.focusMode : [],
+-      torch: caps.torch === true,
+-      maxWidth: readCapsNum(caps.width?.max),
+-      maxHeight: readCapsNum(caps.height?.max),
+-      facingMode: stFacing?.facingMode ?? capsFacing,
+-    };
+-  } catch {
+-    return null; // cámara ocupada/no accesible → descartada
+-  } finally {
+-    stream?.getTracks().forEach((t) => t.stop()); // CIERRA antes de la siguiente
+-  }
+-}
+-
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L190-L223
+-/** Elige la cámara principal (puerto de chooseMainCamera de codigo-test):
+- *  · Entre traseras con AUTOFOCUS REAL gana la de MAYOR resolución de
+- *    sensor (maxWidth×maxHeight) — la principal es siempre el sensor
+- *    grande; el torch desempata resoluciones idénticas.
+- *  · Sin AF en ninguna (típico iOS, regla D6): grupo de label más SIMPLE
+- *    (sin palabras de lente), luego menos palabras, luego más resolución.
+- *  F-LENS v5 (bug de campo: abrió la FRONTAL): el pool de respaldo ya no es
+- *  «todas las sondas» — primero traseras por FACING/label; sin traseras,
+- *  desconocidas EXCLUYENDO frontales; la frontal entra solo si el
+- *  dispositivo no tiene nada más (tablet/escritorio de una cámara). */
+-function chooseMainProbe(probes: CameraProbeResult[]): CameraProbeResult | null {
+-  if (probes.length === 0) return null;
+-  const backs = probes.filter(esSondaTrasera);
+-  const noFrontales = probes.filter((p) => !esSondaFrontal(p));
+-  const pool =
+-    backs.length > 0 ? backs : noFrontales.length > 0 ? noFrontales : probes;
+-  const byRes = (a: CameraProbeResult, b: CameraProbeResult): number =>
+-    b.maxWidth * b.maxHeight - a.maxWidth * a.maxHeight;
+-  const withAf = pool.filter((p) => tieneRealAF(p.focusModes));
+-  if (withAf.length > 0) {
+-    return [...withAf].sort(
+-      (a, b) => byRes(a, b) || (a.torch !== b.torch ? (a.torch ? -1 : 1) : 0)
+-    )[0];
+-  }
+-  const lensWords = /ultra|gran angular|wide|angular|tele|teleobjetivo/i;
+-  const wordCount = (label: string): number =>
+-    label.split(/\s+/).filter((w) => w.length > 0).length;
+-  const simples = pool.filter((p) => !lensWords.test(p.label));
+-  const ranked =
+-    simples.length > 0
+-      ? [...simples].sort(
+-          (a, b) => wordCount(a.label) - wordCount(b.label) || byRes(a, b)
+-        )
+-      : [...pool].sort(
+-          (a, b) => a.label.length - b.label.length || byRes(a, b)
+-        );
+-  return ranked[0];
+-}
+-
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L362-418
+-// (FIX v5 5.3 — APERTURA RÁPIDA): la elección de la cámara principal se
+-// persiste en localStorage y los arranques siguientes abren la deviceId
+-// cacheada DIRECTAMENTE (2ª apertura < ~1 s perceptual — sin desbloqueo/
+-// sondeos/elección). Sin TTL (el hardware no cambia); invalidación SOLO por
+-// fallo de apertura (NotFound/NotReadable/permiso revocado) → borrado y
+-// sondeo completo. Clave PROPIA de e14 (kit camara-visor G6):
+-// «e14-main-camera-v1» — NO comparte caché con el lab.
+-const MAIN_CAMERA_CACHE_KEY = "e14-main-camera-v1";
+-
+-interface MainCameraCache {
+-  deviceId: string;
+-  label: string;
+-  /** score = maxWidth×maxHeight (regla D3) — solo telemetría/depuración. */
+-  score: number;
+-  at: number;
+-  torch: boolean;
+-  focusModes: string[];
+-  maxWidth: number;
+-  maxHeight: number;
+-  /** F-LENS v5 — facing registrado al elegir ("user"/"environment"). */
+-  facingMode?: string;
+-}
+-
+-function readMainCameraCache(): MainCameraCache | null {
+-  try {
+-    const raw = localStorage.getItem(MAIN_CAMERA_CACHE_KEY);
+-    if (!raw) return null;
+-    const c = JSON.parse(raw) as MainCameraCache;
+-    if (!c || typeof c.deviceId !== "string" || c.deviceId === "") return null;
+-    // F-LENS v5 — SANEO de cachés venenadas (el dispositivo del mantenedor quedó
+-    // pegado a la FRONTAL: la caché solo se invalidaba por FALLO de apertura
+-    // y abrir la frontal nunca falla). Entrada frontal por facing o label →
+-    // se borra AHORA y se fuerza re-sondeo completo.
+-    if (
+-      c.facingMode === "user" ||
+-      (FRONT_CAMERA_RE.test(c.label) && !BACK_CAMERA_RE.test(c.label))
+-    ) {
+-      clearMainCameraCache();
+-      return null;
+-    }
+-    return c;
+-  } catch {
+-    return null; // almacenamiento corrupto/bloqueado — sondeo completo
+-  }
+-}
+-
+-function writeMainCameraCache(p: CameraProbeResult): void {
+-  // F-LENS v5 — defensa en profundidad: JAMÁS persistir una frontal (el
+-  // guard de apertura ya impide llegar aquí con una; si el facing es
+-  // desconocido decide el label).
+-  if (p.facingMode === "user") return;
+-  if (FRONT_CAMERA_RE.test(p.label) && !BACK_CAMERA_RE.test(p.label)) return;
+-  try {
+-    const entry: MainCameraCache = {
+-      deviceId: p.deviceId,
+-      label: p.label,
+-      score: p.maxWidth * p.maxHeight,
+-      at: Date.now(),
+-      torch: p.torch,
+-      focusModes: p.focusModes,
+-      maxWidth: p.maxWidth,
+-      maxHeight: p.maxHeight,
+-    };
+-    localStorage.setItem(
+-      MAIN_CAMERA_CACHE_KEY,
+-      JSON.stringify({ ...entry, facingMode: p.facingMode }),
+-    );
+-  } catch {
+-    /* cuota llena / modo privado — solo es una caché */
+-  }
+-}
+-
+-function clearMainCameraCache(): void {
+-  try {
+-    localStorage.removeItem(MAIN_CAMERA_CACHE_KEY);
+-  } catch {
+-    /* idem */
+-  }
+-}
+-
+-// Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L424-426
+-// (FIX v5 5.3) — plazo por sonda (ms): una cámara lenta no puede bloquear
+-// el arranque 10 s; caduca y se sigue con la siguiente.
+-const PROBE_TIMEOUT_MS = 2000;
+-
+-/** Parámetros del hook — inyección de propietarios (movimiento puro).
+- *  Cada ref/valor conserva EXACTAMENTE la identidad y el ciclo de vida que
+- *  tenía en ScanView. */
+-interface UseSesionCamaraParams {
+-  /** El <video> del visor (propietario: ScanView — lo referencia el JSX). */
++interface Config {
+   videoRef: RefObject<HTMLVideoElement | null>;
+-  /** Stream abierto (propietario: ScanView — compartido con useLinterna). */
+-  streamRef: RefObject<MediaStream | null>;
+-  /** Estado de la cámara (propietario: ScanView — consumido por linterna,
+-   *  captura, disparo y JSX). */
++  streamRef: MutableRefObject<MediaStream | null>;
+   camEstado: CamEstado;
+   setCamEstado: Dispatch<SetStateAction<CamEstado>>;
+-  /** Token de reintento del aviso §E (propietario: useSelectorFuente) —
+-   *  [ACTIVAR CÁMARA] re-dispara el arranque. */
+   reintentoCamara: number;
+-  /** D9: captura automática armada (espejo para el loop — sin staleness). */
+-  autoRef: RefObject<boolean>;
++  autoRef: MutableRefObject<boolean>;
+   setAutoArmado: Dispatch<SetStateAction<boolean>>;
+-  /** Gates de captura (propietario: ScanView). */
+-  procesandoRef: RefObject<boolean>;
+-  cooldownRef: RefObject<number>;
+-  /** Ref fresca del captureSmart para onTrigger del loop (lab L887-888). */
+-  capturarRef: RefObject<() => Promise<void>>;
+-  /** HUD en vivo (propietario: ScanView). */
++  procesandoRef: MutableRefObject<boolean>;
++  cooldownRef: MutableRefObject<number>;
++  capturarRef: MutableRefObject<() => Promise<void>>;
+   setLive: Dispatch<SetStateAction<LiveUi>>;
+-  /** Franja de avisos del visor (propietario: ScanView). */
+-  mostrarAviso: (texto: string, tono: "crit" | "warn", ms?: number) => void;
+-  /** Acción del store: bridge recibe el <video> para el grab de emergencia. */
+-  setFramePendiente: (video: HTMLVideoElement | null) => void;
+-  /** Linterna (useLinterna): re-aplicar preferencia por stream/«playing». */
+-  flashRef: RefObject<boolean>;
+-  torchOnRef: RefObject<boolean>;
++  mostrarAviso: (texto: string, tono: 'crit' | 'warn', ms?: number) => void;
++  setFramePendiente: (v: HTMLVideoElement | null) => void;
++  flashRef: MutableRefObject<boolean>;
++  torchOnRef: MutableRefObject<boolean>;
+   aplicarLinternaGuardada: () => void;
+-  setTorchDisponible: Dispatch<SetStateAction<boolean>>;
+-  /** Perfil del sensor de FOTO (propietario: ScanView — lo llena
+-   *  profileActiveSensor y lo lee useDestello.archivoDentroDeTope). */
+-  sensorProfileRef: RefObject<SensorProfile | null>;
+-  /** Anillo ZSL (useAnilloBestShot): feed ~5 Hz + liberación al cerrar. */
++  setTorchDisponible: (v: boolean) => void;
++  sensorProfileRef: MutableRefObject<SensorProfile | null>;
+   alimentarAnillo: () => void;
+   liberarAnillo: () => void;
+ }
+ 
+-export function useSesionCamara({
+-  videoRef,
+-  streamRef,
+-  camEstado,
+-  setCamEstado,
+-  reintentoCamara,
+-  autoRef,
+-  setAutoArmado,
+-  procesandoRef,
+-  cooldownRef,
+-  capturarRef,
+-  setLive,
+-  mostrarAviso,
+-  setFramePendiente,
+-  flashRef,
+-  torchOnRef,
+-  aplicarLinternaGuardada,
+-  setTorchDisponible,
+-  sensorProfileRef,
+-  alimentarAnillo,
+-  liberarAnillo,
+-}: UseSesionCamaraParams) {
+-  const fuente = useE14Store((s) => s.fuente);
+-  const [avisoCamara, setAvisoCamara] = useState<null | "denied" | "perdido">(null);
+-  // ── Ola 3.3 (U3 — plan 3.3, snippet S-3 corregido): pausa/reanudación de la
+-  // sesión de cámara por visibilitychange/pagehide. Al OCULTAR se libera el
+-  // stream (LED apagado, Android no mata la pestaña con la cámara viva); al
+-  // VOLVER se re-corre el ARRANQUE completo (mismo camino de reintentoCamara)
+-  // si la sesión seguía activa; si la reanudación falla → aviso accionable
+-  // CAMARA_NO_DISPONIBLE del store (KIT errores-operador-v1, bloque 3.1).
+-  // · pausadaRef: la sesión estaba VIVA al ocultar → al volver hay que reabrir.
+-  // · reanudandoRef: el arranque en curso ES una reanudación (su fallo sube
+-  //   el aviso del store, no solo el overlay §E).
+-  // · descartarFramesHastaRef: ventana (~0.8 s) en la que el frame loop
+-  //   descarta frames — el <video> puede re-decodificar el último fotograma
+-  //   congelado de antes de pausar (ring ZSL/telemetría no se envenenan).
+-  // · cicloReanudar: token que re-dispara el efecto de ARRANQUE (deps) —
+-  //   mismo mecanismo de reintentoCamara, interno al hook.
+-  const pausadaRef = useRef(false);
+-  const reanudandoRef = useRef(false);
+-  const descartarFramesHastaRef = useRef(0);
+-  const [cicloReanudar, setCicloReanudar] = useState(0);
+-  // Espejo del camEstado para el listener global (sin staleness — el efecto
+-  // de visibilidad se registra UNA vez con deps []).
+-  const camEstadoRef = useRef<CamEstado>(camEstado);
+-  camEstadoRef.current = camEstado;
+-  // Fuente: lab CameraView.tsx L770 (takePhotoBrokenRef) — FIX v4 4.1: lista
+-  // negra temporal del sensor. Un takePhoto que expira la marca para que
+-  // captureSmart NO vuelva a colgar en cada disparo; se rehabilita al abrir
+-  // stream nuevo (lab L2760) y si una respuesta futura llega (L1434).
+-  const puedeTomarFotoRef = useRef(false);
+-  const takePhotoBrokenRef = useRef(false);
+-  const telemetriaAtRef = useRef(0);
+-  const loopRef = useRef<CameraFrameLoop | null>(null);
++/** Score vivo de un frame (0..1) desde la varianza del Laplaciano. */
++function scoreDeFrame(video: HTMLVideoElement): number {
++  const W = 96;
++  const H = Math.max(1, Math.round((video.videoHeight / video.videoWidth) * W));
++  const c = document.createElement('canvas');
++  c.width = W;
++  c.height = H;
++  const ctx = c.getContext('2d', { willReadFrequently: true });
++  if (!ctx) return 0;
++  ctx.drawImage(video, 0, 0, W, H);
++  const d = ctx.getImageData(0, 0, W, H).data;
++  const g = new Float32Array(W * H);
++  for (let i = 0, p = 0; i < g.length; i++, p += 4) g[i] = (d[p] + d[p + 1] + d[p + 2]) / 3;
++  let suma = 0;
++  let suma2 = 0;
++  let n = 0;
++  for (let y = 1; y < H - 1; y++) {
++    for (let x = 1; x < W - 1; x++) {
++      const i = y * W + x;
++      const l = 4 * g[i] - g[i - 1] - g[i + 1] - g[i - W] - g[i + W];
++      suma += l;
++      suma2 += l * l;
++      n++;
++    }
++  }
++  const media = suma / n;
++  const lapVar = suma2 / n - media * media;
++  return Math.min(1, lapVar / 500);
++}
++
++export function useSesionCamara(config: Config): {
++  avisoCamara: 'denied' | 'sin-senal' | null;
++  setAvisoCamara: Dispatch<SetStateAction<'denied' | 'sin-senal' | null>>;
++  puedeTomarFotoRef: MutableRefObject<boolean>;
++  takePhotoBrokenRef: MutableRefObject<boolean>;
++  tomarFoto: (onUpgrade?: (upgrade: Promise<Blob>) => void) => Promise<Blob | null>;
++  loopRef: MutableRefObject<{ notifyCaptured(): void } | null>;
++  camaraViva: boolean;
++} {
++  const {
++    videoRef,
++    streamRef,
++    setCamEstado,
++    reintentoCamara,
++    setAutoArmado,
++    procesandoRef,
++    cooldownRef,
++    capturarRef,
++    setLive,
++    mostrarAviso,
++    setFramePendiente,
++    flashRef,
++    aplicarLinternaGuardada,
++    setTorchDisponible,
++    sensorProfileRef,
++    alimentarAnillo,
++    liberarAnillo,
++  } = config;
+ 
+-  const modoCamara = fuente === "CAMARA";
+-  const camaraViva = modoCamara && camEstado === "viva";
++  const [avisoCamara, setAvisoCamara] = useState<'denied' | 'sin-senal' | null>(null);
++  const puedeTomarFotoRef = useRef(CAN_TAKEPHOTO);
++  const takePhotoBrokenRef = useRef(false);
++  const loopRef = useRef<{ notifyCaptured(): void } | null>(null);
++  const rafRef = useRef(0);
++  const ultimoFrameRef = useRef(performance.now());
+ 
+-  // ── Ola 3.3 (U3): listener de visibilidad — función NOMBRADA con add/remove
+-  // simétricos (S-3: el snippet del plan registraba una arrow inline y el
+-  // cleanup intentaba remover otra cosa — listener huérfano en cada remonte).
++  // ---- apertura de la sesión ----
+   useEffect(() => {
+-    // ESCALERA DE PAUSA (misma liberación que el cleanup del ARRANQUE):
+-    // frame loop + ring ZSL + tracks del stream. La reanudación re-corre el
+-    // arranque completo (sondas/caché/cascada intactas) — conservar el estado
+-    // (jornada, fuente, autoArmado) es gratis: nada de eso se toca aquí.
+-    const alOcultar = () => {
+-      // Solo hay sesión que pausar si la cámara está VIVA en modo CÁMARA
+-      // (iniciando/no-disponible: el arranque en vuelo se deja terminar).
+-      if (useE14Store.getState().fuente !== "CAMARA") return;
+-      if (camEstadoRef.current !== "viva") return;
+-      pausadaRef.current = true;
+-      loopRef.current?.stop();
+-      loopRef.current = null;
+-      liberarAnillo();
+-      const stream = streamRef.current;
+-      if (stream) {
+-        const t = stream.getVideoTracks()[0];
+-        if (t) t.onended = null; // stop() no dispara "ended" (lab B3)
+-        stream.getTracks().forEach((st) => st.stop());
++    let cancelado = false;
++    const abrir = async () => {
++      setCamEstado('iniciando');
++      try {
++        // F-LENS v5 (digielect14): sondas secuenciales + elección de la
++        // trasera PRINCIPAL (caché + facing/AF/resolución). El
++        // `facingMode:'environment'` blando negociaba la gran angular del A56
++        // (foco fijo, sin linterna). La cascada interna del port ya incluye el
++        // constraint legacy como respaldo, así que aquí no hay segundo camino.
++        const eleccion = await abrirCamaraTrasera(navigator.mediaDevices, () => cancelado);
++        if (cancelado) {
++          eleccion.stream?.getTracks().forEach((t) => t.stop());
++          return;
++        }
++        if (eleccion.permisoDenegado) {
++          setCamEstado('denegada');
++          setAvisoCamara('denied');
++          mostrarAviso(TEXTO_MOTIVO.PERMISO_DENEGADO, 'crit');
++          return;
++        }
++        const stream = eleccion.stream;
++        if (!stream) {
++          setCamEstado('sin-camara');
++          setAvisoCamara('sin-senal');
++          mostrarAviso(TEXTO_MOTIVO.CAMARA_NO_DISPONIBLE, 'crit');
++          return;
++        }
++        streamRef.current = stream;
++        const video = videoRef.current;
++        if (video) {
++          video.srcObject = stream;
++          await video.play().catch(() => undefined);
++        }
++        sensorProfileRef.current = profileActiveSensor(stream);
++        const caps = stream.getVideoTracks()[0].getCapabilities?.() as (MediaTrackCapabilities & { torch?: boolean }) | undefined;
++        setTorchDisponible(Boolean(caps?.torch));
++        aplicarLinternaGuardada();
++        setCamEstado('viva');
++        setAvisoCamara(null);
++      } catch (e) {
++        const nombre = (e as Error).name;
++        if (nombre === 'NotAllowedError' || nombre === 'SecurityError') {
++          setCamEstado('denegada');
++          setAvisoCamara('denied');
++          mostrarAviso(TEXTO_MOTIVO.PERMISO_DENEGADO, 'crit');
++        } else {
++          setCamEstado('sin-camara');
++          setAvisoCamara('sin-senal');
++          mostrarAviso(TEXTO_MOTIVO.CAMARA_NO_DISPONIBLE, 'crit');
++        }
+       }
++    };
++    void abrir();
++    return () => {
++      cancelado = true;
++      cancelAnimationFrame(rafRef.current);
++      liberarAnillo();
++      streamRef.current?.getTracks().forEach((t) => t.stop());
+       streamRef.current = null;
+-      // La UI honesta al volver: «INICIANDO CÁMARA…» mientras reabre (el
+-      // aviso §E NO se monta en la pausa — no hubo pérdida de señal real).
+-      setCamEstado("iniciando");
++      setLive({ corners: null, score: null });
+     };
+-    const alVolver = () => {
+-      if (!pausadaRef.current) return; // no había sesión pausada
+-      pausadaRef.current = false;
+-      // La sesión sigue activa (no cambió la fuente) → reabrir conservando
+-      // estado. Si mientras tanto el operador cambió de modo, no hay nada.
+-      if (useE14Store.getState().fuente !== "CAMARA") return;
+-      reanudandoRef.current = true;
+-      // Descarta el primer frame tras reanudar (ver ref arriba).
+-      descartarFramesHastaRef.current = performance.now() + 800;
+-      setCicloReanudar((n) => n + 1); // re-corre el ARRANQUE
++  }, [
++    aplicarLinternaGuardada,
++    liberarAnillo,
++    mostrarAviso,
++    reintentoCamara,
++    sensorProfileRef,
++    setAvisoCamara,
++    setCamEstado,
++    setLive,
++    setTorchDisponible,
++    streamRef,
++    videoRef,
++  ]);
++
++  // ---- loop de frames (anillo + calidad viva) ----
++  // P2-D (tarea D — plan agente externo): con el flag `frameLoop`
++  // (tamiz.flags.v1, DEFAULT OFF) el bucle lo lleva CameraFrameLoop del core
++  // (rVFC + detección OpenCV en worker + disparo k-de-n + compuerta de
++  // quietud MotionStabilizer) y live.corners queda cableado al overlay del
++  // quad. Con el flag OFF el camino es el rAF propio de 250 ms, EXACTO al
++  // anterior. Defensa: cualquier fallo del bucle nuevo (worker de OpenCV sin
++  // ready, callback roto, bucle estancado sin frames) CAE al rAF propio —
++  // jamás rompe la captura. En SIMULACIÓN no hay <video>: el guard de
++  // videoRef del onTrigger deja la auto-captura sim intacta (simularImagen →
++  // dispararEscaneo, su propio camino).
++  // El flag `frameLoop` está ON por defecto (funcionamiento de digielect14:
++  // marcas en vivo + disparo k-de-n). Kill-switch del operador sin redeploy:
++  // localStorage `tamiz.flags.v1` = {"frameLoop":false} → este rAF propio.
++  useEffect(() => {
++    const video = videoRef.current;
++    if (!video) return;
++    let detenido = false;
++    let cayoARaf = false;
++    let vigia: number | null = null;
++    let core: CameraFrameLoop | null = null;
++    let framesRecibidos = 0;
++    let ultimoFrameCoreMs = 0;
++    const arranqueCoreMs = performance.now();
++
++    // Camino legacy (flag OFF y red de seguridad del flag ON).
++    const iniciarRafPropio = () => {
++      if (detenido) return;
++      const loop = () => {
++        rafRef.current = requestAnimationFrame(loop);
++        if (video.readyState < 2 || !video.videoWidth) return;
++        alimentarAnillo();
++        const ahora = performance.now();
++        if (ahora - ultimoFrameRef.current < 250) return;
++        ultimoFrameRef.current = ahora;
++        const score = scoreDeFrame(video);
++        setLive((previa) => ({ ...previa, score }));
++        // Auto-disparo: score alto, sin proceso en curso, fuera del cooldown.
++        if (
++          config.autoRef.current &&
++          !procesandoRef.current &&
++          score > 0.55 &&
++          cooldownRef.current <= Date.now()
++        ) {
++          setAutoArmado(false);
++          void capturarRef.current?.();
++        }
++      };
++      rafRef.current = requestAnimationFrame(loop);
+     };
+-    const alCambioVisibilidad = () => {
+-      if (document.visibilityState === "hidden") alOcultar();
+-      else alVolver();
++
++    const caerARafPropio = (motivo: string) => {
++      if (cayoARaf || detenido) return;
++      cayoARaf = true;
++      if (vigia !== null) {
++        window.clearInterval(vigia);
++        vigia = null;
++      }
++      core?.stop();
++      core = null;
++      loopRef.current = null;
++      delete (window as unknown as { __frameLoop?: unknown }).__frameLoop;
++      logger.warn('frame-loop del core caído → rAF propio de 250 ms', { motivo });
++      iniciarRafPropio();
+     };
+-    document.addEventListener("visibilitychange", alCambioVisibilidad);
+-    // pagehide → alOcultar (mismo tratamiento: soltar la cámara SIEMPRE).
+-    window.addEventListener("pagehide", alOcultar);
++
++    if (leerFlags().frameLoop) {
++      void (async () => {
++        try {
++          const { CameraFrameLoop: CamaraFrameLoop } = await import(
++            '@/lib/e14/core/frame-loop'
++          );
++          if (detenido) return; // el desmonte ganó la carrera del import
++          const bucle = new CamaraFrameLoop();
++          core = bucle;
++          bucle.start(video, {
++            onFrame: (t) => {
++              try {
++                framesRecibidos += 1;
++                ultimoFrameCoreMs = performance.now();
++                // El anillo tiene su propio throttle (200 ms) — mismo
++                // contrato de cadencia que con el rAF propio.
++                alimentarAnillo();
++                // live.corners cableado: el quad del overlay y el chip
++                // DOCUMENTO DETECTADO ya lo consumen en ScanView (mapearPunto).
++                setLive({ corners: t.corners, score: t.score ? t.score.total : null });
++                // HUD de QA (paridad con el upstream): cadencia del bucle,
++                // precisión del worker y quad vivo sin cable.
++                (window as unknown as { __frameLoop?: unknown }).__frameLoop = {
++                  fps: t.fps,
++                  dropped: t.dropped,
++                  processed: t.processed,
++                  precision: t.precision,
++                  corners: t.corners,
++                  score: t.score ? t.score.total : null,
++                };
++              } catch (e) {
++                caerARafPropio(`onFrame: ${(e as Error).message}`);
++              }
++            },
++            onTrigger: () => {
++              try {
++                // Mismos candados del auto-disparo legacy (el k-de-n del core
++                // ya garantiza el score alto y su propio cooldown; el
++                // cooldownRef externo lo puso capturarInteligente).
++                if (!config.autoRef.current || procesandoRef.current) return;
++                // Fuente en SIMULACIÓN/ARCHIVO → el <video> está desmontado:
++                // sin visor vivo no hay disparo automático.
++                if (!videoRef.current) return;
++                if (cooldownRef.current > Date.now()) return;
++                setAutoArmado(false);
++                void capturarRef.current?.();
++              } catch (e) {
++                caerARafPropio(`onTrigger: ${(e as Error).message}`);
++              }
++            },
++            onNoDetectTimeout: () => {
++              try {
++                // Escape a manual del core (tope MAX_NO_DETECT_NOTICES=2 del
++                // propio bucle) — franja del visor, mismo canal de avisos.
++                mostrarAviso('NO DETECTO EL ACTA — ACÉRCALA AL ENCUADRE.', 'warn', 4000);
++              } catch (e) {
++                caerARafPropio(`onNoDetectTimeout: ${(e as Error).message}`);
++              }
++            },
++          });
++          // Paridad con capturarInteligente (ScanView llama notifyCaptured
++          // tras cada captura → rearme del k-de-n).
++          loopRef.current = bucle;
++          // Watchdog defensivo: el bucle nuevo se detiene SOLO si el worker
++          // de OpenCV no queda ready (waitReady=false → stop) y puede quedar
++          // estancado si el worker se cuelga. En ambos casos el rAF propio
++          // retoma el anillo + score + auto-disparo sin perder un golpe.
++          vigia = window.setInterval(() => {
++            if (detenido) return;
++            if (!core || !core.isRunning) {
++              caerARafPropio('bucle del core detenido (worker de OpenCV sin ready)');
++              return;
++            }
++            // La cámara aún no produce frames: el rAF propio tampoco podría
++            // alimentar nada — no castiga al bucle nuevo por eso.
++            if (video.readyState < 2 || !video.videoWidth) return;
++            if (framesRecibidos === 0) {
++              // Arranque en frío: margen mayor al timeout de arranque del
++              // worker (25 s, READY_TIMEOUT_MS) — pasado ese límite el bucle
++              // se detiene solo y el caso de arriba hace la caída.
++              if (performance.now() - arranqueCoreMs > 26_000) {
++                caerARafPropio('sin frames del core tras 26 s con cámara viva');
++              }
++              return;
++            }
++            // Bucle caliente estancado (worker colgado, frames que dejan de
++            // fluir): el peor caso del throttle del core es ~300 ms entre
++            // frames — 3 s es red para sobra.
++            if (performance.now() - ultimoFrameCoreMs > 3_000) {
++              caerARafPropio('bucle del core estancado sin frames (>3 s)');
++            }
++          }, 1000);
++        } catch (e) {
++          caerARafPropio(`arranque: ${(e as Error).message}`);
++        }
++      })();
++    } else {
++      iniciarRafPropio();
++    }
++
+     return () => {
+-      document.removeEventListener("visibilitychange", alCambioVisibilidad);
+-      window.removeEventListener("pagehide", alOcultar);
++      detenido = true;
++      if (vigia !== null) window.clearInterval(vigia);
++      cancelAnimationFrame(rafRef.current);
++      rafRef.current = 0;
++      core?.stop();
++      loopRef.current = null;
+     };
+-    // deps []: los handlers leen SOLO refs y useE14Store.getState() (sin
+-    // staleness) + setters/acciones estables — registro único, S-3 simétrico.
+-    // eslint-disable-next-line react-hooks/exhaustive-deps
+-  }, []);
+-
+-  // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L444-L454
+-  /** F-SENSOR-PROFILER: sondea el sensor del stream REAL una vez por
+-   *  apertura (getPhotoCapabilities → nativa + tope por gama). Falla en
+-   *  silencio (Safari) → takePhoto dispara a secas y el clamp post-decode
+-   *  protege la RAM. */
+-  const profileActiveSensor = useCallback((stream: MediaStream): void => {
+-    const track = stream.getVideoTracks()[0];
+-    if (!track) return;
+-    void profileSensor(track).then((p) => {
+-      sensorProfileRef.current = p;
+-    });
+-  }, []);
+-
+-  // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L1289-1470
+-  // (takePhotoBlob — LOTE 5 F5-A + F5.3/F5.4/F5.5 + FIX v4 4.1 + FIX v6 6.1,
+-  //  remediación H2: capas 1 y 2 del F-SENSOR-PROFILER se conservan).
+-  /** DUAL PIPELINE (pilar 2) — Captura a RESOLUCIÓN DEL SENSOR como Blob con
+-   *  la ESCALERA FOTO_LADDER: 2048×1536 → 1280×960 → desnudo (cada peldaño
+-   *  solo se intenta si el anterior falló RÁPIDO; la carrera de 8 s queda
+-   *  SOLO para el ÚLTIMO peldaño — el desnudo, el que puede tardar ~15 s del
+-   *  ISP). takePhoto() IGNORA la resolución del <video> del preview y dispara
+-   *  directo al sensor físico (12–48 MP). FIX v6 6.1: el guard de plataforma
+-   *  es CAN_TAKEPHOTO (positiva de Android) — Safari moderno expone
+-   *  ImageCapture pero takePhoto() se cuelga → fuera de Android ni se
+-   *  intenta. Lista negra temporal (takePhotoBrokenRef): un desnudo que
+-   *  expira marca el sensor para que captureSmart no vuelva a colgar en cada
+-   *  disparo (lab L1432-1435; rehabilitación: respuesta ok / stream nuevo).
+-   *  LOTE 5.4 (F5.4-A): si el ganador fue un PELDAÑO dispara YA la foto
+-   *  full-res del sensor y la entrega por `onUpgrade` — corre SIEMPRE fuera
+-   *  de presupuesto y NUNCA bloquea (su catch vive en el runner del llamador). */
++  }, [alimentarAnillo, capturarRef, cooldownRef, config.autoRef, procesandoRef, setAutoArmado, setLive, videoRef]);
++
++  // ---- toma de foto (D7 — DUAL PIPELINE upstream: escalera FOTO_LADDER +
++  // carrera 8 s + lista negra + upgrade LOTE 5.4. NADA de pantallazo del
++  // <video> como "foto del sensor": el frame del visor queda SOLO como
++  // último recurso del dispatch de ScanView) ----
+   const tomarFoto = useCallback(
+     async (onUpgrade?: (upgrade: Promise<Blob>) => void): Promise<Blob | null> => {
+       if (!CAN_TAKEPHOTO) return null; // FIX v6 6.1 del lab — Android only
+@@ -679,14 +419,9 @@
+       try {
+         const capture = new ImageCapture(track);
+         const profile = sensorProfileRef.current;
+-        // LOTE 5.5 — calidad primero (deviceMemory 8+): UNA carrera larga
+-        // contra el sensor con el DESNUDO de primero (la página nace
+-        // full-res). Si el desnudo falla RÁPIDO, la cola cae a los peldaños.
++        // LOTE 5.5 — calidad primero (deviceMemory 8+): el desnudo de primero.
+         const qualityFirst = esCalidadPrimero();
+         const settings = qualityFirst ? undefined : FOTO_LADDER[0];
+-        // Settings del ÚLTIMO intento disparado; se lee SOLO si hubo blob
+-        // ganador para decidir si corres upgrade (peldaño → sí; desnudo →
+-        // ya es full-res, no).
+         let winnerSettings: { imageWidth: number; imageHeight: number } | undefined =
+           settings;
+         const attempt = async (
+@@ -696,8 +431,6 @@
+           try {
+             const photoPromise = capture.takePhoto(ps as PhotoSettings);
+             if (!conCarrera) {
+-              // Peldaño intermedio: falla RÁPIDO si las constraints son
+-              // rechazadas — sin carrera (la de 8 s es del desnudo).
+               const b = await photoPromise;
+               return b && b.size > 0 ? b : null;
+             }
+@@ -705,26 +438,17 @@
+               photoPromise,
+               new Promise<never>((_, reject) =>
+                 window.setTimeout(
+-                  () => reject(new Error("takePhoto timeout 8s")),
++                  () => reject(new Error('takePhoto timeout 8s')),
+                   TAKEPHOTO_TIMEOUT_MS,
+                 ),
+               ),
+             ]);
+             return blob && blob.size > 0 ? blob : null;
+           } catch {
+-            // peldaño rechazado o desnudo que expiró: null → la escalera prueba el siguiente
+             return null;
+           }
+         };
+-        // Primer intento: con carrera SOLO si es el desnudo (qualityFirst).
+         let blob = await attempt(settings, settings === undefined);
+-        // LOTE 5.3 (F5.3-A) — avance de escalera ÚNICO para Android:
+-        // siguiente peldaño y luego desnudo (con carrera). qualityFirst: el
+-        // desnudo ya corrió de primero — los peldaños son el plan B (sin
+-        // carrera: fail fast). Caso raro «desnudo falló rápido + peldaño
+-        // ganó» → winnerSettings queda definido y el upgrade SÍ se dispara
+-        // (comportamiento EXACTO del lab — su winnerSettings se asigna igual
+-        // en el retry de qualityFirst).
+         const escalera: Array<{ imageWidth: number; imageHeight: number } | undefined> =
+           qualityFirst ? [...FOTO_LADDER] : [...FOTO_LADDER.slice(1), undefined];
+         for (const ps of escalera) {
+@@ -732,16 +456,12 @@
+           winnerSettings = ps;
+           blob = await attempt(ps, ps === undefined);
+         }
+-        // FIX v4 4.1 — lista negra temporal: respondió → rehabilitar;
+-        // expiró el desnudo → captureSmart deja de pedir takePhoto.
++        // FIX v4 4.1 — lista negra temporal: respondió → rehabilitar.
+         if (blob) takePhotoBrokenRef.current = false;
+         else takePhotoBrokenRef.current = true;
+         if (!blob) return null;
+-        // LOTE 5.4 (F5.4-A) — el upgrade solo tiene sentido si lo que ganó
+-        // fue un PELDAÑO (2048/1280). Fire-and-forget: la promesa NUNCA se
+-        // espera aquí (el desnudo tarda ~15 s); SIN tocar takePhotoBrokenRef
+-        // (un desnudo lento/roto NO lista-negrea la escalera, que ya entregó
+-        // la foto del flujo).
++        // LOTE 5.4 (F5.4-A) — upgrade solo si lo que ganó fue un PELDAÑO.
++        // Fire-and-forget: la promesa NUNCA se espera aquí (~15 s del desnudo).
+         if (winnerSettings !== undefined && onUpgrade) {
+           try {
+             onUpgrade(capture.takePhoto(undefined));
+@@ -749,474 +469,16 @@
+             /* throw sincrónico raro del sensor: nunca rompe la captura */
+           }
+         }
+-        // Capa 2 — red de seguridad post-decode (solo recorta si el blob
+-        // excede el tope; si no, el blob original pasa intacto).
++        // Capa 2 — red de seguridad post-decode (solo recorta si excede el tope).
+         return await clampBlobToSafeCap(blob, profile?.safeCapPx ?? getSensorSafeCap());
+       } catch {
+         // takePhoto es un camino, no el único: null → el flujo cae al frame del visor
+         return null;
+       }
+     },
+-    [],
++    [streamRef, sensorProfileRef, takePhotoBrokenRef],
+   );
+ 
+-  /* ── Arranque de cámara (lab L996-1252: F-LENS v4 + cascada de respaldo,
+-     fallback a SIMULACIÓN propio de e14 — remediado H1) ───────────────── */
+-
+-  useEffect(() => {
+-    if (fuente !== "CAMARA") return;
+-    let cancelado = false;
+-    setCamEstado("iniciando");
+-
+-    const media = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
+-    if (!media || typeof media.getUserMedia !== "function" || !window.isSecureContext) {
+-      // §E (SPEC-camara-funcional): fin del rebote silencioso — la app SE
+-      // QUEDA en modo CÁMARA con el overlay de aviso + reintento (paridad
+-      // con el aviso B2 del lab); el toast es redundante con el overlay.
+-      setCamEstado("no-disponible");
+-      setAvisoCamara("denied");
+-      return;
+-    }
+-
+-    // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx
+-    // L1049-1053 (isPermError) — equivalente exacto (§3 auditoría: reutilizar,
+-    // no duplicar; aquí ya existía con este nombre desde L3).
+-    const esErrorPermiso = (e: unknown): boolean =>
+-      e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError");
+-
+-    // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx
+-    // L1055-1093 (openWithCascade) — E3 + DUAL PIPELINE: SOLO anchos/altos
+-    // IDEALES (ideal nunca rechaza getUserMedia). F-LENS: el primer intento
+-    // fuerza EXACT la trasera (en algunos móviles "environment" a secas
+-    // negocia la gran angular); si el exact falla se relaja a ideal →
+-    // {video:true}. Es la RED DE SEGURIDAD que corre SOLO si las sondas de
+-    // F-LENS v4 no lograron abrir la principal.
+-    const abrirConCascada = async (): Promise<MediaStream | null> => {
+-      // Fuente: lab CameraView.tsx L2353-2391 (E3 + DUAL PIPELINE) — el
+-      // PREVIEW pide las constraints ideales POR PLATAFORMA (G2) + 30 FPS
+-      // (fluido en gama baja; la captura hi-res va por takePhoto al sensor).
+-      const intentos: MediaStreamConstraints[] = [
+-        {
+-          video: {
+-            facingMode: { exact: "environment" },
+-            width: { ideal: IDEAL_PREVIEW_WIDTH },
+-            height: { ideal: IDEAL_PREVIEW_HEIGHT },
+-            frameRate: { ideal: IDEAL_PREVIEW_FPS },
+-          },
+-          audio: false,
+-        },
+-        {
+-          video: {
+-            facingMode: "environment",
+-            width: { ideal: IDEAL_PREVIEW_WIDTH },
+-            height: { ideal: IDEAL_PREVIEW_HEIGHT },
+-            frameRate: { ideal: IDEAL_PREVIEW_FPS },
+-          },
+-          audio: false,
+-        },
+-        { video: { facingMode: "environment" }, audio: false },
+-        { video: true, audio: false },
+-      ];
+-      for (const c of intentos) {
+-        try {
+-          return await media.getUserMedia(c);
+-        } catch (e) {
+-          if (esErrorPermiso(e)) return null; // permiso: la cascada no ayuda
+-          /* siguiente nivel */
+-        }
+-      }
+-      return null;
+-    };
+-
+-    // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx
+-    // L1095-1207 (openMainCamera) — F-LENS v4 arranque estilo codigo-test
+-    // (donde el flash SÍ funciona):
+-    // 1) desbloquea labels con un stream genérico que se cierra al instante;
+-    // 2) sondea TODAS las cámaras UNA POR UNA cerrando cada una antes de
+-    //    abrir la siguiente (v3 las sondeaba con el stream vivo → en muchos
+-    //    Android la 2ª apertura lanza NotReadableError y NADA cambiaba);
+-    // 3) elige la principal con la regla D3/D6 (autofocus real → mayor
+-    //    resolución; torch desempata; sin AF → label más simple);
+-    // 4) abre SOLO la ganadora con el preview ligero (aquí 1920×1080 ideal —
+-    //    D27, decisión documentada de e14; la captura hi-res va por
+-    //    takePhoto al sensor).
+-    // Devuelve el stream de la principal o null (→ cascade/SIM).
+-    // F-LENS v5: la eleccion clasifica por FACING (getSettings de cada sonda)
+-    // primero y label después; toda apertura se VERIFICA (guard: stream con
+-    // facing "user" se cierra y cae a la cascada) y la caché se sanea al
+-    // leerla — ver bloque v5 arriba del archivo.
+-    // (Nota e14: el lab marca permisoDenegado aquí para su aviso B2 con CTA
+-    //  «Activar cámara»; e14 no tiene ese overlay — el fallback unificado a
+-    //  SIMULACIÓN con toast cubre el caso, ver fila 16 de la auditoría.)
+-    const abrirCamaraPrincipal = async (): Promise<MediaStream | null> => {
+-      // 0) Fuente: lab CameraView.tsx L2468-2489 (FIX v5 5.3 — VÍA RÁPIDA):
+-      //    abrir la deviceId CACHEADA con las MISMAS constraints de preview
+-      //    ideal del camino completo (sin sondas → 2ª apertura < ~1 s
+-      //    perceptual). Invalidación SOLO por fallo (NotFound/NotReadable/
+-      //    permiso revocado) → borrar y sondear completo como antes.
+-      const cache = readMainCameraCache();
+-      if (cache) {
+-        try {
+-          const stream = await media.getUserMedia({
+-            video: {
+-              deviceId: { exact: cache.deviceId },
+-              width: { ideal: IDEAL_PREVIEW_WIDTH },
+-              height: { ideal: IDEAL_PREVIEW_HEIGHT },
+-              frameRate: { ideal: IDEAL_PREVIEW_FPS },
+-            },
+-            audio: false,
+-          });
+-          // F-LENS v5 — guard de apertura en la VÍA RÁPIDA: si lo abierto
+-          // reporta facing "user", la caché estaba venenada MÁS ALLÁ del
+-          // label (frente a un driver que mintió al escribir) → cerrar,
+-          // borrar y caer al sondeo completo. JAMÁS devolver la frontal.
+-          if (leerFacingDeStream(stream) === "user") {
+-            stream.getTracks().forEach((t) => t.stop());
+-            clearMainCameraCache();
+-          } else {
+-            return stream;
+-          }
+-        } catch (err) {
+-          clearMainCameraCache();
+-          if (esErrorPermiso(err)) return null; // permiso: la cascada no ayuda
+-        }
+-      }
+-      // 1) Desbloqueo de etiquetas (F1-a de codigo-test): sin permiso previo
+-      //    los labels/deviceIds llegan vacíos en enumerateDevices.
+-      try {
+-        const unlock = await media.getUserMedia({ video: true, audio: false });
+-        unlock.getTracks().forEach((t) => t.stop());
+-      } catch {
+-        /* sin permiso: los probes fallarán y se cae al cascade */
+-      }
+-      // 2) Sondeo secuencial: cada cámara se ABRE, se MIDE y se CIERRA.
+-      let devices: MediaDeviceInfo[] = [];
+-      try {
+-        devices = (await media.enumerateDevices()).filter(
+-          (d) => d.kind === "videoinput" && d.deviceId
+-        );
+-      } catch {
+-        // sin enumerateDevices no hay sondas: la cascada facingMode abre cámara igual
+-        devices = [];
+-      }
+-      const probes: CameraProbeResult[] = [];
+-      for (const d of devices) {
+-        // FIX M6 (auditoría 2-b): el sondEO consulta la cancelación — salir
+-        // de CÁMARA durante el arranque (BottomNav vivo durante
+-        // «INICIANDO CÁMARA…») dejaba las cámaras abriéndose/cerrándose en
+-        // background varios segundos (LED de cámara activo sin vista).
+-        if (cancelado) return null;
+-        // FIX v5 (5.3) del lab: plazo de 2 s por sonda (una cámara lenta no
+-        // bloquea el arranque).
+-        const p = await probeCamera(media, d.deviceId, d.label, PROBE_TIMEOUT_MS);
+-        if (p) probes.push(p);
+-      }
+-      // 3) Elección de la principal (D3: AF real → mayor resolución).
+-      const main = chooseMainProbe(probes);
+-      // 4) Apertura SOLO de la ganadora (con fallbacks en cascada).
+-      // DUAL PIPELINE (G2): preview POR PLATAFORMA + 30 fps ideal; el sensor
+-      // completo solo despierta en el instante de la captura (FOTO_LADDER).
+-      const attempts: MediaStreamConstraints[] = main
+-        ? [
+-            {
+-              video: {
+-                deviceId: { exact: main.deviceId },
+-                width: { ideal: IDEAL_PREVIEW_WIDTH },
+-                height: { ideal: IDEAL_PREVIEW_HEIGHT },
+-                frameRate: { ideal: IDEAL_PREVIEW_FPS },
+-              },
+-              audio: false,
+-            },
+-            { video: { deviceId: { exact: main.deviceId } }, audio: false },
+-          ]
+-        : [];
+-      attempts.push({ video: true, audio: false }); // último recurso
+-      for (let ai = 0; ai < attempts.length; ai += 1) {
+-        // FIX M6 (auditoría 2-b): idem sondas — la apertura de la ganadora
+-        // también aborta si el usuario ya se fue de la vista.
+-        if (cancelado) return null;
+-        try {
+-          const stream = await media.getUserMedia(attempts[ai]!);
+-          // F-LENS v5 — guard de apertura (última línea de defensa): si el
+-          // stream abierto reporta facing "user", NO es la principal que
+-          // pedimos (clasificación errada o default del SO) → cerrarlo y
+-          // seguir; agotados los intentos → null → cascada, cuyo primer
+-          // intento es facingMode EXACT "environment" (la señal fuerte).
+-          // Dispositivo SOLO-frontal: la cascada lo cubre (environment ideal
+-          // es best-effort y su {video:true} final acepta la única cámara).
+-          if (leerFacingDeStream(stream) === "user") {
+-            stream.getTracks().forEach((t) => t.stop());
+-            if (main && ai < 2) clearMainCameraCache();
+-            continue;
+-          }
+-          // FIX v5 (5.3) del lab: persistir la elección SOLO si el stream
+-          // abrió con la deviceId de la ganadora (los 2 primeros intentos la
+-          // fijan; el fallback {video:true} NO escribe caché).
+-          if (main && ai < 2) writeMainCameraCache(main);
+-          // Vía zoom: si el track abrió con zoom < 1 (equivalente 0.5× del
+-          // MISMO track), súbelo a 1 para el FOV de la principal.
+-          try {
+-            const track = stream.getVideoTracks()[0];
+-            const zcaps = track?.getCapabilities?.() as
+-              | { zoom?: { min?: number; max?: number } }
+-              | undefined;
+-            const zst = track?.getSettings?.() as { zoom?: number } | undefined;
+-            if (
+-              zcaps?.zoom &&
+-              typeof zcaps.zoom.min === "number" &&
+-              zcaps.zoom.min < 1 &&
+-              typeof zst?.zoom === "number" &&
+-              zst.zoom < 1
+-            ) {
+-              await track
+-                ?.applyConstraints({
+-                  advanced: [{ zoom: 1 }],
+-                } as MediaTrackConstraints & { advanced: unknown[] })
+-                .catch(() => undefined);
+-            }
+-          } catch {
+-            /* sin soporte de zoom */
+-          }
+-          // Telemetría de QA (window.__cameraChoice): qué lente quedó abierta
+-          // y qué se midió en las sondas — útil para depurar remotamente.
+-          // F-LENS v5: incluye el FACING real abierto (depuración remota del
+-          // bug «abrió la frontal» sin acceso al dispositivo).
+-          try {
+-            const track = stream.getVideoTracks()[0];
+-            const st = track?.getSettings?.() as {
+-              width?: number;
+-              height?: number;
+-              facingMode?: string;
+-            } | undefined;
+-            (window as unknown as { __cameraChoice?: unknown }).__cameraChoice = {
+-              elegida: main?.label ?? track?.label ?? "",
+-              facing: st?.facingMode ?? main?.facingMode ?? null,
+-              torch: main?.torch ?? false,
+-              focusModes: main?.focusModes ?? [],
+-              width: st?.width ?? 0,
+-              height: st?.height ?? 0,
+-              sondas: probes.map((p) => ({
+-                label: p.label,
+-                facing: p.facingMode ?? null,
+-                torch: p.torch,
+-                af: p.focusModes,
+-                max: `${p.maxWidth}x${p.maxHeight}`,
+-              })),
+-            };
+-          } catch {
+-            /* solo telemetría */
+-          }
+-          return stream;
+-        } catch {
+-          /* siguiente nivel */
+-        }
+-      }
+-      return null;
+-    };
+-
+-    void (async () => {
+-      // F-LENS v4: primero el camino de codigo-test (sondas secuenciales +
+-      // principal por resolución/AF); cascade facingMode como red de seguridad.
+-      let stream = await abrirCamaraPrincipal();
+-      if (!stream) stream = await abrirConCascada();
+-      if (!stream) {
+-        if (cancelado) return;
+-        // Ola 3.3: si este arranque era la REANUDACIÓN tras visibilitychange,
+-        // el fallo TAMBIÉN sube el aviso accionable del store (franja con
+-        // Reintentar → re-abre la cámara) — no solo el overlay §E.
+-        if (reanudandoRef.current) {
+-          reanudandoRef.current = false;
+-          try {
+-            useE14Store.getState().mostrarAvisoVisor({
+-              tipo: "error",
+-              motivo: "CAMARA_NO_DISPONIBLE",
+-              accion: "reintentar",
+-            });
+-          } catch {
+-            /* regla de oro: el aviso jamás rompe la cámara */
+-          }
+-        }
+-        // §E (SPEC-camara-funcional): fracaso tras sondas+cascada → overlay
+-        // con [ACTIVAR CÁMARA] (reintento) / [VOLVER A SIMULACIÓN] — SIN
+-        // rebote automático. abrirCamaraPrincipal/abrirConCascada intactas.
+-        setCamEstado("no-disponible");
+-        setAvisoCamara("denied");
+-        return;
+-      }
+-      if (cancelado) {
+-        stream.getTracks().forEach((t) => t.stop());
+-        return;
+-      }
+-
+-      streamRef.current = stream;
+-      setCamEstado("viva");
+-      // Ola 3.3: la reanudación LLEGÓ — el fallo posterior ya no es «de la
+-      // reanudación» (es un fallo normal del §E).
+-      reanudandoRef.current = false;
+-      // D9 (SPEC-e14-guard-borde Rev. 2): cada APERTURA de cámara nace ARMADA
+-      // — primera vez, [ACTIVAR CÁMARA] tras un aviso, o reabrir tras cambiar
+-      // de fuente («repetir captura» remonta el componente → useState(true)).
+-      // El desarme EN VIVO del operador se respeta hasta la próxima apertura
+-      // (AC15: re-armado en cada apertura; AC16: desarme respetado en vivo).
+-      // H3 (auditoría A4): el desarme por MEMORIA AGOTADA es PERSISTENTE —
+-      // el re-arme de la apertura no puede reconstruir el bucle condenado.
+-      setAutoArmado(!useE14Store.getState().autoCapturaDesarmada);
+-      // F-SENSOR-PROFILER (PASO 2) — Fuente: apps/scanner-lab/... L1032-1034:
+-      // mide la nativa de FOTO del sensor y fija el tope seguro (4032/3200
+-      // px) para tomarFoto, una vez por apertura (remediación H2).
+-      profileActiveSensor(stream);
+-      // §5.2: Safari/iOS no implementa ImageCapture → el shutter manual abre
+-      // la cámara NATIVA; auto-captura usa frames del video.
+-      // G5 (FIX v6 6.1 del lab): el gate es CAN_TAKEPHOTO (positiva de
+-      // Android) — Safari moderno expone ImageCapture pero takePhoto se
+-      // cuelga. KIT camara-visor: stream nuevo rehabilita takePhoto
+-      // (lab L2760 — la lista negra temporal se limpia).
+-      puedeTomarFotoRef.current = CAN_TAKEPHOTO;
+-      takePhotoBrokenRef.current = false;
+-      // B3 (lab): si el track muere (permiso revocado, otra app roba la
+-      // cámara) → overlay §E «SE PERDIÓ LA CÁMARA» sin cambio de modo (el
+-      // visor no queda congelado; el reintento revive el stream).
+-      const track = stream.getVideoTracks()[0];
+-      if (track) {
+-        track.onended = () => {
+-          if (cancelado) return;
+-          // §E (SPEC-camara-funcional): stream perdido → overlay «SE PERDIÓ
+-          // LA CÁMARA» SIN cambio de modo (el visor no queda congelado; el
+-          // reintento revive el stream).
+-          setCamEstado("no-disponible");
+-          setAvisoCamara("perdido");
+-        };
+-      }
+-      // F-FLASH v3: botón habilitado SIEMPRE con cámara real (la verdad del
+-      // torch se verifica al pulsar); preferencia persistida → re-aplicar.
+-      setTorchDisponible(true);
+-      const video = videoRef.current;
+-      if (video) {
+-        video.srcObject = stream;
+-        void video.play().catch(() => undefined);
+-        setFramePendiente(video); // bridge: grab del frame si no hay foto
+-      }
+-      if (flashRef.current) aplicarLinternaGuardada();
+-    })();
+-
+-    return () => {
+-      cancelado = true;
+-      const t = streamRef.current?.getVideoTracks()[0];
+-      if (t) t.onended = null; // stop() no dispara "ended" (lab B3)
+-      streamRef.current?.getTracks().forEach((st) => st.stop());
+-      streamRef.current = null;
+-      setFramePendiente(null);
+-      setCamEstado("iniciando");
+-      setAvisoCamara(null); // §E: el aviso NO sobrevive al ciclo de arranque
+-      procesandoRef.current = false;
+-      cooldownRef.current = 0;
+-    };
+-    // (directiva exhaustive-deps del original NO se arrastra: la regla solo
+-    // aplica en screens/ScanView.tsx — override por ruta en eslint.config.mjs,
+-    // congelado. Justificación original, línea a línea: las ausentes son
+-    // estables — setFramePendiente (acción Zustand), mostrarAviso/
+-    // profileActiveSensor y aplicarLinternaGuardada (useCallback estables);
+-    // el arranque SOLO debe correr al cambiar fuente/reintentoCamara — y,
+-    // desde la Ola 3.3, al REANUDAR tras visibilitychange (cicloReanudar,
+-    // mismo mecanismo de reintento, interno al hook).)
+-  }, [fuente, reintentoCamara, cicloReanudar]);
+-
+-  /** Re-asigna el stream al <video> (lab L1255-1261) por si el elemento se
+-   *  remontó (cambio de vista ida/vuelta manteniendo la fuente viva). */
+-  useEffect(() => {
+-    if (!camaraViva) return;
+-    const video = videoRef.current;
+-    const stream = streamRef.current;
+-    if (!video || !stream || video.srcObject === stream) return;
+-    video.srcObject = stream;
+-    void video.play().catch(() => undefined);
+-  }, [camaraViva]);
+-
+-  /** Dimensiones del video + "playing" → re-aplicar torch (lab L1262-1269). */
+-  useEffect(() => {
+-    if (!camaraViva) return;
+-    const video = videoRef.current;
+-    if (!video) return;
+-    const alReproducir = () => {
+-      if (flashRef.current && !torchOnRef.current) aplicarLinternaGuardada();
+-    };
+-    video.addEventListener("playing", alReproducir);
+-    return () => video.removeEventListener("playing", alReproducir);
+-    // (directiva exhaustive-deps del original NO se arrastra: la regla solo
+-    // aplica en screens/ScanView.tsx. Justificación original: aplicarLinter
+-    // naGuardada es estable (useCallback ← ponerLinterna, que es useCallback
+-    // []); re-suscribir «playing» solo al alternar camaraViva.)
+-  }, [camaraViva]);
+-
+-  /* ── FRAME LOOP REAL (lab L1356-1402): detección en vivo + k-de-n ──── */
+-
+-  useEffect(() => {
+-    if (!camaraViva) return;
+-    const video = videoRef.current;
+-    if (!video) return;
+-    const loop = new CameraFrameLoop();
+-    loopRef.current = loop;
+-    loop.start(video, {
+-      onFrame: (t) => {
+-        // Ola 3.3: descarta los primeros frames tras reanudar — el <video>
+-        // puede seguir sirviendo el fotograma congelado de antes de pausar
+-        // mientras re-decodifica (ring ZSL/telemetría sin frames viejos).
+-        if (performance.now() < descartarFramesHastaRef.current) return;
+-        if (typeof window !== "undefined") {
+-          // KIT e14-remediacion-movil-v1 (C4): el objeto `t` es FRESH por frame
+-          // (frame-loop emit() construye un literal nuevo) → estampar el campo
+-          // defensivo AQUÍ es seguro y no contamina FrameLoopTelemetry.
+-          const kills = qrHardKillsDefensivo();
+-          if (kills !== undefined) {
+-            (t as FrameLoopTelemetry & { qrWorkerHardKills?: number }).qrWorkerHardKills =
+-              kills;
+-          }
+-          window.__e14Telemetria = t;
+-        }
+-        // F-ZSL: alimenta el ring (~5 Hz) — cubre la ventana pre-tap.
+-        alimentarAnillo();
+-        const ahora = performance.now();
+-        if (ahora - telemetriaAtRef.current < TELEMETRIA_UI_MS) return; // ~10 Hz
+-        telemetriaAtRef.current = ahora;
+-        setLive({ corners: t.corners, score: t.score ? t.score.total : null });
+-      },
+-      onTrigger: () => {
+-        // El gate fino (k-de-n, cooldown del core, re-arme, isDeviceStable)
+-        // vive en CameraFrameLoop — aquí solo el filtro del lab L1380-1385.
+-        if (!autoRef.current) return;
+-        if (procesandoRef.current) return;
+-        if (cooldownRef.current > Date.now()) return;
+-        // KIT e14-remediacion-movil-v1 (D4 — P2 #24): mientras el IMPORTAR
+-        // tiene su bandera síncrona viva (onChange → archivo procesándose),
+-        // la auto-captura NO dispara — el archivo del operador tiene
+-        // prioridad. Si el disparo automático ya se fue, el guard del store
+-        // avisa «Se analizó la cámara, no tu archivo» (cero silencio).
+-        if (useE14Store.getState().importPendiente) return;
+-        // H2 (auditoría A3): tras una interrupción la vista ya volvió a
+-        // "escanear" con el pipeline ANTERIOR todavía en vuelo — la auto no
+-        // puede lanzar un segundo pipeline a competir por el wasm.
+-        if (useE14Store.getState().analisisEnVuelo) return;
+-        void capturarRef.current();
+-      },
+-      onNoDetectTimeout: () => {
+-        // §3.1.4 (redesign-stitch): «NO DETECTO EL ACTA · ACÉRCALA AL
+-        // ENCUADRE» como franja del visor (re-notifica como el toast).
+-        mostrarAviso("NO DETECTO EL ACTA · ACÉRCALA AL ENCUADRE", "warn", 3500);
+-      },
+-    });
+-    return () => {
+-      loop.stop();
+-      loopRef.current = null;
+-      // F-ZSL: libera el Best-Shot ring al cerrar la sesión de cámara.
+-      liberarAnillo();
+-    };
+-    // (directiva exhaustive-deps del original NO se arrastra: la regla solo
+-    // aplica en screens/ScanView.tsx. Justificación original: las 3 ausentes
+-    // son estables — alimentarAnillo (useCallback ← empujarAnillo []),
+-    // liberarAnillo ([]) y mostrarAviso (useCallback []); el loop usa refs
+-    // deliberadamente para evitar staleness.)
+-  }, [camaraViva]);
+-
+   return {
+     avisoCamara,
+     setAvisoCamara,
+@@ -1224,6 +486,6 @@
+     takePhotoBrokenRef,
+     tomarFoto,
+     loopRef,
+-    camaraViva,
++    camaraViva: config.camEstado === 'viva',
+   };
+ }

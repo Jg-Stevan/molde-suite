@@ -2,8 +2,8 @@
  * TESTS DEL ESTABILIZADOR + DISPARO k-de-n (tarea D — P2, flag frameLoop).
  *
  * Cubre la LÓGICA PURA que gobierna la auto-captura del bucle nuevo
- * (CameraFrameLoop, hoy detrás del flag `frameLoop` de `tamiz.flags.v1`,
- * DEFAULT OFF — ver flags.ts y useSesionCamara.ts):
+ * (CameraFrameLoop, detrás del flag `frameLoop` de `tamiz.flags.v1`,
+ * DEFAULT ON desde el plan primera ola — kill-switch del operador):
  *   · MotionStabilizer — compuerta de quietud por DeviceMotion: un salto
  *     (acc > 1.25 m/s² o rot > 14 deg/s) REINICIA la ventana y exige 280 ms
  *     de calma; por debajo del umbral no reinicia nada; destroy() desconecta
@@ -37,7 +37,7 @@ import {
   type QuadSample,
   type ScoreSample,
 } from "../src/lib/e14/core/quality";
-import { leerFlags } from "../src/lib/e14/flags";
+import { leerFlags, refrescarFlags } from "../src/lib/e14/flags";
 import type { Quad } from "@molde-suite/scanner-core/core/types";
 
 // ───────────────────────── Utilidades de inyección (sin DOM) ───────────────
@@ -359,12 +359,36 @@ describe("decisiones auxiliares del bucle (detectionTimedOut / quadTouchesEdge)"
   });
 });
 
-// ───────────────────── El flag de la tarea (default OFF) ────────────────────
+// ───────────── El flag de la tarea (default ON · plan primera ola) ──────────
 
-describe("flag frameLoop (tamiz.flags.v1) — default OFF", () => {
-  test("sin localStorage el flag cae en false: el rAF propio de 250 ms manda", () => {
-    // bun no trae localStorage: leerFlags() cae a DEFAULTS — que trae
-    // frameLoop: false (comportamiento byte-idéntico al pre-tarea D).
-    expect(leerFlags().frameLoop).toBe(false);
+describe("flag frameLoop (tamiz.flags.v1) — default ON con kill-switch", () => {
+  test("sin localStorage el bucle del core manda (marcas en vivo + k-de-n)", () => {
+    // Plan aprobado (Fase 2): el lazo de digielect14 es el funcionamiento
+    // por defecto; el rAF propio queda como red de seguridad del watchdog.
+    refrescarFlags();
+    expect(leerFlags().frameLoop).toBe(true);
+  });
+
+  test("kill-switch del operador: {\"frameLoop\":false} → rAF propio de 250 ms", () => {
+    const winAntes = Object.getOwnPropertyDescriptor(globalThis, "window");
+    const lsAntes = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    // flags.ts solo consulta localStorage con `window` presente (guard SSR).
+    Object.defineProperty(globalThis, "window", { configurable: true, value: globalThis });
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (k: string) => (k === "tamiz.flags.v1" ? '{"frameLoop":false}' : null),
+      },
+    });
+    try {
+      refrescarFlags();
+      expect(leerFlags().frameLoop).toBe(false);
+    } finally {
+      if (lsAntes) Object.defineProperty(globalThis, "localStorage", lsAntes);
+      else delete (globalThis as { localStorage?: unknown }).localStorage;
+      if (winAntes) Object.defineProperty(globalThis, "window", winAntes);
+      else delete (globalThis as { window?: unknown }).window;
+      refrescarFlags();
+    }
   });
 });

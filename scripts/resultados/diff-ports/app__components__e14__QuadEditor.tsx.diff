@@ -1,0 +1,38 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:49.332625600 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:49.333624900 -0500
+@@ -472,7 +472,7 @@
+     <div
+       ref={dialogoRef}
+       role="dialog"
+-      aria-label="Ajuste de bordes del acta"
++      aria-label="Ajuste de bordes del documento"
+       className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col animate-editor-enter"
+     >
+       {/* Header propio del modo CROP (lab L1666–1691, re-vestido). Task 2-b:
+@@ -521,7 +521,7 @@
+                     NO SE PUDO DECODIFICAR LA FOTO
+                   </span>
+                   <span className="font-mono text-[10px] tracking-wider text-gray-400 uppercase text-center">
+-                    CANCELA Y VUELVE A CAPTURAR EL ACTA
++                    CANCELA Y VUELVE A CAPTURAR EL DOCUMENTO
+                   </span>
+                 </>
+               ) : (
+@@ -558,7 +558,7 @@
+               >
+                 <img
+                   src={fotoOriginal}
+-                  alt="Foto original del acta en edición"
++                  alt="Foto original del documento en edición"
+                   draggable={false}
+                   className="block h-full w-full"
+                 />
+@@ -714,7 +714,7 @@
+               mientras detecta, patrón L2132-2135). CTA verde sólido (§5). */}
+           <button
+             type="button"
+-            aria-label="Detectar automáticamente los bordes del acta"
++            aria-label="Detectar automáticamente los bordes del documento"
+             onClick={aplicando || detectando ? undefined : () => void detectar()}
+             disabled={aplicando || detectando}
+             className="flex-1 min-w-0 h-11 lg:h-12 rounded-xl bg-brand-green hover:bg-emerald-400 text-black font-mono text-[10px] font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-40 shadow-[0_4px_20px_rgba(0,230,118,0.35)]"

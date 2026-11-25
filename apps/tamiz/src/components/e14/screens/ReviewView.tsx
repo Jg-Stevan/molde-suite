@@ -228,12 +228,15 @@ export function ReviewView() {
   // mientras el editor está abierto (errorRecorte al fallar APLICAR,
   // recortando, revelando del upgrade silencioso) re-tweeneaba el quad al
   // marco completo y BORRABA el recorte del usuario (contrato T2 roto:
-  // «reintenta SIN perder su quad»). Memoizado: identidad estable mientras
-  // status/quadDetectado no cambien de verdad.
+  // «reintenta SIN perder su quad»).
+  // El editor parte SIEMPRE del quad DETECTADO (la misma detección OpenCV que
+  // pinta las marcas en vivo): si la detección real falló, `quadDetectado`
+  // llega identidad y el operador ve el marco completo igual que antes —
+  // descartarlo solo por el status RECHAZADA borraba un quad válido (recorte
+  // cortado/incompleto) que el operador acababa de ver en el visor.
   const quadInicialEditor = useMemo(
-    () =>
-      acta?.status === "RECHAZADA" ? defaultQuad() : (acta?.quadDetectado ?? defaultQuad()),
-    [acta?.status, acta?.quadDetectado],
+    () => acta?.quadDetectado ?? defaultQuad(),
+    [acta?.quadDetectado],
   );
 
   // Overlay de ZONAS (mantenedor 2026-11-22): cajas aplanadas del gate
@@ -351,11 +354,15 @@ export function ReviewView() {
   // (warp degenerado sobre superficie lisa → blanco puro) se muestra la
   // ORIGINAL con nota tenue. Con tinta (aunque poca, p. ej. la borrosa
   // B/N) se muestra la procesada como hoy — sin regresión.
+  // Regla del mantenedor (2026-11-25): RECHAZADA → foto CRUDA (original del
+  // disparo, sin recorte); ÓPTIMA/ADVERTENCIA/REVISIÓN HUMANA → la PROCESADA
+  // (recorte enderezado). Es SOLO lo que el visor pinta, el veredicto no
+  // cambia.
+  const esRechazo = status === "RECHAZADA";
   const fotoSinTinta = !acta.fotoProcesada || acta.procesadaVacia === true;
-  const fotoVisible = fotoSinTinta
-    ? (acta.fotoOriginal ?? acta.fotoProcesada)
-    : acta.fotoProcesada;
-  const mostrandoOriginal = fotoSinTinta && Boolean(acta.fotoOriginal);
+  const mostrarCruda = Boolean(acta.fotoOriginal) && (esRechazo || fotoSinTinta);
+  const fotoVisible = mostrarCruda ? acta.fotoOriginal : acta.fotoProcesada;
+  const mostrandoOriginal = mostrarCruda;
   // §D8.4/AC4/AC14 (SPEC-e14-score-ocr Rev. 3) + SERIE 1 (sync-visor
   // §3): contain UNIVERSAL (REV. 2 — visor invariante por score; el
   // precedente as-is ya lo estrenó). El warp real produce un acta ALTA
@@ -364,9 +371,11 @@ export function ReviewView() {
   // se ve GRANDE y CORTADA»). Con contain aparece letterboxing vertical:
   // la carta de papel blanca COMPLETA dentro del contenedor oscuro.
   const hayFoto = Boolean(fotoVisible);
-  const altFoto = mostrandoOriginal
-    ? "Foto original del documento (la procesada salió vacía)"
-    : "Foto real del documento procesado por el core";
+  const altFoto = !mostrandoOriginal
+    ? "Foto real del documento procesado por el core"
+    : esRechazo
+      ? "Foto cruda del documento rechazado (sin recortar)"
+      : "Foto original del documento (la procesada salió vacía)";
   // D35: SIMULACIÓN produce fotos reales (pipeline real) — el gate es la foto, no la fuente.
   // §D4: cualquier foto (procesada u original de respaldo) = acta real.
   const esReal = Boolean(fotoVisible);
@@ -786,12 +795,10 @@ export function ReviewView() {
       {editando && acta.fotoOriginal ? (
         <QuadEditor
           fotoOriginal={acta.fotoOriginal}
-          // KIT e14-luz-sim-puntos-v1 (T-E): RECHAZADA = la detección ya
-          // falló una vez (importadas: franja Sobel degenerada — ZIPs A56)
-          // → NO se devuelve al mantenedor el quad fracasado como punto de
-          // partida: el marco completo (puntos a arrastrar al papel).
-          // ADVERTENCIA conserva quadDetectado (la detección acertó el
-          // marco; solo hay que corregir una esquina).
+          // El punto de partida es el quad DETECTADO (heurística memoizada
+          // arriba): RECHAZADA ya no fuerza el marco completo — el operador
+          // corrige sobre lo que vio en el visor. Detección fallida llega
+          // identidad por sí sola.
           quadInicial={quadInicialEditor}
           rotation={acta.rotation ?? 0}
           aplicando={recortando}

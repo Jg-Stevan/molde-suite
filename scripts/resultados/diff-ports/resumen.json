@@ -1,0 +1,4044 @@
+{
+  "ref": "C:/Users/JG/AppData/Local/Temp/e14-suite-ref",
+  "generadoEn": "2026-11-25T15:31:50.715Z",
+  "totales": {
+    "DIVERGE": 83,
+    "FALTA_EN_PORT": 118,
+    "IGUAL_SALTO_LINEA": 30,
+    "IGUAL": 4
+  },
+  "filas": [
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\image-processor.ts",
+      "estado": "DIVERGE",
+      "mas": 395,
+      "menos": 1742,
+      "diff": "scanner-core__src→core__core__image-processor.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\pipeline.ts",
+      "estado": "DIVERGE",
+      "mas": 371,
+      "menos": 1116,
+      "diff": "app__lib__e14__pipeline.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\hooks\\useSesionCamara.ts",
+      "estado": "DIVERGE",
+      "mas": 370,
+      "menos": 1108,
+      "diff": "app__components__e14__hooks__useSesionCamara.ts.diff"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\clasificador.ts",
+      "estado": "DIVERGE",
+      "mas": 110,
+      "menos": 1266,
+      "diff": "scanner-core__src→core__dominio__clasificador.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\dev\\PanelDev.tsx",
+      "estado": "DIVERGE",
+      "mas": 100,
+      "menos": 1051,
+      "diff": "app__components__e14__dev__PanelDev.tsx.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\screens\\ActasView.tsx",
+      "estado": "DIVERGE",
+      "mas": 497,
+      "menos": 361,
+      "diff": "app__components__e14__screens__ActasView.tsx.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\bridge\\ocr.ts",
+      "estado": "DIVERGE",
+      "mas": 89,
+      "menos": 687,
+      "diff": "app__lib__e14__bridge__ocr.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\bridge\\pipeline-recorte.ts",
+      "estado": "DIVERGE",
+      "mas": 114,
+      "menos": 659,
+      "diff": "app__lib__e14__bridge__pipeline-recorte.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\pdf-export.ts",
+      "estado": "DIVERGE",
+      "mas": 104,
+      "menos": 654,
+      "diff": "app__lib__e14__core__pdf-export.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\screens\\ResumenView.tsx",
+      "estado": "DIVERGE",
+      "mas": 437,
+      "menos": 321,
+      "diff": "app__components__e14__screens__ResumenView.tsx.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\screens\\ReviewView.tsx",
+      "estado": "DIVERGE",
+      "mas": 334,
+      "menos": 228,
+      "diff": "app__components__e14__screens__ReviewView.tsx.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\rastreo\\motor.ts",
+      "estado": "DIVERGE",
+      "mas": 10,
+      "menos": 505,
+      "diff": "app__lib__e14__rastreo__motor.ts.diff"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\types.ts",
+      "estado": "DIVERGE",
+      "mas": 182,
+      "menos": 323,
+      "diff": "scanner-core__src→core__dominio__types.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\transporte.ts",
+      "estado": "DIVERGE",
+      "mas": 8,
+      "menos": 477,
+      "diff": "app__lib__e14__obs__transporte.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\simulacion-imagenes.ts",
+      "estado": "DIVERGE",
+      "mas": 391,
+      "menos": 92,
+      "diff": "app__lib__e14__simulacion-imagenes.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\flags.ts",
+      "estado": "DIVERGE",
+      "mas": 73,
+      "menos": 408,
+      "diff": "app__lib__e14__flags.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\adaptacion\\plan.ts",
+      "estado": "DIVERGE",
+      "mas": 37,
+      "menos": 367,
+      "diff": "app__lib__e14__adaptacion__plan.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\lcp-cls.ts",
+      "estado": "DIVERGE",
+      "mas": 27,
+      "menos": 369,
+      "diff": "app__lib__e14__obs__lcp-cls.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\bridge\\calidad.ts",
+      "estado": "DIVERGE",
+      "mas": 13,
+      "menos": 382,
+      "diff": "app__lib__e14__bridge__calidad.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\envio.ts",
+      "estado": "DIVERGE",
+      "mas": 51,
+      "menos": 344,
+      "diff": "app__lib__e14__puente__envio.ts.diff"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\ocr.ts",
+      "estado": "DIVERGE",
+      "mas": 9,
+      "menos": 335,
+      "diff": "scanner-core__src→core__core__ocr.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\dev\\puente.ts",
+      "estado": "DIVERGE",
+      "mas": 26,
+      "menos": 294,
+      "diff": "app__components__e14__dev__puente.ts.diff"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\types.ts",
+      "estado": "DIVERGE",
+      "mas": 23,
+      "menos": 284,
+      "diff": "scanner-core__src→core__core__types.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\wake-lock.ts",
+      "estado": "DIVERGE",
+      "mas": 25,
+      "menos": 265,
+      "diff": "app__lib__e14__core__wake-lock.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\heartbeat.client.ts",
+      "estado": "DIVERGE",
+      "mas": 9,
+      "menos": 275,
+      "diff": "app__lib__e14__obs__heartbeat.client.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\cola.ts",
+      "estado": "DIVERGE",
+      "mas": 3,
+      "menos": 270,
+      "diff": "app__lib__e14__puente__cola.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\hooks\\useAnilloBestShot.ts",
+      "estado": "DIVERGE",
+      "mas": 74,
+      "menos": 199,
+      "diff": "app__components__e14__hooks__useAnilloBestShot.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\politica\\gate.ts",
+      "estado": "DIVERGE",
+      "mas": 56,
+      "menos": 213,
+      "diff": "app__lib__e14__politica__gate.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\hang.ts",
+      "estado": "DIVERGE",
+      "mas": 12,
+      "menos": 250,
+      "diff": "app__lib__e14__obs__hang.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\screens\\ScanView.tsx",
+      "estado": "DIVERGE",
+      "mas": 160,
+      "menos": 92,
+      "diff": "app__components__e14__screens__ScanView.tsx.diff"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\bridge.ts",
+      "estado": "DIVERGE",
+      "mas": 43,
+      "menos": 204,
+      "diff": "scanner-core__src→core__dominio__bridge.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\fachada.ts",
+      "estado": "DIVERGE",
+      "mas": 165,
+      "menos": 71,
+      "diff": "app__lib__e14__fachada.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\hooks\\useSelectorFuente.ts",
+      "estado": "DIVERGE",
+      "mas": 70,
+      "menos": 152,
+      "diff": "app__components__e14__hooks__useSelectorFuente.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\primitives.tsx",
+      "estado": "DIVERGE",
+      "mas": 36,
+      "menos": 184,
+      "diff": "app__components__e14__primitives.tsx.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\sensor-profiler.ts",
+      "estado": "DIVERGE",
+      "mas": 51,
+      "menos": 161,
+      "diff": "app__lib__e14__core__sensor-profiler.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\errores.ts",
+      "estado": "DIVERGE",
+      "mas": 21,
+      "menos": 174,
+      "diff": "app__lib__e14__errores.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\bridge\\captura.ts",
+      "estado": "DIVERGE",
+      "mas": 52,
+      "menos": 129,
+      "diff": "app__lib__e14__bridge__captura.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\hooks\\useLinterna.ts",
+      "estado": "DIVERGE",
+      "mas": 48,
+      "menos": 122,
+      "diff": "app__components__e14__hooks__useLinterna.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\BottomNav.tsx",
+      "estado": "DIVERGE",
+      "mas": 86,
+      "menos": 65,
+      "diff": "app__components__e14__BottomNav.tsx.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\guion.ts",
+      "estado": "DIVERGE",
+      "mas": 27,
+      "menos": 121,
+      "diff": "app__lib__e14__store__guion.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\dev\\TuercaResumen.tsx",
+      "estado": "DIVERGE",
+      "mas": 20,
+      "menos": 128,
+      "diff": "app__components__e14__dev__TuercaResumen.tsx.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\bridge\\real-core-bridge.ts",
+      "estado": "DIVERGE",
+      "mas": 96,
+      "menos": 43,
+      "diff": "app__lib__e14__bridge__real-core-bridge.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\politica\\umbrales.ts",
+      "estado": "DIVERGE",
+      "mas": 20,
+      "menos": 116,
+      "diff": "app__lib__e14__politica__umbrales.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\uso.ts",
+      "estado": "DIVERGE",
+      "mas": 10,
+      "menos": 112,
+      "diff": "app__lib__e14__obs__uso.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\ocr\\rapidocr.ts",
+      "estado": "DIVERGE",
+      "mas": 23,
+      "menos": 96,
+      "diff": "app__lib__e14__ocr__rapidocr.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\GaleriaSimulacion.tsx",
+      "estado": "DIVERGE",
+      "mas": 23,
+      "menos": 94,
+      "diff": "app__components__e14__GaleriaSimulacion.tsx.diff"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\senal-lectura.ts",
+      "estado": "DIVERGE",
+      "mas": 40,
+      "menos": 68,
+      "diff": "scanner-core__src→core__dominio__senal-lectura.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\tipos.ts",
+      "estado": "DIVERGE",
+      "mas": 2,
+      "menos": 96,
+      "diff": "app__lib__e14__puente__tipos.ts.diff"
+    },
+    {
+      "mapa": "scanner-core/workers",
+      "rel": "fallback-canvas.ts",
+      "estado": "DIVERGE",
+      "mas": 67,
+      "menos": 23,
+      "diff": "scanner-core__workers__fallback-canvas.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\bridge\\progreso.ts",
+      "estado": "DIVERGE",
+      "mas": 44,
+      "menos": 43,
+      "diff": "app__lib__e14__bridge__progreso.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\icons.tsx",
+      "estado": "DIVERGE",
+      "mas": 85,
+      "menos": 0,
+      "diff": "app__components__e14__icons.tsx.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\PwaRegister.tsx",
+      "estado": "DIVERGE",
+      "mas": 34,
+      "menos": 51,
+      "diff": "app__components__e14__PwaRegister.tsx.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\bridge\\protocolo.ts",
+      "estado": "DIVERGE",
+      "mas": 74,
+      "menos": 9,
+      "diff": "app__lib__e14__bridge__protocolo.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\envio.ts",
+      "estado": "DIVERGE",
+      "mas": 60,
+      "menos": 23,
+      "diff": "app__lib__e14__store__envio.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\enganche.ts",
+      "estado": "DIVERGE",
+      "mas": 3,
+      "menos": 76,
+      "diff": "app__lib__e14__puente__enganche.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\hooks\\useDialogFocus.ts",
+      "estado": "DIVERGE",
+      "mas": 24,
+      "menos": 52,
+      "diff": "app__components__e14__hooks__useDialogFocus.ts.diff"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "index.ts",
+      "estado": "DIVERGE",
+      "mas": 60,
+      "menos": 14,
+      "diff": "scanner-core__src→core__index.ts.diff"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "qr\\capa0-qr.client.ts",
+      "estado": "DIVERGE",
+      "mas": 58,
+      "menos": 2,
+      "diff": "scanner-core__src→core__qr__capa0-qr.client.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\hash.ts",
+      "estado": "DIVERGE",
+      "mas": 6,
+      "menos": 49,
+      "diff": "app__lib__e14__hash.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\hooks\\useDestello.ts",
+      "estado": "DIVERGE",
+      "mas": 26,
+      "menos": 22,
+      "diff": "app__components__e14__hooks__useDestello.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\ocr\\tesseract.ts",
+      "estado": "DIVERGE",
+      "mas": 14,
+      "menos": 33,
+      "diff": "app__lib__e14__ocr__tesseract.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\dispositivo.ts",
+      "estado": "DIVERGE",
+      "mas": 29,
+      "menos": 15,
+      "diff": "app__lib__e14__obs__dispositivo.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\AyudaOverlay.tsx",
+      "estado": "DIVERGE",
+      "mas": 20,
+      "menos": 20,
+      "diff": "app__components__e14__AyudaOverlay.tsx.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\PanelClasificacion.tsx",
+      "estado": "DIVERGE",
+      "mas": 22,
+      "menos": 16,
+      "diff": "app__components__e14__PanelClasificacion.tsx.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\tipos.ts",
+      "estado": "DIVERGE",
+      "mas": 24,
+      "menos": 4,
+      "diff": "app__lib__e14__store__tipos.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "logger.ts",
+      "estado": "DIVERGE",
+      "mas": 23,
+      "menos": 4,
+      "diff": "app__lib__logger.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\TopBar.tsx",
+      "estado": "DIVERGE",
+      "mas": 10,
+      "menos": 12,
+      "diff": "app__components__e14__TopBar.tsx.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\frame-loop.ts",
+      "estado": "DIVERGE",
+      "mas": 17,
+      "menos": 4,
+      "diff": "app__lib__e14__core__frame-loop.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\navegacion.ts",
+      "estado": "DIVERGE",
+      "mas": 18,
+      "menos": 2,
+      "diff": "app__lib__e14__store__navegacion.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\get-bridge.ts",
+      "estado": "DIVERGE",
+      "mas": 10,
+      "menos": 8,
+      "diff": "app__lib__e14__get-bridge.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\screens\\AnalyzingView.tsx",
+      "estado": "DIVERGE",
+      "mas": 10,
+      "menos": 6,
+      "diff": "app__components__e14__screens__AnalyzingView.tsx.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\SideNav.tsx",
+      "estado": "DIVERGE",
+      "mas": 8,
+      "menos": 8,
+      "diff": "app__components__e14__SideNav.tsx.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\orientacion.ts",
+      "estado": "DIVERGE",
+      "mas": 4,
+      "menos": 6,
+      "diff": "app__lib__e14__orientacion.ts.diff"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\QuadEditor.tsx",
+      "estado": "DIVERGE",
+      "mas": 4,
+      "menos": 4,
+      "diff": "app__components__e14__QuadEditor.tsx.diff"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs-base\\breadcrumbs.ts",
+      "estado": "DIVERGE",
+      "mas": 6,
+      "menos": 0,
+      "diff": "scanner-core__src→core__obs-base__breadcrumbs.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\jornada.ts",
+      "estado": "DIVERGE",
+      "mas": 3,
+      "menos": 3,
+      "diff": "app__lib__e14__jornada.ts.diff"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "captura\\reescalo-worker.ts",
+      "estado": "DIVERGE",
+      "mas": 1,
+      "menos": 1,
+      "diff": "scanner-core__src→core__captura__reescalo-worker.ts.diff"
+    },
+    {
+      "mapa": "scanner-core/workers",
+      "rel": "capa0-qr.worker.ts",
+      "estado": "DIVERGE",
+      "mas": 1,
+      "menos": 1,
+      "diff": "scanner-core__workers__capa0-qr.worker.ts.diff"
+    },
+    {
+      "mapa": "scanner-core/workers",
+      "rel": "db-postprocess.worker.ts",
+      "estado": "DIVERGE",
+      "mas": 1,
+      "menos": 1,
+      "diff": "scanner-core__workers__db-postprocess.worker.ts.diff"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\quality.ts",
+      "estado": "DIVERGE",
+      "mas": 1,
+      "menos": 1,
+      "diff": "app__lib__e14__core__quality.ts.diff"
+    },
+    {
+      "mapa": "public/scanner",
+      "rel": "capa0-qr.worker.js",
+      "estado": "DIVERGE",
+      "mas": 1,
+      "menos": 1,
+      "diff": "public__scanner__capa0-qr.worker.js.diff"
+    },
+    {
+      "mapa": "public/scanner",
+      "rel": "db-postprocess.worker.js",
+      "estado": "DIVERGE",
+      "mas": 1,
+      "menos": 1,
+      "diff": "public__scanner__db-postprocess.worker.js.diff"
+    },
+    {
+      "mapa": "public/scanner",
+      "rel": "fallback-canvas.worker.js",
+      "estado": "DIVERGE",
+      "mas": 1,
+      "menos": 1,
+      "diff": "public__scanner__fallback-canvas.worker.js.diff"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\codec.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\CONTRATO.json",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\detector-client.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "c88772c83f4b"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\image-modes.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "7539a37c00d4"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\LICENSE-scanner-core.md",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\__tests__\\calidad-puntaje.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\__tests__\\canvas-fallback.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\__tests__\\contrato-core.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\__tests__\\heic-tope.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\__tests__\\image-modes-parity.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\__tests__\\parity-worker-filters.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\__tests__\\types.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\completitud.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\diagnostico.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\divipol.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\entorno.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "129173ac903a"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\fusion-lectura.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\fusion-tipos.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\fusion.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\get-bridge.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\image-utils.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "0aeeb6f5fcbc"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\integridad.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\kits.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\logger.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "d5047b0f5fc9"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\marcadores.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\marco-escaneo.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\normalizar.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\ocr-escalonado.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\origen-escaneo.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\plan.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "3e1d03e9280e"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\seed.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "dominio\\senal-lectura.fronteras.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "geom\\orientacion-qr.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "geom\\orientacion.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "a7892e36d171"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs\\buffer.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs\\identidad.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs-base\\buffer.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "c1667b174756"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs-base\\captura.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs-base\\config.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "81670e018870"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs-base\\digest.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "34dbb8283221"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs-base\\dispositivo.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs-base\\eventos-lectura.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "c86f348f5690"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs-base\\identidad.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "a004f4ac30e5"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs-base\\operacion.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "obs-base\\tipos.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "36e5a6a09ec8"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "ocr\\crop-geometria.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "b9f64de42aa8"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "ocr\\db-postprocess-client.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "fd9f67e2e73a"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "ocr\\db-postprocess.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "62a2f72eccb7"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "ocr\\motor.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "ocr\\motores\\nativo.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "ocr\\motores\\tesseract.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "ocr\\rapidocr.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "84e3ad3172f0"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "orquestacion\\cascada.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "qr\\identidad-qr.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "8cea011a63a1"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "qr\\qr-pixeles.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "5bd50856110e"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "qr\\qr-zxing.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "qr\\vendor\\jsQR.d.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "71e7dcaca700"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "qr\\vendor\\jsQR.js",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "bc40c8a15196"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "qr\\vendor\\package.json",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "8005a3491db7"
+    },
+    {
+      "mapa": "scanner-core/workers",
+      "rel": "reescalar-import.worker.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "b37b92a80e73"
+    },
+    {
+      "mapa": "scanner-core/workers",
+      "rel": "__tests__\\capa0.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "scanner-core/scripts",
+      "rel": "build-capa0-worker.mjs",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "b1a730af6376"
+    },
+    {
+      "mapa": "scanner-core/scripts",
+      "rel": "build-db-postprocess-worker.mjs",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "f86e4601a4b7"
+    },
+    {
+      "mapa": "scanner-core/scripts",
+      "rel": "build-fallback-canvas-worker.mjs",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "c24e29676c7e"
+    },
+    {
+      "mapa": "scanner-core/scripts",
+      "rel": "build-reescalar-import-worker.mjs",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "2a7ea50460c5"
+    },
+    {
+      "mapa": "scanner-core/assets",
+      "rel": "scanner\\detection-worker.js",
+      "estado": "IGUAL",
+      "sha": "9f1b6db6585c"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\adaptacion\\informe-ia.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\adaptacion\\perfil.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\clasificador.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\completitud-archivo.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\completitud.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\contrato-donly.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\CONTRATO.json",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\LEEME.md",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\LICENSE-scanner-core.md",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\motion-stabilizer.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "1bcf9829d8e5"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\offline.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\offline.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\pwa.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\vibrar.ts",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "f6464eaf9f59"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\__tests__\\pdf-export.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\__tests__\\quality.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\divipol.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\falta-seccion-inferior-banda.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\flags.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\log-contrato.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\log-contrato.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\captura.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\envio-individual.wave3.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\export-meta.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\export.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\hang.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\hang.wave3.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\heartbeat-wal.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\heartbeat-wal.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\heartbeat.client.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\heartbeat.worker.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\identidad.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\lcp-cls.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\obs.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\operacion.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\politica.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\salud-ts.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\tipos.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\transporte.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\ocr-cascada.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\orientacion-qr.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\orientacion.mini.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\politica\\gate.paridad.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\envio.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\firma.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\huellas.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\huellas.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\mapear.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\puente.test-utils.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\recuperar.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\puente\\url-hub.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\qr\\capa0-qr.client.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\rastreo\\informe.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\rastreo\\tipos.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\scanner-core-bridge.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\sincronia-pestanas.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\analisis.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\avisos.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\captura.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\edicion.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\generacion.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\persistencia.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\sesion-ocr.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\simulacion.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\store-tests-hito1.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\ui\\CONTRATO.json",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\ui\\LEEME.md",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\ui\\LICENSE-scanner-ui.md",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\ui\\ZoomableVisor.tsx",
+      "estado": "IGUAL_SALTO_LINEA",
+      "sha": "6afe38858140"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\update-banner.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\__tests__\\cola-dedupe.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\__tests__\\completitud-archivo.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\__tests__\\contrato-md5.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\__tests__\\hash-sha256.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\__tests__\\headers-guard.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\__tests__\\review-view.copy.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\__tests__\\scanner-core-bridge.caracterizacion.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\__tests__\\sin-relleno-produccion.test.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\dev\\SeccionRastreo.tsx",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\dev\\useSaludVivo.ts",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\dev\\VistaErrores.tsx",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\PreparacionOffline.tsx",
+      "estado": "FALTA_EN_PORT"
+    },
+    {
+      "mapa": "public/scanner",
+      "rel": "detection-worker.js",
+      "estado": "IGUAL",
+      "sha": "9f1b6db6585c"
+    },
+    {
+      "mapa": "public/scanner",
+      "rel": "heartbeat.worker.js",
+      "estado": "IGUAL",
+      "sha": "42b997e869a4"
+    },
+    {
+      "mapa": "public/vendor",
+      "rel": "opencv-4.5.5.js",
+      "estado": "IGUAL",
+      "sha": "5b2d1cd3c0ff"
+    }
+  ],
+  "soloPort": [
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "AGENTS.md"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "assets\\scanner\\detection-worker.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "assets.lock.json"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\calidad.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\canvas-imagen.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\hash.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "core\\quad-guardas.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "molde\\extraccion-relacional.test.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "molde\\homografia.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "molde\\imageproc.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "molde\\marca.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "molde\\ocr-mapeo.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "molde\\ocr-tipos.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "molde\\tabla-detect.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "molde\\tabla-imagen.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "molde\\universal-engine.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "molde\\universal-types.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort-wasm-simd-threaded.asyncify.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort-wasm-simd-threaded.asyncify.wasm"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort-wasm-simd-threaded.jsep.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort-wasm-simd-threaded.jsep.wasm"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort-wasm-simd-threaded.jspi.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort-wasm-simd-threaded.jspi.wasm"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort-wasm-simd-threaded.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort-wasm-simd-threaded.wasm"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.all.bundle.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.all.bundle.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.all.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.all.min.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.all.min.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.all.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.all.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.all.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.bundle.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.bundle.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.jspi.bundle.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.jspi.bundle.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.jspi.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.jspi.min.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.jspi.min.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.jspi.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.jspi.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.jspi.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.min.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.min.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.node.min.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.node.min.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.node.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.node.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.wasm.bundle.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.wasm.bundle.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.wasm.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.wasm.min.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.wasm.min.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.wasm.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.wasm.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.wasm.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgl.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgl.min.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgl.min.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgl.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgl.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgl.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgpu.bundle.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgpu.bundle.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgpu.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgpu.min.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgpu.min.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgpu.min.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgpu.min.mjs.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\dist\\ort.webgpu.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\docs\\webgl-operators.md"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\docs\\webgpu-operators.md"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\docs\\webnn-operators.md"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\backend-onnxjs.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\backend-wasm.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\build-def.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\index.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\attribute-with-cache-key.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\attribute-with-cache-key.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\attribute-with-cache-key.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\attribute.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\attribute.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\attribute.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backend.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backend.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backend.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\backend-webgl.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\backend-webgl.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\backend-webgl.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-array-lib.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-coordinate-lib.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-coordinate-lib.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-coordinate-lib.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-definitions.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-definitions.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-definitions.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-encoding-lib.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-encoding-lib.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-encoding-lib.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-fragcolor-lib.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-fragcolor-lib.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-fragcolor-lib.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-function-inliner.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-function-inliner.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-function-inliner.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-preprocessor.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-preprocessor.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-preprocessor.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-registered-libs.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-registered-libs.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-registered-libs.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-shape-utils-lib.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-shape-utils-lib.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-shape-utils-lib.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-source.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-source.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-source.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-vec-lib.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-vec-lib.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\glsl-vec-lib.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\inference-handler.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\inference-handler.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\inference-handler.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\op-resolve-rules.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\op-resolve-rules.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\op-resolve-rules.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\batch-normalization.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\batch-normalization.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\batch-normalization.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\binary-op.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\binary-op.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\binary-op.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\cast.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\cast.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\cast.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\concat-packed.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\concat-packed.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\concat-packed.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\concat.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\concat.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\concat.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv-grouped.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv-grouped.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv-grouped.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv-pack.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv-pack.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv-pack.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv-transpose.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv-transpose.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv-transpose.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\conv.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\depth-to-space.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\depth-to-space.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\depth-to-space.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\dot-product.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\dot-product.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\dot-product.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\flatten.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\flatten.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\flatten.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\fuse-utils.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\fuse-utils.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\fuse-utils.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\gather.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\gather.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\gather.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\gemm.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\gemm.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\gemm.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\im2col-pack.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\im2col-pack.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\im2col-pack.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\im2col.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\im2col.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\im2col.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\image-scaler.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\image-scaler.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\image-scaler.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\instance-normalization.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\instance-normalization.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\instance-normalization.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\lrn.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\lrn.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\lrn.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\matmul-pack.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\matmul-pack.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\matmul-pack.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\matmul.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\matmul.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\matmul.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\pack.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\pack.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\pack.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\packing-utils.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\packing-utils.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\packing-utils.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\pad.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\pad.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\pad.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\pool.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\pool.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\pool.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\reduce.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\reduce.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\reduce.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\reshape-packed.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\reshape-packed.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\reshape-packed.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\reshape.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\reshape.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\reshape.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\resize-packed.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\resize-packed.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\resize-packed.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\shape.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\shape.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\shape.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\slice.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\slice.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\slice.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\softmax.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\softmax.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\softmax.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\split.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\split.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\split.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\squeeze.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\squeeze.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\squeeze.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\sum.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\sum.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\sum.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\tile.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\tile.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\tile.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\transpose.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\transpose.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\transpose.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\uint8-encode.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\uint8-encode.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\uint8-encode.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\unary-op.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\unary-op.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\unary-op.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\unpack.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\unpack.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\unpack.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\unsqueeze.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\unsqueeze.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\unsqueeze.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\upsample.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\upsample.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\ops\\upsample.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\program-manager.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\program-manager.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\program-manager.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\session-handler.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\session-handler.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\session-handler.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-data-encoder.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-data-encoder.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-data-encoder.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-layout-strategy.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-layout-strategy.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-layout-strategy.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-layout.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-layout.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-layout.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-manager.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-manager.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\texture-manager.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\types.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\types.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\types.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\utils.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\utils.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\utils.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\webgl-context-factory.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\webgl-context-factory.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\webgl-context-factory.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\webgl-context.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\webgl-context.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\backends\\webgl\\webgl-context.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\execution-plan.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\execution-plan.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\execution-plan.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\graph.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\graph.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\graph.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\instrument.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\instrument.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\instrument.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\model.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\model.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\model.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\operators.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\operators.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\operators.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\opset.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\opset.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\opset.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\arg-type-and-index.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\arg-type-and-index.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\arg-type-and-index.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\arg-type.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\arg-type.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\arg-type.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\attribute-type.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\attribute-type.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\attribute-type.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\attribute.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\attribute.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\attribute.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-kernel-create-infos.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-kernel-create-infos.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-kernel-create-infos.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-node-index-and-kernel-def-hash.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-node-index-and-kernel-def-hash.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-node-index-and-kernel-def-hash.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-session-state.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-session-state.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-session-state.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-sub-graph-session-state.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-sub-graph-session-state.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\deprecated-sub-graph-session-state.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\dimension-value-type.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\dimension-value-type.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\dimension-value-type.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\dimension-value.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\dimension-value.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\dimension-value.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\dimension.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\dimension.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\dimension.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\edge-end.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\edge-end.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\edge-end.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\graph.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\graph.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\graph.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\inference-session.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\inference-session.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\inference-session.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\kernel-type-str-args-entry.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\kernel-type-str-args-entry.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\kernel-type-str-args-entry.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\kernel-type-str-resolver.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\kernel-type-str-resolver.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\kernel-type-str-resolver.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\map-type.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\map-type.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\map-type.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\model.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\model.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\model.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\node-edge.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\node-edge.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\node-edge.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\node-type.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\node-type.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\node-type.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\node.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\node.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\node.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\nodes-to-optimize-indices.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\nodes-to-optimize-indices.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\nodes-to-optimize-indices.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\op-id-kernel-type-str-args-entry.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\op-id-kernel-type-str-args-entry.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\op-id-kernel-type-str-args-entry.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\operator-set-id.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\operator-set-id.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\operator-set-id.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\runtime-optimization-record-container-entry.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\runtime-optimization-record-container-entry.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\runtime-optimization-record-container-entry.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\runtime-optimization-record.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\runtime-optimization-record.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\runtime-optimization-record.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\runtime-optimizations.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\runtime-optimizations.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\runtime-optimizations.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\sequence-type.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\sequence-type.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\sequence-type.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\shape.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\shape.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\shape.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\sparse-tensor.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\sparse-tensor.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\sparse-tensor.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\string-string-entry.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\string-string-entry.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\string-string-entry.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\tensor-data-type.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\tensor-data-type.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\tensor-data-type.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\tensor-type-and-shape.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\tensor-type-and-shape.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\tensor-type-and-shape.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\tensor.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\tensor.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\tensor.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\type-info-value.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\type-info-value.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\type-info-value.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\type-info.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\type-info.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\type-info.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\value-info.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\value-info.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs\\value-info.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\onnxruntime\\fbs.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\ort-generated.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\ort-generated.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\ort-generated.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\flatbuffers\\README.md"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\protobuf\\onnx.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\protobuf\\onnx.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\ort-schema\\protobuf\\README.md"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\session-handler-inference.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\session.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\session.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\session.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\tensor.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\tensor.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\tensor.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\util.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\util.js.map"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\onnxjs\\util.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\validate-session-options.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\version.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\backend-webgpu.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\backend-webnn.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\init.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\log.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\README.md"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\tensor-view.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\util.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\attribute-with-cache-key.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\gpu-data-manager.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\op-resolve-rules.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\3rd-party\\activation_util.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\3rd-party\\conv2d_mm_webgpu.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\3rd-party\\conv3d_naive_webgpu.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\3rd-party\\conv_backprop_mm_webgpu.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\3rd-party\\conv_backprop_webgpu.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\3rd-party\\conv_util.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\3rd-party\\matmul_packed_webgpu.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\argminmax.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\attention.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\batch-norm.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\bias-add.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\bias-split-gelu.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\binary-op.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\common.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\concat.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\conv-grouped.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\conv-transpose.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\conv.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\cumsum.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\depth-to-space.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\dft.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\einsum.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\expand.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\fast-gelu.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\fuse-utils.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\gather-block-quantized.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\gather-elements.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\gather-nd.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\gather.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\gemm.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\grid-sample.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\group-query-attention.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\instance-norm.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\layer-norm.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\matmul-shaders.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\matmul.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\matmulnbits.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\multihead-attention.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\pad.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\pool.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\quantize-linear.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\range.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\reduce-shared.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\reduce.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\resize.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\rotary-embedding.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\scatter-nd.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\skip-layer-norm.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\slice.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\softmax.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\split.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\tile.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\transpose.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\unary-op.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\ops\\where.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\program-manager.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webgpu\\types.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webnn\\tensor-manager.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\jsep\\webnn\\webnn.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\lora-adapter-handler.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\proxy-messages.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\proxy-worker\\main.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\proxy-wrapper.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\run-options.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\session-handler-inference.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\session-options.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\wasm-common.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\wasm-core-impl.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\wasm-factory.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\wasm-types.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\wasm-utils-env.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\wasm-utils-import.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\wasm-utils-load-file.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\lib\\wasm\\wasm-utils.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\package.json"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\README.md"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\onnxruntime-web\\types.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\barcodeFormat.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\barcodeSymbol.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\binarizer.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\characterSet.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\contentType.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\eanAddOnSymbol.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\ecLevel.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\exposedReaderBindings.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\exposedWriterBindings.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\index.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\position.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\readerOptions.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\readResult.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\textMode.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\vector.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\writeResult.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\bindings\\writerOptions.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\full\\index.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\full\\index.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\grayscale.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\package.json"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\reader\\index.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\reader\\index.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\share.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\share.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\types\\imageData.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\types\\wasm.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\writer\\index.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\cjs\\writer\\index.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\barcodeFormat.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\barcodeSymbol.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\binarizer.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\characterSet.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\contentType.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\eanAddOnSymbol.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\ecLevel.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\exposedReaderBindings.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\exposedWriterBindings.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\index.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\position.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\readerOptions.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\readResult.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\textMode.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\vector.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\writeResult.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\bindings\\writerOptions.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\full\\index.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\full\\index.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\grayscale.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\reader\\index.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\reader\\index.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\share.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\share.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\types\\imageData.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\types\\wasm.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\writer\\index.d.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\es\\writer\\index.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\full\\zxing_full.wasm"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\iife\\full\\index.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\iife\\reader\\index.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\iife\\writer\\index.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\miniprogram\\index.js"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\miniprogram\\package.json"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\reader\\zxing_reader.wasm"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\dist\\writer\\zxing_writer.wasm"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\LICENSE"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\package.json"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "node_modules\\zxing-wasm\\README.md"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "package.json"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "PROVENANCE.md"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "qr\\prechequeo-qr.test.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "qr\\prechequeo-qr.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "scripts\\build-capa0-worker.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "scripts\\build-db-postprocess-worker.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "scripts\\build-fallback-canvas-worker.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "scripts\\build-reescalar-import-worker.mjs"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "src\\contract\\contrato.test.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "src\\contract\\contrato.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "src\\contract\\sobre.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "src\\contract\\__fixtures__\\comprobante_entrega.molde.json"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "src\\contract\\__fixtures__\\e14_acta.molde.json"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "src\\contract\\__fixtures__\\recibo_pago.molde.json"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "tsconfig.json"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "workers\\capa0-qr.worker.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "workers\\db-postprocess.worker.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "workers\\fallback-canvas.ts"
+    },
+    {
+      "mapa": "scanner-core/src→core",
+      "rel": "workers\\reescalar-import.worker.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\bridge\\deteccion-quad.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\bridge\\estructura.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\bridge\\ocr-dinamico.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\bridge\\ocr-worker.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\checklist.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\core\\camara-principal.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\dla\\config.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\dla\\plusl.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\molde\\almacen.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\molde\\enrutamiento.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\molde\\evaluacion.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\molde\\importar.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\molde\\ocr-proveedor.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\molde\\registry.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\obs\\captura.tsx"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "e14\\store\\index.ts"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "generico\\moldes\\e14_acta.molde.json"
+    },
+    {
+      "mapa": "app/lib",
+      "rel": "rutas.ts"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\fit-scale.tsx"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\PanelModelos.tsx"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\PanelMoldes.tsx"
+    },
+    {
+      "mapa": "app/components",
+      "rel": "e14\\VerificacionDocumental.tsx"
+    },
+    {
+      "mapa": "public/scanner",
+      "rel": "reescalar-import.worker.js"
+    },
+    {
+      "mapa": "public/vendor",
+      "rel": "opencv-4.12.0-core.js"
+    },
+    {
+      "mapa": "public/vendor",
+      "rel": "tesseract\\tesseract-core-lstm.wasm.js"
+    },
+    {
+      "mapa": "public/vendor",
+      "rel": "tesseract\\tesseract-core-relaxedsimd-lstm.wasm.js"
+    },
+    {
+      "mapa": "public/vendor",
+      "rel": "tesseract\\tesseract-core-simd-lstm.wasm.js"
+    },
+    {
+      "mapa": "public/vendor",
+      "rel": "tesseract\\worker.min.js"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:49.581654700 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:49.582649800 -0500
+@@ -24,12 +24,15 @@
+   "VALIDACIÓN COMPLETADA CON ÉXITO",
+ ];
+ 
+-/** Pesos por etapa del pipeline (§7 AnalyzingView): el OCR domina. */
++/** Pesos por etapa del pipeline (§7 AnalyzingView): el OCR domina.
++ *  PLAN-AGENTE-LAYOUT F4: LAYOUT entra entre CALIDAD y OCR con peso pequeño
++ *  (una inferencia S + evaluador puro — la etapa es rápida). */
+ const PESOS: Record<EtapaAnalisis, number> = {
+   DETECTANDO: 0.15,
+   RECORTANDO: 0.15,
+   REALZANDO: 0.2,
+   CALIDAD: 0.15,
++  LAYOUT: 0.05,
+   OCR: 0.35,
+ };
+ const ORDEN_ETAPAS: readonly EtapaAnalisis[] = [
+@@ -37,6 +40,7 @@
+   "RECORTANDO",
+   "REALZANDO",
+   "CALIDAD",
++  "LAYOUT",
+   "OCR",
+ ];
+ 
+@@ -218,7 +222,7 @@
+           <div className="flex items-center gap-2 bg-[#10161f] border border-slate-800 px-3.5 py-1.5 rounded-full shadow-xs">
+             <span className="inline-block w-2 h-2 rounded-full bg-[#10b981] animate-pulse" />
+             <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-slate-300">
+-              PROCESANDO MOTOR OCR
++              PROCESANDO DOCUMENTO
+             </span>
+           </div>
+           <span className="font-mono text-xs text-slate-400 tabular-nums bg-slate-800/50 px-2 py-0.5 rounded-md border border-slate-700/50">
+@@ -295,7 +299,7 @@
+                     que anuncia cada ~10 % (throttle en el loop rAF, sr-only). */}
+                 <div
+                   role="progressbar"
+-                  aria-label="Progreso del análisis del acta"
++                  aria-label="Progreso del análisis del documento"
+                   aria-valuemin={0}
+                   aria-valuemax={100}
+                   aria-valuenow={Math.round(progreso)}
+@@ -320,7 +324,7 @@
+ 
+           {/* Jerarquía tipográfica */}
+           <div className="flex flex-col items-center text-center gap-1.5">
+-            <h2 className="text-xl font-bold text-white tracking-tight">Analizando acta E-14</h2>
++            <h2 className="text-xl font-bold text-white tracking-tight">Analizando Documento</h2>
+             <p className="font-mono text-xs text-[#10b981] tracking-widest uppercase max-w-[280px] min-h-[18px] transition-opacity duration-200 font-semibold">
+               {progreso >= 100 ? "VALIDACIÓN COMPLETADA CON ÉXITO" : ETAPAS[etapa]}
+             </p>
+@@ -362,11 +366,11 @@
+           <div className="flex items-center gap-2 bg-[#10161f] border border-slate-800 px-3.5 py-1.5 rounded-full shadow-xs">
+             <ShieldCheckIcon className="w-4 h-4 text-[#10b981]" />
+             <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-300">
+-              DIGITALIZADOR OFICIAL E-14
++              DIGITALIZADOR DE DOCUMENTOS
+             </span>
+           </div>
+           <span className="font-mono text-[11px] text-slate-400 text-center">
+-            VALIDACIÓN AUTOMÁTICA DE REGISTRO ELECTORAL
++            VALIDACIÓN AUTOMÁTICA
+           </span>
+         </div>
+       </div>

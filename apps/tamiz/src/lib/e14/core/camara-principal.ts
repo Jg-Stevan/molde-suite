@@ -174,7 +174,7 @@ async function probeCamera(
  *  lente), luego menos palabras, luego más resolución. El pool de respaldo
  *  JAMÁS son "todas": traseras → no-frontales → todas (solo si el dispositivo
  *  no tiene nada más). */
-function chooseMainProbe(probes: CameraProbeResult[]): CameraProbeResult | null {
+export function chooseMainProbe(probes: CameraProbeResult[]): CameraProbeResult | null {
   if (probes.length === 0) return null;
   const backs = probes.filter(esSondaTrasera);
   const noFrontales = probes.filter((p) => !esSondaFrontal(p));

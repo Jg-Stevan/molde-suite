@@ -1,0 +1,156 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:47.185876000 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:47.186876200 -0500
+@@ -1,126 +1,32 @@
+-/**
+- * R-27 (H-17, auditoría 2026-11-16) — GUION DE MESAS: el estado `mesas` y su
+- * lógica de derivación, extraídos de la ex tienda-dios. El guion es la lista
+- * de mesas × páginas que guía el escaneo (proximaPagina) y el avance de la
+- * jornada; nace del seed SIM, del archivo de huecos REAL (mesasRealesDe) o
+- * de la marca inline del envío — todos los caminos viven aquí.
+- */
+-import { cargarDivipol, mesasDePuesto } from "@jg-stevan/scanner-core/dominio/divipol";
+-import type { Mesa, TipoPagina } from "@jg-stevan/scanner-core/dominio/types";
+-import type { PaginaObjetivo } from "@jg-stevan/scanner-core/dominio/bridge";
+-import { mesasRealesDe } from "../jornada";
+-import { logger } from "../../logger";
+-import type { ActaArchivada, E14Get, E14Set, E14Store, PuestoActual } from "./tipos";
++// Guion de la jornada: derivación de mesas desde lo archivado.
+ 
+-/** Siguiente página a escanear: EN_PROCESO > PENDIENTE > RESCANEO (por mesa). */
+-export function proximaPagina(mesas: Mesa[]): PaginaObjetivo | null {
+-  const prioridad: Record<string, number> = { EN_PROCESO: 0, PENDIENTE: 1, RESCANEO: 2, OK: 9 };
+-  let mejor: { mesaId: string; tipo: TipoPagina; pagina: 1 | 2; prio: number } | null = null;
+-  for (const mesa of mesas) {
+-    for (const p of mesa.paginas) {
+-      const prio = prioridad[p.estado] ?? 9;
+-      if (prio < 9 && (!mejor || prio < mejor.prio)) {
+-        mejor = { mesaId: mesa.id, tipo: p.tipo, pagina: p.pagina, prio };
+-      }
+-    }
+-  }
+-  return mejor ? { mesaId: mejor.mesaId, tipo: mejor.tipo, pagina: mejor.pagina } : null;
++import type { Mesa } from '@molde-suite/scanner-core/dominio/types';
++import type { PaginaObjetivo } from '@molde-suite/scanner-core/dominio/bridge';
++import type { E14Get, E14Set } from './tipos';
++import { mesasRealesDe } from '../jornada';
++
++/** Marca la página objetivo como OK en la mesa correspondiente. */
++export function marcarPaginaOK(mesas: Mesa[], pagina: PaginaObjetivo): Mesa[] {
++  const numero = Number(pagina.mesaId.replace(/\D/g, '')) || 1;
++  return mesas.map((m) => {
++    if (m.id !== `DOC ${String(numero).padStart(2, '0')}`) return m;
++    const paginas = m.paginas.map((p) =>
++      p.tipo === pagina.tipo && p.pagina === pagina.pagina ? { ...p, estado: 'OK' as const } : p,
++    );
++    const ocupadas = paginas.filter((p) => p.estado === 'OK').length;
++    return {
++      ...m,
++      paginas,
++      estado: ocupadas === paginas.length ? ('COMPLETADA' as const) : ('EN_PROCESO' as const),
++      progresoPct: Math.round((ocupadas / paginas.length) * 100),
++    };
++  });
+ }
+ 
+-/** Recalcula progresoPct y estado de una mesa tras un cambio de página. */
+-export function recalcularMesa(mesa: Mesa): Mesa {
+-  const noPendientes = mesa.paginas.filter((p) => p.estado !== "PENDIENTE").length;
+-  const enProceso = mesa.paginas.some((p) => p.estado === "EN_PROCESO");
+-  const pendientes = mesa.paginas.some((p) => p.estado === "PENDIENTE");
+-  const progresoPct = Math.round((noPendientes / mesa.paginas.length) * 100);
+-  const estado = pendientes || enProceso ? "EN_PROCESO" : "COMPLETADA";
+-  return { ...mesa, progresoPct, estado: estado as Mesa["estado"] };
+-}
+-
+-/** KIT actas-vivas-paginas-v1 (FASE A): lógica EXTRAÍDA de registrarEnvio
+- *  (marcaba la paginaObjetivo como OK y recalculaba su mesa, inline) —
+- *  cero duplicación, cero cambio de comportamiento. La usa el envío REAL
+- *  (registrarEnvio) Y el tick del SIM (avanzarSimulacion). */
+-export function marcarPaginaOK(mesas: Mesa[], objetivo: PaginaObjetivo): Mesa[] {
+-  return mesas.map((m) =>
+-    m.id === objetivo.mesaId
+-      ? recalcularMesa({
+-          ...m,
+-          paginas: m.paginas.map((p) =>
+-            p.tipo === objetivo.tipo && p.pagina === objetivo.pagina
+-              ? { ...p, estado: "OK" }
+-              : p,
+-          ),
+-        })
+-      : m,
+-  );
+-}
+-
+-// ─── C-11 — derivación del guion REAL de mesas (causa raíz de H-18/N-02) ───
+-// Antes la derivación de `mesas` desde el archivo de huecos vivía re-
+-// implementada en 3 sitios (arranque, rehidratación pasiva, apagado del SIM)
+-// y el envío/corrección del panel NO la refrescaban: `mesas` quedaba
+-// congelada y RESUMEN/proximaPagina mostraban un avance viejo.
+-
+-/** Derivación PURA del guion real: `mesasRealesDe` (jornada.ts, fix M10)
+- *  sobre el archivo de huecos + el total DIVIPOL del puesto. ÚNICO camino
+- *  para construir `mesas` fuera del SIM. */
+-export function derivarMesas(
+-  archivadas: Record<string, ActaArchivada>,
+-  puesto: PuestoActual,
+-  total: number,
+-): Mesa[] {
+-  return mesasRealesDe(archivadas, puesto, total);
+-}
+-
+-/** C-11 — resuelve el total DIVIPOL del puesto y devuelve el guion derivado.
+- *  null = sin base/total (degradación honesta: el caller conserva `mesas`;
+- *  cargarDivipol jamás rechaza — base vacía → mesasDePuesto null). */
+-export async function derivarMesasConDivipol(
+-  archivadas: Record<string, ActaArchivada>,
+-  puesto: PuestoActual,
+-): Promise<Mesa[] | null> {
+-  try {
+-    const base = await cargarDivipol();
+-    const [dep, mun, zon, std] = puesto.clave.split("-");
+-    const total = mesasDePuesto(base, dep, mun, zon, std);
+-    if (!total) return null;
+-    return derivarMesas(archivadas, puesto, total);
+-  } catch {
+-    // sin base DIVIPOL legible: null — el caller conserva el guion que ya tiene
+-    logger.debug("[e14] guion sin refrescar (DIVIPOL ilegible)", { puesto: puesto.clave });
+-    return null;
+-  }
+-}
+-
+-/** C-11 — refresco del guion tras archivar un hueco (envío o corrección del
+- *  panel). Fire-and-forget con guards: jamás pisa el guion del SIM ni llega
+- *  vacío (sin base → `mesas` queda como estaba); si el puesto cambió durante
+- *  la carga, no aplica (el puesto nuevo refresca por su propia vía). */
++/** Re-deriva `mesas` desde archivadas + puestoActual (tras cargar jornada). */
+ export function refrescarMesasDeArchivo(set: E14Set, get: E14Get): void {
+-  try {
+-    const { archivadas, puestoActual } = get();
+-    if (!puestoActual) return;
+-    void derivarMesasConDivipol(archivadas, puestoActual)
+-      .then((derivadas) => {
+-        const s = get();
+-        if (!derivadas || s.modoSimulacion) return;
+-        if (s.puestoActual?.clave !== puestoActual.clave) return;
+-        set({ mesas: derivadas });
+-      })
+-      .catch(() => {
+-        /* regla de oro: el refresco jamás rompe la app */
+-      });
+-  } catch {
+-    /* silencioso */
+-  }
+-}
+-
+-/** Slice del guion: SOLO el estado inicial de `mesas` (los writers viven en
+- *  envío/simulación/persistencia — todos escriben por `set`).
+- *  KIT e14-sin-relleno-v1: arranque REAL vacío — sin mesas demo (MESA
+- *  01/02/03 del mock §6.4), sin progreso falso 12/9. El demo SOLO existe con
+- *  el toggle «SIM» de ACTAS encendido (overlay de vista, D6 intocable). */
+-export function crearGuion(): Pick<E14Store, "mesas"> {
+-  return { mesas: [] };
++  const { archivadas, puestoActual, paginaObjetivo } = get();
++  const total = paginaObjetivo?.pagina === 2 ? 2 : null;
++  const mesas = puestoActual ? mesasRealesDe(archivadas, puestoActual, total) : [];
++  set({ mesas });
+ }

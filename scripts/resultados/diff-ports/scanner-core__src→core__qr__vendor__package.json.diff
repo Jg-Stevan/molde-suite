@@ -1,0 +1,9 @@
+--- C:\Users\JG\AppData\Local\Temp\e14-suite-ref\packages\scanner-core\src\qr\vendor\package.json	2026-11-25 10:29:29.978934900 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\packages\scanner-core\qr\vendor\package.json	2026-11-24 16:35:36.607558000 -0500
+@@ -1,3 +1,3 @@
+-{
+-  "type": "commonjs"
+-}
++{
++  "type": "commonjs"
++}

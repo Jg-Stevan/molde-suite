@@ -6,6 +6,13 @@ Instrumentos: telemetría por frame (`window.__e14Telemetria`) + sonda pasiva de
 `devicemotion` inyectada por CDP (no toca el código de la app).
 Registro crudo: `medir.mjs` (60 s, 148 lecturas de gate, 2360 eventos de sensor).
 
+> **Vigencia (2026-11-25):** §1–§9 son registro histórico del 24-nov. El estado
+> vigente del dispositivo, de los pendientes y la evidencia es §10–§13. Hay dos
+> secciones numeradas §9 (la segunda es continuación de la primera). Afirmaciones
+> operativas viejas quedan superadas: `adb` ya está instalado (los pendientes
+> §9.1/§9.2/§9.7/§9.8 se cerraron en §11/§12) y el push a `main` ya se hizo
+> (`origin/main` = 9c3c7f0).
+
 ---
 
 ## 1. Veredicto en una línea
@@ -237,6 +244,14 @@ disparar nunca.
   se lee la revelada y el pipeline no muere) y `fotoLectura` alimenta a
   **CALIDAD y OCR**. Con SIMULACIÓN la revelada ya es `"original"`, así que el
   segundo warp no corre.
+  > **Superado (2026-11-25):** este port no quedó en el código vigente. El
+  > revelado actual vuelve al filtro del FORK byte-fiel (p5/p95 + umbral fijo
+  > 165/90) en `packages/scanner-core/workers/fallback-canvas.ts:70-106` y
+  > `packages/scanner-core/core/image-processor.ts:483-532`; `modoEnhance` y
+  > `filterToSharedMode` ya no existen y `detector-client.enhance` (el
+  > Bradley-Roth OpenCV de digielect14) no tiene llamadores. Lo vigente: el OCR
+  > lee la variante `original` (`pipeline.ts:164-169`) y la CALIDAD mide la
+  > procesada (§10, `pipeline.ts:209`).
 - `apps/tamiz/src/lib/e14/bridge/pipeline-recorte.ts` → la misma regla para el
   flujo de importado/recorte manual.
 - **NO** se tocó la entrada de `evaluarEstructuraActa` (LAYOUT): esa etapa es
@@ -502,3 +517,84 @@ studio; la de studio añade `paginasRef` a propósito).
 
 **Pendiente real de dispositivo (sin cambios):** prueba táctil A56 + ≥20
 capturas reales antes de mover cualquier umbral.
+
+## §12. Verificación en dispositivo real (Galaxy A56, 2026-11-25)
+
+Canal: `adb reverse tcp:3100` (localhost seguro → cámara/PWA) + CDP sobre
+`adb forward tcp:9223 localabstract:chrome_devtools_remote`. Chrome Android
+no puede leer `/sdcard` desde `DOM.setFileInputFiles`, así que los fixtures se
+sirven en `/dev-fixtures/` y se inyectan como `File` in-page (fetch +
+DataTransfer + `change` burbujeante: mismo camino que el picker). Herramientas
+consolidadas en `scripts/entrega/a56-comun.mjs` (conexión CDP, toque táctil
+real con `Input.dispatchTouchEvent`, capturas `adb screencap`, limpieza PWA,
+importación in-page); las usan `verificar-a56.mjs` (banco), 
+`verificar-a56-editor.mjs` (editor) y `diag-a56-hit.mjs` (hit-test/CSSOM).
+
+**Banco completo 7/7 sin fallos** (`scripts/resultados/a56-importacion-2026-11-25T13-56-21-839Z.json`,
+9–12 s por fixture; distribución idéntica al banco de escritorio):
+
+| fixture | score | veredicto | verificación |
+|---|---|---|---|
+| recibo_pago/pag-01 (limpia) | 10.0/10 | ÓPTIMA | 100% OK |
+| recibo-tachado | 8.7/10 | REVISIÓN HUMANA | 18% ALERTA |
+| recibo-datos-nuevos | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| recibo-sin-firmas | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| recorte-60pct-usuario | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| recorte-66pct-sin-firma | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| rotada-12 | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+
+**Prueba táctil del editor 6/6** (`a56-editor-2026-11-25T14-07-00-462Z.json`;
+todos los toques por `Input.dispatchTouchEvent`, capturas `a56-editor-*.png`):
+abrir QuadEditor → ROTAR 90° local → CANCELAR → reabrir → APLICAR RECORTE
+(el pipeline re-corrió: 8.5/10 REVISIÓN HUMANA, 12/12 campos OK, 100% ALERTA)
+→ ROTAR 90° de toolbar (gira la procesada, sin OCR). Consulta del 2026-11-25
+resuelta: la toolbar "Rotar 90°" NO re-ejecuta el pipeline (F-ROT-RAPID).
+
+**Hallazgo UI corregido — CTA verdes transparentes:** `globals.css` define a
+mano las utilidades `brand-*` pero faltaba `.bg-brand-green` (13 usos reales:
+DETECCIÓN AUTOMÁTICA / APLICAR RECORTE del QuadEditor, botones de
+PanelMoldes/PanelModelos/ReviewView/primitives). Los CTA sólidos verdes se
+pintaban transparentes (dejaban ver la vista de resultados detrás; en el A56
+se veía como un problema de apilamiento). Fix: se añadió la utilidad con el
+mismo patrón de sus vecinas (`background-color: var(--color-brand-green)`).
+`next dev` servía el chunk CSS compilado sin recomputar → reinicio del dev
+server tras el cambio. El banco del editor ahora verifica explícitamente que
+overlay/footer/APLICAR computen fondos opacos (regresión → FALLA).
+
+**Pendiente real (sin cambios):** captura en vivo con la cámara del A56 por el
+operador y ≥20 capturas reales antes de mover cualquier umbral. Primer resultado
+vivo registrado en §13.
+
+## §13. Prueba en vivo con recibo impreso (2026-11-25)
+
+Vigía `scripts/entrega/vigilar-a56.mjs` (polling del DOM cada 3 s; captura adb al
+detectar veredicto nuevo). Primera captura real del operador (recibo de pago
+impreso, a pulso): pantalla en `scripts/resultados/a56-vivo-01.png` e imagen
+procesada extraída del visor en `a56-vivo-01-procesada.png` (PNG 3.4 MB).
+
+| campo | valor |
+|---|---|
+| score | 0.0/10 |
+| veredicto | RECHAZADA (INTENTO 1 DE 3) |
+| molde | NO IDENTIFICADO · 0% |
+| motivo | INCOMPLETA — «EL DOCUMENTO ESTÁ CORTADO EN EL ENCUADRE…» |
+| campos | 0 lecturas (el router no enrutó) |
+
+Lectura honesta: el flujo vivo corre completo (disparo → warp → OCR → molde →
+gate → UI; sin deadlock y sin falso OK). El rechazo se explica por dos causas
+de captura que el software hoy no absorbe:
+
+1. **Geometría:** `esquinas.completa=false` → F-5 (`pipeline.ts:353`) devuelve
+   RECHAZADA INCOMPLETA con score 0. La procesada muestra el recibo entero, así
+   que la detección marcó «cortado» con el papel completo en cuadro (el papel
+   llenaba el encuadre hasta el filo).
+2. **Filtro/legibilidad:** el `bw` aplicado es el del fork (p5/p95 + umbral fijo
+   165/90, `workers/fallback-canvas.ts:70-106`), no el Bradley-Roth adaptativo
+   de digielect14 (hoy sin llamadores). Con fondo sombreado el binarizado deja
+   manchas y el OCR no extrae anclas → molde 0%.
+
+El disparo automático en vivo usa el bucle rAF legacy (`flags.frameLoop=false`,
+§9.3/§11-D); el port k-de-n sigue detrás de bandera, sin validar en dispositivo.
+
+Reintento sugerido al operador: papel con margen respecto a los bordes del
+marco, superficie plana y luz pareja, pulso quieto hasta el disparo.

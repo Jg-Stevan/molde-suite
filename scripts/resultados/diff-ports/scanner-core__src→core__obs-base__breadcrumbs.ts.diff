@@ -1,0 +1,12 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:42.071941800 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:42.072941000 -0500
+@@ -75,3 +75,9 @@
+     /* silencioso — el rastreo jamás rompe la app */
+   }
+ }
++
++/** Compatibilidad Tamiz (obs/*): envoltorio con la firma corta del fork
++ *  anterior — breadcrumb(tipo, datos?) = registrarBreadcrumb({...}). */
++export function breadcrumb(tipo: string, datos?: Record<string, unknown>): void {
++  registrarBreadcrumb({ tipo, ...(datos ?? {}) } as Parameters<typeof registrarBreadcrumb>[0]);
++}

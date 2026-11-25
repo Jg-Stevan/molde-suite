@@ -1,0 +1,53 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:50.084105900 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:50.084105900 -0500
+@@ -14,15 +14,15 @@
+ import { useE14Store, type Vista } from "@/lib/e14/store";
+ import {
+   StitchCameraIcon,
+-  StitchDocIcon,
+-  StitchGrid2Icon,
++  StitchClockIcon,
++  StitchGridSolidIcon,
+ } from "./icons";
+ import { abrirAyuda } from "./AyudaOverlay";
+ 
+ const ITEMS: { vista: Vista; label: string; hint: string; Icon: typeof StitchCameraIcon }[] = [
+   { vista: "escanear", label: "ESCANEAR", hint: "Cámara · sim · subir", Icon: StitchCameraIcon },
+-  { vista: "actas", label: "ACTAS", hint: "Control de mesas", Icon: StitchDocIcon },
+-  { vista: "resumen", label: "RESUMEN", hint: "Jornada y análisis", Icon: StitchGrid2Icon },
++  { vista: "actas", label: "Historial", hint: "Documentos de la sesión", Icon: StitchClockIcon },
++  { vista: "resumen", label: "Plantillas", hint: "Jornada y análisis", Icon: StitchGridSolidIcon },
+ ];
+ 
+ /** Marca: documento con brackets de encuadre + línea de escaneo. */
+@@ -69,10 +69,10 @@
+         <div className="min-w-0">
+           <p className="font-mono text-[13px] font-extrabold tracking-tight text-white leading-tight">
+             DIGITALIZADOR
+-            <span className="text-emerald-400"> E-14</span>
++            <span className="text-emerald-400"> DE DOCUMENTOS</span>
+           </p>
+           <p className="text-[10px] text-slate-400 font-mono uppercase tracking-[0.18em] mt-0.5">
+-            Precisión electoral
++            Precisión documental
+           </p>
+         </div>
+       </div>
+@@ -154,7 +154,7 @@
+           </div>
+           <div className="flex items-center justify-between gap-3 border-t border-slate-800/80 pt-2">
+             <span className="font-mono text-[10px] uppercase tracking-wider text-slate-400">
+-              Actas de sesión
++              Documentos de sesión
+             </span>
+             <span className="font-mono text-sm font-extrabold text-white tabular-nums">
+               {String(actasSesion).padStart(2, "0")}
+@@ -174,7 +174,7 @@
+         </button>
+ 
+         <p className="text-center text-[9px] text-slate-400 font-mono uppercase tracking-[0.2em]">
+-          E-14 · Precisión electoral
++          Precisión documental
+         </p>
+       </div>
+     </aside>

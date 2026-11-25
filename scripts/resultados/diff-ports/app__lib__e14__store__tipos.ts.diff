@@ -1,0 +1,58 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:47.370881900 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:47.371884800 -0500
+@@ -12,10 +12,10 @@
+  * ENVIADO, franja del visor, feedback en botón).
+  */
+ import type { StoreApi } from "zustand";
+-import type { PaginaObjetivo } from "@jg-stevan/scanner-core/dominio/bridge";
+-import type { Acta, FuenteCaptura, HistorialRow, Mesa, ProgresoAnalisis, TipoPagina } from "@jg-stevan/scanner-core/dominio/types";
+-import type { PageFilter, Quad } from "@jg-stevan/scanner-core/core/types";
+-import type { ClasificacionE14 } from "@jg-stevan/scanner-core/dominio/clasificador";
++import type { PaginaObjetivo } from "@molde-suite/scanner-core/dominio/bridge";
++import type { Acta, FuenteCaptura, HistorialRow, Mesa, ProgresoAnalisis, TipoPagina } from "@molde-suite/scanner-core/dominio/types";
++import type { PageFilter, Quad } from "@molde-suite/scanner-core/core/types";
++import type { ClasificacionE14 } from "@molde-suite/scanner-core/dominio/clasificador";
+ import type { AvisoOperador, MotivoOperador } from "../errores";
+ import type { ImagenSimuladaId } from "../simulacion-imagenes";
+ 
+@@ -34,6 +34,12 @@
+ 
+ export interface E14Store {
+   vista: Vista;
++  /** MOCK 2026-11-16 (escaneo libre y limpio): última vista APP visitada
++   *  antes de la actual — destino del botón VOLVER del visor (el escáner
++   *  es una pantalla inmersiva sin nav inferior; «Volver» regresa a
++   *  HISTORIAL o PLANTILLAS, jamás a analizando/revision). `null` = sin
++   *  historial todavía (arranque fresco) → el botón cae a «actas». */
++  vistaPrevia: Vista | null;
+   /** Destello blanco de captura (~320 ms). Vive en el SHELL, no en ScanView:
+    *  así sobrevive al cambio de vista y ANALIZANDO puede entrar en el mismo
+    *  instante de la vibración (antes eran 260 ms de preview congelado). */
+@@ -69,6 +75,9 @@
+   /** F2 §F2.2: true mientras el bridge re-procesa la foto con un filtro. */
+   revelando: boolean;
+   actasSesion: number;
++  /** Bloque 2.6 — libro de SESIÓN para la exportación PDF (JPEG 1280 por
++   *  documento, tope FIFO 30 — memoria acotada; NUNCA dataURLs de 12 MP). */
++  pdfLibro: PdfLibroEntry[];
+   mesas: Mesa[];
+   /** Fase B (§6): archivado «dónde va» — clasificaciones guardadas por
+    *  clave de mesa real; la vista ACTAS las añade al seed (modo demo). */
+@@ -275,6 +284,17 @@
+   estado: "OK" | "RESCANEO";
+ }
+ /** Entrada Fase B (§6): clasificación guardada + huecos ocupados de la mesa. */
++/** Bloque 2.6 — entrada del libro de PDF de la sesión. */
++export interface PdfLibroEntry {
++  id: string;
++  titulo: string;
++  estado: string;
++  score: number | null;
++  hora: string | null;
++  foto: string | null;
++  qr?: string | null;
++}
++
+ export interface ActaArchivada {
+   clasificacion: ClasificacionE14;
+   huecos: HuecoArchivado[];
