@@ -482,10 +482,17 @@ export async function processImage(
         break;
       }
     }
+    // Rango tonal degenerado (p5≈p95): pasa en renders limpios, PDFs
+    // rasterizados y fotos de fondo uniforme, donde >95 % de los píxeles son
+    // 255. Estirar contra un span artificial de 8 mapeaba el BLANCO a 0 y
+    // dejaba la página entera negra (OCR vacío, «papel cortado», score 0).
+    // Sin rango útil se conserva el gris original: el umbral sigue separando
+    // tinta de papel sin invertir la imagen.
+    const degenerado = p95 - p5 < 8;
     const span = Math.max(8, p95 - p5);
     for (let i = 0; i < px.length; i += 4) {
       const g = (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]);
-      let v = ((g - p5) * 255) / span;
+      let v = degenerado ? g : ((g - p5) * 255) / span;
       v = Math.min(255, Math.max(0, v));
       if (filtro === 'bw') {
         // Otsu simple por umbral fijo sobre la imagen estirada.

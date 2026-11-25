@@ -10,10 +10,11 @@
 //   3. Si NO hay activo, el ROUTER (molde/enrutamiento.ts) corre UNA pasada
 //      de OCR compartida, prefiltra la biblioteca por anclas y evalúa
 //      COMPLETO solo al mejor candidato (motor universal, modo ligero).
-//   4. Cuando el documento NO fue reconocido como E-14 y el candidato
-//      responde (score ≥ umbral), el resultado se marca `enrutado: true`:
-//      el veredicto del acta (score/estado/banner) deriva del MOLDE. Con
-//      E-14 reconocido el resultado queda ADITIVO (doctrina del gate intacta).
+//   4. Cuando el molde ganador NO es el del acta E-14 (o el operador lo eligió
+//      y el documento no es electoral) y el candidato responde (score ≥
+//      umbral), el resultado se marca `enrutado: true`: el veredicto del acta
+//      (score/estado/banner) deriva del MOLDE. Solo un acta E-14 reconocida
+//      evaluada contra su propio molde deja el resultado ADITIVO.
 //
 // FASE B2/B4 del blueprint DLA intactas: segunda opinión ONNX para casillas
 // dudosas y bandera de presencia manuscrita (señales, nunca veredictos).
@@ -31,9 +32,9 @@ import { proveedorOcrTamiz, ocrLines } from './ocr-proveedor';
 import { moldeActivo } from './registry';
 import {
   candidatosDeSesion,
+  debeEnrutar,
   elegirCandidato,
   sembrarMoldeDemo,
-  UMBRAL_RUTA_SCORE,
   type ContextoE14Acta,
 } from './enrutamiento';
 import '../dla/config';
@@ -219,11 +220,10 @@ export async function evaluarMoldeEnActa(
   const banderaManuscrito = await banderaManuscritoSiDisponible(canvas);
   if (banderaManuscrito) resumen.banderas.push(banderaManuscrito);
 
-  // ETAPA B — ¿el molde se convierte en el VEREDICTO del acta? Solo cuando
-  // el documento NO fue reconocido como E-14 y el motor universal responde
-  // con confianza (score ≥ umbral y al menos un campo leído). En caso
-  // contrario el resultado queda ADITIVO (enrutado: false).
-  if (!contexto?.esE14 && resultado.score >= UMBRAL_RUTA_SCORE && resultado.ok_count > 0) {
+  // ETAPA B — ¿el molde se convierte en el VEREDICTO del acta? Lo decide
+  // `debeEnrutar` (qué molde ganó + confianza del motor), no el flag `esE14`
+  // del clasificador electoral, que se enciende con cualquier «MESA» del OCR.
+  if (debeEnrutar(molde, contexto, resultado.score, resultado.ok_count)) {
     resumen.enrutado = true;
     logger.info('[molde] acta ENRUTADA al molde', {
       nombre: molde.nombre,

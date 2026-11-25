@@ -83,10 +83,14 @@ function aplicarFiltroForkAPixeles(px: Uint8ClampedArray, filtro: string): void 
     acc += hist[v];
     if (acc >= n * 0.95) { p95 = v; break; }
   }
+  // Gemelo de image-processor.ts: rango degenerado (renders limpios, PDFs,
+  // fondo uniforme con >95 % de 255) → sin estirar; si no, el blanco caía a 0
+  // y la página salía negra.
+  const degenerado = p95 - p5 < 8;
   const span = Math.max(8, p95 - p5);
   for (let i = 0; i < px.length; i += 4) {
     const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-    let v = ((g - p5) * 255) / span;
+    let v = degenerado ? g : ((g - p5) * 255) / span;
     v = Math.min(255, Math.max(0, v));
     if (filtro === "bw") {
       // Otsu simple por umbral fijo sobre la imagen estirada (fork L254-256).

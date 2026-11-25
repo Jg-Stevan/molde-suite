@@ -11,11 +11,12 @@
 //      candidato.
 //   3. La evaluación COMPLETA corre una sola vez (motor universal compartido
 //      `evaluarDocumentoUniversal`, modo ligero).
-//   4. Si el documento NO fue reconocido como E-14 y el candidato responde
-//      (score ≥ UMBRAL_RUTA_SCORE), el resultado del MOLDE se convierte en
-//      el veredicto del acta (`enrutado: true`): score/estado/banner salen
-//      del molde. Si el documento ES un E-14, el resultado queda ADITIVO
-//      (doctrina intacta — el gate electoral manda).
+//   4. Si el molde ganador NO es el del acta E-14 (o el documento no fue
+//      reconocido como electoral) y el candidato responde (score ≥
+//      UMBRAL_RUTA_SCORE), el resultado del MOLDE se convierte en el veredicto
+//      del acta (`enrutado: true`): score/estado/banner salen del molde. Solo
+//      un acta E-14 reconocida contra su propio molde deja el resultado
+//      ADITIVO (doctrina intacta — el gate electoral manda).
 //
 // Molde demo: si la biblioteca está vacía se siembra UNA vez «RECIBO DE LUZ»
 // calibrado contra el fixture SIM «recibo» (simulacion-imagenes.ts) para que
@@ -39,6 +40,29 @@ export const UMBRAL_HIT_ANCLA = 0.6;
  *  reconoció el documento? (tipo TRANSMISION/DELEGADOS). */
 export interface ContextoE14Acta {
   esE14: boolean;
+}
+
+/** ¿Este molde describe el acta electoral E-14? Se decide por lo que el molde
+ *  DECLARA (`documento`), no por lo que el OCR del documento parezca decir:
+ *  solo ahí el gate electoral le cede el veredicto al molde. */
+export function moldeElectoral(molde: MoldeUniversal): boolean {
+  return molde.documento === 'acta_e14';
+}
+
+/** ¿El veredicto del MOLDE sustituye al del gate? El criterio es qué molde
+ *  ganó, no si el clasificador electoral leyó algo: `esE14` se enciende con
+ *  cualquier cabecera/MESA/tipo del OCR, así que un recibo que mencione
+ *  «MESA» o «DELEGADOS» quedaba aditivo y nunca se enrutaba. El gate solo
+ *  conserva la autoridad sobre un acta E-14 reconocida evaluada contra su
+ *  propio molde; el resto de la biblioteca manda sobre cualquier documento. */
+export function debeEnrutar(
+  molde: MoldeUniversal,
+  contexto: ContextoE14Acta | undefined,
+  score: number,
+  okCount: number,
+): boolean {
+  if (moldeElectoral(molde) && contexto?.esE14) return false;
+  return score >= UMBRAL_RUTA_SCORE && okCount > 0;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -257,23 +257,51 @@ export async function correrPipelineL2(
     clasificacion,
   };
 
-  // Recorte cortado con tinta al filo → INCOMPLETA directa (F-5).
-  if (campos.recortada) {
+  // ETAPA B — el ROUTER de moldes corre ANTES de los rechazos del gate: un
+  // documento genérico no puede morir por una razón electoral (recorte
+  // sospechado, página sin tinta) sin que la biblioteca haya tenido la
+  // oportunidad de identificarlo. El OCR ya corrió y el router lo reutiliza.
+  // Fallo del paso → null honesto (el escaneo sigue sin él).
+  let evaluacionMolde: CamposActa['evaluacionMolde'] = null;
+  try {
+    evaluacionMolde = await pasos.evaluarMolde(fotoProcesada, {
+      esE14: (clasificacionBase?.tipo ?? null) !== null,
+    });
+  } catch (e) {
+    logger.warn('[pipeline] paso de molde falló (el escaneo sigue sin él)', {
+      mensaje: (e as Error).message,
+    });
+    evaluacionMolde = null;
+  }
+  // Acta ENRUTADA al molde: score/estado/rechazo derivan del RESULTADO DEL
+  // MOLDE (semáforo universal con la misma escala del gate). La clasificación
+  // E-14 queda null y el banner toma el nombre del documento en construirActa.
+  // Sin enrutamiento: veredicto del gate intacto y resultado del molde ADITIVO.
+  const veredictoMolde = evaluacionMolde?.enrutado
+    ? veredictoDeResumen(evaluacionMolde)
+    : null;
+
+  // Recorte cortado con tinta al filo → INCOMPLETA directa (F-5). Si el molde
+  // ya identificó el documento y dio veredicto, manda él: la geometría sola no
+  // condena (doctrina «prohibido rechazar por coordenadas»).
+  if (campos.recortada && !veredictoMolde) {
     return pasos.construirActa(opciones as OpcionesEscaneo, parcial, {
       ...campos,
       score: 0,
       status: 'RECHAZADA',
       rechazo: { tipo: 'INCOMPLETA', detalle: pasos.DETALLE_INCOMPLETA },
       clasificacion: null,
+      evaluacionMolde,
     });
   }
-  if (procesadaVacia) {
+  if (procesadaVacia && !veredictoMolde) {
     return pasos.construirActa(opciones as OpcionesEscaneo, parcial, {
       ...campos,
       score: 0,
       status: 'RECHAZADA',
       rechazo: { tipo: 'SIN_VOTOS', detalle: pasos.DETALLE_SIN_VOTOS },
       clasificacion: null,
+      evaluacionMolde,
     });
   }
 
@@ -290,34 +318,6 @@ export async function correrPipelineL2(
     opciones.intento ?? 1,
     opciones.maxIntentos ?? 3,
   );
-
-  // FASE 0 (blueprint DLA): evaluación del MOLDE tras el gate (paso
-  // inyectado — Tamiz ejecuta el motor universal compartido). ETAPA B: el
-  // paso recibe el CONTEXTO E-14 (¿el clasificador electoral leyó el tipo?)
-  // y puede marcar el resultado `enrutado` cuando la biblioteca identifica
-  // un documento no electoral. Fallo del paso → null honesto (el escaneo
-  // sigue).
-  let evaluacionMolde: CamposActa['evaluacionMolde'] = null;
-  try {
-    evaluacionMolde = await pasos.evaluarMolde(fotoProcesada, {
-      esE14: (clasificacionBase?.tipo ?? null) !== null,
-    });
-  } catch (e) {
-    logger.warn('[pipeline] paso de molde falló (el escaneo sigue sin él)', {
-      mensaje: (e as Error).message,
-    });
-    evaluacionMolde = null;
-  }
-
-  // ETAPA B (B.2 + B.3) — acta ENRUTADA al molde: el score/estado/rechazo
-  // del acta derivan del RESULTADO DEL MOLDE (semáforo verde/ámbar/rojo
-  // universal con la misma escala del gate). La clasificación E-14 queda
-  // null (no hay cabecera electoral que archivar) y el banner toma el
-  // nombre del documento en construirActa. Sin enrutamiento: veredicto del
-  // gate intacto y resultado del molde ADITIVO (doctrina de siempre).
-  const veredictoMolde = evaluacionMolde?.enrutado
-    ? veredictoDeResumen(evaluacionMolde)
-    : null;
 
   void origenDeteccion;
   return pasos.construirActa(opciones as OpcionesEscaneo, parcial, {
