@@ -107,7 +107,8 @@ PROCESADA en pantalla; el visor gana la prop aditiva `overlay` montada DENTRO
 del wrapper de zoom, con la caja del `<img>` medida por `ResizeObserver`
 (escala/panea con la foto y se oculta al comparar el original).
 
-**Lecciones:** recibo_pago/2026-11-25-overlay-campos-escritorio.md
+**Lecciones:** recibo_pago/2026-11-25-overlay-campos-escritorio.md,
+recibo_pago/2026-11-25-firma-resaltada-rotulo.md
 
 ## P8 — Ancla repetida (dos «Firma») rechazada por penalización posicional
 
