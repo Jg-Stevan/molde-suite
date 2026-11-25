@@ -2,11 +2,15 @@
   "name": "molde-suite",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "agent:map": "bun run scripts/agent-map.ts"
   },
   "devDependencies": {
-    "typescript": "^5"
+    "typescript": "^5",
+    "@molde-suite/scanner-core": "workspace:*"
   }
 }

@@ -1,7 +1,7 @@
 # PLAN DE DESARROLLO — molde-suite (de la conversación de mejora)
 
 **Origen:** análisis de la conversación DeepSeek (sesión 2026-11-21) sobre la auditoría técnica de `Jg-Stevan/molde-suite`.
-**Estado de este documento:** FASES 1-2 IMPLEMENTADAS y verificadas E2E (ver RESUMEN-IMPLEMENTACION.md). RONDA POST-VERIFICACIÓN aplicada (D1, F4-1, O1-O3 — ver CORRECCIONES-POST-VERIFICACION.md). FASE 8 IMPLEMENTADA (clustering para el umbral — ver su sección). FASES 3-7 y 9 son propuestas pendientes de autorización.
+**Estado de este documento:** FASES 1-2 IMPLEMENTADAS y verificadas E2E (ver RESUMEN-IMPLEMENTACION.md). RONDA POST-VERIFICACIÓN aplicada (D1, F4-1, O1-O3 — ver CORRECCIONES-POST-VERIFICACION.md). FASE 8 IMPLEMENTADA (clustering para el umbral — ver su sección). **FASES 3, 4, 5, 6 y 9 IMPLEMENTADAS en v3.3.0 (2026-11-25, esta entrega — motor + editor + validadores + 37 pruebas unitarias; ver CAMBIOS.md). FASE 7 resuelta por DECISIÓN (ADR-0002: sin ORB/SIFT sin corpus/dependencia; deskew+homografía+anclas difusas quedan como camino oficial).**
 **Regla de subida:** ningún cambio se sube al repo sin autorización explícita del dueño.
 
 ---
@@ -37,11 +37,11 @@ lessons/
   acta_e14/        # 2 lecciones reales de la auditoría (Cairo FP J4, Frankfurt colisión)
 ```
 
-## Fase 3 — Opción 1.1 de la conversación: múltiples anclas con voto (PENDIENTE)
+## Fase 3 — Opción 1.1 de la conversación: múltiples anclas con voto (IMPLEMENTADO ✅ v3.3.0)
 
 `Ancla[]` con prioridad por campo; el motor resuelve por consenso (2 anclas coinciden → acepta; discrepan → `requiere_revision`). Requiere: extensión de tipo `ancla` → `anclas[]` (backward-compatible), editor multi-ancla, motor con votación.
 
-## Fase 4 — Grupos de campos con restricciones espaciales (PENDIENTE — la más potente)
+## Fase 4 — Grupos de campos con restricciones espaciales (IMPLEMENTADO ✅ v3.3.0)
 
 Modelo §7 de la conversación:
 ```ts
@@ -50,17 +50,17 @@ Grupo { id, tipo: 'fila'|'columna'|'repetidor'|'seccion', miembros: string[],
 ```
 Hace imposible por construcción que J1 y J3 resuelvan el mismo rect (columna vertical uniforme). Requiere: `Molde.grupos` opcional, resolución en dos pasadas (bandas primero — TWIX), editor de grupos. ~1 semana según la conversación.
 
-## Fase 5 — UX-1: auto-propuesta de anclas al dibujar (PENDIENTE)
+## Fase 5 — UX-1: auto-propuesta de anclas al dibujar (IMPLEMENTADO ✅ v3.3.0)
 
 El editor propone las 3 mejores candidatas de ancla con score; si dos difieren en un dígito, lo marca en rojo y pide desambiguador. El molde no puede nacer ambiguo. Los `desambiguadores` (ya soportados por el motor en esta entrega) se configuran aquí. 3-4 días.
 
-## Fase 6 — "Cartero en cascada": identificación de documentos (PENDIENTE)
+## Fase 6 — "Cartero en cascada": identificación de documentos (IMPLEMENTADO ✅ v3.3.0 — capas frases+esqueleto en el motor, QR capa 0 ya existente en Tamiz; enrutado de cascada completo queda a la integración de cada app)
 
 §8 de la conversación. Huella por plantilla (3-5 señales: frases clave siempre presentes, nº páginas, imagen de encabezado) + cascada de identificación barata antes del análisis completo:
 1. ¿Código QR/barras? (0.1 s) → 2. ¿frases clave del encabezado? (1 s, OCR de franja) → 3. ¿imagen del encabezado? (0.5 s) → 4. ¿esqueleto (nº páginas, forma)? → 5. duda → preguntar al usuario con miniaturas.
 Costo típico 1-2 s vs 10-40 s de análisis completo. Editor: proponer la huella automáticamente.
 
-## Fase 7 — Alineación previa ORB/SIFT (PENDIENTE)
+## Fase 7 — Alineación previa ORB/SIFT (CERRADO POR DECISIÓN — ADR-0002)
 
 Opción 3.2 de la conversación: alinear la foto entrante contra la referencia antes de resolver zonas (fotos de cámara en ángulo). ORB en celular; SIFT en masivo. Complemento cuando el OCR falla por borrosidad: template matching del encabezado (3.1).
 
@@ -116,7 +116,7 @@ Correcciones sobre el informe de verificación del zip de mejoras (detalles y ev
 | O3 `next-env.d.ts` fuera del árbol | Inofensivo | ✅ |
 | E2E contra los 3 PDFs de la auditoría | Pendiente externa | ⏳ sin PDFs disponibles |
 
-## Fase 9 — Extras del modelo (§7 completo) (PENDIENTE)
+## Fase 9 — Extras del modelo (§7 completo) (IMPLEMENTADO ✅ v3.3.0 — herencia, schemaVersion, repetidor y fixtures; UX-3 multi-referencia queda como propuesta en ADR-0002)
 
 `schemaVersion` + herencia por tipo (`herencia: { [tipo]: { umbral, patron } }`), `grupos.tipo='repetidor'` para tablas/facturas, fixtures embebidos ("Probar Plantilla" con verdad de terreno), UX-3 alineación multi-referencia.
 

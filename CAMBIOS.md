@@ -1,3 +1,60 @@
+# Cambios — v3.3.0: Fases 3/4/5/6/9 del PLAN-DESARROLLO + backlog Tamiz A/B/D
+
+- Fecha: 2026-11-25
+- Base: estado del zip `molde-suite-entrega-be670e0` (rama `feat/extraccion-relacional`,
+  motor v3.2.0, moldes v1.3.3, arnés corregido) ejecutado en sandbox (monorepo completo
+  en la raíz del proyecto; Studio en `:3000`, Tamiz como workspace).
+- Verificación de esta entrega: typecheck 0 · lint 0 · bun tests: 178 motor/Studio +
+  36 scanner-core + 93 tamiz · Studio E2E en Chromium (carga, tabs, editor, importación).
+
+## Motor (`packages/scanner-core/molde/`) — v3.3.0, TODO ADITIVO
+
+| Fase | Qué se implementó | Prueba |
+|---|---|---|
+| **F3** — múltiples anclas con voto | `CampoUniversal.anclas?: AnclaUniversal[]` (≥2, ≤6, retrocompatible). Cada ancla resuelve con SU contexto (`desambiguadores` propios) y SU geometría (`zona` propia — anclas de BANDAS distintas llegan al mismo rect). Consenso: ≥2 votos que coinciden (centros ≤ `VOTO_CONSENSO_DIST` 0.02 o IoU ≥ 0.5) → rect medio + bandera `ancla_consensuada`. TODOS discrepantes → referencia + `anclas_discrepantes` (el endurecedor lo baja a revisión — jamás se escoge un lado). Un solo voto = semántica de ancla única exacta | `tests/fases-v330.test.ts` (7 casos F3) |
+| **F4** — grupos espaciales | `MoldeUniversal.grupos?: GrupoMolde[]` (fila/columna/repetidor/seccion + restricciones). Defaults por tipo (`repetidor` = columna + espaciado uniforme, §7 F9). `evaluarGrupos` corre tras resolver cada página: alineación/orden/espaciado violados → banderas `grupo_desalineado`/`grupo_orden_violado`/`grupo_espaciado_irregular` + democión de 'ok'. Evidencia insuficiente (<2 resueltos) → no opina | 7 casos F4 |
+| **F5** — UX-1 auto-propuesta | `proponerAnclas(lineas, W, H, zona)` — top-3 por 0.5·cercanía + 0.3·unicidad + 0.2·confianza; `conflictoDigito` marca las que difieren solo en dígitos (el molde no debe nacer ambiguo). Editor: botón «Proponer anclas (FASE 5)» con chips clicables (nada se guarda sin clic) | 4 casos F5 |
+| **F6** — cartero en cascada | `HuellaMolde` (3-5 frases clave + franja + páginas) + `identificarDocumento`: QR decisivo (capa 0) → frases con el matcher de anclas dentro de la franja → esqueleto penaliza (×0.8). Studio: aviso NO bloqueante cuando la huella identifica OTRO molde antes de correr (con ≥2 moldes con huella) | 6 casos F6 |
+| **F9** — extras §7 | `herencia` por tipo (umbral/patrón: campo → herencia; `umbral` pasa a OPCIONAL y sin herencia el validador lo rechaza — jamás default silencioso en tinta), `schemaVersion` (futuro → rechazo con motivo), `grupos.tipo='repetidor'`, fixtures de verdad de terreno (`esperado`/`estadosEsperados` + `verificarFixture` con parseo español "3.150,00"). Verificación muestra el panel «Verdad de terreno» por corrida | 12 casos F9 |
+
+Moldes: `recibo_pago` y `comprobante_entrega` → **v1.4.0** con `huella` (3 copias
+sincronizadas: `moldes-finales/`, `templates/genericos/` — el seed del Studio estaba
+DESYNCRONIZADO en v1.3.2 y se corrigió — y `apps/tamiz/public/moldes/`).
+
+## Tamiz (PLAN-AGENTE-EXTERNO backlog)
+
+| Tarea | Qué se hizo | Evidencia |
+|---|---|---|
+| **A** (P1) — QR capa 0 | `prechequeo-qr.ts` NUEVO (puro, testeable en bun): detección de patrones localizadores 1:1:3:1:1 con OTSU, tolerancia ±35% por run, confirmación vertical, DOS pases de escala (320/1280). `capa0-qr.client.ts`: sin candidato → **null inmediato** (adiós a los ~9.5 s muertos por documento sin QR); candidato/error → camino de hoy COMPLETO; kill-switch OFF → sin pre-chequeo | `packages/scanner-core/qr/prechequeo-qr.test.ts` (8 casos) · 36 tests paquete |
+| **B** (P2) — rotada-12 | Guardas anti-degenerados del quad compartidas main/worker (`quad-guardas.ts`): NaN/±Inf se sanan a identidad ANTES de decidir (antes: canvas 0×0 → drawImage no-op → toDataURL '' → foto vacía en el acta); el pipeline nunca asigna `fotoProcesada:''` | `apps/tamiz/tests/procesada-no-vacia.test.ts` · 93 tests tamiz |
+| **C** (P1) — firmas | YA en el zip de base: moldes con `tipo:"firma"` + motor con `firma_ausente` por trazos (`metricasFirma`) y endurecedor de tinta sin geometría — verificado, sin cambios nuevos | tests existentes en verde |
+| **D** (P2) — frame loop | Flag `tamiz.flags.v1 → frameLoop` (default OFF): loop portado cableado a `useSesionCamara` con watchdog y caída al rAF propio; k-de-n del estabilizador con tests puros | `apps/tamiz/tests/estabilizador.test.ts` (23 casos) · TODO(A56) anotado |
+| **E** — RapidOCR | DECISIÓN ESCRITA: se mantiene como fallback SIN pesos (`docs/DECISION-rapidocr-fallback.md`) — sin URLs ni hashes inventados | — |
+
+## Arnés (§9.3 del diagnóstico 2026-11-24)
+
+- `forma_sin_caja` entra en `BANDERAS_NO_LECTURA` de `scripts/verificar-molde.ts`: el
+  SCORE GENUINO del arnés descuenta la firma "sí" medida sin caja (caso rotada-12)
+  SIN cambiar veredictos del motor (la mitad bypass ya la cubría `ancla_sin_geometria`
+  del endurecedor v3.2.0).
+
+## Decisiones
+
+- **FASE 7 (ORB/SIFT): NO implementar** sin dependencia aprobada + corpus ≥20 fotos
+  (`docs/adr/0002-fase7-alineacion-visual.md`). El deskew ±25° + homografía real +
+  anclas difusas con bypass quedan como camino oficial. UX-3 multi-referencia: misma
+  decisión (propuesta, sin corpus no se toca).
+- **schemaVersion del contrato: 1** (`SCHEMA_VERSION_MOLDE`) — un molde "del futuro" se
+  rechaza con motivo claro.
+
+## Reglas respetadas
+
+Sin dependencias nuevas · sin backend en la nube · sin pesos de modelos en el repo ·
+`packages/*` jamás importa de `apps/*` · el motor es agnóstico al documento · push solo
+con autorización del dueño.
+
+---
+
 # Cambios — sincronización de la biblioteca de moldes publicada en GitHub Pages (v1.3.1)
 
 - Fecha: 2026-11-24

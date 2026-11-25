@@ -1,8 +1,8 @@
 {
   "tipo": "universal",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "nombre": "Recibo de pago",
-  "descripcion": "Recalibrado (1.3.0) contra la plantilla HTML vigente (VAR 1-6 de variantes-prueba): título y cabecera centrados, bloques D./Recibí de/La suma de/En concepto de/Forma de pago/Fecha de pago en el tercio medio y ambas firmas al ~62% de la página. Datos impresos: los obligatorios de texto ya no usan htr. 1.3.2 (plan extracción relacional): validación de rango fecha_pago >= fecha_emision (gate honesto de fechas).",
+  "descripcion": "Recalibrado (1.3.0) contra la plantilla HTML vigente (VAR 1-6 de variantes-prueba): título y cabecera centrados, bloques D./Recibí de/La suma de/En concepto de/Forma de pago/Fecha de pago en el tercio medio y ambas firmas al ~62% de la página. Datos impresos: los obligatorios de texto ya no usan htr. 1.3.2 (plan extracción relacional): validación de rango fecha_pago >= fecha_emision (gate honesto de fechas). 1.3.3: numero_recibo deja de colisionar con el título y datos_emisor deja de ser zona fija (último campo no relativo del molde). 1.4.0: huella de cascada (FASE 6) para la identificación barata del documento.",
   "documento": "generico/recibo_pago",
   "idioma": "es",
   "campos": [
@@ -67,7 +67,7 @@
       "tipo": "texto",
       "estrategia": "ancla_relativa",
       "zona": {
-        "x": 0.103,
+        "x": 0.134,
         "y": -0.002,
         "w": 0.2,
         "h": 0.024
@@ -75,7 +75,7 @@
       "umbral": 0.02,
       "obligatorio": true,
       "ancla": {
-        "texto": "Recibo",
+        "texto": "N.9 Recibo",
         "rect": {
           "x": 0.416,
           "y": 0.119,
@@ -83,27 +83,38 @@
           "h": 0.012
         }
       },
+      "ancla_respaldo": "N.º Recibo",
       "patron": "REC-\\d{4}-\\d{4}",
       "realce": true,
-      "nota": "1.3.0: ancla \"N.º Recibo\" (antes \"Recibo\", que matcheaba el título RECIBO DE PAGO). 1.3.1 (auditoría con variantes): el OCR lee la etiqueta como «N.9 Recibo:» (º→9 y espacio extra) y con la penalización de dígitos (F1 1.3) el match \"N.º Recibo\" queda 0.718-0.719, DOS MILÉSIMAS bajo el corte 0.72 → ancla_no_encontrada en TODAS las páginas (el campo vivía solo del rect de referencia, sin robustez ante desplazamientos en fotos). El ancla vuelve a \"Recibo\": con la penalización de posición (Fase 2.6) gana la etiqueta real (score 0.955-0.958, centro 0.124 ≈ esperado 0.125) contra el título «RECIBO DE PAGO» (0.836, centro 0.060) en 8/8 páginas. El bbox del hit es SOLO la palabra «Recibo» (x 0.447, estable ±0 en 8 páginas) → zona recalibrada (x 0.134→0.103) para mantener el crop absoluto en 0.550, idéntico al de la ruta de referencia. Zona solo sobre el valor REC-AAAA-NNNN."
+      "nota": "1.3.0: ancla \"N.º Recibo\" (antes \"Recibo\", que matcheaba el título RECIBO DE PAGO). 1.3.1 (auditoría con variantes): el OCR lee la etiqueta como «N.9 Recibo:» (º→9 y espacio extra) y con la penalización de dígitos (F1 1.3) el match \"N.º Recibo\" queda 0.718-0.719, DOS MILÉSIMAS bajo el corte 0.72 → ancla_no_encontrada en TODAS las páginas. El ancla volvió a \"Recibo\" (1.3.2) pero en recortes volvía a chocar con el título (ambos matches perfectos → sin bypass). 1.3.3: el ancla declara la lectura REAL del OCR «N.9 Recibo» (match perfecto SOLO de la etiqueta, nunca del título) con respaldo \"N.º Recibo\" para cuando el OCR sí lee el ordinal; zona recalibrada (x 0.103→0.134) para mantener el crop absoluto en 0.550 desde el inicio de la etiqueta."
     },
     {
       "id": "datos_emisor",
       "etiqueta": "Datos del receptor/emisor (nombre, DNI, cargo, empresa, CIF)",
       "pagina": 1,
       "tipo": "texto",
-      "estrategia": "zona_fija",
+      "estrategia": "ancla_relativa",
       "zona": {
         "x": 0.07,
-        "y": 0.16,
+        "y": 0.0,
         "w": 0.86,
         "h": 0.024
       },
+      "x_absoluto": true,
       "umbral": 0.02,
       "obligatorio": true,
+      "ancla": {
+        "texto": "con DNI",
+        "rect": {
+          "x": 0.288,
+          "y": 0.158,
+          "w": 0.09,
+          "h": 0.014
+        }
+      },
       "patron": ".*DNI\\s*\\d{1,3}(\\.\\d{3}){1,3}.*",
       "realce": true,
-      "nota": "PRIMERA línea del bloque \"D. …, con DNI …\" (donde está el DNI; empresa/CIF van en la 2.ª). Zona FIJA de UNA línea: psm 7 lee una sola línea y garblea con dos. Exige dígitos: bloque vacío (VAR 3) queda sin lectura válida."
+      "nota": "PRIMERA línea del bloque \"D. …, con DNI …\" (donde está el DNI; empresa/CIF van en la 2.ª). 1.3.3: era la única zona_fija del molde y fallaba con solo cambiar la proporción (recorte); ahora es ancla_relativa sobre SU PROPIA línea («con DNI», misma línea que el valor), con x_absoluto (la banda conserva x 0.07..0.93 y solo la y sigue al hit). No se cuelga de «Recibí de»: un dy entre líneas se distorsiona al recortar (la altura normalizada cambia). «con DNI» aparece dos veces (emisor y pagador) → dos matches perfectos, sin bypass; la posición esperada desempata del pagador (y 0.245), y una frase de dos palabras sobrevive a la rotación donde un «D.» de una letra se pierde. Centro x 0.333 (rect 0.288..0.378) medido con perfil de tinta: la x de «con DNI» depende del ancho del nombre previo (ref 0.3465, variante de nombres 0.3194, 0.3097), y el centro en el punto medio mantiene el dy máximo de un recorte inferior ×1.52 dentro del corte de score (dx 0.014 en vez de 0.041). Exige dígitos: bloque vacío (VAR 3) queda sin lectura válida."
     },
     {
       "id": "datos_pagador",
@@ -346,5 +357,21 @@
       "pagina": 3,
       "imagen": "/moldes-genericos/recibo_pago/pag-03.png"
     }
-  ]
+  ],
+  "huella": {
+    "frasesClave": [
+      "RECIBO DE PAGO",
+      "La suma de",
+      "En concepto de",
+      "Forma de pago"
+    ],
+    "paginas": 1,
+    "franja": {
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 0.5
+    },
+    "minFrases": 2
+  }
 }

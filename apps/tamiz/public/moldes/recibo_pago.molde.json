@@ -1,8 +1,8 @@
 {
   "tipo": "universal",
-  "version": "1.3.3",
+  "version": "1.4.0",
   "nombre": "Recibo de pago",
-  "descripcion": "Recalibrado (1.3.0) contra la plantilla HTML vigente (VAR 1-6 de variantes-prueba): título y cabecera centrados, bloques D./Recibí de/La suma de/En concepto de/Forma de pago/Fecha de pago en el tercio medio y ambas firmas al ~62% de la página. Datos impresos: los obligatorios de texto ya no usan htr. 1.3.2 (plan extracción relacional): validación de rango fecha_pago >= fecha_emision (gate honesto de fechas). 1.3.3: numero_recibo deja de colisionar con el título y datos_emisor deja de ser zona fija (último campo no relativo del molde).",
+  "descripcion": "Recalibrado (1.3.0) contra la plantilla HTML vigente (VAR 1-6 de variantes-prueba): título y cabecera centrados, bloques D./Recibí de/La suma de/En concepto de/Forma de pago/Fecha de pago en el tercio medio y ambas firmas al ~62% de la página. Datos impresos: los obligatorios de texto ya no usan htr. 1.3.2 (plan extracción relacional): validación de rango fecha_pago >= fecha_emision (gate honesto de fechas). 1.3.3: numero_recibo deja de colisionar con el título y datos_emisor deja de ser zona fija (último campo no relativo del molde). 1.4.0: huella de cascada (FASE 6) para la identificación barata del documento.",
   "documento": "generico/recibo_pago",
   "idioma": "es",
   "campos": [
@@ -343,5 +343,21 @@
       "firma": "Firma",
       "checkbox": "Casilla"
     }
+  },
+  "huella": {
+    "frasesClave": [
+      "RECIBO DE PAGO",
+      "La suma de",
+      "En concepto de",
+      "Forma de pago"
+    ],
+    "paginas": 1,
+    "franja": {
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 0.5
+    },
+    "minFrases": 2
   }
 }

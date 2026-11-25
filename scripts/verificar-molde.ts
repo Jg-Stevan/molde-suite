@@ -82,8 +82,24 @@ interface ReporteUniversal {
   obligatorios_faltantes?: string[];
 }
 
-/** Banderas que anulan la lectura: el campo NO es un acierto genuino. */
-export const BANDERAS_NO_LECTURA = ['ancla_no_encontrada', 'ocr_vacio', 'zona_vacia', 'fallback_no_verificado'];
+/**
+ * Banderas que anulan la lectura: el campo NO es un acierto genuino.
+ * §9.3 del diagnóstico (2026-11-24, ANALISIS-RECORTADO): `forma_sin_caja`
+ * entra aquí — una firma "sí" medida SIN caja impresa detectada (fuente
+ * 'ancla' geométrica, sin bypass) es señal blanda: la tinta puede ser texto
+ * impreso vecino, no una rúbrica. El endurecedor del motor (v3.2.0) ya anula
+ * el caso bypass (`ancla_solo_textual` → `ancla_sin_geometria`); esta línea
+ * hace que el SCORE GENUINO del arnés también descuente el caso geométrico
+ * blando SIN cambiar veredictos del motor (evita regresiones en los fixtures
+ * limpios, donde la banda `umbral_al_borde` ya degrada lo dudoso).
+ */
+export const BANDERAS_NO_LECTURA = [
+  'ancla_no_encontrada',
+  'ocr_vacio',
+  'zona_vacia',
+  'fallback_no_verificado',
+  'forma_sin_caja',
+];
 
 export function normalizarCampos(r: ReporteUniversal): CampoReporte[] {
   return r.campos ?? (r.paginas ?? []).flatMap((p) => p.campos);
