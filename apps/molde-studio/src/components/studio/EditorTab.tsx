@@ -92,6 +92,7 @@ import {
   rectEditor,
   resolverRectRelacional,
   sugerirUmbralClustering,
+  umbralEfectivo,
 } from '@/lib/molde/universal-engine';
 import type { LineaOcr } from '@/lib/molde/types';
 import { detectarTablaCompleta, type TablaDetectada } from '@/lib/molde/tabla-detect';
@@ -3010,7 +3011,9 @@ export default function EditorTab() {
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
                             <Label htmlFor="insp-umbral" className="text-[11px] text-slate-400">
-                              Umbral tinta: <span className="font-mono text-indigo-400">{campoSel.umbral.toFixed(3)}</span>
+                              {/* v3.3.0 (F9): el campo puede heredar el umbral del tipo —
+                                  el inspector muestra el EFECTIVO del motor. */}
+                              Umbral tinta: <span className="font-mono text-indigo-400">{umbralEfectivo(campoSel, molde?.herencia).toFixed(3)}</span>
                             </Label>
                             <button
                               type="button"
@@ -3023,7 +3026,7 @@ export default function EditorTab() {
                           </div>
                           <Slider
                             id="insp-umbral"
-                            value={[campoSel.umbral]}
+                            value={[umbralEfectivo(campoSel, molde?.herencia)]}
                             min={0.001}
                             max={0.4}
                             step={0.001}
