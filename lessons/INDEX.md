@@ -108,3 +108,24 @@ del wrapper de zoom, con la caja del `<img>` medida por `ResizeObserver`
 (escala/panea con la foto y se oculta al comparar el original).
 
 **Lecciones:** recibo_pago/2026-11-25-overlay-campos-escritorio.md
+
+## P8 — Ancla repetida (dos «Firma») rechazada por penalización posicional
+
+**Patrón:** etiquetas idénticas para campos distintos (firma emisor/pagador).
+En un canvas recortado verticalmente las dos etiquetas se desplazan (dy ≈
+0.27); el score posicional cae < 0.72 y el bypass `solo_textual` no aplica
+porque hay ≥2 matches perfectos → fallback a la banda de referencia, que en
+el recorte queda a media página.
+
+**Síntomas:** `firma_emisor`/`firma_pagador` con `fuente: 'referencia'` y rect
+y ≈ 0.548 (la banda del molde) mientras las palabras «Firma» impresas están
+al pie; el overlay pinta las etiquetas de firma a media página.
+
+**Mitigación (motor v1.4.1, 2026-11-25):** desambiguación por COLUMNA — con
+≥2 perfectos y score posicional bajo el corte, `ancla_solo_textual` se
+concede si exactamente un perfecto cae en la columna esperada (`|dx| ≤ 0.1`)
+y `|dy| ≤ 0.3`; unicidad juzgada por `dx` sobre todos los perfectos. El bypass
+en campos de tinta sigue demolido a `requiere_revision`
+(`ancla_sin_geometria`) — jamás un `ok` falso.
+
+**Lecciones:** recibo_pago/2026-11-25-firma-ancla-columna.md

@@ -103,7 +103,13 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
   desplazamiento al rect esperado es `|dx|+|dy| ≤ 0.3`
   (`ANCLA_TEXUAL_DESPLAZAMIENTO_MAX`). Sin cota, una etiqueta que aparezca una
   sola vez en otra zona ancla el campo allí (medido: dos firmas `ok` con valor
-  "true" y `forma_sin_caja`).
+  "true" y `forma_sin_caja`). **Ambigüedad resuelta por columna** (v1.4.1,
+  recorte-66 medido): con ≥2 perfectos (`«Firma»` izquierda/derecha) y score
+  posicional bajo el corte, se concede el bypass solo si el score posicional
+  ya falló y EXACTAMENTE UN perfecto cae en la columna esperada
+  (`|dx| ≤ 0.1`, `ANCLA_COLUMNA_DX_MAX`) con `|dy| ≤ 0.3`. La unicidad se
+  juzga por `dx` sobre todos los perfectos: dos copias en la MISMA columna
+  siguen ambiguas y nunca ganan el bypass.
 - **Campos de tinta**: `ancla_sin_geometria` — un campo `tipo !== 'texto'`
   (firma, presencia, checkbox) anclado SOLO por texto no puede quedar `ok`: su
   evidencia es la geometría (caja/rúbrica), que el bypass no verifica.
@@ -118,7 +124,8 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
     de escala distinta de la referencia (geometría normalizada desplazada, dy
     ≥ 0.16 → penalización < 0.72): antes el match perfecto se RECHAZABA por
     posición y el campo caía al fallback. Con ambigüedad (≥ 2 ventanas
-    perfectas) la posición sigue mandando.
+    perfectas) la posición sigue mandando, salvo la desambiguación por COLUMNA
+    descrita arriba (un único perfecto en la columna esperada, dy ≤ 0.3).
   - `ancla_rescate_anti_tachon` / `valor_rescate_anti_tachon` — ancla/valor
     recuperados desde el MAPA OCR DE RESCATE (2ª pasada OCR perezosa sobre el
     canvas con limpieza anti-tachón — la apertura 1D elimina los trazos largos

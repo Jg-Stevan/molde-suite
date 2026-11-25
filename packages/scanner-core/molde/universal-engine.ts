@@ -198,6 +198,10 @@ export function buscarAncla(
     scoreTextual: number;
     score: number;
     desplazamiento: number;
+    /** Distancia horizontal al centro esperado (0 sin rectEsperado). */
+    dx: number;
+    /** Distancia vertical al centro esperado (0 sin rectEsperado). */
+    dy: number;
   }
   const candidatos: Candidato[] = [];
   for (const l of lineas) {
@@ -225,11 +229,15 @@ export function buscarAncla(
         if (scoreTextual < 0) continue;
         let score = scoreTextual;
         let desplazamiento = 0;
+        let dxCand = 0;
+        let dyCand = 0;
         if (rectEsperado) {
           const cx = (palabras[i].bbox[0] + palabras[j].bbox[2]) / 2 / canvasW;
           const cy = (palabras[i].bbox[1] + palabras[j].bbox[3]) / 2 / canvasH;
           const dx = Math.abs(cx - (rectEsperado.x + rectEsperado.w / 2));
           const dy = Math.abs(cy - (rectEsperado.y + rectEsperado.h / 2));
+          dxCand = dx;
+          dyCand = dy;
           // Matiz 1 (Fase 2.6): penalización de posición SUAVIZADA. Antes
           // `score *= max(0.1, 1 - (dx+dy)*4)` hacía caer un match textual
           // PERFECTO (1.000) a 0.692 con un desplazamiento de solo 0.077
@@ -248,7 +256,7 @@ export function buscarAncla(
           },
           score,
         };
-        candidatos.push({ hit, scoreTextual, score, desplazamiento });
+        candidatos.push({ hit, scoreTextual, score, desplazamiento, dx: dxCand, dy: dyCand });
       }
     }
   }
@@ -268,6 +276,25 @@ export function buscarAncla(
     const perfectos = candidatos.filter((c) => c.scoreTextual >= 0.999);
     if (perfectos.length === 1 && perfectos[0].desplazamiento <= ANCLA_TEXUAL_DESPLAZAMIENTO_MAX) {
       return { ...perfectos[0].hit, score: perfectos[0].scoreTextual, solo_textual: true };
+    }
+    // Ambigüedad textual resuelta por COLUMNA (2026-11-25e, recorte-66 medido):
+    // dos «Firma» perfectas —una por columna de firma— y el recorte vertical
+    // (dy ≈ 0.27) hunde el score posicional por debajo del corte aunque cada
+    // campo espere SU columna. Si la posición sola no alcanza el corte y
+    // EXACTAMENTE UN perfecto cae en la columna esperada (dx ≤ 0.1), ese es el
+    // hit: la x desambigua lo que el texto no puede. La unicidad se juzga por
+    // dx sobre TODOS los perfectos — dos copias en la MISMA columna (p. ej.
+    // «Firma» arriba y al pie) siguen siendo ambiguas y jamás ganan el bypass.
+    // Queda `solo_textual` (un campo de tinta nunca pasa a 'ok' por aquí —
+    // ver endurecerFallbackNoVerificado).
+    if (perfectos.length >= 2) {
+      const mejorPos = candidatos.reduce((a, b) => (b.score > a.score ? b : a));
+      if (mejorPos.score < ANCLA_SCORE_MIN) {
+        const enColumna = perfectos.filter((c) => c.dx <= ANCLA_COLUMNA_DX_MAX);
+        if (enColumna.length === 1 && enColumna[0].dy <= ANCLA_TEXUAL_DESPLAZAMIENTO_MAX) {
+          return { ...enColumna[0].hit, score: enColumna[0].scoreTextual, solo_textual: true };
+        }
+      }
     }
   }
   let mejor = candidatos[0];
@@ -349,6 +376,16 @@ export const ANCLA_SCORE_MIN = 0.72;
  * de la página (dx+dy ≈ 1).
  */
 export const ANCLA_TEXUAL_DESPLAZAMIENTO_MAX = 0.3;
+
+/**
+ * Ventana horizontal (normalizada) para desambiguar POR COLUMNA cuando el
+ * ancla es textualmente perfecta pero repetida (p. ej. las dos etiquetas
+ * «Firma» del recibo). Con ≥2 perfectos, un candidato cuenta como «en su
+ * columna» si |dx| ≤ 0.1 respecto del centro esperado; solo se concede el
+ * bypass si es el ÚNICO en columna (el par de firmas queda a ≥ 0.3 de
+ * separación). Medido: recorte-66pct dx 0.02/0.07, etiquetas a 0.38.
+ */
+export const ANCLA_COLUMNA_DX_MAX = 0.1;
 
 /** Radio normalizado (0-1) en el que debe aparecer cada texto de un
  * `desambiguador` respecto al centro del ancla encontrada (opción 1.2).
