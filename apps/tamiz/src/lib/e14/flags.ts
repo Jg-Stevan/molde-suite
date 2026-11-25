@@ -24,8 +24,14 @@ export interface Flags {
   qrBrujulaOrientacion: boolean;
   /** Pases del rescate hi-res guiado por el quad (upstream: 2). */
   qrBrujulaWarpPases: number;
-  /** Lado de la miniatura del sondeo de orientación (upstream: 1280). */
   probeMiniLado: number;
+  /** P2-D (plan agente externo, tarea D) — usar el bucle de frames del CORE
+   *  (CameraFrameLoop: rVFC + detección OpenCV en worker + disparo k-de-n +
+   *  compuerta de quietud MotionStabilizer) en lugar del rAF propio de 250 ms
+   *  de useSesionCamara. OFF por defecto: cambia el disparo de la auto-captura
+   *  y exige validación táctil en el A56 (REPORTE-DIAG §9.3) antes de
+   *  encenderlo en campo — kill-switch del mantenedor. */
+  frameLoop: boolean;
 }
 
 const CLAVE = 'tamiz.flags.v1';
@@ -49,6 +55,9 @@ const DEFAULTS: Flags = {
   qrBrujulaOrientacion: true,
   qrBrujulaWarpPases: 2,
   probeMiniLado: 1280,
+  // P2-D: el lazo k-de-n del core queda APAGADO hasta la validación táctil
+  // del A56 (TODO(A56) en useSesionCamara) — el rAF propio manda.
+  frameLoop: false,
 };
 
 let cache: Flags | null = null;
