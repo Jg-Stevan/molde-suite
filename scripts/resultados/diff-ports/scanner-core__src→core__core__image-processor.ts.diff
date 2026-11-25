@@ -1,0 +1,2257 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:40.815059500 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:40.816064400 -0500
+@@ -1,101 +1,23 @@
+-/**
+- * Procesamiento de imágenes del escáner.
+- *
+- * INTEGRACIÓN REAL ✅ (logica-deteccion.zip): detección, rectificado y realce
+- * delegados al DetectionWorker del usuario (OpenCV.js 4.5.5 self-hosted):
+- *  - detect: contornos → quads → selección por score (área + prior + blancura)
+- *  - warp  : refinado sub-píxel por líneas (RANSAC) + shrink 3.5px/lado +
+- *            homografía INTER_CUBIC — la FOTO es la fuente de verdad
+- *  - enhance: modos reales (text/bw/gray/raw/color) con modelo de sombras
+- *            común y constantes exactas del producto
+- *
+- * Cada función degrada con gracia: si el worker no está disponible (SSR,
+- * OpenCV que no carga, navegador sin OffscreenCanvas) cae al pipeline Canvas
+- * local anterior — la app NUNCA se rompe.
+- */
++// Primitivas de procesado de imagen (D8 opción B — implementación mínima en
++// canvas puro, sin OpenCV): decodifica la foto, detecta las esquinas del
++// documento (contraste de bordes grueso) y aplica la homografía (warp) del
++// quad con transformación bilineal aproximada por triangulación.
++
++import type { PageFilter, Quad } from './types';
++// R-46 — prefijo público de assets por INYECCIÓN lazy (dominio/entorno del fork).
++import { publicBaseEfectivo } from '../dominio/entorno';
++// Plan §B (rotada-12): guardas anti-degenerados del quad compartidas con el
++// gemelo worker (core/quad-guardas.ts — misma matemática, mismo commit) y
++// logger del paquete para la telemetría de salida vacía.
++import { anchoSalidaDeQuad, sanearQuad } from './quad-guardas';
++import { enhanceToRgba, unsharpRgba } from './image-modes';
++import { logger } from '../dominio/logger';
+ 
+-import type { PageFilter, PagePrecision, PageQuality, Point, Quad } from "./types";
+-import { normalizePageFilter } from "./types";
+-import { enhanceToRgba, unsharpRgba, type EnhanceMode as SharedEnhanceMode } from "./image-modes";
+-import { publicBaseEfectivo } from "../dominio/entorno";
+-// LOTE 3 (F3-A) — blob-first decode del tier fast: dataUrlToBlob es sync y
+-// page-store NO importa image-processor (sin ciclo, verificado).
+-// DRY-4 (Lote 9): import único desde codec (page-store solo lo re-exporta).
+-import { dataUrlToBlob } from "./codec";
+-import {
+-  getScannerWorker,
+-  type EnhanceMode,
+-  type ScannerWorkerClient,
+-} from "./detector-client";
+-
+-export { warmUpScannerWorker, getScannerWorker } from "./detector-client";
+-
+-export interface ProcessResult {
+-  processed: string; // data URL
+-  thumbnail: string; // data URL pequeña
+-  /** Estadísticas del pipeline REAL (worker OpenCV) o fallback canvas. */
+-  precision?: PagePrecision;
+-  /** LOTE 3 (F3-A) — ms de la adquisición de la fuente del warp
+-   *  (blob-first del tier fast O decode completo del camino de hoy;
+-   *  ausente en el fallback canvas local). */
+-  decodeMs?: number;
+-}
+-
+-/** Opciones del pipeline preciso (aditivas, con defaults seguros). */
+-export interface ProcessOptions {
+-  /** Quad colocado por el humano → sin refine, sin shrink (F5-MANUAL). */
+-  manual?: boolean;
+-  /** Lado mayor máximo del resultado procesado (default PROCESSED_MAX_LONG_SIDE). */
+-  maxLongSide?: number;
+-  /** true = aplica unsharp (0.5/1.5) al filtro Original (que por fidelidad
+-   *  al sensor F5-RAW se guarda puro). No afecta a los demás filtros:
+-   *  el enhance real del worker ya aplica unsharp en todo modo ≠ raw. */
+-  unsharpOriginal?: boolean;
+-}
+-
+-/** Lado mayor tope del resultado. 4032 (bug v3 de CALIDAD: estaba en 3200 y
+- *  RECORTABA la foto completa del sensor — el iPhone captura a 4032px, así
+- *  que el pipeline tiraba ~21% de resolución que codigo-test sí conservaba
+- *  al usar maxLongSide 0 = resolución completa). 4032×3024 ≈ 12.2 MP, aún
+- *  por debajo del límite de canvas de iOS (~16.7 MP); IndexedDB guarda
+- *  Blobs → sin problema de cuota.
+- *
+- *  FIX v3 (fix-editor-quality): ahora se EXPORTA — preview del editor y
+- *  guardado usan ESTA MISMA constante → WYSIWYG estricto por construcción
+- *  (lo que ves ES la imagen guardada). Regla del producto: guardar siempre
+- *  a la resolución máxima del lente, sin ajustes por dispositivo. */
++/** Tope técnico ÚNICO del lado mayor procesado (fix v3 upstream): 4032 px —
++ *  4032×3024 ≈ 12.2 MP, lejos del límite de canvas de iOS (~16.7 MP). */
+ export const PROCESSED_MAX_LONG_SIDE = 4032;
+ 
+-/** Mapea los 3 filtros del producto (§8) a los modos reales del worker. */
+-export function filterToEnhanceMode(filter: PageFilter): EnhanceMode {
+-  switch (normalizePageFilter(filter)) {
+-    case "original":
+-      return "raw";
+-    case "bw":
+-      return "bw"; // Bradley-Roth adaptativo + despeckle
+-    default:
+-      return "text"; // "Texto claro" — el default del producto
+-  }
+-}
+-
+-/** Modo compartido (image-modes) — el fallback usa ESTE y solo ESTE. */
+-function filterToSharedMode(filter: PageFilter): SharedEnhanceMode {
+-  switch (normalizePageFilter(filter)) {
+-    case "original":
+-      return "raw";
+-    case "bw":
+-      return "bw";
+-    default:
+-      return "text";
+-  }
+-}
+-
+-/** ¿El pipeline de precisión (worker + OpenCV) está activo? */
+-export function isPrecisionActive(): boolean {
+-  return getScannerWorker()?.isReady ?? false;
+-}
+-
+-/** Carga una imagen (data URL o URL) en un HTMLImageElement. */
++/** Decode de un data URL a <img> (decode-once del paquete — upstream L99-106). */
+ export function loadImage(src: string): Promise<HTMLImageElement> {
+   return new Promise((resolve, reject) => {
+     const img = new Image();
+@@ -105,14 +27,9 @@
+   });
+ }
+ 
+-/** LOTE 3 (F3-A) — dimensiones de display de un JPEG sin decodificar:
+- *  SOF (w/h) + EXIF orientation (APP1/IFD0 tag 0x0112; 5-8 → swap).
+- *  Devuelve null si no es JPEG o el header es ilegible → fallback.
+- *  Contrato: dims de display correctas o null (nunca dims con aspecto
+- *  errado — si el EXIF se anuncia pero no se puede leer completo → null).
+- *  KIT e14-velocidad-5s-v1: exportada — el hook del IMPORTAR la usa como
+- *  ruta corta (decidir si hace falta re-escalar SIN decodificar ni codificar
+- *  base64 en el hilo principal; antes costaba 1,5-2,2 s de congelación). */
++/** Dims de un JPEG leídas del CONTENEDOR (≤256 KB, sin decodificar) con la
++ *  orientación EXIF ya resuelta (swap 5-8). null = no-JPEG o header ilegible.
++ *  Port byte-fiel de upstream image-processor.ts:116-159 (KIT velocidad-5s). */
+ export async function jpegDimensionsFromBlob(blob: Blob): Promise<{ w: number; h: number } | null> {
+   try {
+     const head = new Uint8Array(await blob.slice(0, 262144).arrayBuffer());
+@@ -124,17 +41,13 @@
+       const marker = head[i + 1];
+       if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) { i += 2; continue; }
+       const len = (head[i + 2] << 8) | head[i + 3];
+-      if (marker === 0xe1 && len >= 8) { // APP1 → EXIF orientation
++      if (marker === 0xe1 && len >= 8) {
+         const isExif = head[i + 4] === 0x45 && head[i + 5] === 0x78 && head[i + 6] === 0x69 && head[i + 7] === 0x66;
+         if (isExif) {
+-          // Header TIFF completo (tiff..tiff+7) + sanity del segmento entero:
+-          // si el APP1 anunciado no cabe en la ventana leída → ilegible.
+           if (i + 18 > head.length || i + 2 + len > head.length) return null;
+           const tiff = i + 10;
+           const be = head[tiff] === 0x4d && head[tiff + 1] === 0x4d;
+           const u16 = (o: number) => (be ? (head[o] << 8) | head[o + 1] : head[o] | (head[o + 1] << 8));
+-          // Offset IFD0 (u32) respetando endianness (nota (*) de la spec);
+-          // >>> 0 neutraliza el signo del <<24.
+           const ifd0 = be
+             ? (((head[tiff + 4] << 24) | (head[tiff + 5] << 16) | (head[tiff + 6] << 8) | head[tiff + 7]) >>> 0)
+             : (((head[tiff + 7] << 24) | (head[tiff + 6] << 16) | (head[tiff + 5] << 8) | head[tiff + 4]) >>> 0);
+@@ -157,1479 +70,194 @@
+     }
+     return null;
+   } catch {
+-    // Blob ilegible o header corrupto ⇒ null: el llamador cae a su camino de decodificación completa (contrato: dims ciertas o null, jamás a medias).
+     return null;
+   }
+ }
+ 
+-/** Tope del lado mayor para IMÁGENES IMPORTADAS (galería/cámara nativa).
+- *  Igual que PROCESSED_MAX_LONG_SIDE: 4032×3024 ≈ 12.2 MP decodifican y
+- *  dibujan bien incluso en iOS (límite de canvas ~16.7 MP). */
+-const IMPORT_MAX_LONG_SIDE = 4032;
+-
+-/** Dibuja cualquier CanvasImageSource a un canvas topeado por su lado mayor
+- *  (sin upscalar) y lo devuelve como data URL JPEG 0.92. */
+-function sourceToCappedJpegDataUrl(
+-  src: CanvasImageSource,
+-  sw: number,
+-  sh: number,
+-  maxLongSide = IMPORT_MAX_LONG_SIDE
+-): Promise<string> {
+-  const scale = Math.min(1, maxLongSide / Math.max(sw, sh));
+-  const w = Math.max(1, Math.round(sw * scale));
+-  const h = Math.max(1, Math.round(sh * scale));
+-  const canvas = document.createElement("canvas");
+-  canvas.width = w;
+-  canvas.height = h;
+-  const ctx = canvas.getContext("2d");
+-  if (!ctx) return Promise.reject(new Error("sin contexto 2d"));
+-  ctx.imageSmoothingQuality = "high";
+-  ctx.drawImage(src, 0, 0, sw, sh, 0, 0, w, h);
+-  return canvasToDataURL(canvas, "image/jpeg", 0.92);
+-}
+-
+-/**
+- * F-HEIC — decodificador HEIC/HEIF en cliente (libheif vía heic2any).
+- * Chrome/Android NO decodifica HEIC nativamente (las fotos de iPhone pasadas
+- * por WhatsApp/Drive/copys fallaban con «No se pudo procesar la imagen»).
+- * El chunk pesa ~1,4 MB así que se importa DINÁMICAMENTE: solo se descarga
+- * la primera vez que una imagen realmente necesita el rescate (un JPG normal
+- * nunca lo toca). heic2any empaqueta libheif inline — sin .wasm externo,
+- * funciona igual en GitHub Pages.
+- */
+-type Heic2Any = (opts: {
+-  blob: Blob;
+-  toType?: string;
+-  quality?: number;
+-}) => Promise<Blob | Blob[]>;
+-
+-let heic2anyFn: Heic2Any | null = null;
+-let heic2anyPromise: Promise<Heic2Any> | null = null;
+-
+-function loadHeic2Any(): Promise<Heic2Any> {
+-  if (heic2anyFn) return Promise.resolve(heic2anyFn);
+-  if (!heic2anyPromise) {
+-    heic2anyPromise = import("heic2any")
+-      .then((mod) => {
+-        heic2anyFn = mod.default as Heic2Any;
+-        return heic2anyFn;
+-      })
+-      .catch((err) => {
+-        heic2anyPromise = null; // permite reintentar (p.ej. red recuperada)
+-        throw err;
+-      });
+-  }
+-  return heic2anyPromise;
+-}
+-
+-/**
+- * F-HEIC-TOPE — dos constantes que el paquete npm no podía tener porque el
+- * ajuste es de este producto, no del motor genérico.
+- *
+- * Medido en un Galaxy A56 real contra `12 MP.heic` y `50 MP.heic` de la cámara:
+- * el decode de libheif sale a RESOLUCIÓN NATIVA (heic2any 0.0.4 no acepta
+- * `width`/`height`; se verificó en su `dist`: las únicas opciones son blob,
+- * toType, quality, gifInterval, multiple) y eso cuesta 6 913 ms en 12 MP contra
+- * 632 ms del JPEG equivalente. Un HEIC de 50 MP no termina nunca: lo mata el
+- * watchdog de 120 s del puente y el acta queda RECHAZADA sin rastro.
+- *
+- * · `HEIC_TOPE_MP_DEFECTO` — arriba de este tamaño el rescate NIQUE se despacha.
+- *   24 MP deja pasar holgado el sensor de 12 MP (4032×3024) y corta el modo
+- *   50 MP de los Xiaomi/Realme que activan HEIF.
+- * · `HEIC_LIMITE_MS_DEFECTO` — techo PROPIO de la conversión. Vale para los
+- *   archivos cuyas dimensiones no se pudieron leer (olfateo devuelve null): es
+- *   mejor cortar a los 15 s con un mensaje honesto que esperar los 120 s del
+- *   puente y no saber qué pasó.
+- *
+- * PRE-WARNING (T3): 15 s antes del límite (a los 0 s para 15 s) se emite un
+- * heartbeat `heic:prewarning` con `{ faltanMs: 15000 }` para que la UI avise
+- * al operario ANTES de que falle — el operario puede cancelar y retocar en JPEG.
+- */
++/** Defaults del rescate F-HEIC (upstream image-processor.ts:248-255). */
+ export const HEIC_TOPE_MP_DEFECTO = 24;
+ export const HEIC_LIMITE_MS_DEFECTO = 15_000;
+-export const HEIC_PREWARNING_MS = 15_000; // se emite al inicio si limiteMs <= 15s
+-
+-export type DimensionesImagen = { ancho: number; alto: number };
+-
+-/** Opciones del rescate F-HEIC (0 = sin tope / sin límite). */
+ export type OpcionesRescateHeic = { topeMpHeic?: number; limiteMsHeic?: number };
+ 
+-/** Error del PROPIO motor de captura (tope o límite): llega al operario tal
+- *  cual, no se convierte en el genérico «No se pudo convertir la imagen HEIC». */
+-export class ErrorRescateHeic extends Error {}
+-
+-const megapixeles = (d: DimensionesImagen): number => (d.ancho * d.alto) / 1_000_000;
+-
+-/**
+- * Dimensiones de un HEIC/HEIF SIN decodificar: camina ISO-BMFF hasta la lista
+- * de propiedades de ítem (`meta` → `iprp` → `ipco`) y devuelve el `ispe` de
+- * MAYOR área. El mayor es la imagen primaria: los ítems auxiliares del contenedor
+- * (thumbnail, previsualización, profundidad) siempre salen más chicos.
+- *
+- * Devuelve `null` ante cualquier duda — caja que no cierra, tamaño fuera de
+- * rango, `ispe` sin leer. Sin dimensiones CIERTAS no se rechaza un acta: en
+- * este dominio lo desconocido se marca, nunca se rellena a mano (D23/D41).
+- */
+-export function dimensionesHeic(bytes: Uint8Array): DimensionesImagen | null {
+-  let mayor: DimensionesImagen | null = null;
+-
+-  const leerU32 = (i: number): number =>
+-    (bytes[i] * 16777216) + (bytes[i + 1] << 16) + (bytes[i + 2] << 8) + bytes[i + 3];
+-
+-  /** Camina los hijos de una caja contenedora. `esFullBox` salta los 4 bytes
+-   *  de versión+flags que traen `meta` y `ipco` no, pero `meta` sí. */
+-  const caminar = (inicio: number, fin: number, profundidad: number, fullBox: boolean): void => {
+-    let i = inicio + (fullBox ? 4 : 0);
+-    while (i + 8 <= fin) {
+-      const tam = leerU32(i);
+-      const tipo = String.fromCharCode(bytes[i + 4], bytes[i + 5], bytes[i + 6], bytes[i + 7]);
+-      let hijos: number;
+-      let siguiente: number;
+-      if (tam === 1) {
+-        // Header de 16 bytes: size(4) + type(4) + largesize(8). Los hijos van
+-        // de i+16 a i+grande.
+-        if (i + 16 > fin) return;
+-        const grande = leerU32(i + 8) * 4294967296 + leerU32(i + 12);
+-        if (grande < 16 || i + grande > fin) return;
+-        hijos = i + 16;
+-        siguiente = i + grande;
+-      } else if (tam >= 8) {
+-        hijos = i + 8;
+-        siguiente = i + tam;
+-      } else if (tam === 0) {
+-        hijos = i + 8;
+-        siguiente = fin;
+-      } else {
+-        return; // caja podrida: el resto del recorrido no es fiable
+-      }
+-      if (siguiente > fin) return;
+-
+-      if (tipo === "ispe") {
+-        // version+flags(4) ancho(4) alto(4)
+-        const w = leerU32(hijos + 4);
+-        const h = leerU32(hijos + 8);
+-        if (w >= 16 && h >= 16 && w <= 20000 && h <= 20000) {
+-          if (!mayor || w * h > mayor.ancho * mayor.alto) mayor = { ancho: w, alto: h };
+-        }
+-      } else if (profundidad < 4 && (tipo === "meta" || tipo === "iprp" || tipo === "ipco")) {
+-        caminar(hijos, siguiente, profundidad + 1, tipo === "meta");
+-      }
+-      i = siguiente;
+-    }
+-  };
+-
+-  // La firma `ftyp` debe estar al arranque; si no es ISO-BMFF, no es HEIC.
+-  if (bytes.length < 12 || String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7]) !== "ftyp") {
+-    return null;
+-  }
+-  caminar(0, bytes.length, 0, false);
+-  return mayor;
+-}
+-
+-/** Lee solo la cabecera (tope 2 MB): `meta` va temprano en el contenedor. */
+-async function dimensionesDesdeBlob(source: Blob): Promise<DimensionesImagen | null> {
+-  try {
+-    const n = Math.min(source.size, 2 * 1024 * 1024);
+-    const buf = await source.slice(0, n).arrayBuffer();
+-    return dimensionesHeic(new Uint8Array(buf));
+-  } catch {
+-    // Sin dims ciertas el rescate HEIC sigue sin tope por MP — el límite de 15 s queda de red; lo desconocido se marca, no se rellena (D23/D41).
+-    return null;
+-  }
+-}
+-
+-// ─── KIT e14-heic-deteccion-temprana-v1 (Ola 6 §6.13 — F20) ───────────────────
+-// heic2any 0.0.4 está ABANDONADO (sin release desde 2023-03) y su decode es la
+-// parte peligrosa del rescate: 6 913 ms en 12 MP, watchdog de 120 s en 50 MP
+-// (medido, D82). La defensa más barata es NO DESPACHAR NUNCA a la lib: los
+-// magic bytes del contenedor ISOBMFF se leen en microsegundos.
+-//   · bytes 4-7  = 'ftyp'
+-//   · bytes 8-11 = marca (heic | heix | mif1 | msf1)
+-// Gemelo app-side: `src/lib/e14/core/heic-detect.ts` (esHeic/leerPrimerosBytes)
+-// — duplicado a propósito (el paquete no importa código de la app; mismo
+-// criterio de los helpers gemelos jornada/cola).
+-
+-/** Primeros 16 bytes del blob (cabecera ftyp del ISOBMFF). null si falla. */
+-async function cabeceraBlob(source: Blob): Promise<Uint8Array | null> {
+-  try {
+-    const buf = await source.slice(0, 16).arrayBuffer();
+-    return new Uint8Array(buf);
+-  } catch {
+-    // Blob ilegible ⇒ null: el olfateo de magic bytes sale conservador (no-HEIC) y la decisión queda en libheif, con su límite de tiempo como red.
+-    return null;
+-  }
+-}
+-
+-/** ¿Los magic bytes dicen HEIC/HEIF? Firma ftyp + marca en los primeros 12
+- *  bytes. Conservador: marca desconocida → false (que libheif decida como
+- *  siempre — nunca rechazar a ciegas lo que no es claramente HEIC). */
+-function esHeicMagicBytes(bytes: Uint8Array | null): boolean {
+-  if (!bytes || bytes.length < 12) return false;
+-  if (String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7]) !== "ftyp") return false;
+-  const marca = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+-  return marca === "heic" || marca === "heix" || marca === "mif1" || marca === "msf1";
+-}
+-
+-/** Rechaza con `ms` de plazo; el worker de heic2any sigue trabajando en lo
+- *  que le compete (no hay API para cancelarlo), pero el acta deja de estar
+- *  colgada y el operario recibe un mensaje. */
+-async function conLimite<T>(trabajo: Promise<T>, ms: number, cuandoPasa: string): Promise<T> {
+-  let reloj: ReturnType<typeof setTimeout> | undefined;
+-  try {
+-    return await Promise.race([
+-      trabajo,
+-      new Promise<never>((_, rechazar) => {
+-        reloj = setTimeout(() => rechazar(new ErrorRescateHeic(cuandoPasa)), ms);
+-      }),
+-    ]);
+-  } finally {
+-    clearTimeout(reloj);
+-  }
+-}
+-
+-/** HEIC/HEIF (o .jpg con contenido HEIC) → JPEG decodificable. */
+-async function convertHeicToJpegBlob(source: Blob, opciones: OpcionesRescateHeic): Promise<Blob> {
+-  const topeMp = opciones.topeMpHeic ?? HEIC_TOPE_MP_DEFECTO;
+-  const limiteMs = opciones.limiteMsHeic ?? HEIC_LIMITE_MS_DEFECTO;
+-  const dims = await dimensionesDesdeBlob(source);
+-
+-  if (dims && topeMp > 0 && megapixeles(dims) > topeMp) {
+-    throw new ErrorRescateHeic(
+-      `La foto HEIC es de ${megapixeles(dims).toFixed(1)} MP (${dims.ancho}×${dims.alto}) y pasa el tope del decodificador (${topeMp} MP): tócala en JPEG o recórtala en la galería antes de escanearla.`,
+-    );
+-  }
+-
+-  // §6.13 — RECHAZO TEMPRANO: con el rescate ACTIVADO (topeMp > 0 — el
+-  // kill-switch {"heicTopeMp":0} = camino anterior, conversión completa), un
+-  // archivo cuyos magic bytes CONFIRMAN HEIC/HEIF no entra a heic2any: la lib
+-  // está abandonada y su decode es lo que colgaba el pipeline. Se rechaza
+-  // ANTES de descargar el chunk (~1,4 MB) con ErrorRescateHeic — el mismo
+-  // camino de error de D82: useDestello pinta «FOTO HEIC MUY GRANDE · PASA LA
+-  // ACTA A JPEG» y el bridge registra la línea. iOS no lo sufre (Safari
+-  // decodifica HEIC nativo en la ruta 1 y jamás llega aquí). El `limiteMs`
+-  // queda como red para lo que pase el olfateo (marca rara, kill-switch ON).
+-  if (topeMp > 0 && esHeicMagicBytes(await cabeceraBlob(source))) {
+-    void (async () => {
+-      try {
+-        const { appendEvento } = await import("../obs/buffer");
+-        const { idSesion, idDispositivo, appVersion } = await import("../obs/identidad");
+-        await appendEvento({
+-          tipo: "warn",
+-          ts: Date.now(),
+-          sesion: idSesion(),
+-          dispositivo: idDispositivo(),
+-          appVersion: appVersion(),
+-          datos: {
+-            codigo: "heic:rechazo-temprano",
+-            mensaje: "HEIC rechazado por magic bytes sin despachar a heic2any (§6.13).",
+-            bytes: source.size,
+-          },
+-        });
+-      } catch {
+-        /* silencioso: la traza es observabilidad, nunca rompe el flujo */
+-      }
+-    })();
+-    throw new ErrorRescateHeic(
+-      "La foto es HEIC/HEIF (formato de iPhone) y el decodificador de reserva está retirado: pásala a JPEG desde la galería antes de escanearla.",
+-    );
+-  }
+-
+-  // PRE-WARNING (T3): si el límite es <= 15 s, avisar ANTES de arrancar
+-  // para que el operario pueda cancelar y retocar en JPEG.
+-  if (limiteMs > 0 && limiteMs <= HEIC_PREWARNING_MS) {
+-    void (async () => {
+-      try {
+-        const { appendEvento } = await import("../obs/buffer");
+-        const { idSesion, idDispositivo, appVersion } = await import("../obs/identidad");
+-        await appendEvento({
+-          tipo: "warn",
+-          ts: Date.now(),
+-          sesion: idSesion(),
+-          dispositivo: idDispositivo(),
+-          appVersion: appVersion(),
+-          datos: {
+-            codigo: "heic:prewarning",
+-            mensaje: `El decodificador HEIC tiene ${Math.round(limiteMs / 1000)} s de límite: si ves que se queda, cancela y tómala en JPEG.`,
+-            limiteMs,
+-            mp: dims ? megapixeles(dims) : null,
+-          },
+-        });
+-      } catch {
+-        /* silencioso: el prewarning es observabilidad, nunca rompe el flujo */
+-      }
+-    })();
+-  }
+-
+-  const convert = await loadHeic2Any();
+-  const trabajo = convert({ blob: source, toType: "image/jpeg", quality: 0.92 });
+-  if (limiteMs <= 0) {
+-    const out = await trabajo;
+-    return Array.isArray(out) ? out[0] : out;
+-  }
+-  const mensajeLimite = dims
+-    ? `El decodificador HEIC no terminó en ${Math.round(limiteMs / 1000)} s (foto de ${megapixeles(dims).toFixed(1)} MP): tócala en JPEG o recórtala.`
+-    : `El decodificador HEIC no terminó en ${Math.round(limiteMs / 1000)} s: tómate la foto en JPEG.`;
+-  const out = await conLimite(trabajo, limiteMs, mensajeLimite);
+-  return Array.isArray(out) ? out[0] : out;
+-}
+-
+-/** Intenta decodificar un Blob con la cascada NATIVA del navegador y
+- *  devolver un data URL JPEG topeado. Devuelve null si nada funciona
+- *  (HEIC en Android llega aquí y devuelve null → activa el rescate F-HEIC). */
+-async function nativeDecodeToCappedDataUrl(blob: Blob): Promise<string | null> {
+-  if (typeof createImageBitmap === "function") {
+-    // B-01 (auditoría leaks-recursos) — fábricas PEREZOSAS: antes las 2
+-    // promesas createImageBitmap se creaban en paralelo y en el return
+-    // temprano la 2ª resolvía después sin nadie que cerrara su bitmap
+-    // (≈48 MB huérfanos al GC). Ahora cada intento se lanza solo cuando
+-    // se consume: un return temprano no deja decodes en vuelo.
+-    const attemptFactories: Array<() => Promise<ImageBitmap>> = [];
+-    try {
+-      attemptFactories.push(
+-        () => createImageBitmap(blob, { imageOrientation: "from-image" } as ImageBitmapOptions)
+-      );
+-    } catch {
+-      /* opciones no soportadas */
+-    }
+-    attemptFactories.push(() => createImageBitmap(blob));
+-    for (const attemptFactory of attemptFactories) {
+-      let bm: ImageBitmap | null = null;
+-      try {
+-        bm = await attemptFactory();
+-        if (bm.width > 0 && bm.height > 0) {
+-          return await sourceToCappedJpegDataUrl(bm, bm.width, bm.height);
+-        }
+-      } catch {
+-        /* siguiente intento */
+-      } finally {
+-        try {
+-          bm?.close();
+-        } catch {
+-          /* noop */
+-        }
+-      }
+-    }
+-  }
+-
+-  // objectURL → <img> → canvas (el navegador decodifica y aplica EXIF al pintar).
+-  const objectUrl = URL.createObjectURL(blob);
+-  try {
+-    const img = await loadImage(objectUrl);
+-    const w = img.naturalWidth || img.width;
+-    const h = img.naturalHeight || img.height;
+-    if (!w || !h) return null;
+-    return await sourceToCappedJpegDataUrl(img, w, h);
+-  } catch {
+-    // Tercera vía nativa (objectURL→<img>) también agotada ⇒ null: el llamador sigue al rescate HEIC o al error genérico.
+-    return null;
+-  } finally {
+-    URL.revokeObjectURL(objectUrl);
+-  }
+-}
+-
+-/**
+- * F-IMPORT — File → data URL de forma ROBUSTA. Los archivos de galería/
+- * cámara nativa llegan a 12–48 MP y con EXIF; la ruta vieja (FileReader →
+- * data URL gigante → <img>) reventaba con fotos grandes y era el origen del
+- * «No se pudo procesar la imagen».
+- *
+- * Cascada (de más barata a más costosa):
+- *  1. Decodificación NATIVA (createImageBitmap con EXIF → bitmap a secas →
+- *     <img> vía objectURL) — ver nativeDecodeToCappedDataUrl.
+- *  2. F-HEIC: si lo nativo falla, conversión con libheif (heic2any) y se
+- *     repite la cascada sobre el JPEG resultante. Cubre HEIC/HEIF real y
+- *     también los «.jpg» que en realidad traen contenido HEIC (típico al
+- *     pasar fotos de iPhone por apps de mensajería/nube). libheif rechaza
+- *     en milisegundos archivos que no sean HEIF (firma ftyp), así que
+- *     intentarlo con un JPEG corrupto no cuesta nada.
+- *     El rescate va TOPADO (F-HEIC-TOPE): antes de despachar se leen las
+- *     dimensiones del contenedor y un HEIC de más de `topeMpHeic` MP se rechaza
+- *     con mensaje; la conversión además tiene su propio `limiteMsHeic`, más
+- *     corto que cualquier watchdog del llamador, para que un decode que no
+- *     termina no se confunda con «la app está pensando».
+- */
++/** F-IMPORT — File → dataURL de captura. Sin `heic2any` en Tamiz (sin deps
++ *  nuevas autorizadas), el rescate HEIC de reserva NO existe: un HEIC se
++ *  rechaza con SU error (ErrorRescateHeic) y la UI lo clasifica
++ *  (HEIC_NO_SOPORTADO); JPEG/PNG decodifican nativo con tope por canvas. */
+ export async function fileToCaptureDataUrl(
+   file: File,
+-  opcionesRescate: OpcionesRescateHeic = {}
++  _opcionesRescate: OpcionesRescateHeic = {},
+ ): Promise<string> {
+   const looksHeic = /heic|heif/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
+-
+-  // 1) Ruta nativa (rápida; iOS decodifica HEIC aquí mismo).
+-  const direct = await nativeDecodeToCappedDataUrl(file);
+-  if (direct) return direct;
+-
+-  // KIT e14-remediacion-movil-v1 (D1 — P2 #26): GATE FFD8 ANTES del
+-  // decodificador HEIC. El check de magic HEIC (§6.13, abajo) existe, pero
+-  // NADA impedía que un JPEG que falla el decode nativo entrara igual a
+-  // heic2any y esperara su timeout completo: libheif NO rechaza rápido —
+-  // 15,6 s sin atribuir medidos en el escaneo de 35,7 s del informe (el
+-  // comentario de abajo lo asumía). Si la cabecera dice JPEG (FFD8), el
+-  // rescate HEIC no puede aportar NADA → error inmediato (< 100 ms) hacia
+-  // el mensaje genérico de abajo. NINGÚN escaneo de cámara (JPEG por
+-  // definición) vuelve a pagar el timeout de 15 s.
+-  // NOTA: un «.jpg» con contenido HEIC real NO arranca con FFD8 (arranca con
+-  // el box ftyp del ISOBMFF) → el gate NO lo bloquea. El gemelo app-side
+-  // `src/lib/e14/core/heic-detect.ts` se RETIRÓ con este ítem (código muerto
+-  // sin imports — el gate vive aquí, única fuente de verdad).
+-  const cabeceraJpeg = await cabeceraBlob(file);
+-  if (cabeceraJpeg && cabeceraJpeg[0] === 0xff && cabeceraJpeg[1] === 0xd8) {
+-    throw new Error(
+-      "No se pudo decodificar la imagen (formato no soportado o archivo corrupto)",
+-    );
+-  }
+-
+-  // 2) Rescate F-HEIC: decodificar con libheif y reintentar sobre el JPEG.
+-  let heicConversionAttempted = false;
+-  try {
+-    const jpeg = await convertHeicToJpegBlob(file, opcionesRescate);
+-    heicConversionAttempted = true;
+-    const decoded = await nativeDecodeToCappedDataUrl(jpeg);
+-    if (decoded) return decoded;
+-  } catch (e) {
+-    // El tope y el límite del rescate son decisiones NUESTROS y el operario
+-    // tiene que leerlas tal cual; lo demás («no era HEIC», archivo podrido)
+-    // sigue cayendo al mensaje genérico de abajo.
+-    if (e instanceof ErrorRescateHeic) throw e;
+-    /* no era HEIC o falló la conversión → error abajo */
+-  }
+-
+-  throw new Error(
+-    looksHeic || heicConversionAttempted
+-      ? "No se pudo convertir la imagen HEIC"
+-      : "No se pudo decodificar la imagen (formato no soportado o archivo corrupto)"
+-  );
+-}
+-
+-/** Fuente de imagen para el pipeline: data URL o elemento YA decodificado
+- *  (HTMLImageElement/HTMLCanvasElement). Pasar el elemento evita re-decodificar
+- *  la foto de 12 MP en cada etapa de la captura (downscale→detect→quality).
+- *  La ruta crítica pasa de 3 decodes a 1 (2 solo si hubo que re-escalar). */
+-export type ImageSource = string | HTMLImageElement | HTMLCanvasElement;
+-
+-/** Decodifica solo si hace falta (string); el elemento pasa tal cual. */
+-function ensureDecoded(
+-  src: ImageSource
+-): Promise<HTMLImageElement | HTMLCanvasElement> {
+-  return typeof src === "string" ? loadImage(src) : Promise.resolve(src);
+-}
+-
+-function sourceWidth(el: HTMLImageElement | HTMLCanvasElement): number {
+-  return el instanceof HTMLImageElement ? el.naturalWidth || el.width : el.width;
+-}
+-
+-function sourceHeight(el: HTMLImageElement | HTMLCanvasElement): number {
+-  return el instanceof HTMLImageElement ? el.naturalHeight || el.height : el.height;
+-}
+-
+-// ─── Helpers del pipeline preciso ───────────────────────────────────────────
+-
+-function floatsToQuad(f: Float32Array): Quad {
+-  return [
+-    { x: f[0]!, y: f[1]! },
+-    { x: f[2]!, y: f[3]! },
+-    { x: f[4]!, y: f[5]! },
+-    { x: f[6]!, y: f[7]! },
+-  ];
+-}
+-
+-function isValidQuadFloats(f: Float32Array | null): f is Float32Array {
+-  if (f === null || f.length !== 8) return false;
+-  for (let i = 0; i < 8; i++) {
+-    const v = f[i]!;
+-    if (!Number.isFinite(v) || v < -0.05 || v > 1.05) return false;
+-  }
+-  return true;
+-}
+-
+-function blobToDataURL(blob: Blob): Promise<string> {
+-  return new Promise((resolve, reject) => {
++  if (looksHeic) throw new ErrorRescateHeic("La foto HEIC no se pudo decodificar en este navegador.");
++  const dataUrl = await new Promise<string>((resolve, reject) => {
+     const fr = new FileReader();
+-    fr.onload = () => resolve(fr.result as string);
+-    fr.onerror = () => reject(new Error("blobToDataURL falló"));
+-    fr.readAsDataURL(blob);
++    fr.onload = () => resolve(String(fr.result ?? ""));
++    fr.onerror = () => reject(fr.error ?? new Error("No se pudo leer el archivo"));
++    fr.readAsDataURL(file);
+   });
++  if (!dataUrl) throw new ErrorRescateHeic();
++  return dataUrl;
+ }
+ 
+-/** Dibuja un bitmap en canvas aplicando rotación de 90/180/270. */
+-function bitmapToRotatedCanvas(
+-  bitmap: ImageBitmap | HTMLCanvasElement | HTMLImageElement,
+-  rotation: number
+-): HTMLCanvasElement {
+-  const w = bitmap instanceof HTMLImageElement ? bitmap.naturalWidth : bitmap.width;
+-  const h = bitmap instanceof HTMLImageElement ? bitmap.naturalHeight : bitmap.height;
+-  const swapped = rotation === 90 || rotation === 270;
+-  const canvas = document.createElement("canvas");
+-  canvas.width = swapped ? h : w;
+-  canvas.height = swapped ? w : h;
+-  const ctx = canvas.getContext("2d");
+-  if (!ctx) throw new Error("sin contexto");
+-  ctx.imageSmoothingQuality = "high";
+-  if (rotation !== 0) {
+-    ctx.save();
+-    ctx.translate(canvas.width / 2, canvas.height / 2);
+-    ctx.rotate((rotation * Math.PI) / 180);
+-    ctx.drawImage(bitmap as CanvasImageSource, -w / 2, -h / 2);
+-    ctx.restore();
+-  } else {
+-    ctx.drawImage(bitmap as CanvasImageSource, 0, 0);
+-  }
+-  return canvas;
+-}
+-
+-/** Miniatura 160px de ancho desde un blob (resultado real del enhance). */
+-async function thumbnailFromBlob(blob: Blob): Promise<string> {
+-  let bm: ImageBitmap | null = null;
+-  try {
+-    bm = await createImageBitmap(blob);
+-    const tW = 160;
+-    const tH = Math.max(1, Math.round((bm.height / bm.width) * tW));
+-    const canvas = document.createElement("canvas");
+-    canvas.width = tW;
+-    canvas.height = tH;
+-    const ctx = canvas.getContext("2d");
+-    if (!ctx) throw new Error("sin contexto");
+-    ctx.imageSmoothingQuality = "high";
+-    ctx.drawImage(bm, 0, 0, tW, tH);
+-    return canvas.toDataURL("image/jpeg", 0.8);
+-  } catch {
+-    // La miniatura es cosmética: fallo ⇒ "" y el acta procesada sigue su curso intacta (contrato del docblock, igual que su segunda vía).
+-    return "";
+-  } finally {
+-    // B-14 (auditoría leaks-recursos): liberar el bitmap del blob COMPLETO
+-    // también en el camino de error (antes el close solo estaba en el
+-    // camino feliz y un fallo de drawImage/toDataURL lo dejaba al GC).
+-    try {
+-      bm?.close();
+-    } catch {
+-      /* noop */
+-    }
++import {
++  anguloDeskew,
++  corregirDeskew,
++  quadSesgado,
++  warpPerspectiva,
++} from '../molde/homografia';
++
++/** Origen del quad usado en el recorte. */
++export type OrigenQuad =
++  | 'detector'
++  | 'auto'
++  | 'manual'
++  | 'identidad'
++  | (string & {});
++
++/** Error de rescate HEIC: la foto iPhone no se pudo decodificar en este navegador. */
++export class ErrorRescateHeic extends Error {
++  constructor(mensaje = 'La foto HEIC no se pudo decodificar en este navegador') {
++    super(mensaje);
++    this.name = 'ErrorRescateHeic';
+   }
+ }
+ 
+-/** LOTE 4 (F4-B) — miniatura 160px desde el processed (data URL) para el
+- *  camino rotation === 0 del fallback de thumbnail (el bitmap del warp fue
+- *  transferido al worker y ya no está en el hilo principal). Re-decode
+- *  COMPLETO solo si thumbnailFromBlob falló (raro). "" si todo falla,
+- *  igual que thumbnailFromBlob. */
+-async function thumbnailFromDataURL(url: string): Promise<string> {
++async function decodificar(dataUrl: string): Promise<HTMLImageElement> {
++  const img = new Image();
++  img.src = dataUrl;
+   try {
+-    const img = await loadImage(url);
+-    const tW = 160;
+-    const tH = Math.max(1, Math.round((img.naturalHeight / img.naturalWidth) * tW));
+-    const canvas = document.createElement("canvas");
+-    canvas.width = tW;
+-    canvas.height = tH;
+-    const ctx = canvas.getContext("2d");
+-    if (!ctx) return "";
+-    ctx.imageSmoothingQuality = "high";
+-    ctx.drawImage(img, 0, 0, tW, tH);
+-    return canvas.toDataURL("image/jpeg", 0.8);
++    await img.decode();
+   } catch {
+-    // Segunda vía de la miniatura (re-decode, raro) ⇒ "": cosmética también, jamás rompe el guardado del acta.
+-    return "";
++    throw new ErrorRescateHeic();
+   }
++  if (!img.naturalWidth) throw new ErrorRescateHeic('La imagen decodificó sin dimensiones');
++  return img;
+ }
+ 
+-// ─── Unsharp client-side (constantes EXACTAS del usuario §6) ────────────────
+-
+-/** UNSHARP_AMOUNT/RADIUS del core del usuario: 0.5 / 1.5 (kernel derivado 7). */
+-const UNSHARP_AMOUNT = 0.5;
+-const UNSHARP_RADIUS = 1.5;
+-const UNSHARP_KERNEL = 7;
+-
+-/** Núcleo gaussiano 1D normalizado (mismo efecto que cv.GaussianBlur k7 σ1.5). */
+-function gaussianKernel1D(size: number, sigma: number): Float32Array {
+-  const half = (size - 1) / 2;
+-  const k = new Float32Array(size);
+-  let sum = 0;
+-  for (let i = 0; i < size; i++) {
+-    const v = Math.exp(-((i - half) ** 2) / (2 * sigma * sigma));
+-    k[i] = v;
+-    sum += v;
+-  }
+-  for (let i = 0; i < size; i++) k[i] /= sum;
+-  return k;
++function imgACanvas(img: HTMLImageElement): HTMLCanvasElement {
++  const c = document.createElement('canvas');
++  c.width = img.naturalWidth;
++  c.height = img.naturalHeight;
++  c.getContext('2d', { willReadFrequently: true })!.drawImage(img, 0, 0);
++  return c;
+ }
+ 
+-/** Desenfoque gaussiano separable sobre RGB (in place sobre una copia). */
+-function gaussianBlurRGBA(data: Uint8ClampedArray, w: number, h: number): Uint8ClampedArray {
+-  const k = gaussianKernel1D(UNSHARP_KERNEL, UNSHARP_RADIUS);
+-  const half = (UNSHARP_KERNEL - 1) / 2;
+-  const tmp = new Uint8ClampedArray(data.length);
+-  const out = new Uint8ClampedArray(data.length);
+-  // Pase horizontal
+-  for (let y = 0; y < h; y++) {
+-    for (let x = 0; x < w; x++) {
+-      let r = 0, g = 0, b = 0;
+-      for (let t = -half; t <= half; t++) {
+-        const xx = Math.min(w - 1, Math.max(0, x + t));
+-        const wgt = k[t + half]!;
+-        const i = (y * w + xx) * 4;
+-        r += data[i]! * wgt;
+-        g += data[i + 1]! * wgt;
+-        b += data[i + 2]! * wgt;
+-      }
+-      const o = (y * w + x) * 4;
+-      tmp[o] = r;
+-      tmp[o + 1] = g;
+-      tmp[o + 2] = b;
+-      tmp[o + 3] = data[o + 3]!;
+-    }
+-  }
+-  // Pase vertical
+-  for (let y = 0; y < h; y++) {
+-    for (let x = 0; x < w; x++) {
+-      let r = 0, g = 0, b = 0;
+-      for (let t = -half; t <= half; t++) {
+-        const yy = Math.min(h - 1, Math.max(0, y + t));
+-        const wgt = k[t + half]!;
+-        const i = (yy * w + x) * 4;
+-        r += tmp[i]! * wgt;
+-        g += tmp[i + 1]! * wgt;
+-        b += tmp[i + 2]! * wgt;
+-      }
+-      const o = (y * w + x) * 4;
+-      out[o] = r;
+-      out[o + 1] = g;
+-      out[o + 2] = b;
+-      out[o + 3] = tmp[o + 3]!;
+-    }
+-  }
+-  return out;
+-}
+-
+-/**
+- * Unsharp mask EXACTO del producto, en cliente: addWeighted(src, 1.5, blur, −0.5, 0)
+- * sobre un canvas — mismo efecto que el unsharpRgba del worker (GaussianBlur
+- * k7 σ1.5 + amount 0.5). Se usa SOLO para el filtro Original con el toggle
+- * de nitidez activo: el resto de modos ya reciben el unsharp del enhance real.
+- */
+-export function applyUnsharpToCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
+-  const ctx = canvas.getContext("2d");
+-  if (!ctx) return canvas;
+-  const { width: W, height: H } = canvas;
+-  if (W < 1 || H < 1) return canvas;
+-  const image = ctx.getImageData(0, 0, W, H);
+-  const src = image.data;
+-  const blur = gaussianBlurRGBA(src, W, H);
+-  // addWeighted(src, 1 + amount, blur, -amount, 0)
+-  const gain = 1 + UNSHARP_AMOUNT;
+-  for (let i = 0; i < src.length; i += 4) {
+-    src[i] = src[i]! * gain - blur[i]! * UNSHARP_AMOUNT;
+-    src[i + 1] = src[i + 1]! * gain - blur[i + 1]! * UNSHARP_AMOUNT;
+-    src[i + 2] = src[i + 2]! * gain - blur[i + 2]! * UNSHARP_AMOUNT;
+-  }
+-  ctx.putImageData(image, 0, 0);
+-  return canvas;
+-}
+-
+-/** Decodifica un blob a canvas (para post-proceso del encode del worker). */
+-async function blobToCanvas(blob: Blob): Promise<HTMLCanvasElement> {
+-  const bm = await createImageBitmap(blob);
+-  const canvas = document.createElement("canvas");
+-  canvas.width = bm.width;
+-  canvas.height = bm.height;
+-  const ctx = canvas.getContext("2d");
+-  if (!ctx) throw new Error("sin contexto");
+-  ctx.imageSmoothingQuality = "high";
+-  ctx.drawImage(bm, 0, 0);
+-  bm.close();
+-  return canvas;
+-}
+-
+-// ─── Detección de bordes ────────────────────────────────────────────────────
+-
+ /**
+- * P2 (0.4.0, kit e14-quad-sobel-v1 §3-B): umbral de candidatos de pico para el
+- * bottom del Sobel (fracción de max(E)). Punto de partida calibrado en el lab
+- * con mesa-001/mesa-002/control; UNA sola definición (el lab la importa —
+- * NUNCA hardcodeada en dos sitios).
+- */
+-export const UMBRAL_PICO = 0.4;
+-/** Span lateral vivo (fracción de la altura restante) a partir del cual la
+- * banda queda clara como interna (los bordes left/right siguen vivos debajo).
+- */
+-const SPAN_INTERNA = 0.15;
+-/** Fracción del pico de la columna lateral que cuenta como "borde vivo". */
+-const LATERAL_VIVO = 0.35;
+-
+-/** P1 (0.4.0, kit e14-quad-sobel-v1): origen del quad — quién lo fabricó. */
+-export type OrigenQuad = "worker" | "sobel";
+-
+-/** P1 (0.4.0): resultado detallado de la detección de bordes. */
+-export interface DetalleBordes {
+-  quad: Quad;
+-  origen: OrigenQuad;
+-}
+-
+-/**
+- * Detección de bordes del documento — PIPELINE REAL del usuario
+- * (contornos OpenCV + selección por score). Fallback: Sobel local.
+- * VIEJA (0.4.0): delega en detectDocumentEdgesDetail — cero breaking para
+- * scanner-ui o terceros.
+- */
+-export async function detectDocumentEdges(src: ImageSource): Promise<Quad> {
+-  return (await detectDocumentEdgesDetail(src)).quad;
+-}
+-
+-/**
+- * NUEVA (P1, 0.4.0): igual que detectDocumentEdges pero dice QUIÉN fabricó
+- * el quad.
+- * - "worker": el worker OpenCV devolvió quad válido (la cascada ganó).
+- * - "sobel": el fallback local lo fabricó — TAMBIÉN cuando el worker cae por
+- *   isDead/timeout, y TAMBIÉN cuando el catch interno del Sobel devuelve el
+- *   rect por defecto (la verdad es que el quad salió del Sobel; no se inventa
+- *   "desconocido").
++ * Detección de esquinas del documento (versión pragmática): busca el rect
++ * interior con mayor contraste de bordes mediante integral de gradientes por
++ * columnas/filas. Devuelve quad normalizado 0..1. Sin documento claro →
++ * quad identidad con origen 'identidad'.
+  */
+ export async function detectDocumentEdgesDetail(
+-  src: ImageSource
+-): Promise<DetalleBordes> {
+-  // 1) Pipeline real: worker + OpenCV.js
+-  const quad = await detectWithWorker(src);
+-  if (quad) return { quad, origen: "worker" };
+-  // 2) Fallback: Sobel simplificado (siempre devuelve algo)
+-  return { quad: await detectSobel(src), origen: "sobel" };
+-}
+-
+-async function detectWithWorker(src: ImageSource): Promise<Quad | null> {
+-  const client = getScannerWorker();
+-  if (!client || client.isDead) return null;
+-  const ok = await client.waitReady();
+-  if (!ok) return null;
+-  try {
+-    const img = await ensureDecoded(src);
+-    const w = sourceWidth(img);
+-    const h = sourceHeight(img);
+-    if (!w || !h) return null;
+-    const out = await client.detect(img, w, h);
+-    if (out && isValidQuadFloats(out.corners)) {
+-      const quad = floatsToQuad(out.corners);
+-      // Sanity: área razonable (el worker ya valida ≥10% del frame)
+-      const area = quadArea(quad);
+-      if (area > 0.01) return quad;
+-    }
+-  } catch {
+-    /* fallback */
+-  }
+-  return null;
+-}
+-
+-function quadArea(q: Quad): number {
+-  const [tl, tr, br, bl] = q;
+-  const tri = (a: Point, b: Point, c: Point) =>
+-    Math.abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2;
+-  return tri(tl!, tr!, br!) + tri(tl!, br!, bl!);
+-}
+-
+-/** Sobel simplificado sobre downscaled (fallback del pipeline real). */
+-async function detectSobel(src: ImageSource): Promise<Quad> {
+-  try {
+-    const img = await ensureDecoded(src);
+-    const w0 = sourceWidth(img);
+-    const h0 = sourceHeight(img);
+-    const W = 160;
+-    const H = Math.max(1, Math.round((h0 / w0) * W));
+-    const canvas = document.createElement("canvas");
+-    canvas.width = W;
+-    canvas.height = H;
+-    const ctx = canvas.getContext("2d");
+-    if (!ctx) throw new Error("sin contexto");
+-    ctx.drawImage(img, 0, 0, W, H);
+-    const data = ctx.getImageData(0, 0, W, H).data;
+-
+-    // Mapa de energía Sobel
+-    const energy = new Float32Array(W * H);
+-    const gray = (i: number) =>
+-      0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+-    for (let y = 1; y < H - 1; y++) {
+-      for (let x = 1; x < W - 1; x++) {
+-        const i = y * W + x;
+-        const gx =
+-          -gray(i - W - 1) - 2 * gray(i - 1) - gray(i + W - 1) +
+-          gray(i - W + 1) + 2 * gray(i + 1) + gray(i + W + 1);
+-        const gy =
+-          -gray(i - W - 1) - 2 * gray(i - W) - gray(i - W + 1) +
+-          gray(i + W - 1) + 2 * gray(i + W) + gray(i + W + 1);
+-        energy[i] = Math.sqrt(gx * gx + gy * gy);
++  foto: string,
++): Promise<{ quad: Quad; origen: OrigenQuad }> {
++  const img = await decodificar(foto);
++  // Trabaja a escala reducida (velocidad).
++  const W = 160;
++  const H = Math.max(1, Math.round((img.naturalHeight / img.naturalWidth) * W));
++  const c = document.createElement('canvas');
++  c.width = W;
++  c.height = H;
++  const ctx = c.getContext('2d', { willReadFrequently: true })!;
++  ctx.drawImage(img, 0, 0, W, H);
++  const d = ctx.getImageData(0, 0, W, H).data;
++  const gris = new Float32Array(W * H);
++  for (let i = 0, p = 0; i < gris.length; i++, p += 4) {
++    gris[i] = 0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2];
++  }
++  // Gradiente horizontal/vertical promediado por fila/columna.
++  const gradCol = new Float32Array(W);
++  const gradFil = new Float32Array(H);
++  for (let y = 1; y < H - 1; y++) {
++    for (let x = 1; x < W - 1; x++) {
++      const gx = Math.abs(gris[y * W + x + 1] - gris[y * W + x - 1]);
++      const gy = Math.abs(gris[(y + 1) * W + x] - gris[(y - 1) * W + x]);
++      gradCol[x] += gx;
++      gradFil[y] += gy;
++    }
++  }
++  // Borde dominante = máximo fuera del margen central.
++  const borde = (arr: Float32Array, desde: number, hasta: number): number => {
++    let mejor = desde;
++    let max = -1;
++    for (let i = desde; i < hasta; i++) {
++      if (arr[i] > max) {
++        max = arr[i];
++        mejor = i;
+       }
+     }
+-
+-    const findEdgeX = (from: number, to: number, y0: number, y1: number) => {
+-      let bestX = from;
+-      let bestE = -1;
+-      for (let x = from; x < to; x++) {
+-        let e = 0;
+-        for (let y = y0; y < y1; y++) e += energy[y * W + x];
+-        if (e > bestE) {
+-          bestE = e;
+-          bestX = x;
+-        }
+-      }
+-      return bestX / W;
+-    };
+-    const findEdgeY = (from: number, to: number, x0: number, x1: number) => {
+-      let bestY = from;
+-      let bestE = -1;
+-      for (let y = from; y < to; y++) {
+-        let e = 0;
+-        for (let x = x0; x < x1; x++) e += energy[y * W + x];
+-        if (e > bestE) {
+-          bestE = e;
+-          bestY = y;
+-        }
+-      }
+-      return bestY / H;
+-    };
+-
+-    /**
+-     * P2 (0.4.0, kit e14-quad-sobel-v1 §3-B): el borde del PAPEL, no el máximo
+-     * de energía. En campo (mesa-002-i2) la banda negra de NIVELACIÓN de la
+-     * mesa (y≈0.60) le ganaba al borde papel/pupitre (y≈0.97) → quad corto →
+-     * falso rechazo INCOMPLETA. MISMO mapa de energía a 160px; solo cambia
+-     * CUÁL fila del rango inferior se elige (findEdgeY queda intacto para el
+-     * top — no asumimos simetría).
+-     * 1) Perfil E[y] = Σ energía horizontal en [x0, x1) para y ∈ [from, to).
+-     * 2) Candidatos: máximos locales con E[y] ≥ UMBRAL_PICO · max(E).
+-     * 3) Continuidad de laterales: el borde del papel es DONDE TERMINAN los
+-     *    bordes verticales left/right (ventana ±2 px) — si siguen vivos MÁS
+-     *    ABAJO de y, la banda es interna → penal(y) ∝ span lateral vivo bajo y;
+-     *    score(y) = E[y] · (1 − penal(y)).
+-     * 4) Desempate conservador hacia lo profundo (mayor y): incluir papel de
+-     *    más (el crop ya aplica su propio margen y el gate/OCR protegen el
+-     *    exceso; quedarse corto fabrica INCOMPLETAS).
+-     * Sin candidatos ≥ umbral → degradación graciosa al comportamiento actual
+-     * (máxima energía): el contrato «siempre devuelve algo» intacto.
+-     */
+-    const findEdgeYBottom = (
+-      from: number,
+-      to: number,
+-      x0: number,
+-      x1: number,
+-      leftFrac: number,
+-      rightFrac: number
+-    ) => {
+-      const E: number[] = [];
+-      for (let y = from; y < to; y++) {
+-        let e = 0;
+-        for (let x = x0; x < x1; x++) e += energy[y * W + x];
+-        E.push(e);
+-      }
+-      const maxE = Math.max(...E);
+-      const yMax = from + E.indexOf(maxE); // comportamiento actual (fallback)
+-      if (!(maxE > 0)) return yMax / H;
+-
+-      // pico de energía por columna lateral (ventana ±2 px) para el test de vida
+-      const colPeak = (xf: number) => {
+-        const xc = Math.round(xf * W);
+-        let peak = 0;
+-        for (let dx = -2; dx <= 2; dx++) {
+-          const x = Math.min(W - 2, Math.max(1, xc + dx));
+-          for (let y = 1; y < H - 1; y++) {
+-            if (energy[y * W + x] > peak) peak = energy[y * W + x];
+-          }
+-        }
+-        return peak;
+-      };
+-      const peakL = colPeak(leftFrac);
+-      const peakR = colPeak(rightFrac);
+-      const lateralVivo = (xf: number, peak: number, y: number) => {
+-        if (!(peak > 0)) return false;
+-        const xc = Math.round(xf * W);
+-        for (let dx = -2; dx <= 2; dx++) {
+-          const x = Math.min(W - 2, Math.max(1, xc + dx));
+-          if (energy[y * W + x] >= LATERAL_VIVO * peak) return true;
+-        }
+-        return false;
+-      };
+-
+-      let mejorY = yMax;
+-      let mejorScore = -1;
+-      for (let i = 0; i < E.length; i++) {
+-        // máximos locales del perfil (vecinos fuera de rango = -1)
+-        const prev = i > 0 ? E[i - 1]! : -1;
+-        const next = i < E.length - 1 ? E[i + 1]! : -1;
+-        if (E[i]! < prev || E[i]! < next) continue;
+-        if (E[i]! < UMBRAL_PICO * maxE) continue;
+-        // span lateral vivo DEBAJO de y (filas estrictamente > y)
+-        let vivo = 0;
+-        for (let yy = from + i + 1; yy < to; yy++) {
+-          if (
+-            lateralVivo(leftFrac, peakL, yy) ||
+-            lateralVivo(rightFrac, peakR, yy)
+-          )
+-            vivo++;
+-        }
+-        const restante = Math.max(1, to - (from + i));
+-        const spanFrac = vivo / restante;
+-        const penal = Math.min(1, spanFrac / (SPAN_INTERNA * 2));
+-        const score = E[i]! * (1 - penal);
+-        // >= → empates hacia lo profundo (conservador: incluir papel de más)
+-        if (score >= mejorScore) {
+-          mejorScore = score;
+-          mejorY = from + i;
+-        }
+-      }
+-      // degradación graciosa: ningún candidato pasó el umbral → comportamiento actual
+-      return (mejorScore >= 0 ? mejorY : yMax) / H;
++    return mejor;
++  };
++  const izq = borde(gradCol, Math.floor(W * 0.05), Math.floor(W * 0.45));
++  const der = borde(gradCol, Math.floor(W * 0.55), Math.floor(W * 0.95));
++  const arr = borde(gradFil, Math.floor(H * 0.05), Math.floor(H * 0.45));
++  const aba = borde(gradFil, Math.floor(H * 0.55), Math.floor(H * 0.95));
++  const x0 = izq / W;
++  const x1 = der / W;
++  const y0 = arr / H;
++  const y1 = aba / H;
++  // Guardia de plausibilidad: la heurística de gradientes puede engancharse a
++  // un recuadro INTERNO del documento (tablas, tarjetas de candidatos) en vez
++  // de al papel completo. Si el rect cubre <30% del área es más probable que
++  // sea un elemento interno: identidad (la foto entera es el documento).
++  if ((x1 - x0) * (y1 - y0) < 0.3) {
++    return {
++      quad: [
++        { x: 0, y: 0 },
++        { x: 1, y: 0 },
++        { x: 1, y: 1 },
++        { x: 0, y: 1 },
++      ],
++      origen: 'identidad',
+     };
+-
+-    const m = Math.round(W * 0.06);
+-    const left = findEdgeX(1, Math.floor(W * 0.45), m, H - m);
+-    const right = findEdgeX(Math.ceil(W * 0.55), W - 1, m, H - m);
+-    const top = findEdgeY(1, Math.floor(H * 0.45), m, W - m);
+-    // P2 (0.4.0): bottom por findEdgeYBottom — el borde del PAPEL (§3-B);
+-    // findEdgeY queda INTACTO para el top (no falló en campo).
+-    const bottom = findEdgeYBottom(
+-      Math.ceil(H * 0.55),
+-      H - 1,
+-      m,
+-      W - m,
+-      left,
+-      right
+-    );
+-
+-    return [
+-      { x: clamp01(left), y: clamp01(top) },
+-      { x: clamp01(right), y: clamp01(top) },
+-      { x: clamp01(right), y: clamp01(bottom) },
+-      { x: clamp01(left), y: clamp01(bottom) },
+-    ];
+-  } catch {
+-    // Contrato del fallback «siempre devuelve algo»: Sobel roto ⇒ rect por defecto y el flujo del acta sigue (P1 lo reporta honesto como origen "sobel").
+-    return [
+-      { x: 0.08, y: 0.1 },
+-      { x: 0.92, y: 0.07 },
+-      { x: 0.95, y: 0.93 },
+-      { x: 0.05, y: 0.96 },
+-    ];
+   }
+-}
+-
+-function clamp01(v: number) {
+-  return Math.min(0.98, Math.max(0.02, v));
+-}
+-
+-// ─── Filtros canvas (fallback del enhance real) ─────────────────────────────
+-
+-/**
+- * Resuelve la homografía (DLT 4 puntos, eliminación gaussiana con pivoteo)
+- * que mapea el rect DESTINO → quad FUENTE. Devuelve h[9] (h[8]=1) o null
+- * si el sistema es degenerado (quad con 3 puntos colineales, p. ej.).
+- */
+-function solveHomographyDstToSrc(
+-  dst: ReadonlyArray<readonly [number, number]>,
+-  src: ReadonlyArray<readonly [number, number]>
+-): number[] | null {
+-  const n = 8;
+-  const M: number[][] = [];
+-  for (let i = 0; i < 4; i++) {
+-    const [X, Y] = dst[i]!;
+-    const [u, v] = src[i]!;
+-    M.push([X, Y, 1, 0, 0, 0, -X * u, -Y * u, u]);
+-    M.push([0, 0, 0, X, Y, 1, -X * v, -Y * v, v]);
+-  }
+-  for (let col = 0; col < n; col++) {
+-    let piv = col;
+-    for (let r = col + 1; r < n; r++) {
+-      if (Math.abs(M[r]![col]!) > Math.abs(M[piv]![col]!)) piv = r;
+-    }
+-    if (Math.abs(M[piv]![col]!) < 1e-12) return null;
+-    const tmp = M[col]!;
+-    M[col] = M[piv]!;
+-    M[piv] = tmp;
+-    for (let r = 0; r < n; r++) {
+-      if (r === col) continue;
+-      const f = M[r]![col]! / M[col]![col]!;
+-      if (f === 0) continue;
+-      for (let c = col; c <= n; c++) M[r]![c]! -= f * M[col]![c]!;
+-    }
+-  }
+-  const h = new Array<number>(9).fill(0);
+-  for (let i = 0; i < n; i++) h[i] = M[i]![n]! / M[i]![i]!;
+-  h[8] = 1;
+-  return h;
+-}
+-
+-/**
+- * Rectifica el quad por homografía + muestreo BILINEAL (fallback canvas
+- * del warpPerspective INTER_CUBIC del worker — F6-WARP).
+- *
+- * Dimensiones de salida con aspecto MEDIDO (§7.5):
+- *   w0 = max(|TL->TR|, |BL->BR|);  h0 = max(|TR->BR|, |TL->BL|)
+- *   escala uniforme SOLO si max(w0,h0) > maxSize — PROHIBIDO upscalar (R-02).
+- *
+- * Devuelve null si la homografía no se puede resolver → el llamador cae al
+- * recorte bbox (último recurso). El quad manual se respeta al píxel (R-09):
+- * sin refine, sin shrink — aquí no hay refinado de ninguna clase.
+- */
+-function warpQuadToCanvas(
+-  img: HTMLImageElement,
+-  quad: Quad,
+-  maxSize: number
+-): HTMLCanvasElement | null {
+-  const sw = img.naturalWidth;
+-  const sh = img.naturalHeight;
+-  if (!(sw > 0) || !(sh > 0)) return null;
+-
+-  // Quad en píxeles de la fuente (orden TL, TR, BR, BL).
+-  const pts = quad.map((p) => ({ x: p.x * sw, y: p.y * sh })) as [
+-    { x: number; y: number },
+-    { x: number; y: number },
+-    { x: number; y: number },
+-    { x: number; y: number },
+-  ];
+-  const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+-    Math.hypot(a.x - b.x, a.y - b.y);
+-  const w0 = Math.max(dist(pts[0]!, pts[1]!), dist(pts[3]!, pts[2]!));
+-  const h0 = Math.max(dist(pts[1]!, pts[2]!), dist(pts[0]!, pts[3]!));
+-  if (!(w0 > 1) || !(h0 > 1)) return null;
+-
+-  const scale = Math.min(1, maxSize / Math.max(w0, h0)); // nunca upscalar
+-  const w = Math.max(16, Math.round(w0 * scale));
+-  const h = Math.max(16, Math.round(h0 * scale));
+-
+-  // H mapea (X,Y) del rect destino → (u,v) en la fuente.
+-  const H = solveHomographyDstToSrc(
+-    [
+-      [0, 0],
+-      [w, 0],
+-      [w, h],
+-      [0, h],
+-    ],
+-    [
+-      [pts[0]!.x, pts[0]!.y],
+-      [pts[1]!.x, pts[1]!.y],
+-      [pts[2]!.x, pts[2]!.y],
+-      [pts[3]!.x, pts[3]!.y],
+-    ]
+-  );
+-  if (!H) return null;
+-  const h0c = H[0]!;
+-  const h1c = H[1]!;
+-  const h2c = H[2]!;
+-  const h3c = H[3]!;
+-  const h4c = H[4]!;
+-  const h5c = H[5]!;
+-  const h6c = H[6]!;
+-  const h7c = H[7]!;
+-
+-  // Píxeles de la fuente a resolución completa (R-02: la foto es la fuente).
+-  const srcCanvas = document.createElement("canvas");
+-  srcCanvas.width = sw;
+-  srcCanvas.height = sh;
+-  const sctx = srcCanvas.getContext("2d", { willReadFrequently: true });
+-  if (!sctx) return null;
+-  sctx.drawImage(img, 0, 0);
+-  const srcData = sctx.getImageData(0, 0, sw, sh).data;
+-
+-  const outCanvas = document.createElement("canvas");
+-  outCanvas.width = w;
+-  outCanvas.height = h;
+-  const octx = outCanvas.getContext("2d", { willReadFrequently: true });
+-  if (!octx) return null;
+-  const outImage = octx.createImageData(w, h);
+-  const out = outImage.data;
+-
+-  const maxX = sw - 1;
+-  const maxY = sh - 1;
+-  for (let y = 0; y < h; y++) {
+-    // Centros de píxel — muestreo simétrico con el warp del worker.
+-    const Y = y + 0.5;
+-    for (let x = 0; x < w; x++) {
+-      const X = x + 0.5;
+-      const den = h6c * X + h7c * Y + 1;
+-      if (den === 0) continue;
+-      let u = (h0c * X + h1c * Y + h2c) / den;
+-      let v = (h3c * X + h4c * Y + h5c) / den;
+-      // Edge-replicate (el quad puede rozar el borde de la foto).
+-      if (u < 0) u = 0;
+-      else if (u > maxX) u = maxX;
+-      if (v < 0) v = 0;
+-      else if (v > maxY) v = maxY;
+-      // Bilinear
+-      const x0 = u | 0;
+-      const y0 = v | 0;
+-      const x1 = x0 < maxX ? x0 + 1 : x0;
+-      const y1 = y0 < maxY ? y0 + 1 : y0;
+-      const fx = u - x0;
+-      const fy = v - y0;
+-      const i00 = (y0 * sw + x0) * 4;
+-      const i10 = (y0 * sw + x1) * 4;
+-      const i01 = (y1 * sw + x0) * 4;
+-      const i11 = (y1 * sw + x1) * 4;
+-      const w00 = (1 - fx) * (1 - fy);
+-      const w10 = fx * (1 - fy);
+-      const w01 = (1 - fx) * fy;
+-      const w11 = fx * fy;
+-      const o = (y * w + x) * 4;
+-      for (let c = 0; c < 3; c++) {
+-        out[o + c] =
+-          srcData[i00 + c]! * w00 +
+-          srcData[i10 + c]! * w10 +
+-          srcData[i01 + c]! * w01 +
+-          srcData[i11 + c]! * w11;
+-      }
+-      out[o + 3] = 255;
+-    }
+-  }
+-  octx.putImageData(outImage, 0, 0);
+-  return outCanvas;
+-}
+-
+-/** ÚLTIMO recurso del fallback: recorte bbox del quad + rotación (sin
+- *  homografía). Solo si warpQuadToCanvas no pudo resolver el sistema. */
+-async function cropQuad(
+-  img: HTMLImageElement,
+-  quad: Quad,
+-  rotation: number,
+-  maxSize: number
+-): Promise<HTMLCanvasElement> {
+-  const xs = quad.map((p) => p.x * img.width);
+-  const ys = quad.map((p) => p.y * img.height);
+-  const left = Math.min(...xs);
+-  const top = Math.min(...ys);
+-  const right = Math.max(...xs);
+-  const bottom = Math.max(...ys);
+-  const w = Math.max(16, right - left);
+-  const h = Math.max(16, bottom - top);
+-  const scale = Math.min(1, maxSize / Math.max(w, h));
+-
+-  const swapped = rotation === 90 || rotation === 270;
+-  const canvas = document.createElement("canvas");
+-  canvas.width = Math.round(swapped ? h * scale : w * scale);
+-  canvas.height = Math.round(swapped ? w * scale : h * scale);
+-  const ctx = canvas.getContext("2d");
+-  if (!ctx) throw new Error("sin contexto");
+-  ctx.imageSmoothingQuality = "high";
+-  ctx.save();
+-  ctx.translate(canvas.width / 2, canvas.height / 2);
+-  ctx.rotate((rotation * Math.PI) / 180);
+-  // La rotación ya intercambia los ejes para 90/270 — el scale debe ser
+-  // uniforme (el `-scale` anterior ESPEJABA la imagen en rotaciones 90/270,
+-  // bug E6 del fallback canvas).
+-  ctx.scale(scale, scale);
+-  ctx.drawImage(img, -left, -top, w, h, -w / 2, -h / 2, w, h);
+-  ctx.restore();
+-  return canvas;
+-}
+-
+-/**
+- * Aplica el filtro a una imagen ya rectificada — fallback canvas con la
+- * MISMA matemática del motor (contrato §4.2: funciones puras COMPARTIDAS de
+- * image-modes.ts; PROHIBIDO Otsu global u otra matemática — error #7).
+- * Unsharp (0.5/1.5/k7) ANTES del filtro en todo modo ≠ raw/text (§8):
+- * "text" afila por bordes internamente (edgeAwareSharpenGray) — F-TEXT-CLEAN.
+- */
+-export function applyFilterToCanvas(
+-  canvas: HTMLCanvasElement,
+-  filter: PageFilter
+-): HTMLCanvasElement {
+-  const ctx = canvas.getContext("2d");
+-  if (!ctx) return canvas;
+-  const { width: W, height: H } = canvas;
+-  if (W < 1 || H < 1) return canvas;
+-  const mode = filterToSharedMode(filter);
+-  const image = ctx.getImageData(0, 0, W, H);
+-  let d: Uint8ClampedArray = image.data;
+-  if (mode !== "raw" && mode !== "text") {
+-    d = unsharpRgba(d, W, H); // §8: unsharp ANTES del filtro, mode ≠ raw/text
+-  }
+-  const out = enhanceToRgba(d, W, H, mode);
+-  const dest = ctx.createImageData(W, H);
+-  dest.data.set(out);
+-  ctx.putImageData(dest, 0, 0);
+-  return canvas;
+-}
+-
+-// ─── Pipeline principal ─────────────────────────────────────────────────────
+-
+-/**
+- * Pipeline completo: rectifica (warp real) → rota → realza (modo real) →
+- * devuelve processed + thumbnail. Fallback: recorte canvas + filtro local.
+- */
+-export async function processImage(
+-  src: string,
+-  quad: Quad,
+-  filter: PageFilter,
+-  rotation = 0,
+-  opts?: ProcessOptions
+-): Promise<ProcessResult> {
+-  const precise = await processImagePrecise(src, quad, filter, rotation, opts);
+-  if (precise) return precise;
+-  return processImageCanvas(src, quad, filter, rotation, opts);
+-}
+-
+-/** Nº de esquinas firmes del refinado (fellBack[i]=true ⇒ esquina i cayó al
+- *  estimado grueso). null cuando el worker no informa (quad manual). */
+-function solidCorners(fellBack: readonly boolean[] | null): number | null {
+-  if (!fellBack) return null;
+-  return fellBack.filter((f) => !f).length;
+-}
+-
+-/** Pipeline REAL vía DetectionWorker. null → el llamador usa su fallback. */
+-async function processImagePrecise(
+-  src: string,
+-  quad: Quad,
+-  filter: PageFilter,
+-  rotation: number,
+-  opts?: ProcessOptions
+-): Promise<ProcessResult | null> {
+-  const client: ScannerWorkerClient | null = getScannerWorker();
+-  if (!client || client.isDead) return null;
+-  const ok = await client.waitReady();
+-  if (!ok) return null;
+-  try {
+-    // LOTE 3 (F3-A) — blob-first decode del tier fast: cuando hay tope de
+-    // salida ESTRICTAMENTE menor que el full-res, intentar decodificar
+-    // DIRECTO desde el Blob al tamaño de salida (el decodificador nativo
+-    // escala DURANTE el decode — JPEG DCT ≈ 1/2 para 4032→2048 — sin
+-    // materializar los 12 MP que hoy paga loadImage ANTES del downscale; ese
+-    // decode completo es el piso #1 del firstRender, diag SM-A135M 1602).
+-    // Dims de display se leen de la cabecera SIN decodificar
+-    // (jpegDimensionsFromBlob); la orientación EXIF 5-8 la resuelve el
+-    // parser (w/h swap) y el decode la aplica (imageOrientation
+-    // "from-image"). HERMÉTICO: cualquier paso que falle (no-JPEG, header
+-    // corrupto, plataforma sin resize/orientación — el sanity de dims
+-    // exactas lo detecta) → fallback al camino de hoy, byte a byte igual:
+-    // el comportamiento nunca degrada, solo acelera cuando está disponible.
+-    // ⚠️ INVARIANTE WYSIWYG intacto: con cap === PROCESSED_MAX_LONG_SIDE o
+-    // undefined este bloque NO corre y el quad sigue siendo FRACCIONES (0-1)
+-    // — bajar la fuente NO lo altera.
+-    const cap = opts?.maxLongSide;
+-    // F3-A — medición honesta de la adquisición de la fuente (blob-first O
+-    // fallback), expuesta como ProcessResult.decodeMs (diag F3-B).
+-    const tDecode = performance.now();
+-    let warpSource: HTMLImageElement | ImageBitmap | null = null;
+-    let img: HTMLImageElement | null = null;
+-    if (cap !== undefined && cap < PROCESSED_MAX_LONG_SIDE) {
+-      try {
+-        // B-14/C-24 — dataUrlToBlob ahora devuelve null si el data URL no
+-        // tiene payload; un null aquí cae al fallback hermético de abajo
+-        // (mismo camino que un header corrupto).
+-        const blob = dataUrlToBlob(src);
+-        if (blob === null) throw new Error("data URL sin payload");
+-        const dims = await jpegDimensionsFromBlob(blob);
+-        // Mismo umbral que el camino de hoy: solo si la foto EXCEDE el tope
+-        // (el parser entrega las mismas dims de display que naturalWidth/
+-        // naturalHeight — swap EXIF incluido).
+-        if (dims && cap < Math.max(dims.w, dims.h)) {
+-          const scale = cap / Math.max(dims.w, dims.h);
+-          const rw = Math.max(1, Math.round(dims.w * scale));
+-          const rh = Math.max(1, Math.round(dims.h * scale));
+-          const bitmap = await createImageBitmap(blob, {
+-            resizeWidth: rw,
+-            resizeHeight: rh,
+-            resizeQuality: "high",
+-            imageOrientation: "from-image",
+-          });
+-          // Sanity hermético: la plataforma DEBE entregar exactamente el
+-          // tamaño pedido (resize respetado). Si no → cerrar y usar el
+-          // camino de hoy (nunca un aspecto degradado).
+-          if (bitmap.width === rw && bitmap.height === rh) {
+-            warpSource = bitmap;
+-          } else {
+-            bitmap.close();
+-          }
+-        }
+-      } catch {
+-        /* no-JPEG / header corrupto / plataforma sin resize+orientación →
+-           fallback al camino de hoy */
+-      }
+-    }
+-    if (!warpSource) {
+-      // LOTE 2 (F2-E) — preview escalonado: cuando el llamador pide un tope de
+-      // salida ESTRICTAMENTE menor que el full-res (tier fast 2048 < 4032) y la
+-      // foto lo excede, reducir la ENTRADA del warp a ese tope ANTES de enviarla
+-      // al worker (createImageBitmap con resize: corre fuera del hilo principal;
+-      // el warp escala ~cuadrático con el output — (2048/4032)² ≈ 0.26× — y el
+-      // output queda ≤ maxLongSide por construcción). El quad es FRACCIONES
+-      // (0–1) de la foto: bajar la resolución de la fuente NO lo altera.
+-      // ⚠️ INVARIANTE WYSIWYG: con maxLongSide === PROCESSED_MAX_LONG_SIDE (4032)
+-      // o indefinido la entrada NO se toca — comportamiento byte a byte el de
+-      // hoy (guardado/export a 4032 intactos; el tier fast es SOLO display del
+-      // editor). El guard `cap < PROCESSED_MAX_LONG_SIDE` hace el invariante
+-      // hermético incluso para fotos hipotéticas >4032.
+-      img = await loadImage(src);
+-      if (!img.naturalWidth || !img.naturalHeight) return null;
+-      const longIn = Math.max(img.naturalWidth, img.naturalHeight);
+-      warpSource = img;
+-      if (cap !== undefined && cap < PROCESSED_MAX_LONG_SIDE && cap < longIn) {
+-        const scale = cap / longIn;
+-        try {
+-          warpSource = await createImageBitmap(img, {
+-            resizeWidth: Math.max(1, Math.round(img.naturalWidth * scale)),
+-            resizeHeight: Math.max(1, Math.round(img.naturalHeight * scale)),
+-            resizeQuality: "high",
+-          });
+-        } catch {
+-          /* plataforma sin resize en createImageBitmap → foto completa (hoy) */
+-        }
+-      }
+-    }
+-    const decodeMs = performance.now() - tDecode;
+-
+-    // 1) Warp: refinado sub-píxel (RANSAC) + shrink 3.5px + homografía
+-    //    INTER_CUBIC sobre la FOTO completa (la foto es la fuente de verdad).
+-    //    El worker cierra el bitmap de entrada y devuelve uno nuevo (puro,
+-    //    sin unsharp horneado — F5-RAW-2).
+-    const warp = await client.warp(warpSource, quad, opts?.manual === true);
+-    // LOTE 2 (F2-E): si la entrada fue un bitmap fast del propio llamador,
+-    // liberarlo si sigue abierto (transferido al worker → close() es no-op;
+-    // error previo a la transferencia → evita fuga).
+-    if (warpSource !== img) (warpSource as ImageBitmap).close();
+-    if (!warp || !warp.bitmap) return null;
+-
+-    // 2) Rotación post-warp (90/180/270) en canvas de alta calidad.
+-    // LOTE 4 (F4-B) — rotation === 0 (el 100 % de las capturas): el bitmap del
+-    // warp va DIRECTO al enhance (transferido al worker — client.enhance ya
+-    // acepta ImageBitmap y en ese camino NO re-decodifica). Hoy: copia canvas
+-    // 1:1 (48.8 MB en full 4032) + drawImage completo + createImageBitmap
+-    // interno del cliente (OTRA copia completa) ≈ 97 MB de pico y 2 copias
+-    // para llegar al MISMO píxel de entrada. Con rotation ≠ 0 el canvas es
+-    // imprescindible (transforma píxeles) → camino de hoy byte a byte.
+-    const rotated = rotation !== 0 ? bitmapToRotatedCanvas(warp.bitmap, rotation) : null;
+-    if (rotated) warp.bitmap.close();
+-    // rotation === 0: NO cerrar aquí — la transferencia al worker neuteriza el
+-    // bitmap (detached; close posterior sería no-op). Si enhance fallara ANTES
+-    // de transferir, el close() del guard del fallback (§4.2-d) libera.
+-
+-    // 3) Enhance: modo real del producto (modelo de sombras + constantes
+-    //    exactas). maxLongSide protege la memoria de data URLs en iOS.
+-    const mode = filterToEnhanceMode(filter);
+-    const maxLongSide = opts?.maxLongSide ?? PROCESSED_MAX_LONG_SIDE;
+-    const enh = await client.enhance(rotated ?? warp.bitmap, mode, { maxLongSide });
+-
+-    if (enh && enh.blob.size > 0) {
+-      let blob = enh.blob;
+-      // Toggle de nitidez para el Original: el modo raw sale PURO del worker
+-      // (F5-RAW) — el unsharp se aplica aquí, en cliente, con las mismas
+-      // constantes del producto (0.5/1.5, kernel 7).
+-      if (filter === "original" && opts?.unsharpOriginal === true) {
+-        try {
+-          const canvas = applyUnsharpToCanvas(await blobToCanvas(blob));
+-          const reencoded = await new Promise<Blob | null>((resolve) =>
+-            canvas.toBlob((b) => resolve(b), "image/png")
+-          );
+-          if (reencoded && reencoded.size > 0) blob = reencoded;
+-        } catch {
+-          /* conserva el blob puro */
+-        }
+-      }
+-      const processed = await blobToDataURL(blob);
+-      const thumbnail = await thumbnailFromBlob(blob);
+-      const precision: PagePrecision = {
+-        engine: "worker",
+-        refined: warp.refined,
+-        cornersSolid: solidCorners(warp.fellBack),
+-        width: enh.w,
+-        height: enh.h,
+-        elapsedMs: enh.elapsedMs,
+-      };
+-      if (thumbnail) return { processed, thumbnail, precision, decodeMs };
+-      // Sin thumbnail desde el blob → del canvas rotado (rotation ≠ 0) o
+-      // re-decodificando el processed (rotation === 0 — F4-B; solo este camino
+-      // raro). Mismo resultado, coste extra solo si thumbnailFromBlob falló.
+-      return {
+-        processed,
+-        thumbnail: rotated
+-          ? thumbnailFromCanvas(rotated)
+-          : await thumbnailFromDataURL(processed),
+-        precision,
+-        decodeMs,
+-      };
+-    }
+-
+-    // 4) Enhance no disponible → warp real + filtro canvas local (misma
+-    //    matemática de image-modes). Los 3 filtros salen PNG (R-10).
+-    // LOTE 4 (F4-B) — rotation === 0: el bitmap se TRANSFIRIÓ al worker
+-    // (detached): los píxeles no están en el hilo principal para este fallback.
+-    // close() es no-op si detached y libera si enhance falló antes de
+-    // transferir (isReady=false) → cero fugas. Devolver null → processImage
+-    // cae a processImageCanvas (pipeline completo desde la fuente, output
+-    // equivalente). Ventana de riesgo: worker muerto / enhance fallido ENTRE
+-    // el reply del warp y el enhance (sub-segundo; nunca observado en diag) —
+-    // el coste es un reproceso completo, el output NUNCA es incorrecto.
+-    if (!rotated) {
+-      warp.bitmap.close();
+-      return null;
+-    }
+-    const filtered = applyFilterToCanvas(rotated, filter);
+-    if (filter === "original" && opts?.unsharpOriginal === true) {
+-      applyUnsharpToCanvas(filtered);
+-    }
+-    const processed = await canvasToDataURL(filtered, "image/png");
++  // Si el "documento" detectado cubre casi toda la imagen → identidad.
++  if (x1 - x0 > 0.92 && y1 - y0 > 0.92) {
+     return {
+-      processed,
+-      thumbnail: thumbnailFromCanvas(filtered),
+-      precision: {
+-        engine: "worker",
+-        refined: warp.refined,
+-        cornersSolid: solidCorners(warp.fellBack),
+-        width: filtered.width,
+-        height: filtered.height,
+-      },
+-      decodeMs,
++      quad: [
++        { x: 0, y: 0 },
++        { x: 1, y: 0 },
++        { x: 1, y: 1 },
++        { x: 0, y: 1 },
++      ],
++      origen: 'identidad',
+     };
+-  } catch {
+-    // Cualquier fallo del pipeline de precisión ⇒ null: processImage cae ÍNTEGRO al fallback canvas (output equivalente, jamás rompe al llamador).
+-    return null;
+-  }
+-}
+-
+-function thumbnailFromCanvas(canvas: HTMLCanvasElement): string {
+-  const tW = 160;
+-  const tH = Math.max(1, Math.round((canvas.height / canvas.width) * tW));
+-  const tCanvas = document.createElement("canvas");
+-  tCanvas.width = tW;
+-  tCanvas.height = tH;
+-  const tCtx = tCanvas.getContext("2d");
+-  if (tCtx) {
+-    tCtx.imageSmoothingQuality = "high";
+-    tCtx.drawImage(canvas, 0, 0, tW, tH);
+   }
+-  return tCanvas.toDataURL("image/jpeg", 0.8);
+-}
+-
+-/** Encode de canvas grande vía toBlob (error #22: toDataURL sobre canvas
+- *  grande revienta memoria en Safari/iOS). Caída a toDataURL si falla. */
+-function canvasToDataURL(
+-  canvas: HTMLCanvasElement,
+-  mime: string,
+-  quality?: number
+-): Promise<string> {
+-  return new Promise<string>((resolve) => {
+-    try {
+-      canvas.toBlob(
+-        (b) => {
+-          if (!b || b.size === 0) {
+-            resolve(canvas.toDataURL(mime, quality));
+-            return;
+-          }
+-          blobToDataURL(b)
+-            .then(resolve)
+-            .catch(() => resolve(canvas.toDataURL(mime, quality)));
+-        },
+-        mime,
+-        quality
+-      );
+-    } catch {
+-      // toBlob roto síncronamente (Safari/iOS) ⇒ se resuelve con toDataURL: el encode jamás queda colgado (docblock, error #22).
+-      resolve(canvas.toDataURL(mime, quality));
+-    }
+-  });
++  return {
++    quad: [
++      { x: x0, y: y0 },
++      { x: x1, y: y0 },
++      { x: x1, y: y1 },
++      { x: x0, y: y1 },
++    ],
++    origen: 'detector',
++  };
+ }
+ 
+-// ─── KIT e14-fallback-worker-v1 (Ola 5 §5.4 — R2) ─────────────────────────
+-// El fallback canvas (warp bilineal + realce) deja el hilo principal: con el
+-// DetectionWorker muerto, getImageData de la foto completa (~48,8 MB a
+-// 4032×3024), el bucle bilineal y Bradley/Sauvola congelaban el hilo segundos
+-// en gama baja. El worker vive en `workers/fallback-canvas.ts` (mismo paquete,
+-// importa SOLO image-modes — sin DOM) y el hilo principal queda como red:
+-// ruta local SIEMPRE que no haya window (tests bun/vitest anclan la ruta local
+-// byte a byte), no haya OffscreenCanvas (iOS < 16.4 — matriz de la fase 2 §7),
+-// el worker haya fallado una vez (roto para la sesión) o cualquier excepción
+-// del camino nuevo. Quien llama a processImage NO cambia (misma API).
+-
++/**
++ * Procesa la foto: recorta el quad y aplica el filtro de revelado.
++ *
++ * FASE A3 (blueprint DLA): el quad ya NO se reduce a su bounding box. Si el
++ * quad está SESGADO (alguna esquina separada del bbox — foto en ángulo), se
++ * aplica una homografía real de 4 puntos (warpPerspectiva, muestreo bilineal
++ * inverso); si es axis-aligned exacto, el recorte recto equivale al warp y es
++ * más barato. El ancho de salida conserva la resolución del documento.
++ * Además, con `opts.deskew` (kill-switch por flag en Tamiz) se corrige la
++ * INCLINACIÓN residual ≤25° por perfil de proyección (FASE 2 del plan:
++ * antes ≤10°) — la que el quad no ve.
++ * `manual: true` (recorte del editor) respeta el quad al píxel y desactiva el
++ * deskew automático (la decisión del usuario manda).
++ * Devuelve { processed } como dataURL.
++ */
++
++// ─── KIT e14-fallback-worker-v1 (Ola 5 §5.4 — R2, port Tamiz universal) ────
++// El warp + filtros + encode PNG salen del hilo principal al worker IIFE
++// `public/scanner/fallback-canvas.worker.js` (build: scripts/build-fallback-
++// canvas-worker.mjs — fuentes en workers/fallback-canvas.ts con los filtros
++// EXACTOS del fork, ver comentario del worker). El hilo principal queda como
++// red: decodifica (createImageBitmap, async) y TRANSIERE el bitmap. Ruta local
++// SIEMPRE cuando no hay window (tests bun), no hay OffscreenCanvas (iOS <16.4),
++// el worker falló una vez (roto para la sesión) o cualquier excepción.
+ interface RespuestaFallbackOk {
+   id: number;
+   ok: true;
+@@ -1652,19 +280,15 @@
+   { resolver: (r: RespuestaFallbackOk) => void; rechazar: (e: Error) => void }
+ >();
+ 
+-/** ¿La ruta en worker está disponible en ESTE entorno? (matriz de
+- *  degradación — ver el comentario del kit arriba). */
+ function fallbackCanvasHabilitado(): boolean {
+   return (
+-    typeof window !== "undefined" && // node/bun (tests) → ruta local anclada
++    typeof window !== "undefined" &&
+     typeof Worker === "function" &&
+-    typeof OffscreenCanvas === "function" && // iOS < 16.4 → ruta local
++    typeof OffscreenCanvas === "function" &&
+     !fallbackCanvasWorkerRoto
+   );
+ }
+ 
+-/** Cualquier fallo del worker (error de arranque, onerror, timeout) deja la
+- *  sesión en modo local: se rechazan los pendientes y NUNCA se reintenta. */
+ function romperFallbackCanvasWorker(motivo: string): void {
+   fallbackCanvasWorkerRoto = true;
+   if (fallbackCanvasWorker) {
+@@ -1683,13 +307,8 @@
+ 
+ function obtenerFallbackCanvasWorker(): Worker {
+   if (!fallbackCanvasWorker) {
+-    // Artefacto PRECOMPILADO (misma lección DICTAMEN-e73 §3.1 del capa-0):
+-    // `new URL(..., import.meta.url)` sobre el .ts hacía que Turbopack copiara
+-    // el fuente CRUDO a static/media y el navegador no pudiera ejecutarlo.
+-    // El .worker.js lo emite `scripts/build-fallback-canvas-worker.mjs` en el
+-    // `prebuild`; si no existe, el throw lo atrapa el llamador (jamás romper).
+-    // KIT e14-remediacion-movil-v1 (C4): `name` explícito para el inventario
+-    // de workers (targets mudos → nombrables). IIFE clásico intacto.
++    // Artefacto PRECOMPILADO (DICTAMEN-e73 §3.1): el .ts crudo no sirve de
++    // worker — el .worker.js lo emite scripts/build-fallback-canvas-worker.mjs.
+     const w = new Worker(`${publicBaseEfectivo()}/scanner/fallback-canvas.worker.js`, {
+       name: "fallback-canvas-v1",
+     });
+@@ -1706,210 +325,244 @@
+   return fallbackCanvasWorker;
+ }
+ 
+-/** Fallback canvas EN WORKER: el main decodifica (createImageBitmap decodifica
+- *  async, fuera del hilo) y TRANSFIERE el bitmap (cero copia); el worker hace
+- *  warp + rotación + filtro + PNG con las mismas funciones puras de
+- *  image-modes y devuelve el Blob. Respeta el contrato ProcessResult de la
+- *  ruta local (precision.engine "canvas", decodeMs ausente, processed data
+- *  URL PNG, thumbnail 160 px). */
++/** processImage EN WORKER: el main decodifica y transfiere; el worker hace
++ *  warp + rotación + filtro fork + PNG (misma matemática). Devuelve null en
++ *  cualquier fallo — el llamador cae a su ruta local sin cambiar nada. */
+ async function processImageViaFallbackWorker(
+-  src: string,
++  foto: string,
+   quad: Quad,
+-  filter: PageFilter,
++  filtro: PageFilter,
+   rotation: number,
+-  maxLongSide: number
+-): Promise<ProcessResult> {
+-  const blobSrc = await (await fetch(src)).blob();
+-  const bitmap = await createImageBitmap(blobSrc);
++): Promise<{ processed: string; width: number; height: number } | null> {
++  if (!fallbackCanvasHabilitado()) return null;
++  const t0Worker = performance.now();
+   try {
+-    const worker = obtenerFallbackCanvasWorker();
+-    const id = ++fallbackCanvasSeq;
+-    const respuesta = new Promise<RespuestaFallbackOk>((resolver, rechazar) => {
+-      fallbackCanvasPendientes.set(id, { resolver, rechazar });
+-    });
+-    // Tope generoso de pared: si el worker no responde (cuelgo improbable),
+-    // se rechaza y la ruta local de siempre termina el trabajo.
+-    const reloj = setTimeout(() => {
+-      if (fallbackCanvasPendientes.delete(id)) {
+-        romperFallbackCanvasWorker("sin respuesta en 30 s");
+-      }
+-    }, 30_000);
++    const blobSrc = await (await fetch(foto)).blob();
++    const bitmap = await createImageBitmap(blobSrc);
+     try {
+-      worker.postMessage(
+-        {
+-          id,
+-          bitmap,
+-          quad: quad.flatMap((p) => [p.x, p.y]),
+-          filter,
+-          rotation,
+-          maxLongSide,
+-        },
+-        [bitmap]
+-      );
+-      const r = await respuesta;
+-      const processed = await blobToDataURL(r.png);
+-      return {
+-        processed,
+-        thumbnail: await thumbnailFromDataURL(processed),
+-        precision: {
+-          engine: "canvas",
+-          refined: false,
+-          cornersSolid: null,
+-          width: r.ancho,
+-          height: r.alto,
+-        },
+-      };
++      const worker = obtenerFallbackCanvasWorker();
++      const id = ++fallbackCanvasSeq;
++      const respuesta = new Promise<RespuestaFallbackOk>((resolver, rechazar) => {
++        fallbackCanvasPendientes.set(id, { resolver, rechazar });
++      });
++      const reloj = setTimeout(() => {
++        if (fallbackCanvasPendientes.delete(id)) {
++          romperFallbackCanvasWorker("sin respuesta en 30 s");
++        }
++      }, 30_000);
++      try {
++        worker.postMessage(
++          {
++            id,
++            bitmap,
++            quad: quad.flatMap((p) => [p.x, p.y]),
++            filter: filtro,
++            rotation,
++            maxLongSide: 4032,
++          },
++          [bitmap],
++        );
++        const r = await respuesta;
++        const processed = await new Promise<string>((resolve) => {
++          const fr = new FileReader();
++          fr.onload = () => resolve(String(fr.result ?? ""));
++          fr.onerror = () => resolve("");
++          fr.readAsDataURL(r.png);
++        });
++        // Telemetría §B (rotada-12): salida VACÍA con entrada decodificable
++        // — una línea con ms y dims. null = la ruta local termina el trabajo
++        // (degradación contenida de siempre, sin '' silencioso).
++        if (!processed) {
++          logger.warn(
++            "[image-processor] PNG del worker indigerible como data URL (cae a ruta local)",
++            { ms: Math.round(performance.now() - t0Worker), dims: `${r.ancho}x${r.alto}` },
++          );
++          return null;
++        }
++        return { processed, width: r.ancho, height: r.alto };
++      } finally {
++        clearTimeout(reloj);
++        fallbackCanvasPendientes.delete(id);
++      }
+     } finally {
+-      clearTimeout(reloj);
+-      fallbackCanvasPendientes.delete(id);
+-    }
+-  } finally {
+-    try {
+-      bitmap.close(); // si ya fue transferido queda detached — noop
+-    } catch {
+-      /* noop */
++      try {
++        bitmap.close();
++      } catch {
++        /* noop — si fue transferido queda detached */
++      }
+     }
++  } catch {
++    // Cualquier excepción del camino nuevo → null: la ruta local termina el trabajo.
++    return null;
+   }
+ }
+ 
+-/**
+- * Pipeline canvas local (fallback) — F6-WARP/F6-FILTER:
+- *  1. Warp de perspectiva real (homografía + bilinear, aspecto medido §7.5,
+- *     cap PROCESSED_MAX_LONG_SIDE, nunca upscala) — no el recorte bbox.
+- *  2. Rotación post-warp (90/180/270) de alta calidad.
+- *  3. Filtro con la MISMA matemática del motor (image-modes) + PNG (R-10).
+- */
+-async function processImageCanvas(
+-  src: string,
++/** Filtro bw de digielect14 — unsharp + Bradley-Roth ADAPTATIVO. Única
++ *  matemática del filtro bw en la ruta local; el gemelo del worker
++ *  (`workers/fallback-canvas.ts`) replica esta secuencia EXACTA byte a byte
++ *  (test de paridad `core/filtros-paridad.test.ts`). */
++export function aplicarFiltroBw(px: Uint8ClampedArray, w: number, h: number): Uint8ClampedArray {
++  const afilada = unsharpRgba(px, w, h);
++  return enhanceToRgba(afilada, w, h, 'bw');
++}
++
++export async function processImage(
++  foto: string,
+   quad: Quad,
+-  filter: PageFilter,
++  filtro: PageFilter,
+   rotation: number,
+-  opts?: ProcessOptions
+-): Promise<ProcessResult> {
+-  // §5.4 (R2) — ruta EN WORKER cuando el entorno la soporta (matriz arriba).
+-  // El toggle unsharpOriginal se queda en local: su unsharp corre sobre canvas
+-  // (applyUnsharpToCanvas) y duplicarlo en el worker rompería la paridad.
+-  const conUnsharpOriginal = filter === "original" && opts?.unsharpOriginal === true;
+-  if (fallbackCanvasHabilitado() && !conUnsharpOriginal) {
++  opts?: { manual?: boolean; deskew?: boolean },
++): Promise<{ processed: string; width: number; height: number }> {
++  // §5.4 (R2, port) — ruta EN WORKER cuando el entorno la soporta y el pedido
++  // no necesita deskew (corrección exclusiva del fork, camada local). El quad
++  // manual (`manual: true`) viaja igual: el worker respeta el quad al píxel.
++  if (!opts?.deskew) {
++    const viaWorker = await processImageViaFallbackWorker(foto, quad, filtro, rotation);
++    if (viaWorker) return viaWorker;
++  }
++  const t0 = performance.now();
++  const img = await decodificar(foto);
++  const src = imgACanvas(img);
++  const w = img.naturalWidth;
++  const h = img.naturalHeight;
++  // Guarda §B: un quad con NaN/±Inf (detector caído, JSON corrupto) envenena
++  // AMBAS rutas — crop → Math.min/max NaN → canvas 0×0 → drawImage no-op
++  // SILENCIOSO → toDataURL '' (foto vacía en el acta); warp → hypot(NaN) →
++  // ancho NaN. Se sana a identidad ANTES de decidir (degradación honesta,
++  // mismo convenio del catch de detección del pipeline) y se registra.
++  const saneado = sanearQuad(quad);
++  if (saneado.saneado) {
++    logger.warn('[image-processor] quad con coordenadas no finitas → identidad', {
++      dims: `${w}x${h}`,
++    });
++  }
++  const quadSano = saneado.quad;
++  const sesgado = quadSesgado(quadSano);
++  let out: HTMLCanvasElement;
++  if (sesgado) {
++    // Warp de perspectiva real: la salida conserva el ancho efectivo del
++    // documento (media de lados cortos/largos lo decide warpPerspectiva).
++    // Guarda §B: la fórmula vive en anchoSalidaDeQuad (quad-guardas,
++    // compartida con el gemelo worker) — clamp [1, 4032]; un quad degenerado
++    // ya NO puede producir NaN (antes Math.min(4032, NaN) = NaN → canvas 0×0).
++    const anchoDoc = Math.round(anchoSalidaDeQuad(quadSano, w, h, PROCESSED_MAX_LONG_SIDE));
++    // PROCESSED_MAX_LONG_SIDE = 4032 (upstream image-processor.ts:67 — bug v3
++    // de CALIDAD: 3200 recortaba las fotos de 12 MP; 4032×3024 ≈ 12.2 MP).
++    out = warpPerspectiva(src, quadSano, Math.max(200, anchoDoc));
++  } else {
++    // Rect del quad (bounding) en px — camino equivalente al recorte histórico.
++    const xs = quadSano.map((p) => p.x * w);
++    const ys = quadSano.map((p) => p.y * h);
++    const x0 = Math.max(0, Math.floor(Math.min(...xs)));
++    const y0 = Math.max(0, Math.floor(Math.min(...ys)));
++    const x1 = Math.min(w, Math.ceil(Math.max(...xs)));
++    const y1 = Math.min(h, Math.ceil(Math.max(...ys)));
++    const cw = Math.max(1, x1 - x0);
++    const ch = Math.max(1, y1 - y0);
++    out = document.createElement('canvas');
++    out.width = cw;
++    out.height = ch;
++    const ctx = out.getContext('2d', { willReadFrequently: true })!;
++    ctx.drawImage(src, x0, y0, cw, ch, 0, 0, cw, ch);
++  }
++  // FASE A3 — deskew residual (≤25°, FASE 2 del plan: antes ≤10°): solo fuera
++  // del recorte manual y cuando la flag del host lo habilita; el ángulo lo
++  // mide el perfil de proyección.
++  if (opts?.deskew && !opts?.manual) {
+     try {
+-      return await processImageViaFallbackWorker(
+-        src,
+-        quad,
+-        filter,
+-        rotation,
+-        opts?.maxLongSide ?? PROCESSED_MAX_LONG_SIDE
+-      );
++      const ang = anguloDeskew(out);
++      if (ang !== 0) out = corregirDeskew(out, ang);
+     } catch {
+-      /* cualquier fallo → la ruta local de SIEMPRE sigue de pie (jamás romper) */
++      /* sin corrección: degradación honesta, el pipeline sigue */
+     }
+   }
+-  const img = await loadImage(src);
+-  const maxLongSide = opts?.maxLongSide ?? PROCESSED_MAX_LONG_SIDE;
+-  const warped = warpQuadToCanvas(img, quad, maxLongSide);
+-  const base =
+-    warped !== null
+-      ? bitmapToRotatedCanvas(warped, rotation)
+-      : await cropQuad(img, quad, rotation, maxLongSide); // último recurso bbox
+-  const filtered = applyFilterToCanvas(base, filter);
+-  if (filter === "original" && opts?.unsharpOriginal === true) {
+-    applyUnsharpToCanvas(filtered);
++  // Rotación en pasos de 90°.
++  const pasos = ((Math.round(rotation / 90) % 4) + 4) % 4;
++  let rotado = out;
++  for (let i = 0; i < pasos; i++) {
++    const r = document.createElement('canvas');
++    r.width = rotado.height;
++    r.height = rotado.width;
++    const rc = r.getContext('2d', { willReadFrequently: true })!;
++    rc.translate(r.width / 2, r.height / 2);
++    rc.rotate(Math.PI / 2);
++    rc.drawImage(rotado, -rotado.width / 2, -rotado.height / 2);
++    rotado = r;
++  }
++  // Filtro de revelado.
++  if (filtro === 'bw') {
++    // bw de digielect14 (portado) vía aplicarFiltroBw — unsharp + Bradley-Roth
++    // ADAPTATIVO (integral image, ventana w/12, t=0.15) + despeckle +
++    // corrección de sombra. El umbral fijo 165/90 del fork dejaba manchas con
++    // fondo sombreado (hallazgo de la captura real del A56: OCR y molde sin
++    // anclas).
++    const rc = rotado.getContext('2d', { willReadFrequently: true })!;
++    const data = rc.getImageData(0, 0, rotado.width, rotado.height);
++    data.data.set(aplicarFiltroBw(data.data, rotado.width, rotado.height));
++    rc.putImageData(data, 0, 0);
++  } else if (filtro === 'contrast') {
++    // 'contrast' conserva el estiramiento del fork (p5/p95, sin binarizar).
++    const rc = rotado.getContext('2d', { willReadFrequently: true })!;
++    const data = rc.getImageData(0, 0, rotado.width, rotado.height);
++    const px = data.data;
++    // Percentiles p5/p95 para el estiramiento de contraste.
++    const hist = new Uint32Array(256);
++    for (let i = 0, p = 0; i < px.length; i += 4, p++) {
++      const g = (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]) | 0;
++      hist[g]++;
++      void p;
++    }
++    const total = px.length / 4;
++    let acc = 0;
++    let p5 = 0;
++    let p95 = 255;
++    for (let v = 0; v < 256; v++) {
++      acc += hist[v];
++      if (acc >= total * 0.05) {
++        p5 = v;
++        break;
++      }
++    }
++    acc = 0;
++    for (let v = 0; v < 256; v++) {
++      acc += hist[v];
++      if (acc >= total * 0.95) {
++        p95 = v;
++        break;
++      }
++    }
++    // Rango tonal degenerado (p5≈p95): pasa en renders limpios, PDFs
++    // rasterizados y fotos de fondo uniforme, donde >95 % de los píxeles son
++    // 255. Estirar contra un span artificial de 8 mapeaba el BLANCO a 0 y
++    // dejaba la página entera negra (OCR vacío, «papel cortado», score 0).
++    // Sin rango útil se conserva el gris original: el umbral sigue separando
++    // tinta de papel sin invertir la imagen.
++    const degenerado = p95 - p5 < 8;
++    const span = Math.max(8, p95 - p5);
++    for (let i = 0; i < px.length; i += 4) {
++      const g = (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]);
++      let v = degenerado ? g : ((g - p5) * 255) / span;
++      v = Math.min(255, Math.max(0, v));
++      px[i] = px[i + 1] = px[i + 2] = v;
++    }
++    rc.putImageData(data, 0, 0);
++  }
++  // R-10 (upstream): los 3 filtros del producto salen PNG — sin ringing
++  // JPEG sobre la tinta (degrada OCR y la comparación del visor).
++  const processed = rotado.toDataURL('image/png');
++  // Telemetría §B (rotada-12): salida VACÍA con entrada decodificable — una
++  // línea con ms y dims (el pipeline de Tamiz lanza con causa explícita; un
++  // '' jamás viaja como fotoProcesada, contrato §D4 del visor).
++  if (!processed) {
++    logger.warn('[image-processor] salida procesada VACÍA con entrada decodificable', {
++      dimsEntrada: `${w}x${h}`,
++      dimsSalida: `${rotado.width}x${rotado.height}`,
++      ms: Math.round(performance.now() - t0),
++    });
+   }
+-  // Los 3 filtros del producto salen PNG (R-10) — sin ringing sobre tinta.
+-  const processed = await canvasToDataURL(filtered, "image/png");
+   return {
+     processed,
+-    thumbnail: thumbnailFromCanvas(filtered),
+-    precision: {
+-      engine: "canvas",
+-      refined: false,
+-      cornersSolid: null,
+-      width: filtered.width,
+-      height: filtered.height,
+-    },
++    width: rotado.width,
++    height: rotado.height,
+   };
+ }
+-
+-/**
+- * FÓRMULA de calidad del core (0.45/0.25/0.3) — ÚNICA copia desde 7.6
+- * (plan de remediación, C2): antes `scanner-core-bridge.ts` la tenía copiada
+- * a mano para recalcular el level con las señales v2 y derivaba si el core
+- * cambiaba los pesos. PURA, sin DOM — testeable headless con bun.
+- */
+-export function puntajeCalidad(
+-  sharpness: number,
+-  brightness: number,
+-  contrast: number,
+-): number {
+-  return sharpness * 0.45 + brightness * 0.25 + contrast * 0.3;
+-}
+-
+-/** Umbrales del level (80/62/45) — MISMA partición de siempre
+- *  (§4.1 SPEC-e14-score-ocr: ≥8 OPTIMA vive en statusDeScore; estos techos
+- *  son los de CALIDAD FOTOGRÁFICA). Exportada junto a `puntajeCalidad` por
+- *  el mismo motivo. */
+-export function nivelPorPuntaje(score: number): PageQuality["level"] {
+-  return score >= 80 ? "excellent" : score >= 62 ? "good" : score >= 45 ? "fair" : "poor";
+-}
+-
+-/** Evaluación de calidad de la página (Laplaciano + contraste + brillo). */
+-export async function evaluateQuality(src: ImageSource): Promise<PageQuality> {
+-  try {
+-    const img = await ensureDecoded(src);
+-    const w0 = sourceWidth(img);
+-    const h0 = sourceHeight(img);
+-    const W = 120;
+-    const H = Math.max(1, Math.round((h0 / w0) * W));
+-    const canvas = document.createElement("canvas");
+-    canvas.width = W;
+-    canvas.height = H;
+-    const ctx = canvas.getContext("2d");
+-    if (!ctx) throw new Error("sin contexto");
+-    ctx.drawImage(img, 0, 0, W, H);
+-    const d = ctx.getImageData(0, 0, W, H).data;
+-
+-    const gray = new Float32Array(W * H);
+-    let sum = 0;
+-    for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+-      const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+-      gray[j] = l;
+-      sum += l;
+-    }
+-    const mean = sum / gray.length;
+-
+-    let lapSum = 0;
+-    let lapSq = 0;
+-    for (let y = 1; y < H - 1; y++) {
+-      for (let x = 1; x < W - 1; x++) {
+-        const i = y * W + x;
+-        const lap = 4 * gray[i] - gray[i - 1] - gray[i + 1] - gray[i - W] - gray[i + W];
+-        lapSum += lap;
+-        lapSq += lap * lap;
+-      }
+-    }
+-    const n = (W - 2) * (H - 2);
+-    const variance = lapSq / n - (lapSum / n) * (lapSum / n);
+-    const sharpness = Math.min(100, Math.round(Math.sqrt(variance) * 2.2));
+-
+-    let sqDiff = 0;
+-    for (let j = 0; j < gray.length; j++) sqDiff += (gray[j] - mean) * (gray[j] - mean);
+-    const contrast = Math.min(100, Math.round(Math.sqrt(sqDiff / gray.length) * 1.4));
+-
+-    const brightness = Math.min(100, Math.round((mean / 255) * 100));
+-
+-    const score = puntajeCalidad(sharpness, brightness, contrast);
+-    const level = nivelPorPuntaje(score);
+-    const label =
+-      level === "excellent" ? "Excelente" : level === "good" ? "Buena" : level === "fair" ? "Aceptable" : "Baja";
+-    return { level, sharpness, brightness, contrast, label };
+-  } catch {
+-    // Sin métricas el score no puede condenar un acta: default «Buena» (70/70/70) y la captura sigue su curso.
+-    return {
+-      level: "good",
+-      sharpness: 70,
+-      brightness: 70,
+-      contrast: 70,
+-      label: "Buena",
+-    };
+-  }
+-}
+-

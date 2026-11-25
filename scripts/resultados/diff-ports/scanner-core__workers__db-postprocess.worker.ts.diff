@@ -1,0 +1,11 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:42.459943800 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:42.460943100 -0500
+@@ -32,7 +32,7 @@
+  *    serializa sus peticiones de facto — una acta a la vez por la cola OCR).
+  */
+ 
+-import { dbPostprocess, type OpsDet } from "../src/ocr/db-postprocess";
++import { dbPostprocess, type OpsDet } from "../ocr/db-postprocess";
+ 
+ interface PeticionDbPost {
+   id: number;

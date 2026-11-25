@@ -123,6 +123,11 @@ export class CameraFrameLoop {
    *  aparta la página; sin esto, un documento estático captura infinito. */
   private rearmNeeded = false;
 
+  /** FIX borde: postergaciones consecutivas por papel pegado al encuadre.
+   *  A las 2 el disparo sigue (el documento puede estar completo y ser el
+   *  gate quien decida): la geometría no puede bloquear el visor en bucle. */
+  private edgePostpones = 0;
+
   private thumbCanvas: HTMLCanvasElement | null = null;
 
   get isRunning(): boolean {
@@ -426,11 +431,19 @@ export class CameraFrameLoop {
       // FIX borde: papel pegado al encuadre → el warp recorta el filo y el
       // gate marca INCOMPLETA (falta marca fiducial) aunque la foto se lea.
       // Se posterga el disparo sin consumir el historial: el operador aleja
-      // un poco el acta y el k-de-n vuelve a evaluar.
+      // un poco el acta y el k-de-n vuelve a evaluar. Escape: dos
+      // postergaciones SEGUIDAS y se dispara igual — un recibo que llena el
+      // cuadro no debe dejar el visor sin capturar (hallazgo del A56).
       if (corners && quadTouchesEdge(corners)) {
-        return;
+        if (this.edgePostpones < 2) {
+          this.edgePostpones += 1;
+          return;
+        }
+      } else {
+        this.edgePostpones = 0;
       }
       this.lastTriggerMs = now;
+      this.edgePostpones = 0;
       this.scoreHistory = [];
       this.rearmNeeded = true;
       cb.onTrigger();

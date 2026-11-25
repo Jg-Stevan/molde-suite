@@ -2388,7 +2388,16 @@ export async function evaluarDocumentoUniversal(
    * consume y la memoria del dispositivo manda). Default true: el Studio
    * sigue recibiendo TODO (verificación visual con overlay).
    */
-  opts?: { previews?: boolean },
+  opts?: {
+    previews?: boolean;
+    /** Plan primera ola (Fase 4): líneas OCR YA calculadas por el router
+     *  sobre la MISMA imagen de la página 1 — se reutilizan en vez de lanzar
+     *  un segundo Tesseract de página completa (una sola pasada, menos
+     *  latencia). Páginas N>1 y el flip 180° siguen haciendo su propio OCR. */
+    lineas?: LineaOcr[];
+    /** Confianza media del OCR reutilizado (la del proveedor del router). */
+    ocrConf?: number;
+  },
 ): Promise<ResultadoUniversal> {
   const previews = opts?.previews ?? true;
   const t0 = performance.now();
@@ -2403,9 +2412,16 @@ export async function evaluarDocumentoUniversal(
   for (let p = 0; p < canvases.length; p++) {
     const canvas = canvases[p];
     onProgreso?.(`OCR página ${p + 1}/${canvases.length}...`);
-    const tOcr = performance.now();
-    let ocr = await proveedorOcr().ocrLines(canvas);
-    ocrMs += performance.now() - tOcr;
+    // Fase 4 (plan primera ola): la página 1 reutiliza las líneas del router
+    // (misma imagen, mismo PSM de página completa) — un solo OCR de página.
+    let ocr: { lines: LineaOcr[]; conf: number | null };
+    if (p === 0 && opts?.lineas && opts.lineas.length > 0) {
+      ocr = { lines: opts.lineas, conf: opts.ocrConf ?? null };
+    } else {
+      const tOcr = performance.now();
+      ocr = await proveedorOcr().ocrLines(canvas);
+      ocrMs += performance.now() - tOcr;
+    }
 
     const camposPagina = molde.campos.filter((c) => c.pagina === p + 1);
     let pageCanvas = canvas;

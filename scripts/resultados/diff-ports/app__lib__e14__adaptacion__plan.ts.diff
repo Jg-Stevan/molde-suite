@@ -1,0 +1,421 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:42.785892900 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:42.786894400 -0500
+@@ -1,381 +1,51 @@
+-/**
+- * KIT e14-adaptacion-dispositivo-v1 — PLAN adaptativo (knobs de RECURSOS).
+- *
+- * Heredero del espíritu del kit e14-gama-adaptativa-v1 (D74, retirado con
+- * el módulo masiva): el tier YA detectado deja de ser solo-telemetría y
+- * CONSUME presupuestos de recursos — acotado a knobs de PERFORMANCE
+- * (jamás reglas de negocio: scores, gates, umbrales y desenlaces del
+- * pipeline NO se tocan) y con el kill-switch del mantenedor:
+- *
+- *   FLAG `adaptacionDispositivo` (default TRUE — petición explícita del
+- *   mantenedor 2026-11) · override manual localStorage MÁXIMA prioridad (D6):
+- *   {"adaptacionDispositivo": false} ⇒ knobs byte-idénticos a hoy.
+- *
+- * PRIORIDAD POR KNOB (hilos OCR):
+- *   1. override MANUAL del mantenedor (`ocrThreadsTope` en e14-flags-overrides)
+- *      — el plan NO lo toca (D6: la app jamás revierte una decisión manual).
+- *   2. plan adaptativo por tier — BAJO 2 · MEDIO 3 · ALTO 6 (exprimir en
+- *      gama alta; proteger en gama baja). Siempre capado por
+- *      hardwareConcurrency y exigido por SAB+COOP/COEP (1 hilo sin ellos).
+- *   3. default histórico 4 (FLAGS_DEFAULT.ocrThreadsTope) — adaptación OFF.
+- *
+- * SYNC y BARATO: `planAdaptativo()` no hace async ni benchmarks — usa
+- * `tierRapido()` (señales baratas del navigator). El perfil COMPLETO
+- * (async, con benchmarks) alimenta el informe IA y la UI.
+- */
++// Plan de adaptación por capacidad del dispositivo: presupuesto de tiempo
++// del pipeline según tier (KIT e14-ocr-tessbest-v1: ALTO 120s · MEDIO 240s ·
++// BAJO 480s) y tope seguro de resolución del sensor.
+ 
+-import { FLAGS_DEFAULT, leerFlags } from "../flags";
+-import { leerOverridesFlags } from "../obs/politica";
+-import { tierRapido } from "./perfil";
+-import type { Tier } from "../obs/tipos";
++import { TIMEOUT_ALTO_MS, TIMEOUT_BAJO_MS, TIMEOUT_MEDIO_MS } from '../politica/umbrales';
+ 
+-/** Hilos OCR objetivo por tier (ANTES del cap por hardwareConcurrency).
+- *  ALTO exprime (6 > default 4 — petición del mantenedor); BAJO protege. */
+-const HILOS_POR_TIER: Record<Tier, number> = {
+-  BAJO: 2,
+-  MEDIO: 3,
+-  ALTO: 6,
+-};
+-
+-/** KIT e14-gama-baja-20s-v1 — knobs OCR por tier (además de ocrHilos).
+- *  SOLO knobs de PERFORMANCE (jamás reglas de negocio: scores, gates,
+- *  umbrales y desenlaces del pipeline NO se tocan):
+- *
+- *  · reOcrModo — cómo es el 2.º intento cuando la 1.ª pasada (det 1280)
+- *    sale débil (`necesitaSegunda`, ocr-escalonado §2.3):
+- *      "completo"     = re-OCR 1920 de siempre (MEDIO/ALTO — byte-idéntico).
+- *      "roi-cabecera" = rescate de la franja superior 0-25% re-escalada a
+- *                       cap 1920 (MISMO helper y fracciones de la cascada
+- *                       K3: recortarRoiDataUrl + ROI_FRACCIONES.top). En
+- *                       gama baja el re-OCR completo cuesta ~2.5× la 1.ª
+- *                       pasada (det ≈ (1920/1280)² + cls + rec de TODO el
+- *                       acta) y es el multiplicador dominante del pipeline
+- *                       (126 s low-end mono-hilo — sim-recursos).
+- *  · segundaPresupuestoMs — tope PARED del pipeline para PERMITIR el
+- *      intento extra (null = sin tope adicional — manda el presupuesto
+- *      EXISTENTE del pipeline, §3 del kit escalonado). BAJO 15000: la
+- *      1.ª pasada + pre-OCR ya consumen ~15-23 s con 2 hilos ⇒ el rescate
+- *      entra SOLO cuando hay margen real; nunca se abandona una pasada
+- *      a mitad (solo se decide NO ABRIR una nueva).
+- *      KIT e14-remediacion-movil-v1 (A1): MEDIO/ALTO 45000 con modo
+- *      roi-cabecera — la 2.ª pasada nunca más se abre «sin margen real»:
+- *      el bridge la abre SOLO si k·ms1 cabe en el presupuesto restante
+- *      (fórmula k·ms1 — P0 #1/#2).
+- *
+- *  NOTA del merge con e14-ocr-tessbest-v1 (PR #118): el 3.er knob del kit
+- *  original (probeBudgetMs BAJO 6000 fail-fast) quedó SUBSUMIDO por
+- *  PROBE_ORIENTACION_POR_TIER de main — la evidencia sim-lowend v5/v6
+- *  demostró que CORTAR el sondeo en gama baja (t0 compartido consumido por
+- *  cargas de fondo) produce rotación débil → warp corta la cabecera →
+- *  acta RECHAZADA que con sondeo completo era 10.0 ÓPTIMA. Gana el knob
+- *  de main (probeOrientacionMs: BAJO 150 s · MEDIO 60 s · ALTO 12 s).
+- *
+- *  Prioridad D6 intacta: override MANUAL del mantenedor (ocrThreadsTope) manda
+- *  sobre ocrHilos; los knobs por tier se revierten con el kill-switch
+- *  `adaptacionDispositivo: false`. EXCEPCIÓN (A1): `ocrSegundaPresupuestoMs`
+- *  ahora también existe como FLAG (override MANUAL, doble whitelist) — manda
+- *  sobre el knob del tier cuando el mantenedor lo fija. */
+-const KNOBS_OCR_HISTORICO = {
+-  ocrReOcrModo: "completo",
+-  ocrSegundaPresupuestoMs: null,
+-} as const;
+-
+-// KIT e14-remediacion-movil-v1 (A1 — P0 #1/#2): ventana de ARRANQUE de la
+-// 2.ª pasada por tier (tope PARED para PERMITIR el intento extra). La
+-// decisión explícita del plan v2 (§A1, postura 2 — conservar el rescate ROI
+-// en ALTO): MEDIO/ALTO pasan a "roi-cabecera" (coste ≈ 1× la 1.ª pasada,
+-// no 2,5×) con ventana 45 s y la GARANTÍA recae en la fórmula k·ms1 del
+-// bridge (k≈1.2 ROI · 2.5 completo, margen 8 s): en el A13, 35 s de 1.ª +
+-// ~35 s de ROI + 8 s ≈ 78 s < 120 s — el caso del informe §5 (acta legible
+-// a 120,9 s RECHAZADA 0.0) NO puede reproducirse por la 2.ª pasada. BAJO
+-// queda byte-idéntico (15 s — mismo modo). El knob `ocrSegundaPresupuestoMs`
+-// pasó a la DOBLE WHITELIST de flags (flags.ts + obs/politica.ts) para el
+-// A/B del mantenedor sin rebuild — el override MANUAL manda sobre el plan (D6).
+-
+-const KNOBS_OCR_POR_TIER: Record<
+-  Tier,
+-  {
+-    ocrReOcrModo: "completo" | "roi-cabecera";
+-    ocrSegundaPresupuestoMs: number | null;
+-  }
+-> = {
+-  BAJO: { ocrReOcrModo: "roi-cabecera", ocrSegundaPresupuestoMs: 15_000 },
+-  // KIT e14-remediacion-movil-v1 (A1): ventana 45 s + rescate ROI (postura 2
+-  // del plan — ver comentario de arriba). El re-OCR completo de MEDIO/ALTO
+-  // sin tope de duración era la causa raíz del P0 #1 (acta legible
+-  // RECHAZADA 0.0 por el watchdog a los 120 s). override MANUAL del mantenedor:
+-  // flag `ocrSegundaPresupuestoMs` (doble whitelist) manda sobre estos knobs.
+-  MEDIO: { ocrReOcrModo: "roi-cabecera", ocrSegundaPresupuestoMs: 45_000 },
+-  ALTO: { ocrReOcrModo: "roi-cabecera", ocrSegundaPresupuestoMs: 45_000 },
+-};
+-
+-
+-/** KIT e14-ocr-tessbest-v1 — Presupuesto del ESCANEO individual (timeout
+- *  del pipeline) por tier. Evidencia (docs/archivo/REPORTE-sim-gama-baja-v2.md +
+- *  sim-lowend-v3-resultados.json): en mono-hilo 6× el pipeline real
+- *  necesita ~125 s y el timeout fijo de 120 s (e67) lo RECHAZABA con score
+- *  0.0 justo antes de terminar (P0). ALTO = 120 s byte-idéntico al
+- *  histórico; MEDIO/BAJO escalan (lección D48 del masiva: el presupuesto
+- *  manda sobre el reloj de la máquina del mantenedor, no al revés). La UI nunca
+- *  se congela: el pipeline corre en worker y el ANALIZANDO es event-driven
+- *  (D18). Coherente con la cascada: vencido ⇒ no se abre ninguna etapa
+- *  nueva (§3 del kit escalonado). */
+-const PRESUPUESTO_ESCANEO_POR_TIER: Record<Tier, number> = {
+-  BAJO: 480_000,
+-  MEDIO: 240_000,
+-  ALTO: 120_000,
+-};
+-
+-/** Referencia histórica (e67) — default/ALTO y fallback seguro. */
+-const PRESUPUESTO_ESCANEO_DEFAULT_MS = 120_000;
+-
+-/** KIT e14-ocr-tessbest-v1 — presupuesto del PROBE de orientación por tier
+- *  (histórico fijo 12 000 — D56 §3 T3, calibrado con det del probe a
+- *  DET_CAP_RAPIDO en equipos del mantenedor: det ~1.2 s + rec0 ~3 s + rec90 ~3 s
+- *  + rec270 ~3 s ≈ 10.2 s). Evidencia sim-lowend v5/v6 (mono-hilo 6× + 3G):
+- *  el t0 COMPARTIDO se consume con cargas de fondo (descarga vendida de
+- *  Tess, modelos en cola) ⇒ el sondeo queda cortado (cortes=presupuesto) sin
+- *  evaluar challengers → rotación débil sin confirmar → el warp corta la
+- *  cabecera (recortada=1 lado=sup) → cabeceraE14=false → RECHAZADA en un
+- *  acta que con sondeo completo es 10.0 ÓPTIMA. BAJO cubre el probe completo
+- *  con margen; ALTO = 12 s byte-idéntico. Kill-switch: adaptación OFF ⇒ 12 s. */
+-const PROBE_ORIENTACION_POR_TIER: Record<Tier, number> = {
+-  BAJO: 150_000,
+-  MEDIO: 60_000,
+-  ALTO: 12_000,
+-};
+-
+-/** Referencia histórica (D56 §3 T3) — default/ALTO y fallback seguro. */
+-const PROBE_ORIENTACION_DEFAULT_MS = 12_000;
+-
+-/** KIT e14-ocr-tessbest-v1 — espera del warm-up del worker OpenCV en la
+- *  DETECCIÓN (tope histórico 5 s — kit masiva-ux T1). Evidencia sim-lowend-v4:
+- *  a CPU 6× el compile+warm wasm mono-hilo NO cabe en 5 s ⇒ la detección cae
+- *  a fallback (quad peor → score 4.9 y cabecera dañada → ILEGIBLE en un acta
+- *  que a 1× fue 10.0 ÓPTIMA). ALTO = 5 s byte-idéntico; BAJO/MEDIO escalan
+- *  (el tope es una ESPERA pasiva — el worker avanza mientras tanto, jamás
+- *  bloquea más de lo que tarda el warm-up real). Kill-switch: adaptación OFF
+- *  ⇒ 5 s histórico exacto. */
+-const ESPERA_WORKER_POR_TIER: Record<Tier, number> = {
+-  BAJO: 20_000,
+-  MEDIO: 10_000,
+-  ALTO: 5_000,
+-};
+-
+-/** Referencia histórica (masiva-ux T1) — default/ALTO y fallback seguro. */
+-const ESPERA_WORKER_DEFAULT_MS = 5_000;
+-
+-export interface PlanAdaptativo {
+-  /** false ⇒ el flag del mantenedor está OFF ⇒ knobs byte-idénticos a hoy. */
+-  adaptado: boolean;
+-  tier: Tier;
+-  tierInferido: boolean;
+-  /** Hilos wasm del OCR ya RESUELTOS (prioridad + capas aplicadas). */
+-  ocrHilos: number;
+-  /** De dónde salió ocrHilos (auditoría honesta para informe/UI/traza). */
+-  ocrHilosFuente: "override-manual" | "plan-adaptativo" | "default";
+-  /** Sin SharedArrayBuffer+COOP/COEP el wasm corre a 1 hilo — registro. */
+-  hilosWasmDisponibles: boolean;
+-  /** KIT e14-gama-baja-20s-v1 — modo del 2.º intento OCR cuando la 1.ª
+-   *  pasada sale débil (ver KNOBS_OCR_POR_TIER). BAJO: "roi-cabecera";
+-   *  resto/histórico: "completo". */
+-  ocrReOcrModo: "completo" | "roi-cabecera";
+-  /** Tope pared del pipeline para PERMITIR el intento extra (ms) —
+-   *  null = sin tope adicional (mandan los presupuestos existentes). */
+-  ocrSegundaPresupuestoMs: number | null;
+-  /** KIT e14-ocr-tessbest-v1 — presupuesto del escaneo individual ya
+-   *  RESUELTO (override manual > plan por tier > default 120 s). */
+-  presupuestoEscaneoMs: number;
+-  /** De dónde salió presupuestoEscaneoMs (misma auditoría honesta). */
+-  presupuestoEscaneoFuente: "override-manual" | "plan-adaptativo" | "default";
+-  /** KIT e14-ocr-tessbest-v1 — espera del warm-up del worker OpenCV en la
+-   *  detección ya RESUELTA por tier (BAJO 20 s · MEDIO 10 s · ALTO 5 s). */
+-  esperaWorkerMs: number;
+-  /** KIT e14-ocr-tessbest-v1 — presupuesto del probe de orientación ya
+-   *  RESUELTO por tier (BAJO 150 s · MEDIO 60 s · ALTO 12 s). Subsume el
+-   *  probeBudgetMs (BAJO 6 s fail-fast) del kit e14-gama-baja-20s-v1: la
+-   *  evidencia sim-lowend v5/v6 mostró que cortar el sondeo produce actas
+-   *  RECHAZADAS, así que gana el presupuesto completo de main. */
+-  probeOrientacionMs: number;
+-}
++export type TierDispositivo = 'ALTO' | 'MEDIO' | 'BAJO';
+ 
+-function nucleosDisponibles(): number {
+-  try {
+-    if (typeof navigator === "undefined") return 1;
+-    const n = navigator.hardwareConcurrency;
+-    return typeof n === "number" && n > 0 ? n : 1;
+-  } catch {
+-    // hardwareConcurrency es opcional: 1 núcleo es el piso conservador del plan
+-    return 1;
+-  }
+-}
+-
+-function hilosWasmDisponibles(): boolean {
+-  try {
+-    return (
+-      typeof SharedArrayBuffer !== "undefined" &&
+-      typeof self !== "undefined" &&
+-      self.crossOriginIsolated === true
+-    );
+-  } catch {
+-    // sin SharedArrayBuffer/COOP-COEP el wasm corre a 1 hilo: false es el informe honesto
+-    return false;
+-  }
+-}
+-
+-/** Resuelve el presupuesto del escaneo con la MISMA prioridad del plan:
+- *  override MANUAL del mantenedor (flag `presupuestoEscaneoMs`, clamp 30-900 s)
+- *  > plan por tier > default 120 s. Jamás lanza. */
+-function resolverPresupuesto(tier: Tier): {
+-  ms: number;
+-  fuente: PlanAdaptativo["presupuestoEscaneoFuente"];
+-} {
+-  try {
+-    const override = leerOverridesFlags().presupuestoEscaneoMs;
+-    if (typeof override === "number" && Number.isFinite(override)) {
+-      return {
+-        ms: Math.max(30_000, Math.min(900_000, Math.round(override))),
+-        fuente: "override-manual",
+-      };
+-    }
+-  } catch {
+-    /* sin override legible → plan por tier */
+-  }
+-  return {
+-    ms: PRESUPUESTO_ESCANEO_POR_TIER[tier] ?? PRESUPUESTO_ESCANEO_DEFAULT_MS,
+-    fuente: "plan-adaptativo",
+-  };
+-}
+-
+-/** Espera del warm-up del worker OpenCV por tier (sin flag propio — el
+- *  kill-switch `adaptacionDispositivo` OFF ⇒ 5 s histórico exacto). */
+-function resolverEsperaWorker(tier: Tier): number {
+-  return ESPERA_WORKER_POR_TIER[tier] ?? ESPERA_WORKER_DEFAULT_MS;
+-}
+-
+-/** Presupuesto del probe de orientación por tier (mismo criterio). */
+-function resolverProbeOrientacion(tier: Tier): number {
+-  return PROBE_ORIENTACION_POR_TIER[tier] ?? PROBE_ORIENTACION_DEFAULT_MS;
++export function tierDelDispositivo(): TierDispositivo {
++  if (typeof navigator === 'undefined') return 'ALTO';
++  const nucleos = navigator.hardwareConcurrency ?? 4;
++  const memoriaGb = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
++  if (nucleos >= 6 && memoriaGb >= 6) return 'ALTO';
++  if (nucleos >= 4 || memoriaGb >= 4) return 'MEDIO';
++  return 'BAJO';
+ }
+ 
+-/** Plan efectivo de recursos — SYNC, barato, jamás lanza. Consumidores:
+- *  rapidocr (numThreads), PanelDev (visor) e informe-ia (auditoría). */
+-export function planAdaptativo(): PlanAdaptativo {
+-  const nucleos = nucleosDisponibles();
+-  const hilosOk = hilosWasmDisponibles();
+-  const tierRap = tierRapido();
+-  try {
+-    const flags = leerFlags();
+-    if (!flags.adaptacionDispositivo) {
+-      // Adaptación OFF (flag del mantenedor o kill-switch) → histórico puro.
+-      return {
+-        adaptado: false,
+-        tier: tierRap.tier,
+-        tierInferido: tierRap.tierInferido,
+-        ocrHilos: hilosOk
+-          ? Math.min(FLAGS_DEFAULT.ocrThreadsTope, nucleos)
+-          : 1,
+-        ocrHilosFuente: "default",
+-        hilosWasmDisponibles: hilosOk,
+-        ...KNOBS_OCR_HISTORICO,
+-        presupuestoEscaneoMs: PRESUPUESTO_ESCANEO_DEFAULT_MS,
+-        presupuestoEscaneoFuente: "default",
+-        esperaWorkerMs: ESPERA_WORKER_DEFAULT_MS,
+-        probeOrientacionMs: PROBE_ORIENTACION_DEFAULT_MS,
+-      };
+-    }
+-    // 1 · override MANUAL del mantenedor — manda sobre el plan (D6). El override
+-    // existe para ocrHilos; los knobs OCR nuevos siguen siendo por-tier
+-    // (solo el kill-switch `adaptacionDispositivo: false` los revierte).
+-    const overrideHilos = leerOverridesFlags().ocrThreadsTope;
+-    if (typeof overrideHilos === "number") {
+-      const pres = resolverPresupuesto(tierRap.tier);
+-      return {
+-        adaptado: true,
+-        tier: tierRap.tier,
+-        tierInferido: tierRap.tierInferido,
+-        ocrHilos: hilosOk ? Math.min(overrideHilos, nucleos) : 1,
+-        ocrHilosFuente: "override-manual",
+-        hilosWasmDisponibles: hilosOk,
+-        ...KNOBS_OCR_POR_TIER[tierRap.tier],
+-        presupuestoEscaneoMs: pres.ms,
+-        presupuestoEscaneoFuente: pres.fuente,
+-        esperaWorkerMs: resolverEsperaWorker(tierRap.tier),
+-        probeOrientacionMs: resolverProbeOrientacion(tierRap.tier),
+-      };
+-    }
+-    // 2 · plan adaptativo por tier (capado por hardware real).
+-    const pres = resolverPresupuesto(tierRap.tier);
+-    return {
+-      adaptado: true,
+-      tier: tierRap.tier,
+-      tierInferido: tierRap.tierInferido,
+-      ocrHilos: hilosOk ? Math.min(HILOS_POR_TIER[tierRap.tier], nucleos) : 1,
+-      ocrHilosFuente: "plan-adaptativo",
+-      hilosWasmDisponibles: hilosOk,
+-      ...KNOBS_OCR_POR_TIER[tierRap.tier],
+-      presupuestoEscaneoMs: pres.ms,
+-      presupuestoEscaneoFuente: pres.fuente,
+-      esperaWorkerMs: resolverEsperaWorker(tierRap.tier),
+-      probeOrientacionMs: resolverProbeOrientacion(tierRap.tier),
+-    };
+-  } catch {
+-    // Fallo inesperado → histórico puro (jamás romper el OCR por el plan).
+-    return {
+-      adaptado: false,
+-      tier: tierRap.tier,
+-      tierInferido: tierRap.tierInferido,
+-      ocrHilos: hilosOk ? Math.min(FLAGS_DEFAULT.ocrThreadsTope, nucleos) : 1,
+-      ocrHilosFuente: "default",
+-      hilosWasmDisponibles: hilosOk,
+-      ...KNOBS_OCR_HISTORICO,
+-      presupuestoEscaneoMs: PRESUPUESTO_ESCANEO_DEFAULT_MS,
+-      presupuestoEscaneoFuente: "default",
+-      esperaWorkerMs: ESPERA_WORKER_DEFAULT_MS,
+-      probeOrientacionMs: PROBE_ORIENTACION_DEFAULT_MS,
+-    };
+-  }
+-}
+-
+-/** Helper del consumidor (rapidocr.ts) — resuelve numThreads con las MISMAS
+- *  condiciones de siempre (SAB + crossOriginIsolated → 1 hilo sin ellas). */
+-export function numThreadsOcrEfectivos(): number {
+-  const plan = planAdaptativo();
+-  return plan.hilosWasmDisponibles ? plan.ocrHilos : 1;
+-}
+-
+-/** Helper del consumidor (scanner-core-bridge) — presupuesto del ESCANEO
+- *  individual ya resuelto (SYNC, barato, jamás lanza). Adaptación OFF o
+- *  fallo ⇒ default histórico 120 s (byte-idéntico a e67). */
++/** Presupuesto total (ms) del pipeline para este dispositivo. */
+ export function presupuestoEscaneoEfectivo(): number {
+-  try {
+-    return planAdaptativo().presupuestoEscaneoMs;
+-  } catch {
+-    // jamás romper el escaneo por el plan: default histórico de 120 s
+-    return PRESUPUESTO_ESCANEO_DEFAULT_MS;
++  switch (tierDelDispositivo()) {
++    case 'ALTO':
++      return TIMEOUT_ALTO_MS;
++    case 'MEDIO':
++      return TIMEOUT_MEDIO_MS;
++    default:
++      return TIMEOUT_BAJO_MS;
+   }
+ }
+ 
+-/** Helper del consumidor (scanner-core-bridge) — espera del warm-up del
+- *  worker OpenCV ya resuelta (SYNC, barato, jamás lanza). Adaptación OFF o
+- *  fallo ⇒ 5 s histórico exacto (masiva-ux T1). */
+-export function esperaWorkerEfectiva(): number {
+-  try {
+-    return planAdaptativo().esperaWorkerMs;
+-  } catch {
+-    // jamás romper el warm-up por el plan: 5 s histórico exacto
+-    return ESPERA_WORKER_DEFAULT_MS;
++/** Tope seguro de lado largo de foto por gama (px). */
++export function topeLadoLargoPx(): number {
++  switch (tierDelDispositivo()) {
++    case 'ALTO':
++      return 4032;
++    case 'MEDIO':
++      return 3200;
++    default:
++      return 2560;
+   }
+ }
+ 
+-/** Helper del consumidor (orientacion.ts) — presupuesto del probe de
+- *  orientación ya resuelto (SYNC, barato, jamás lanza). Adaptación OFF o
+- *  fallo ⇒ 12 s histórico exacto (D56 §3 T3). */
++/** KIT e14-ocr-tessbest-v1 — presupuesto del PROBE de orientación por tier
++ *  (upstream adaptacion/plan.ts: BAJO 150 s · MEDIO 60 s · ALTO 12 s). */
++const PROBE_ORIENTACION_MS: Record<TierDispositivo, number> = {
++  BAJO: 150_000,
++  MEDIO: 60_000,
++  ALTO: 12_000,
++};
+ export function presupuestoProbeOrientacionEfectivo(): number {
+-  try {
+-    return planAdaptativo().probeOrientacionMs;
+-  } catch {
+-    // jamás romper el probe por el plan: 12 s histórico exacto
+-    return PROBE_ORIENTACION_DEFAULT_MS;
+-  }
++  return PROBE_ORIENTACION_MS[tierDelDispositivo()];
+ }

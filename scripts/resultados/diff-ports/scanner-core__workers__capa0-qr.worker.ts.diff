@@ -1,0 +1,11 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:42.332945200 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:42.333946500 -0500
+@@ -105,7 +105,7 @@
+   rotarPixeles,
+   ventanaDePixeles,
+   type PixelesQr,
+-} from "../src/qr/qr-pixeles";
++} from "../qr/qr-pixeles";
+ 
+ /** Lado largo del RESCATE (e64-qr T-1.4 — el 4096² de main). Literal en el
+  *  worker para NO importar identidad-qr (arrastraría zxing/logger al

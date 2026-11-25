@@ -36,10 +36,32 @@ export function crearProgreso(nombreLog) {
   };
 }
 
+/** Serial adb a usar: TAMIZ_ADB_SERIAL lo fija (dos teléfonos a la vez);
+ *  sin la variable y con un único dispositivo conectado se infiere. */
+export function serialAdb() {
+  if (process.env.TAMIZ_ADB_SERIAL) return process.env.TAMIZ_ADB_SERIAL;
+  try {
+    const salida = execFileSync(ADB, ["devices"], { encoding: "utf-8" });
+    const seriales = salida
+      .split("\n")
+      .slice(1)
+      .map((l) => l.trim().split(/\s+/))
+      .filter((p) => p[1] === "device")
+      .map((p) => p[0]);
+    return seriales.length === 1 ? seriales[0] : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Captura del dispositivo (pantalla completa, píxeles físicos) vía adb. */
 export function capturaDispositivo(nombre) {
   try {
-    const png = execFileSync(ADB, ["exec-out", "screencap", "-p"], { maxBuffer: 30 * 1024 * 1024 });
+    const serial = serialAdb();
+    const args = serial
+      ? ["-s", serial, "exec-out", "screencap", "-p"]
+      : ["exec-out", "screencap", "-p"];
+    const png = execFileSync(ADB, args, { maxBuffer: 30 * 1024 * 1024 });
     writeFileSync(join(RESULTADOS, nombre), png);
     return nombre;
   } catch {
@@ -53,10 +75,26 @@ export async function conectarA56(cdp = "http://127.0.0.1:9223") {
   const { chromium } = await import("playwright");
   const navegador = await chromium.connectOverCDP(cdp);
   const contexto = navegador.contexts()[0];
-  const pagina = contexto.pages().find((p) => p.url().includes("localhost:3100"));
+  // Varias pestañas de :3100 son normales (recargas/duplicados): se prefiere
+  // la VISIBLE — una pestaña en segundo plano (TikTok al frente) queda
+  // estrangulada por Chrome y el pipeline parece colgado.
+  const candidatas = contexto.pages().filter((p) => p.url().includes("localhost:3100"));
+  let pagina = null;
+  for (const p of candidatas) {
+    const vis = await p.evaluate(() => document.visibilityState).catch(() => "hidden");
+    if (vis === "visible") {
+      pagina = p;
+      break;
+    }
+  }
+  pagina ??= candidatas[0] ?? null;
   if (!pagina) {
-    await navegador.close();
-    throw new Error("sin página localhost:3100 en el Chrome del teléfono");
+    // Chrome quedó sin pestaña (p. ej. navegador.close() de un run anterior
+    // cerró la única pestaña): se abre una nueva y se carga la app.
+    pagina = await contexto.newPage();
+    await pagina
+      .goto("http://localhost:3100/", { waitUntil: "domcontentloaded", timeout: 90000 })
+      .catch(() => undefined);
   }
   const sesion = await contexto.newCDPSession(pagina);
   return { navegador, contexto, pagina, sesion };

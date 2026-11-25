@@ -34,6 +34,7 @@ import {
   candidatosDeSesion,
   debeEnrutar,
   elegirCandidato,
+  ratioAnclasDe,
   sembrarMoldeDemo,
   type ContextoE14Acta,
 } from './enrutamiento';
@@ -153,15 +154,25 @@ async function segundaOpinionCasillas(
 
 /**
  * ETAPA B — evalúa el mejor molde sobre la foto procesada del acta.
- *  · Molde ACTIVO → evaluación directa (comportamiento de siempre).
+ *  · Molde ACTIVO → evaluación directa (la elección del operador manda; el
+ *    OCR de página se comparte igualmente para la telemetría de anclas).
  *  · Sin activo → ROUTER sobre la biblioteca (prefiltro por anclas con UNA
  *    pasada de OCR compartida; evaluación completa solo al mejor candidato).
+ *  · Fase 4: esa pasada de OCR alimenta también al motor (`opts.lineas`) y,
+ *    si la binarizada no lee nada, se mide un A/B contra `fotoOcr` (original).
  *  · Devuelve null cuando no hay moldes o ningún ancla matchea — el pipeline
  *    no cambia nada (honesto).
  */
 export async function evaluarMoldeEnActa(
   fotoProcesada: string,
   contexto?: ContextoE14Acta,
+  /**
+   * Plan primera ola (Fase 4): la MISMA geometría sin binarizar (`fotoOcr` del
+   * pipeline) para el A/B medido — si la binarizada no produce NINGUNA
+   * lectura, se reintenta el molde sobre el original y se registra la
+   * comparación. Costo acotado: el reintento SOLO ocurre con 0 lecturas.
+   */
+  opciones?: { fotoOriginal?: string },
 ): Promise<ResumenMoldeActa | null> {
   if (!leerFlags().evaluacionMolde) return null;
   asegurarProveedor();
@@ -173,12 +184,31 @@ export async function evaluarMoldeEnActa(
   const canvas = await canvasDesdeDataUrl(fotoProcesada, { ancho: 1000 });
   const renderMs = Math.round(performance.now() - t0);
 
+  // UNA pasada de OCR de página (la del router): alimenta el prefilo por
+  // anclas, la telemetría de ratios y —vía opts.lineas— al motor, que ya NO
+  // lanza un segundo Tesseract de página completa (Fase 4: menos latencia).
+  const tOcr = performance.now();
+  const ocr = await ocrLines(canvas);
+  const ocrRouterMs = Math.round(performance.now() - tOcr);
+
   // Elección del molde: activo explícito o mejor candidato del router.
   let molde: MoldeUniversal;
-  if (moldeActivo()) {
-    molde = moldes[0];
+  const activo = moldeActivo();
+  const ratios = moldes.map((m) => ({
+    nombre: m.nombre,
+    ratio: ratioAnclasDe(m, ocr.lines, canvas.width, canvas.height),
+  }));
+  // Telemetría SIEMPRE (también con molde activo): así se ve por qué la
+  // identificación da 0 % — el ratio de anclas de cada molde sobre el OCR real.
+  logger.info('[molde] ratio de anclas por molde', {
+    ocrMs: ocrRouterMs,
+    lineas: ocr.lines.length,
+    activo: activo?.nombre ?? null,
+    ratios,
+  });
+  if (activo) {
+    molde = moldes[0]!;
   } else {
-    const ocr = await ocrLines(canvas);
     const candidato = elegirCandidato(moldes, ocr.lines, canvas.width, canvas.height);
     if (!candidato) return null; // ninguna ancla matchea → comportamiento de siempre
     molde = candidato.molde;
@@ -188,15 +218,53 @@ export async function evaluarMoldeEnActa(
     });
   }
 
-  const resultado = await evaluarDocumentoUniversal(
+  let resultado = await evaluarDocumentoUniversal(
     [canvas],
     molde,
     molde.nombre,
     undefined,
     renderMs,
-    { previews: false },
+    { previews: false, lineas: ocr.lines, ocrConf: ocr.conf ?? undefined },
   );
-  await segundaOpinionCasillas(canvas, resultado);
+  // Tiempos honestos del resumen: el OCR del router corre una sola vez; sus
+  // ms suman al ocr_ms que el motor ya no mide (usó las líneas reutilizadas).
+  resultado.tiempos.ocr_ms = Math.round(resultado.tiempos.ocr_ms + ocrRouterMs);
+
+  // A/B MEDIDO (Fase 4): binarizada sin NINGUNA lectura → reintento sobre la
+  // geometría original (`fotoOcr`). Solo se adopta si mejora; la comparación
+  // queda en consola. Sin tocar umbrales de enrutado.
+  let canvasFuente = canvas;
+  if (opciones?.fotoOriginal && resultado.ok_count === 0) {
+    try {
+      const canvasAlt = await canvasDesdeDataUrl(opciones.fotoOriginal, { ancho: 1000 });
+      const alt = await evaluarDocumentoUniversal(
+        [canvasAlt],
+        molde,
+        molde.nombre,
+        undefined,
+        renderMs,
+        { previews: false },
+      );
+      const elegido = alt.ok_count > resultado.ok_count || alt.score > resultado.score ? 'original' : 'binarizada';
+      logger.info('[molde] A/B binarizada vs original', {
+        molde: molde.nombre,
+        binarizada: { score: resultado.score, ok: resultado.ok_count, total: resultado.total },
+        original: { score: alt.score, ok: alt.ok_count, total: alt.total },
+        elegido,
+      });
+      if (elegido === 'original') {
+        resultado = alt;
+        canvasFuente = canvasAlt;
+      }
+    } catch (e) {
+      // El A/B es aditivo: su fallo jamás cambia el resultado de la binarizada.
+      logger.warn('[molde] A/B con la foto original falló (se conserva la binarizada)', {
+        mensaje: (e as Error).message,
+      });
+    }
+  }
+
+  await segundaOpinionCasillas(canvasFuente, resultado);
   const resumen = resumir(molde, resultado);
   // Telemetría honesta del puente (visible en consola DEV): qué leyó el
   // motor universal y por qué estado va cada campo.
@@ -217,7 +285,7 @@ export async function evaluarMoldeEnActa(
   // FASE B4 (blueprint DLA): PRESENCIA de manuscrito (D-FINE) — señal
   // agregada en el resumen, JAMÁS lectura de texto (el HTR sigue siendo
   // revisión humana). null detector = bandera ausente (Nivel 1).
-  const banderaManuscrito = await banderaManuscritoSiDisponible(canvas);
+  const banderaManuscrito = await banderaManuscritoSiDisponible(canvasFuente);
   if (banderaManuscrito) resumen.banderas.push(banderaManuscrito);
 
   // ETAPA B — ¿el molde se convierte en el VEREDICTO del acta? Lo decide

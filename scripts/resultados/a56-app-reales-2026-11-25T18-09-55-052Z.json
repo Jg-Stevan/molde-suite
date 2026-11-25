@@ -1,0 +1,27 @@
+{
+  "fotos": [
+    {
+      "foto": "reales/20261123_213831.jpg",
+      "segundos": 26,
+      "veredicto": "RECHAZADA",
+      "imagenMostrada": {
+        "nw": 1504,
+        "nh": 2005,
+        "cssW": 338,
+        "src": "data:image/jpeg;base64,/9j/4QE"
+      },
+      "vista": {
+        "nw": 1504,
+        "nh": 2005,
+        "cssW": 338,
+        "src": "data:image/jpeg;base64,/9j/4QE",
+        "captura": "a56-app-vista-20261123_213831-1795630191235.png"
+      },
+      "capturas": [
+        "a56-app-vista-20261123_213831-1795630191235.png",
+        "a56-app-veredicto-20261123_213831-1795630194417.png"
+      ]
+    }
+  ],
+  "medidoEn": "2026-11-25T18:09:55.052Z"
+}

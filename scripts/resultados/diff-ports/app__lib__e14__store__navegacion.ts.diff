@@ -1,0 +1,35 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:47.277875600 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:47.278877200 -0500
+@@ -12,14 +12,30 @@
+ export function crearNavegacion(
+   set: E14Set,
+   get: E14Get,
+-): Pick<E14Store, "vista" | "destelloKey" | "online" | "navegar" | "destellar" | "alternarConexion"> {
++): Pick<
++  E14Store,
++  | "vista"
++  | "vistaPrevia"
++  | "destelloKey"
++  | "online"
++  | "navegar"
++  | "destellar"
++  | "alternarConexion"
++> {
+   return {
+     vista: "escanear",
++    vistaPrevia: null,
+     destelloKey: 0,
+     online: true,
+ 
++    // MOCK 2026-11-16 (escaneo libre): la vista anterior se estampa SIEMPRE
++    // que cambia el destino (guard: re-navegar a la MISMA vista no borra el
++    // historial — p. ej. «Escanear documento» en el visor ya activo).
+     navegar: (vista) =>
+-      set({ vista }),
++      set((s) => ({
++        vista,
++        vistaPrevia: s.vista === vista ? s.vistaPrevia : s.vista,
++      })),
+ 
+     destellar: () => set((s) => ({ destelloKey: s.destelloKey + 1 })),
+ 

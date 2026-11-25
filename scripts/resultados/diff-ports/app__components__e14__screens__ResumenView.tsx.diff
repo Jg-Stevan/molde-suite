@@ -1,0 +1,883 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:49.695650300 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:49.696649800 -0500
+@@ -1,25 +1,33 @@
+ "use client";
+ 
+ /**
+- * RESUMEN (§7.7 / C2) — "RESUMEN DE TRABAJO": progreso del puesto (barra
+- * segmentada de 12), tarjetas de estadística (cola offline / rescaneos) e
+- * historial de envíos con barra de acento por estado. Reactivo en vivo.
+- * Responsive 360→1280 (max-w-2xl en lg). La sección "ANÁLISIS DE LA
+- * JORNADA" (donut + barras recharts) fue ELIMINADA a pedido del mantenedor.
++ * PLANTILLAS (mock del mantenedor, 2026-11-16) — reconstrucción de la vista
++ * RESUMEN según el mock:
+  *
+- * KIT e14-observabilidad-v1 (agente 2 · C1): tuerca del modo de
+- * diagnóstico SIEMPRE visible arriba-izquierda del header (dev/
+- * TuercaResumen) — activación armada, panel desde C4.
+- * KIT e14-observabilidad-v1 (agente 2 · C3): el botón INFORME ZIP sale de
+- * Resumen — el flujo (lazy import generarInformeZip + downloadBlob,
+- * chequeo de cola vacía, mensajes) MIGRA a la sección Exportar del
+- * PanelDev (C4). Resumen queda con: barra segmentada, tarjetas,
+- * historial, reiniciar jornada y tuerca.
++ *  · Cabecera: «PLANTILLAS» + chip MODO LOCAL (+ tuerca de diagnóstico).
++ *  · Tarjeta CARGAR MOLDE .JSON (borde punteado): input de archivo REAL con
++ *    drag & drop — el molde pasa por la MISMA puerta que PanelMoldes
++ *    (importarMoldeDesdeTexto → activarMolde en el registry + guardado en
++ *    IndexedDB); los metadatos (nombre, tamaño, fecha) quedan en localStorage.
++ *  · MOLDE VINCULADO AL DISPOSITIVO: la plantilla ACTIVA leída del registry
++ *    (el mismo molde que ejecuta el pipeline) o la base integrada, con chips
++ *    de estado, tamaño en caché, PREVIEW (campos reales de la plantilla) y
++ *    tipos de campo presentes. Acciones: REEMPLAZAR .JSON · ELIMINAR · PROBAR.
++ *  · AJUSTES DE SISTEMA (colapsado al pie): puente a supervisión + reiniciar
++ *    jornada — la operativa del mantenedor sale del flujo visual del mock
++ *    pero NO se pierde.
++ *
++ * DATOS HONESTOS: los conteos del preview salen de construirChecklist() con
++ * un acta mínima (SOLO para LISTAR los campos que la plantilla define — los
++ * estados por documento viven en REVISIÓN). Nada de cifras decorativas.
+  */
+-import { useEffect, useState } from "react";
++
++import { useEffect, useMemo, useRef, useState } from "react";
++import Link from "next/link";
++import type { Acta } from "@/lib/e14/fachada";
+ import { useE14Store } from "@/lib/e14/store";
+-import type { HistorialRow } from "@/lib/e14/fachada";
+-import { PUESTO_SIMULADO } from "@/lib/e14/fachada";
++import { downloadBlob, nombrePdf, pdfConsolidadoDeActas, type DocPdf } from "@/lib/e14/core/pdf-export";
++import { construirChecklist } from "@/lib/e14/checklist";
+ // KIT e14-puente-supervision-v1 (§7): tarjeta del puente al panel de
+ // supervisión — estado del singleton + sincronización manual inline.
+ import type { EstadoPuente } from "@/lib/e14/puente/tipos";
+@@ -31,73 +39,68 @@
+   fijarHubLocal,
+ } from "@/lib/e14/puente/envio";
+ import { contarPendientes } from "@/lib/e14/puente/cola";
+-import { SegmentedBar } from "../primitives";
+ // KIT e14-observabilidad-v1 (agente 2 · C1): puerta del modo desarrollador.
+ import { TuercaResumen } from "../dev/TuercaResumen";
+ // KIT e14-observabilidad-v1 (agente 2 · C4): panel completo del modo dev.
+ import { PanelDev } from "../dev/PanelDev";
+-
+-function badgeEstado(estado: HistorialRow["estado"]) {
+-  switch (estado) {
+-    case "ENVIADO":
+-      return {
+-        label: "ENVIADO ✓",
+-        clases: "px-2.5 py-1 bg-[#10b981]/15 border border-[#10b981]/40 text-[#10b981] font-mono font-bold text-[11px]",
+-        barra: "bg-[#10b981]",
+-      };
+-    case "RESCANEO_REQUERIDO":
+-      return {
+-        label: "RESCANEO ⚠️",
+-        clases: "px-2.5 py-1 bg-[#ef4444]/15 border border-[#ef4444]/40 text-[#ef4444] font-mono font-bold text-[11px]",
+-        barra: "bg-[#ef4444]",
+-      };
+-    default:
+-      return {
+-        label: "REVISIÓN HUMANA",
+-        clases: "px-2.5 py-1 bg-amber-400/15 border border-amber-400/40 text-amber-400 font-mono font-bold text-[11px]",
+-        barra: "bg-amber-400",
+-      };
+-  }
++import { DocLineIcon, StitchDocIcon } from "../icons";
++import { importarMoldeDesdeTexto } from "@/lib/e14/molde/importar";
++import { activarMolde, desactivarMolde, moldeActivo } from "@/lib/e14/molde/registry";
++import { guardarMolde } from "@/lib/e14/molde/almacen";
++
++/** Registro LOCAL del molde personalizado (localStorage del dispositivo). */
++interface MoldeLocal {
++  nombre: string;
++  tamanoKb: number;
++  fecha: string;
+ }
+ 
+-/** C-25 — una fila del historial: las SINTÉTICAS (guion del SIM) llevan
+- *  barra ámbar + badge «SIM» además del texto en la hora ("SIM") — a simple
+- *  vista no puede confundirse una fila SIM con una real. */
+-function FilaHistorial({ fila, sim }: { fila: HistorialRow; sim: boolean }) {
+-  const badge = badgeEstado(fila.estado);
+-  return (
+-    <div className="min-h-12 flex items-center justify-between gap-3 px-3.5 lg:px-5 py-2.5 lg:py-3 relative overflow-hidden hover:bg-slate-800/30 transition-colors">
+-      <span
+-        className={`absolute left-0 top-0 bottom-0 w-1 ${sim ? "bg-amber-400" : badge.barra}`}
+-        aria-hidden
+-      />
+-      <span className="font-mono text-xs text-white pl-1.5 min-w-0 truncate font-semibold">
+-        {sim && (
+-          <span className="mr-2 inline-block px-1.5 py-px rounded bg-amber-500/15 border border-amber-500/50 text-amber-400 font-mono font-black text-[9px] tracking-widest align-middle">
+-            SIM
+-          </span>
+-        )}
+-        {fila.titulo}
+-      </span>
+-      <span className={`${badge.clases} whitespace-nowrap shrink-0 rounded-full shadow-xs`}>
+-        {badge.label}
+-      </span>
+-    </div>
+-  );
++const CLAVE_MOLDE = "e14-molde-local";
++
++function leerMoldeLocal(): MoldeLocal | null {
++  try {
++    const crudo = window.localStorage.getItem(CLAVE_MOLDE);
++    if (!crudo) return null;
++    const parseado = JSON.parse(crudo) as MoldeLocal;
++    if (typeof parseado?.nombre !== "string") return null;
++    return parseado;
++  } catch {
++    return null;
++  }
+ }
+ 
+ export function ResumenView() {
+-  const mesas = useE14Store((s) => s.mesas);
+-  const historial = useE14Store((s) => s.historial);
+-  const puestoReal = useE14Store((s) => s.puestoActual);
+-  const modoSimulacion = useE14Store((s) => s.modoSimulacion);
+-  const puestoMostrado = puestoReal ?? (modoSimulacion ? PUESTO_SIMULADO : null);
+-
++  const navegar = useE14Store((s) => s.navegar);
+   const reiniciarJornada = useE14Store((s) => s.reiniciarJornada);
+   const [reiniciarArmado, setReiniciarArmado] = useState(false);
++  const pdfLibro = useE14Store((s2) => s2.pdfLibro);
++  const [pdfEnVuelo, setPdfEnVuelo] = useState(false);
++  // Bloque 2.6 — exportar la SESIÓN a PDF multipágina (una página por
++  // documento del libro; jspdf, sin ZIP).
++  const exportarPdf = () => {
++    if (pdfLibro.length === 0 || pdfEnVuelo) return;
++    setPdfEnVuelo(true);
++    try {
++      const docs: DocPdf[] = pdfLibro.map((e) => ({
++        titulo: e.titulo, estado: e.estado, score: e.score, foto: e.foto, hora: e.hora, qr: e.qr ?? null,
++      }));
++      downloadBlob(pdfConsolidadoDeActas(docs), nombrePdf(docs.length, "documentos-tamiz"));
++    } finally {
++      setPdfEnVuelo(false);
++    }
++  };
++
++  // Molde personalizado registrado en el dispositivo (REAL: localStorage).
++  const [moldeLocal, setMoldeLocal] = useState<MoldeLocal | null>(null);
++  const [feedbackMolde, setFeedbackMolde] = useState<string | null>(null);
++  const inputArchivo = useRef<HTMLInputElement>(null);
++
+   // KIT e14-observabilidad-v1 (agente 2 · C4): el panel SOLO se abre desde
+   // la tuerca (sin ruta ni query param).
+   const [panelAbierto, setPanelAbierto] = useState(false);
++  // AJUSTES DE SISTEMA (colapsado al pie del mock).
++  const [ajustesAbiertos, setAjustesAbiertos] = useState(false);
++
+   // KIT e14-puente-supervision-v1 (§7): estado del puente leído del
+   // singleton (snapshot COPIA) + cola pendiente real + feedback inline del
+   // botón (sin modales ni toasts — D2 del redesign).
+@@ -105,21 +108,20 @@
+   const [puentePendientes, setPuentePendientes] = useState(0);
+   const [puenteSincronizando, setPuenteSincronizando] = useState(false);
+   const [puenteFeedback, setPuenteFeedback] = useState<string | null>(null);
+-  // E2E LOCAL — el flujo celular → computador del mismo equipo (runbook
+-  // `supervision-e14/docs/RUNBOOK-e2e-local-v1.md`). Cuando el digitalizador
+-  // se abre desde una IP privada, el hub es el PROPIO origen: sin este botón
+-  // habría que escribir `localStorage.setItem("e14-puente-url", …)` en la
+-  // consola del celular, que nadie hace. Solo aparece en red local, nunca en
+-  // la demo pública.
++  // E2E LOCAL — el flujo celular → computador del mismo equipo. Solo aparece
++  // en red local, nunca en la demo pública.
+   const [enRedLocal, setEnRedLocal] = useState(false);
+   const [hubUsado, setHubUsado] = useState<string | null>(null);
+ 
+   useEffect(() => {
+     try {
++      setMoldeLocal(leerMoldeLocal());
+       setEnRedLocal(esOrigenLocal());
+       setHubUsado(hubEnUso());
++      setPuenteEstado(estadoPuente());
++      void contarPendientes().then((n) => setPuentePendientes(n));
+     } catch {
+-      /* silencioso — la tarjeta jamás rompe RESUMEN */
++      /* silencioso — la vista jamás rompe por almacenamiento bloqueado */
+     }
+   }, []);
+ 
+@@ -131,20 +133,11 @@
+       nuevo === null
+         ? "El navegador bloqueó el almacenamiento: el hub no se pudo cambiar."
+         : nuevo === origen
+-          ? "Puente apuntando a este equipo. Las actas llegan al panel en /supervision."
++          ? "Puente apuntando a este equipo. Los documentos llegan al panel en /supervision."
+           : "Puente devuelto al hub de producción."
+     );
+   };
+ 
+-  useEffect(() => {
+-    try {
+-      setPuenteEstado(estadoPuente());
+-      void contarPendientes().then((n) => setPuentePendientes(n));
+-    } catch {
+-      /* silencioso — la tarjeta jamás rompe RESUMEN */
+-    }
+-  }, []);
+-
+   const sincronizarPuente = async (): Promise<void> => {
+     if (puenteSincronizando) return; // un ciclo a la vez (debounce del kit)
+     setPuenteSincronizando(true);
+@@ -155,7 +148,7 @@
+       setPuenteEstado(estadoPuente());
+       setPuentePendientes(await contarPendientes());
+     } catch {
+-      // el fallo ya sube a la tarjeta del puente como feedback visible; RESUMEN sigue
++      // el fallo ya sube a la tarjeta del puente como feedback visible
+       setPuenteFeedback("Error: no se pudo sincronizar");
+     } finally {
+       setPuenteSincronizando(false);
+@@ -171,292 +164,415 @@
+   const origenEquipo = typeof window === "undefined" ? "" : window.location.origin;
+   const hubEsLocal = hubUsado === origenEquipo;
+ 
+-  // C-25 — filas SIM distinguibles: toggle LOCAL «ocultar filas SIM» +
+-  // separador visual entre el historial REAL y el guion sintético (cada fila
+-  // SIM lleva badge ámbar — a simple vista no se confunden).
+-  const [ocultarSim, setOcultarSim] = useState(false);
+-  const filasSim: HistorialRow[] = modoSimulacion
+-    ? mesas
+-        .flatMap((m) =>
+-          m.paginas
+-            .filter((p) => p.estado === "OK")
+-            .map((p) => ({
+-              id: `sim-${m.id}-${p.tipo}-${p.pagina}`,
+-              titulo: `${m.id} · ${p.tipo} P${p.pagina}`,
+-              estado: "ENVIADO" as const,
+-              hora: "SIM",
+-            })),
+-        )
+-        .reverse()
+-    : [];
+-  const mostrarSim = modoSimulacion && !ocultarSim && filasSim.length > 0;
+-
+-  const totalPaginas = mesas.reduce((n, m) => n + m.paginas.length, 0);
+-  const paginasOk = mesas.reduce(
+-    (n, m) => n + m.paginas.filter((p) => p.estado === "OK").length,
+-    0,
+-  );
+-  const paginasRescaneo = mesas.reduce(
+-    (n, m) => n + m.paginas.filter((p) => p.estado === "RESCANEO").length,
+-    0,
+-  );
+-  const pendientes = totalPaginas - paginasOk;
+-  const pct = totalPaginas > 0 ? Math.round((paginasOk / totalPaginas) * 100) : 0;
+-  const ultimaActividad = historial[0]?.hora ?? "—";
++  // ── PREVIEW de la plantilla ACTIVA (REAL): si hay molde universal activo
++  // (registry, misma fuente que usa el pipeline) el preview lista SUS campos
++  // agrupados; si no, los grupos de la plantilla base E-14. Antes se llamaba
++  // siempre a construirChecklist({} as Acta) y el panel mentía con un molde
++  // importado activo.
++  const previewMolde = useMemo(() => {
++    const activo = moldeActivo();
++    if (activo) {
++      const porGrupo = new Map<string, number>();
++      for (const c of activo.campos) {
++        const g = (c.grupo ?? "").trim() || "Campos";
++        porGrupo.set(g, (porGrupo.get(g) ?? 0) + 1);
++      }
++      return {
++        custom: true,
++        nombre: activo.nombre,
++        grupos: Array.from(porGrupo, ([titulo, total]) => ({ titulo, total })),
++        obligatorios: activo.campos.filter((c) => c.obligatorio).length,
++        opcionales: activo.campos.filter((c) => !c.obligatorio).length,
++      };
++    }
++    const pl = construirChecklist({} as Acta);
++    const grupos = pl.grupos.map((g) => ({ titulo: g.titulo, total: g.items.length }));
++    const totalVerificaciones = grupos.reduce((n, g) => n + g.total, 0);
++    const obligatorios = grupos
++      .filter((g) => g.titulo === "Huellas / Firmas" || g.titulo === "Campos Obligatorios")
++      .reduce((n, g) => n + g.total, 0);
++    return {
++      custom: false,
++      nombre: null as string | null,
++      grupos,
++      obligatorios,
++      opcionales: totalVerificaciones - obligatorios,
++    };
++  }, [moldeLocal]);
++  const previewPlantilla = previewMolde.grupos;
++  const obligatorios = previewMolde.obligatorios;
++  const opcionales = previewMolde.opcionales;
++
++  // ── Carga del molde personalizado: la MISMA puerta que PanelMoldes
++  // (importarMoldeDesdeTexto valida el sobre/checksum del contrato). Antes
++  // solo se guardaba nombre/tamaño/fecha en localStorage y el JSON se
++  // descartaba: el motor nunca veía el molde y Tamiz seguía en la base E-14.
++  const registrarArchivo = async (file: File): Promise<void> => {
++    if (!file.name.toLowerCase().endsWith(".json")) {
++      setFeedbackMolde("Archivo inválido: se espera un .json de definición.");
++      return;
++    }
++    try {
++      const r = await importarMoldeDesdeTexto(await file.text());
++      if (!r.ok) {
++        setFeedbackMolde(`Molde rechazado: ${r.errores.join(" · ")}`);
++        return;
++      }
++      const act = activarMolde(r.molde);
++      if (!act.ok) {
++        setFeedbackMolde(`Molde inválido: ${act.errores.join(" · ")}`);
++        return;
++      }
++      await guardarMolde(r.molde, r.checksum);
++      const registro: MoldeLocal = {
++        nombre: file.name,
++        tamanoKb: Math.max(0.1, Math.round((file.size / 1024) * 10) / 10),
++        fecha: new Date().toLocaleString("es-CO"),
++      };
++      window.localStorage.setItem(CLAVE_MOLDE, JSON.stringify(registro));
++      setMoldeLocal(registro);
++      const avisos = r.avisos.length > 0 ? ` Avisos: ${r.avisos.join(" · ")}` : "";
++      setFeedbackMolde(`MOLDE ACTIVO: ${act.nombre} (${registro.tamanoKb} KB).${avisos}`);
++    } catch (err) {
++      setFeedbackMolde(`No se pudo cargar el molde: ${(err as Error).message}`);
++    }
++  };
++
++  const eliminarMolde = (): void => {
++    desactivarMolde();
++    try {
++      window.localStorage.removeItem(CLAVE_MOLDE);
++    } catch {
++      /* sin almacenamiento no hay molde que quitar */
++    }
++    setMoldeLocal(null);
++    setFeedbackMolde("Molde personalizado eliminado. Activo: plantilla base integrada.");
++  };
+ 
+   return (
+     <div className="flex-1 min-h-0 overflow-y-auto thin-scroll bg-[#090d12] flex flex-col">
+       <header className="sticky top-0 z-40 w-full bg-[#090d12]/92 backdrop-blur-xl border-b border-slate-800/80 px-4 h-14 shrink-0 shadow-xs">
+         {/* KIT e14-observabilidad-v1 (agente 2 · C1): tuerca SIEMPRE visible
+-            arriba-izquierda del header; el contenido se corre a la derecha
+-            (pl) para despejar su blanco táctil de 44px. */}
++            arriba-izquierda del header; el contenido se corre a la derecha. */}
+         <div className="absolute left-2 top-1/2 -translate-y-1/2 z-50">
+           <TuercaResumen onAbrirPanel={() => setPanelAbierto(true)} />
+         </div>
+-        {/* Task 3: el contenido de la barra se alinea al ancho del contenedor
+-            de la vista (en lg+ ya no queda pegado al borde del viewport). */}
+         <div className="max-w-md lg:max-w-2xl mx-auto w-full h-full flex items-center justify-between pl-[56px]">
+           <div className="flex items-center gap-2 min-w-0">
+-            <span className="w-2 h-2 rounded-full bg-[#10b981] shrink-0" />
++            <StitchDocIcon className="w-4 h-4 text-[#10b981] shrink-0" />
+             <h1 className="font-mono text-sm font-bold tracking-widest text-[#10b981] uppercase truncate">
+-              RESUMEN DE TRABAJO
++              PLANTILLAS
+             </h1>
+           </div>
+-          <span className="font-mono text-[11px] text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-md border border-slate-700/60 whitespace-nowrap shrink-0">
+-            {pct}% <span className="hidden min-[400px]:inline">TRANSMITIDO</span>
++          <span className="font-mono text-[10px] font-bold text-slate-300 bg-slate-800/60 px-2 py-1 rounded-md border border-slate-700/60 uppercase tracking-wider whitespace-nowrap shrink-0">
++            MODO LOCAL
+           </span>
+         </div>
+       </header>
+ 
+-      <div className="flex-grow flex flex-col gap-5 px-4 pt-4 pb-8 max-w-md lg:max-w-2xl mx-auto w-full">
+-        {/* Puesto actual */}
+-        <section className="bg-[#10161f] border border-slate-800 rounded-2xl p-4 lg:p-5 shadow-sm flex flex-col gap-2">
+-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">
+-            PUESTO DE VOTACIÓN ASIGNADO
++      <div className="flex-grow flex flex-col gap-4 px-4 pt-4 pb-8 max-w-md lg:max-w-2xl mx-auto w-full">
++        {/* ── CARGAR MOLDE .JSON (mock: borde punteado + botón verde). */}
++        <section
++          className="rounded-2xl border-2 border-dashed border-slate-700 bg-[#10161f]/60 p-5 flex flex-col items-center gap-3 text-center"
++          onDragOver={(e) => e.preventDefault()}
++          onDrop={(e) => {
++            e.preventDefault();
++            const file = e.dataTransfer.files?.[0];
++            if (file) void registrarArchivo(file);
++          }}
++        >
++          <span className="w-14 h-14 rounded-xl bg-[#10b981]/15 border border-[#10b981]/40 text-[#10b981] flex items-center justify-center">
++            <StitchDocIcon className="w-6 h-6" />
+           </span>
+-          <h2 className="text-lg lg:text-xl font-bold text-white uppercase truncate">
+-            {puestoMostrado?.titulo ?? "SIN PUESTO REGISTRADO"}
++          <h2 className="font-mono text-sm font-bold tracking-wider text-white uppercase">
++            Cargar Molde .JSON
+           </h2>
+-          {puestoMostrado && (
+-            <div className="text-xs font-mono text-slate-400 border-t border-slate-800/80 pt-2 flex justify-between items-center">
+-              <span>{`${puestoMostrado.municipio} › ZONA ${puestoMostrado.zona} › PTO ${puestoMostrado.puesto}`}</span>
+-              <span className="font-bold text-slate-300">{mesas.length} MESAS</span>
+-            </div>
++          <p className="text-[11px] font-mono text-slate-400 leading-relaxed">
++            Arrastra o selecciona el archivo de definición (.json)
++          </p>
++          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-700 bg-[#090d12] font-mono text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
++            <DocLineIcon className="w-3 h-3" />
++            Almacenamiento local en dispositivo
++          </span>
++          <button
++            type="button"
++            onClick={() => inputArchivo.current?.click()}
++            className="mt-1 px-5 py-2.5 rounded-lg bg-[#10b981] text-[#052012] font-mono text-[11px] font-bold uppercase tracking-wider shadow-[0_2px_14px_rgba(16,185,129,0.35)] hover:brightness-110 active:scale-[0.98] transition cursor-pointer min-h-[44px]"
++          >
++            Seleccionar archivo local
++          </button>
++          <input
++            ref={inputArchivo}
++            type="file"
++            accept=".json,application/json"
++            className="hidden"
++            aria-label="Seleccionar archivo de molde .json"
++            onChange={(e) => {
++              const file = e.target.files?.[0];
++              if (file) void registrarArchivo(file);
++              e.target.value = ""; // permite re-cargar el mismo archivo
++            }}
++          />
++          {feedbackMolde && (
++            <p
++              role="status"
++              className={`font-mono text-[10px] leading-relaxed ${
++                feedbackMolde.startsWith("Archivo inválido") || feedbackMolde.startsWith("El archivo")
++                  ? "text-amber-400"
++                  : "text-[#10b981]"
++              }`}
++            >
++              {feedbackMolde}
++            </p>
+           )}
+         </section>
+ 
+-        {/* Progreso del puesto */}
+-        <div className="bg-[#10161f] border border-slate-800 p-4 lg:p-5 flex flex-col gap-3 rounded-2xl shadow-sm">
+-          <div className="flex justify-between items-center">
+-            <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider">
+-              PROGRESO DE TRANSMISIÓN
+-            </span>
+-            <span className="font-mono font-extrabold text-lg text-[#10b981] tabular-nums">
+-              {pct}%
+-            </span>
+-          </div>
+-          <SegmentedBar total={totalPaginas} filled={paginasOk} tone="ok" />
+-          <span className="text-xs text-slate-400 font-mono">
+-            Completadas {paginasOk} de {totalPaginas} páginas del puesto.
++        {/* ── MOLDE VINCULADO AL DISPOSITIVO (mock: sección + 1 ACTIVO). */}
++        <div className="flex items-center justify-between gap-2 pt-1">
++          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
++            Molde vinculado al dispositivo
++          </span>
++          <span className="shrink-0 inline-flex items-center gap-1 font-mono text-[10px] font-bold text-[#10b981] uppercase tracking-wider">
++            <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" aria-hidden />
++            1 ACTIVO
+           </span>
+         </div>
+ 
+-        {/* 3 Tarjetas de estadística KPI — Task 3: en lg+ más respiro */}
+-        <div className="grid grid-cols-3 gap-2 lg:gap-4">
+-          <div className="bg-[#10161f] border border-slate-800 p-3 lg:p-5 flex flex-col gap-1 rounded-2xl shadow-xs">
+-            <span className="font-mono text-2xl lg:text-3xl font-extrabold tabular-nums text-[#10b981]">
+-              {String(paginasOk).padStart(2, "0")}
+-            </span>
+-            <span className="font-mono text-[9px] lg:text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-tight">
+-              PÁGINAS TRANSMITIDAS
++        <section className="bg-[#10161f] border border-[#10b981]/30 rounded-2xl p-4 lg:p-5 flex flex-col gap-3 shadow-sm">
++          {/* Chips de estado (mock: ACTIVO EN DISPOSITIVO · SCHEMA · COMPATIBLE). */}
++          <div className="flex flex-wrap gap-1.5">
++            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[#10b981]/40 bg-[#10b981]/10 font-mono text-[9px] font-bold text-[#10b981] uppercase tracking-wider">
++              <span className="w-1 h-1 rounded-full bg-[#10b981]" aria-hidden />
++              {previewMolde.custom ? "Molde personalizado" : "Activo en dispositivo"}
+             </span>
+-          </div>
+-          <div className="bg-[#10161f] border border-slate-800 p-3 lg:p-5 flex flex-col gap-1 rounded-2xl shadow-xs">
+-            <span className="font-mono text-2xl lg:text-3xl font-extrabold tabular-nums text-amber-400">
+-              {String(pendientes).padStart(2, "0")}
++            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-[#090d12] font-mono text-[9px] font-bold text-slate-300 uppercase tracking-wider">
++              Esquema base v1
+             </span>
+-            <span className="font-mono text-[9px] lg:text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-tight">
+-              PÁGINAS PENDIENTES
++            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-[#090d12] font-mono text-[9px] font-bold text-slate-300 uppercase tracking-wider">
++              ✓ Compatible motor OCR
+             </span>
+           </div>
+-          <div className="bg-[#10161f] border border-slate-800 p-3 lg:p-5 flex flex-col gap-1 rounded-2xl shadow-xs">
+-            <span className="font-mono text-2xl lg:text-3xl font-extrabold tabular-nums text-[#ef4444]">
+-              {String(paginasRescaneo).padStart(2, "0")}
+-            </span>
+-            <span className="font-mono text-[9px] lg:text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-tight">
+-              EN RESCANEO
+-            </span>
++
++          {/* Título + archivo. */}
++          <div>
++            <h2 className="text-base lg:text-lg font-bold text-[#10b981] leading-snug">
++              {previewMolde.custom
++                ? moldeLocal?.nombre.replace(/\.json$/i, "") ?? previewMolde.nombre
++                : "Documento · Plantilla base integrada"}
++            </h2>
++            <p className="font-mono text-[10px] text-slate-500 mt-0.5">
++              {previewMolde.custom
++                ? moldeLocal?.nombre ?? "molde activo · importado en este dispositivo"
++                : "plantilla base · integrada en la app"}
++            </p>
+           </div>
+-        </div>
+ 
+-        {/* KIT e14-puente-supervision-v1 (§7): puente al panel de supervisión
+-            — estilo idéntico a las tarjetas de arriba (misma piel del shell).
+-            Feedback INLINE del botón (D2: sin modales, sin toasts nuevos). */}
+-        <section className="bg-[#10161f] border border-slate-800 p-4 lg:p-5 flex flex-col gap-2.5 rounded-2xl shadow-sm">
+-          <div className="flex justify-between items-center">
+-            <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider">
+-              PUENTE A SUPERVISIÓN
++          {/* Tamaño en caché (mock: fila interna). */}
++          <div className="flex items-center justify-between rounded-lg bg-[#090d12]/70 border border-slate-800/80 px-3 py-2.5">
++            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">
++              Tamaño en caché:
+             </span>
+-            <span
+-              className={`font-mono text-[10px] font-bold uppercase tracking-wider ${
+-                puenteEstado && !puenteEstado.activo
+-                  ? "text-red-400"
+-                  : "text-[#10b981]"
+-              }`}
+-            >
+-              {puenteEstado ? (puenteEstado.activo ? "ACTIVO" : "DETENIDO") : "—"}
++            <span className="font-mono text-[11px] font-bold text-white">
++              {moldeLocal ? `${moldeLocal.tamanoKb} KB` : previewMolde.custom ? "JSON ACTIVO" : "INTEGRADA"}
+             </span>
+           </div>
+-          <p className="text-xs text-slate-400 font-mono">
+-            Envía las actas ENVIADAS al panel de supervisión en vivo.
+-          </p>
+-          {hubUsado && (
+-            <p className="text-[11px] font-mono text-slate-400 break-all">
+-              hub: {hubUsado}
++          {moldeLocal?.fecha && (
++            <p className="font-mono text-[9.5px] text-slate-500 -mt-1.5">
++              Registrado: {moldeLocal.fecha}
+             </p>
+           )}
+-          <div className="text-[11px] font-mono text-slate-400 border-t border-slate-800/80 pt-2 flex flex-col gap-1">
+-            <span>
+-              {puentePendientes} pendientes · {puenteEstado?.enviadasOk ?? 0} enviadas
+-              {puenteEstado?.ultimaSyncTs
+-                ? ` · última ${new Date(puenteEstado.ultimaSyncTs).toLocaleTimeString()}`
+-                : ""}
++
++          {/* Preview del molde (REAL: campos definidos por la plantilla). */}
++          <div className="flex items-center gap-2 border-t border-slate-800/80 pt-3">
++            <span className="w-4 h-4 rounded border border-[#10b981]/40 bg-[#10b981]/10 text-[#10b981] flex items-center justify-center font-mono text-[9px] font-black shrink-0">
++              ⚙
++            </span>
++            <span className="font-mono text-[10.5px] font-bold text-white uppercase tracking-wide">
++              Preview del molde
+             </span>
+-            {puenteEstado?.ultimoError && (
+-              <span className="text-amber-400 break-words">
+-                Último error: {puenteEstado.ultimoError}
++            <span className="font-mono text-[10px] font-bold text-[#10b981] ml-auto whitespace-nowrap">
++              {obligatorios} OBLIGATORIOS / {opcionales} OPCIONALES
++            </span>
++          </div>
++          <p className="font-mono text-[9.5px] font-bold uppercase tracking-wider text-slate-500">
++            Campos que verifica la plantilla:
++          </p>
++          <div className="flex flex-wrap gap-1.5">
++            {previewPlantilla.map((g) => (
++              <span
++                key={g.titulo}
++                className="px-2 py-1 rounded-md border border-slate-700 bg-[#090d12] font-mono text-[9.5px] font-bold text-slate-200 uppercase tracking-wide"
++              >
++                {g.titulo} ({g.total})
+               </span>
+-            )}
++            ))}
++          </div>
++
++          {/* Acciones (mock: REEMPLAZAR · ELIMINAR · PROBAR). */}
++          <div className="grid grid-cols-3 gap-2 border-t border-slate-800/80 pt-3">
++            <button
++              type="button"
++              onClick={() => inputArchivo.current?.click()}
++              className="px-2 py-2.5 rounded-lg border border-slate-700 bg-[#090d12] font-mono text-[10px] font-bold text-slate-200 hover:border-[#10b981]/50 hover:text-[#10b981] uppercase tracking-wider transition cursor-pointer min-h-[40px]"
++            >
++              Reemplazar .JSON
++            </button>
++            <button
++              type="button"
++              onClick={eliminarMolde}
++              disabled={!previewMolde.custom}
++              aria-disabled={!previewMolde.custom}
++              className="px-2 py-2.5 rounded-lg border border-red-500/40 bg-[#090d12] font-mono text-[10px] font-bold text-[#E52222] hover:border-red-500 hover:bg-red-500/10 uppercase tracking-wider transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed min-h-[40px]"
++            >
++              Eliminar
++            </button>
++            <button
++              type="button"
++              onClick={() => navegar("escanear")}
++              className="px-2 py-2.5 rounded-lg bg-[#10b981] text-[#052012] font-mono text-[10px] font-bold uppercase tracking-wider shadow-[0_2px_12px_rgba(16,185,129,0.3)] hover:brightness-110 active:scale-[0.98] transition cursor-pointer min-h-[40px]"
++            >
++              Probar
++            </button>
+           </div>
++        </section>
++
++        {/* ── AJUSTES DE SISTEMA (colapsado al pie — operativa del
++            mantenedor: puente a supervisión + reiniciar jornada). */}
++        <section className="rounded-2xl border border-slate-800 bg-[#10161f]/60 overflow-hidden">
+           <button
+             type="button"
+-            onClick={() => {
+-              void sincronizarPuente();
+-            }}
+-            disabled={puenteSincronizando}
+-            aria-label="Sincronizar ahora con el panel de supervisión"
+-            className="w-full min-h-[44px] px-4 rounded-xl border font-mono text-[11px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer disabled:opacity-60 disabled:cursor-wait border-emerald-500/40 bg-[#10161f] text-[#10b981] hover:border-emerald-400 hover:bg-emerald-500/10"
++            onClick={() => setAjustesAbiertos((v) => !v)}
++            aria-expanded={ajustesAbiertos}
++            className="w-full min-h-[44px] px-4 py-2.5 flex items-center justify-between gap-2 cursor-pointer select-none text-left hover:bg-[#17222f] transition-colors"
+           >
+-            {puenteSincronizando ? "SINCRONIZANDO…" : "SINCRONIZAR AHORA"}
+-          </button>
+-          {enRedLocal && (
+-            <div className="flex flex-col gap-2">
+-              <button
+-                type="button"
+-                onClick={apuntarHubLocal}
+-                aria-pressed={hubEsLocal}
+-                aria-label="Apuntar el puente al hub local de este equipo"
+-                className="w-full min-h-[44px] px-4 rounded-xl border font-mono text-[11px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer border-sky-500/40 bg-[#10161f] text-sky-300 hover:border-sky-400 hover:bg-sky-500/10"
++            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
++              Ajustes de sistema
++            </span>
++            <span className="flex items-center gap-2">
++              <span
++                className={`font-mono text-[9px] font-bold uppercase ${
++                  puenteEstado && !puenteEstado.activo ? "text-red-400" : "text-[#10b981]"
++                }`}
+               >
+-                {hubEsLocal
+-                  ? "HUB LOCAL: ESTE EQUIPO · tocar para producción"
+-                  : "USAR HUB LOCAL (ESTE EQUIPO)"}
+-              </button>
+-              <a
+-                href="/supervision/"
+-                className="w-full min-h-[44px] px-4 py-3 rounded-xl border border-slate-700 text-center font-mono text-[11px] font-bold uppercase tracking-wider text-slate-300 no-underline hover:border-slate-500"
++                {puenteEstado ? (puenteEstado.activo ? "PUENTE ACTIVO" : "PUENTE DETENIDO") : "—"}
++              </span>
++              <span
++                className={`font-mono text-[10px] text-slate-400 transition-transform duration-200 ${
++                  ajustesAbiertos ? "rotate-180" : ""
++                }`}
++                aria-hidden
+               >
+-                abrir panel de supervisión
+-              </a>
+-            </div>
+-          )}
+-          {puenteFeedback && (
+-            <span className="text-[11px] font-mono text-slate-300">
+-              {puenteFeedback}
++                ▼
++              </span>
+             </span>
+-          )}
+-        </section>
+-
+-        {/* Fin de jornada — el INFORME ZIP salió de aquí en C3 (migró al
+-            PanelDev, sección Exportar) */}
+-        <section className="flex flex-col items-center gap-2.5 pt-1">
+-          <button
+-            type="button"
+-            onClick={() => {
+-              if (!reiniciarArmado) {
+-                setReiniciarArmado(true);
+-                return;
+-              }
+-              setReiniciarArmado(false);
+-              void reiniciarJornada();
+-            }}
+-            aria-label={
+-              reiniciarArmado
+-                ? "Confirmar reiniciar la jornada completa"
+-                : "Reiniciar la jornada completa"
+-            }
+-            className={`w-full lg:max-w-sm min-h-[44px] px-4 rounded-xl border font-mono text-[11px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+-              reiniciarArmado
+-                ? "border-red-500 text-red-400 bg-red-500/15 shadow-sm shadow-red-500/20"
+-                : "border-slate-800 bg-[#10161f] text-slate-400 hover:border-red-500/50 hover:text-red-400"
+-            }`}
+-          >
+-            {reiniciarArmado
+-              ? "¿SEGURO? TOQUE DE NUEVO PARA REINICIAR JORNADA"
+-              : "REINICIAR JORNADA"}
+           </button>
+-        </section>
+ 
+-        {/* Historial de envíos */}
+-        <div className="flex flex-col gap-2.5 pt-2">
+-          <div className="flex justify-between items-center gap-2">
+-            <div className="flex flex-col">
+-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">
+-                HISTORIAL DE TRANSMISIONES
+-              </span>
+-              {modoSimulacion && (
+-                <span className="text-[10px] text-slate-400 font-mono">(DATOS EN MODO SIMULACIÓN)</span>
+-              )}
+-            </div>
+-            {/* C-25 — filtro local del guion sintético (solo con filas SIM). */}
+-            {modoSimulacion && filasSim.length > 0 ? (
++          {ajustesAbiertos && (
++            <div className="px-4 pb-4 flex flex-col gap-3 border-t border-slate-800/80 pt-3">
++              {/* Puente a supervisión. */}
++              <div className="flex flex-col gap-2.5">
++                <p className="text-xs text-slate-400 font-mono">
++                  Envía los documentos ENVIADOS al panel de supervisión en vivo.
++                </p>
++                {hubUsado && (
++                  <p className="text-[11px] font-mono text-slate-400 break-all">
++                    hub: {hubUsado}
++                  </p>
++                )}
++                <div className="text-[11px] font-mono text-slate-400 flex flex-col gap-1">
++                  <span>
++                    {puentePendientes} pendientes · {puenteEstado?.enviadasOk ?? 0} enviadas
++                    {puenteEstado?.ultimaSyncTs
++                      ? ` · última ${new Date(puenteEstado.ultimaSyncTs).toLocaleTimeString()}`
++                      : ""}
++                  </span>
++                  {puenteEstado?.ultimoError && (
++                    <span className="text-amber-400 break-words">
++                      Último error: {puenteEstado.ultimoError}
++                    </span>
++                  )}
++                </div>
++                <button
++                  type="button"
++                  onClick={() => {
++                    void sincronizarPuente();
++                  }}
++                  disabled={puenteSincronizando}
++                  aria-label="Sincronizar ahora con el panel de supervisión"
++                  className="w-full min-h-[44px] px-4 rounded-xl border font-mono text-[11px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer disabled:opacity-60 disabled:cursor-wait border-emerald-500/40 bg-[#10161f] text-[#10b981] hover:border-emerald-400 hover:bg-emerald-500/10"
++                >
++                  {puenteSincronizando ? "SINCRONIZANDO…" : "SINCRONIZAR AHORA"}
++                </button>
++                {enRedLocal && (
++                  <div className="flex flex-col gap-2">
++                    <button
++                      type="button"
++                      onClick={apuntarHubLocal}
++                      aria-pressed={hubEsLocal}
++                      aria-label="Apuntar el puente al hub local de este equipo"
++                      className="w-full min-h-[44px] px-4 rounded-xl border font-mono text-[11px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer border-sky-500/40 bg-[#10161f] text-sky-300 hover:border-sky-400 hover:bg-sky-500/10"
++                    >
++                      {hubEsLocal
++                        ? "HUB LOCAL: ESTE EQUIPO · tocar para producción"
++                        : "USAR HUB LOCAL (ESTE EQUIPO)"}
++                    </button>
++                    <a
++                      href="/supervision/"
++                      className="w-full min-h-[44px] px-4 py-3 rounded-xl border border-slate-700 text-center font-mono text-[11px] font-bold uppercase tracking-wider text-slate-300 no-underline hover:border-slate-500"
++                    >
++                      abrir panel de supervisión
++                    </a>
++                  </div>
++                )}
++                {puenteFeedback && (
++                  <span className="text-[11px] font-mono text-slate-300">
++                    {puenteFeedback}
++                  </span>
++                )}
++              </div>
++
++              {/* Bloque 2.6 — exportar la sesión a PDF multipágina. */}
+               <button
+                 type="button"
+-                onClick={() => setOcultarSim((v) => !v)}
+-                aria-pressed={ocultarSim}
+-                className="font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors whitespace-nowrap shrink-0"
++                onClick={exportarPdf}
++                disabled={pdfLibro.length === 0 || pdfEnVuelo}
++                aria-label={`Exportar ${pdfLibro.length} documentos a PDF`}
++                className="w-full min-h-[44px] px-4 rounded-xl border font-mono text-[11px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer border-emerald-600/60 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-40"
+               >
+-                {ocultarSim ? "MOSTRAR FILAS SIM" : "OCULTAR FILAS SIM"}
++                {pdfEnVuelo
++                  ? "GENERANDO PDF…"
++                  : `EXPORTAR PDF${pdfLibro.length > 0 ? ` (${pdfLibro.length})` : ""}`}
+               </button>
+-            ) : (
+-              <span className="font-mono text-[11px] text-slate-400">
+-                {modoSimulacion ? `SIM ${paginasOk}/${totalPaginas}` : `ÚLT. ACT.: ${ultimaActividad}`}
+-              </span>
+-            )}
+-          </div>
+ 
+-          <div className="flex flex-col max-h-96 lg:max-h-[28rem] overflow-y-auto thin-scroll rounded-2xl border border-slate-800 bg-[#10161f] divide-y divide-slate-800/80 shadow-sm">
+-            {historial.length === 0 && !mostrarSim ? (
+-              <div className="p-4 text-center text-xs font-mono text-slate-400">
+-                NO HAY ENVÍOS REGISTRADOS EN ESTA SESIÓN
+-              </div>
+-            ) : (
+-              <>
+-                {/* Historial REAL (siempre encima — nunca se mezcla con el
+-                    guion del SIM sin su separador). */}
+-                {historial.map((fila) => (
+-                  <FilaHistorial key={fila.id} fila={fila} sim={false} />
+-                ))}
+-                {/* C-25 — separador visual + filas sintéticas con badge. */}
+-                {mostrarSim && (
+-                  <div
+-                    role="separator"
+-                    aria-label="Inicio de filas de simulación"
+-                    className="flex items-center gap-2 px-3.5 lg:px-5 py-1.5 bg-amber-950/30 border-y border-amber-500/30"
+-                  >
+-                    <span className="font-mono text-[9px] font-black tracking-[0.2em] text-amber-400 uppercase">
+-                      simulación · datos de prueba
+-                    </span>
+-                  </div>
+-                )}
+-                {mostrarSim &&
+-                  filasSim.map((fila) => (
+-                    <FilaHistorial key={fila.id} fila={fila} sim />
+-                  ))}
+-              </>
+-            )}
+-          </div>
+-        </div>
++              {/* Reiniciar jornada. */}
++              <button
++                type="button"
++                onClick={() => {
++                  if (!reiniciarArmado) {
++                    setReiniciarArmado(true);
++                    return;
++                  }
++                  setReiniciarArmado(false);
++                  void reiniciarJornada();
++                }}
++                aria-label={
++                  reiniciarArmado
++                    ? "Confirmar reiniciar la jornada completa"
++                    : "Reiniciar la jornada completa"
++                }
++                className={`w-full min-h-[44px] px-4 rounded-xl border font-mono text-[11px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer ${
++                  reiniciarArmado
++                    ? "border-red-500 text-red-400 bg-red-500/15 shadow-sm shadow-red-500/20"
++                    : "border-slate-800 bg-[#10161f] text-slate-400 hover:border-red-500/50 hover:text-red-400"
++                }`}
++              >
++                {reiniciarArmado
++                  ? "¿SEGURO? TOQUE DE NUEVO PARA REINICIAR JORNADA"
++                  : "REINICIAR JORNADA"}
++              </button>
++            </div>
++          )}
++        </section>
+       </div>
+ 
+       {/* KIT e14-observabilidad-v1 (agente 2 · C4): panel de diagnóstico —

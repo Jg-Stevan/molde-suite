@@ -15,6 +15,7 @@ import {
 } from '@/lib/e14/core/sensor-profiler';
 import { TEXTO_MOTIVO } from '@/lib/e14/errores';
 import { leerFlags } from '@/lib/e14/flags';
+import { abrirCamaraTrasera } from '@/lib/e14/core/camara-principal';
 // P2-D (tarea D): TIPO del bucle del core — la clase se importa DINÁMICAMENTE
 // solo con el flag ON (import type no viaja al bundle; con el flag OFF ni
 // siquiera se carga el módulo: mismo grafo que hoy).
@@ -159,12 +160,27 @@ export function useSesionCamara(config: Config): {
     const abrir = async () => {
       setCamEstado('iniciando');
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false,
-        });
+        // F-LENS v5 (digielect14): sondas secuenciales + elección de la
+        // trasera PRINCIPAL (caché + facing/AF/resolución). El
+        // `facingMode:'environment'` blando negociaba la gran angular del A56
+        // (foco fijo, sin linterna). La cascada interna del port ya incluye el
+        // constraint legacy como respaldo, así que aquí no hay segundo camino.
+        const eleccion = await abrirCamaraTrasera(navigator.mediaDevices, () => cancelado);
         if (cancelado) {
-          stream.getTracks().forEach((t) => t.stop());
+          eleccion.stream?.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        if (eleccion.permisoDenegado) {
+          setCamEstado('denegada');
+          setAvisoCamara('denied');
+          mostrarAviso(TEXTO_MOTIVO.PERMISO_DENEGADO, 'crit');
+          return;
+        }
+        const stream = eleccion.stream;
+        if (!stream) {
+          setCamEstado('sin-camara');
+          setAvisoCamara('sin-senal');
+          mostrarAviso(TEXTO_MOTIVO.CAMARA_NO_DISPONIBLE, 'crit');
           return;
         }
         streamRef.current = stream;
@@ -226,10 +242,9 @@ export function useSesionCamara(config: Config): {
   // jamás rompe la captura. En SIMULACIÓN no hay <video>: el guard de
   // videoRef del onTrigger deja la auto-captura sim intacta (simularImagen →
   // dispararEscaneo, su propio camino).
-  // TODO(A56): validación táctil pendiente — el disparo k-de-n y la compuerta
-  // de quietud exigen medición en el Galaxy A56 real
-  // (REPORTE-DIAG-AUTO-CAPTURA-A56.md §9.3/§10); aquí solo es verificable
-  // headless. No encender el flag en campo antes de esa medición.
+  // El flag `frameLoop` está ON por defecto (funcionamiento de digielect14:
+  // marcas en vivo + disparo k-de-n). Kill-switch del operador sin redeploy:
+  // localStorage `tamiz.flags.v1` = {"frameLoop":false} → este rAF propio.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -277,6 +292,7 @@ export function useSesionCamara(config: Config): {
       core?.stop();
       core = null;
       loopRef.current = null;
+      delete (window as unknown as { __frameLoop?: unknown }).__frameLoop;
       logger.warn('frame-loop del core caído → rAF propio de 250 ms', { motivo });
       iniciarRafPropio();
     };
@@ -301,6 +317,16 @@ export function useSesionCamara(config: Config): {
                 // live.corners cableado: el quad del overlay y el chip
                 // DOCUMENTO DETECTADO ya lo consumen en ScanView (mapearPunto).
                 setLive({ corners: t.corners, score: t.score ? t.score.total : null });
+                // HUD de QA (paridad con el upstream): cadencia del bucle,
+                // precisión del worker y quad vivo sin cable.
+                (window as unknown as { __frameLoop?: unknown }).__frameLoop = {
+                  fps: t.fps,
+                  dropped: t.dropped,
+                  processed: t.processed,
+                  precision: t.precision,
+                  corners: t.corners,
+                  score: t.score ? t.score.total : null,
+                };
               } catch (e) {
                 caerARafPropio(`onFrame: ${(e as Error).message}`);
               }
