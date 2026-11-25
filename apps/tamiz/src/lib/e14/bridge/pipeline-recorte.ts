@@ -65,6 +65,13 @@ export async function correrPipelineRecorte(
     filtro === 'original'
       ? warp
       : await processImage(fotoOriginal, quad, 'original', rotacion, { manual: true });
+  // Guarda §D4 (contrato del visor): una salida VACÍA de processImage jamás
+  // hornea el parcial ni el acta — '' como fotoProcesada está prohibido (el
+  // catch del store resuelve con la píldora honesta y el acta conserva la
+  // foto anterior).
+  if (!warp.processed || !warpOcr.processed) {
+    throw new Error('PROCESADO DE IMAGEN SIN SALIDA (data URL vacío)');
+  }
   // El parcial se hornea apenas el warp completa (T1): si vence el timeout,
   // el acta de tiempo muestra ESTE recorte, no la foto anterior.
   parcial.fotoProcesada = warp.processed;

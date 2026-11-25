@@ -525,6 +525,11 @@ export class RealCoreBridge implements E14Bridge {
       acta.rotation ?? 0,
       { manual: true },
     );
+    // Guarda §D4: salida vacía de processImage jamás llega al acta como
+    // fotoProcesada:'' (el catch de cambiarFiltro conserva la foto anterior).
+    if (!resultado.processed) {
+      throw new Error('PROCESADO DE IMAGEN SIN SALIDA (data URL vacío)');
+    }
     return { ...acta, fotoProcesada: resultado.processed, filtro };
   }
 
@@ -561,6 +566,11 @@ export class RealCoreBridge implements E14Bridge {
           "original",
           acta.rotation ?? 0,
         );
+        // Guarda §D4: salida vacía → mismo trato que un fallo de processImage
+        // (cae al fallback de abajo con la fotoProcesada del acta).
+        if (!r.processed) {
+          throw new Error('PROCESADO DE IMAGEN SIN SALIDA (data URL vacío)');
+        }
         // PROD-2 (§2-C2): el re-OCR del editor pasa por el ÚNICO motor.
         return reconocerRapidOcr(r.processed);
       } catch {

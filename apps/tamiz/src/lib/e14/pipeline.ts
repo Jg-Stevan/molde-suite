@@ -33,25 +33,71 @@ function marcar(parcial: ParcialPipeline, fase: string, t0: number): void {
   parcial.msParciales = { ...(parcial.msParciales ?? {}), [fase]: Math.round(performance.now() - t0) };
 }
 
+// §D4/plan §B (rotada-12) — ANCHO de la miniatura de medición de tinta.
+// CAUSA RAÍZ medida: a 200 px el promediado de la reducción BORRA los trazos
+// finos — rotada-12 (recibo claro, 1.37 % de tinta real a resolución
+// completa) medía 0.0009 < 0.002 ⇒ procesadaVacia FALSA y el visor caía a la
+// foto original (§D4 activado sin procesada realmente vacía). A 600 px la
+// misma foto mide 0.0124 (6× el umbral) y TODOS los fixtures del banco
+// quedan sobre 0.008; una página REALMENTE en blanco mide 0 a cualquier
+// ancho (scripts/resultados/*.json, diagnóstico 2026-11-25). El costo es el
+// mismo: img.decode() ya decodifica la foto completa.
+export const ANCHO_MEDIDA_TINTA = 600;
+
+/**
+ * Densidad de tinta (0..1) sobre PÍXELES RGBA — PURA (sin DOM, testeable en
+ * bun): reducción por caja a `ancho` px de ancho (identidad si los píxeles
+ * ya vienen a ese ancho o menos — sin upscale) y conteo de oscuros
+ * (canal rojo < 120, mismo criterio histórico del pipeline).
+ */
+export function razonTintaDePixeles(
+  px: { w: number; h: number; data: Uint8Array | Uint8ClampedArray },
+  ancho: number = ANCHO_MEDIDA_TINTA,
+): number {
+  if (px.w <= 0 || px.h <= 0) return 0;
+  const W = Math.max(1, Math.min(px.w, Math.round(ancho)));
+  const H = Math.max(1, Math.round((px.h / px.w) * W));
+  let oscuros = 0;
+  // Reducción por caja (misma semántica del drawImage suavizado que había):
+  // cada píxel destino promedia su ventana origen [x0..x1)×[y0..y1).
+  const sx = px.w / W;
+  const sy = px.h / H;
+  for (let y = 0; y < H; y++) {
+    const y0 = Math.floor(y * sy);
+    const y1 = Math.min(px.h, Math.max(y0 + 1, Math.floor((y + 1) * sy)));
+    for (let x = 0; x < W; x++) {
+      const x0 = Math.floor(x * sx);
+      const x1 = Math.min(px.w, Math.max(x0 + 1, Math.floor((x + 1) * sx)));
+      let acc = 0;
+      let n = 0;
+      for (let yy = y0; yy < y1; yy++) {
+        for (let xx = x0; xx < x1; xx++) {
+          acc += px.data[(yy * px.w + xx) * 4];
+          n++;
+        }
+      }
+      if (acc / n < 120) oscuros++;
+    }
+  }
+  return oscuros / (W * H);
+}
+
 /** Densidad de tinta de una foto procesada (0..1) — para procesadaVacia. */
 async function razonTinta(dataUrl: string): Promise<number> {
   const img = new Image();
   img.src = dataUrl;
   await img.decode();
-  const W = 200;
+  const W = ANCHO_MEDIDA_TINTA;
   const H = Math.max(1, Math.round((img.naturalHeight / img.naturalWidth) * W));
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
   const ctx = c.getContext('2d', { willReadFrequently: true })!;
   ctx.drawImage(img, 0, 0, W, H);
-  const d = ctx.getImageData(0, 0, W, H).data;
-  let oscuros = 0;
-  const n = W * H;
-  for (let i = 0; i < n; i++) {
-    if (d[i * 4] < 120) oscuros++;
-  }
-  return oscuros / n;
+  // La PURA hace el conteo (downscale identidad: los píxeles ya vienen a W) —
+  // el camino de producción y los tests bun comparten la MISMA matemática.
+  const d = ctx.getImageData(0, 0, W, H);
+  return razonTintaDePixeles({ w: d.width, h: d.height, data: d.data }, W);
 }
 
 export async function correrPipelineL2(
@@ -121,6 +167,18 @@ export async function correrPipelineL2(
       : await processImage(fotoOriginal, quad, 'original', 0, {
           deskew: pasos.deskewHabilitado,
         });
+  // Guarda §D4 (contrato del visor): una salida VACÍA de processImage
+  // (canvas 0×0, encode fallido) JAMÁS viaja como fotoProcesada:'' — se
+  // lanza con causa explícita y el puente resuelve el rechazo (catch
+  // honesto aguas arriba: bridge → ESCANEO_FALLIDO). fotoProcesada queda
+  // ausente/null en cualquier acta; el '' silencioso está prohibido.
+  if (!warp.processed || !warpOcr.processed) {
+    logger.warn('[pipeline] processImage devolvió salida vacía', {
+      dims: `${warp.width}x${warp.height}`,
+      ms: Math.round(performance.now() - t0),
+    });
+    throw new Error('PROCESADO DE IMAGEN SIN SALIDA (data URL vacío)');
+  }
   let fotoOcr = warpOcr.processed;
   let fotoProcesada = warp.processed;
   marcar(parcial, 'proceso', t0);
@@ -219,6 +277,14 @@ export async function correrPipelineL2(
   const esquinas = await pasos.esquinasDeActa(warp.processed);
   const tinta = await razonTinta(warp.processed);
   const procesadaVacia = tinta < 0.002;
+  // Telemetría §D4: cuando la bandera se activa, el valor medido viaja al
+  // log (diagnóstico de falsos positivos sin reproducir el escaneo).
+  if (procesadaVacia) {
+    logger.warn('[pipeline] procesada sin tinta medible (§D4)', {
+      tinta: tinta.toFixed(6),
+      umbral: 0.002,
+    });
+  }
 
   // ---- GATE (2.4 — política universal; paridad escaneo↔recorte) ----
   // C3 PRIMERO (pitfall §9.4): el OCR manda — piso FUERTE / techo DEBIL por
