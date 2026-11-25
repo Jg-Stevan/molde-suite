@@ -1,8 +1,8 @@
 {
   "tipo": "universal",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "nombre": "Comprobante de entrega del producto",
-  "descripcion": "Recalibrado (1.3.0) contra la plantilla HTML vigente (VAR 1-6 de variantes-prueba): título centrado, fecha de entrega BAJO el rótulo, dirección en 4 celdas y firma sobre el rótulo \"Firma del comprador o autorizado\". Datos impresos: los obligatorios de texto ya no usan htr (los manuscritos fallan patrón y caen a revisión igualmente).",
+  "descripcion": "Recalibrado (1.3.0) contra la plantilla HTML vigente (VAR 1-6 de variantes-prueba): título centrado, fecha de entrega BAJO el rótulo, dirección en 4 celdas y firma sobre el rótulo \"Firma del comprador o autorizado\". Datos impresos: los obligatorios de texto ya no usan htr (los manuscritos fallan patrón y caen a revisión igualmente). 1.4.0: huella de cascada (FASE 6) para la identificación barata del documento.",
   "documento": "generico/comprobante_entrega",
   "idioma": "es",
   "campos": [
@@ -279,5 +279,21 @@
       "firma": "Firma",
       "checkbox": "Casilla"
     }
+  },
+  "huella": {
+    "frasesClave": [
+      "COMPROBANTE DE ENTREGA",
+      "Nombre y apellido",
+      "Número de Documento",
+      "Operación"
+    ],
+    "paginas": 1,
+    "franja": {
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 0.5
+    },
+    "minFrases": 2
   }
 }
