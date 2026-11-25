@@ -162,13 +162,16 @@ async function main() {
   if (!MODO_PNG) await enviar("Target.setAutoAttach", { autoAttach: true, waitForDebuggerOnStart: false, flatten: true });
 
   await sembrarMolde(pagina, readFileSync(MOLDE, "utf-8"));
-  // El A13 revienta con bad_alloc en la escalada OCR (det [1,3,1760,1440])
-  // en AMBOS modos — hallazgo aparte, no del códec. Presupuesto de 2.ª
-  // pasada al mínimo legítimo del flag (5000 ms) para que la 1.ª pasada
-  // (que sí pasa) cierre el acta y se abra el visor.
+  // El A13 revienta con bad_alloc en la escalada OCR a 1920 (det
+  // [1,3,1760,1440]) en AMBOS modos — hallazgo aparte, no del códec. Flags
+  // legítimos del operador (mismas para ambos modos): cascada OFF ⇒ camino
+  // escalonado, y presupuesto de 2.ª pasada al mínimo ⇒ solo corre la 1.ª
+  // (det 1280, que sí pasa) y el acta cierra → se abre el visor.
   await pagina.evaluate(() =>
-    localStorage.setItem("tamiz.flags.v1", JSON.stringify({ ocrSegundaPresupuestoMs: 5000 })));
-  resultado.flagsAplicadas = { ocrSegundaPresupuestoMs: 5000 };
+    localStorage.setItem(
+      "tamiz.flags.v1",
+      JSON.stringify({ ocrCascada: false, ocrSegundaPresupuestoMs: 5000 })));
+  resultado.flagsAplicadas = { ocrCascada: false, ocrSegundaPresupuestoMs: 5000 };
   progreso("molde sembrado; limpiando PWA y recargando…");
   await limpiarPwa(pagina, sesion);
   await pagina.waitForTimeout(1500);
@@ -182,15 +185,25 @@ async function main() {
   while (Date.now() - t0 < TOPE) {
     await pagina.waitForTimeout(700);
     if (resultado.imagenVisibleMs == null) {
-      const imgs = await pagina.evaluate(() =>
-        Array.from(document.querySelectorAll("img"))
-          .map((i) => ({ w: i.naturalWidth, h: i.naturalHeight, pref: (i.currentSrc || i.src || "").slice(0, 24) }))
-          .filter((x) => x.w > 400 && /^data:image\//.test(x.pref)));
+      const imgs = await pagina.evaluate(async () => {
+        const out = [];
+        for (const i of document.querySelectorAll("img")) {
+          if (i.naturalWidth < 400) continue;
+          const src = i.currentSrc || i.src || "";
+          let tipo = null;
+          if (src.startsWith("data:")) tipo = src.slice(0, Math.max(0, src.indexOf(";")) || 12);
+          else if (src.startsWith("blob:")) {
+            try { tipo = (await (await fetch(src)).blob()).type; } catch { /* revocado */ }
+          }
+          out.push({ w: i.naturalWidth, h: i.naturalHeight, tipo, pref: src.slice(0, 10) });
+        }
+        return out;
+      });
       if (imgs.length) {
         resultado.imagenVisibleMs = Date.now() - t0;
-        resultado.imgsVisibles = imgs.slice(0, 6);
-        resultado.mimeVisible = imgs[0].pref.replace(/;.*$/, "");
-        progreso(`imagen visible en ${resultado.imagenVisibleMs} ms · ${imgs.map((x) => `${x.pref.replace(/;base64.*/, "")} ${x.w}x${x.h}`).join(", ")}`);
+        resultado.imgsVisibles = imgs.slice(0, 8);
+        resultado.mimeVisible = imgs.find((x) => x.tipo)?.tipo ?? null;
+        progreso(`imagen visible en ${resultado.imagenVisibleMs} ms · ${imgs.map((x) => `${x.tipo || x.pref} ${x.w}x${x.h}`).join(", ")}`);
       }
     }
     const texto = await cuerpo(pagina);
@@ -198,6 +211,21 @@ async function main() {
       resultado.veredictoMs = Date.now() - t0;
       resultado.veredicto = texto.replace(/\s+/g, " ").slice(0, 220);
       progreso(`veredicto en ${resultado.veredictoMs} ms: ${resultado.veredicto.slice(0, 120)}`);
+      if (resultado.imagenVisibleMs == null) {
+        // El <img> del visor pinta en el mismo tick que el veredicto: sondear
+        // una vez más antes de cerrar el lazo.
+        await pagina.waitForTimeout(800);
+        const imgs = await pagina.evaluate(() =>
+          Array.from(document.querySelectorAll("img"))
+            .filter((i) => i.naturalWidth >= 400)
+            .map((i) => ({ w: i.naturalWidth, h: i.naturalHeight, tipo: (i.currentSrc || i.src || "").slice(0, 16) })));
+        if (imgs.length) {
+          resultado.imagenVisibleMs = Date.now() - t0;
+          resultado.imgsVisibles = imgs.slice(0, 8);
+          resultado.mimeVisible = imgs[0].tipo.startsWith("data:") ? imgs[0].tipo.slice(0, imgs[0].tipo.indexOf(";") > 0 ? imgs[0].tipo.indexOf(";") : 12) : imgs[0].tipo;
+          progreso(`imagen visible (post-veredicto) en ${resultado.imagenVisibleMs} ms · ${imgs.map((x) => `${x.tipo} ${x.w}x${x.h}`).join(", ")}`);
+        }
+      }
       break;
     }
     if (/memoria del motor|RECARGAR/i.test(texto)) {
@@ -209,7 +237,7 @@ async function main() {
   if (resultado.imagenVisibleMs == null)
     progreso(`sin imagen visible dentro de ${TOPE} ms (webp=${!MODO_PNG} · parcheadas=${parcheadas})`);
 
-  const webpVisible = /data:image\/webp/.test(JSON.stringify(resultado.imgsVisibles));
+  const webpVisible = resultado.imgsVisibles.some((x) => x.tipo === "image/webp");
   if (MODO_PNG) progreso(`control PNG · mime visible: ${resultado.mimeVisible}`);
   else progreso(webpVisible ? "✔ el visor de la app está mostrando WebP" : "⚠ el visor no mostró data:image/webp");
 
