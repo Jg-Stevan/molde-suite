@@ -56,6 +56,9 @@ const FIXTURES = [
       archivo: join(RAIZ, "scripts", "resultados", "fixtures", `${nombre}.png`),
       etiqueta: nombre,
       optimo: false,
+      // Excepción honesta del §10: foto cruzada → 0 lecturas → REVISIÓN
+      // HUMANA. No se le exige el ≥70% de los demás (no hay nada que leer).
+      revision: nombre === "recibo-tachado",
     }),
   ),
 ];
@@ -83,6 +86,10 @@ await contexto.addInitScript((texto) => {
       "e14-molde-local",
       JSON.stringify({ nombre: "recibo_pago.molde.json", tamanoKb: 10.8, fecha: "sandbox" }),
     );
+    // Perfil fresco = overlay de GUÍA RÁPIDA por encima de la app: el diálogo
+    // secuestra la vista y el tab ESCANEAR jamás se ve. Misma clave que
+    // AyudaOverlay.tsx (LS_KEY = "e14-ayuda-vista").
+    window.localStorage.setItem("e14-ayuda-vista", "1");
   } catch {
     /* sin localStorage el script no puede fijar el molde: el run fallará visible */
   }
@@ -101,29 +108,55 @@ async function limpiarPwa() {
   });
 }
 
-/** Lleva la app a la vista de escaneo con el importador montado. */
-async function irAEscanear() {
+/** Desarma la AUTO-CAPTURA de la cámara simulada (ScanView.tsx:738): si queda
+ *  armada, el frame fake dispara capturas que pisan la importación y la app
+ *  puede quedarse en ANALIZANDO sin veredicto jamás. */
+async function desarmarAutoCaptura() {
+  await pagina.waitForTimeout(1500); // el toggle monta con la vista
+  const auto = pagina.getByRole("button", { name: /Captura automática/i });
+  if ((await auto.count()) && (await auto.first().getAttribute("aria-pressed")) === "true") {
+    await auto.first().click().catch(() => {});
+    await pagina.waitForTimeout(500);
+  }
+}
+
+/** Montar la vista de escaneo con el input del importador presente. El input
+ *  oculto (ScanView.tsx:645, aria-label "Importar imagen") es el mismo que
+ *  usa el dock: se dispara por JS porque en viewport móvil el click sintético
+ *  sobre el botón no llega al handler en Certain_states headless. */
+async function prepararImporte() {
   const volver = pagina.getByRole("button", { name: /Volver a la vista anterior|REPETIR/i });
   if (await volver.count()) {
-    await volver.first().click();
+    await volver.first().click().catch(() => {});
     await pagina.waitForTimeout(2000);
   }
-  if ((await pagina.locator("input[type=file]").count()) === 0) {
-    await pagina.getByRole("button", { name: /ESCANEAR/i }).first().click();
-    await pagina.waitForTimeout(1800);
+  const input = pagina.locator("input[type=file]").first();
+  try {
+    await input.waitFor({ state: "attached", timeout: 10000 });
+  } catch {
+    // El «volver» no devolvió la vista de escaneo (p. ej. sigue ANALIZANDO o
+    // cayó a otra pantalla): recarga dura — el addInitScript resiembra el
+    // molde activo y las claves LS en cada navegación.
+    await limpiarPwa();
+    await pagina.goto(BASE, { waitUntil: "domcontentloaded", timeout: 60000 });
+    const guia = pagina.getByRole("button", { name: /Entendido|Cerrar|Empezar/i });
+    if (await guia.count()) await guia.first().click().catch(() => {});
+    await input.waitFor({ state: "attached", timeout: 120000 });
   }
-  // El importador vive en la pestaña ARCHIVO del selector de fuente.
-  let elegir = pagina.getByRole("button", { name: /ELEGIR IMAGEN/i });
-  if ((await elegir.count()) === 0) {
-    const tab = pagina.getByRole("button", { name: /^\s*ARCHIVO\s*$/i });
-    if (await tab.count()) {
-      await tab.first().click();
-      await pagina.waitForTimeout(1200);
-    }
-    elegir = pagina.getByRole("button", { name: /ELEGIR IMAGEN/i });
-  }
-  if ((await elegir.count()) === 0) throw new Error("no se encontró el importador (ELEGIR IMAGEN)");
-  return elegir.first();
+  await desarmarAutoCaptura();
+}
+
+/** Dispara el filechooser vía input y entrega el archivo. */
+async function importar(archivo) {
+  const [chooser] = await Promise.all([
+    pagina.waitForEvent("filechooser", { timeout: 20000 }),
+    pagina.evaluate(() => {
+      const i = document.querySelector("input[type=file]");
+      if (!i) throw new Error("sin input de importación montado");
+      i.click();
+    }),
+  ]);
+  await chooser.setFiles(archivo);
 }
 
 /** Métricas de la imagen procesada visible (detecta página negra / frame sim). */
@@ -155,22 +188,44 @@ async function metricasImagen() {
 }
 
 const filas = [];
+let indiceFixture = 0;
 
 try {
   await limpiarPwa();
   await pagina.reload({ waitUntil: "domcontentloaded", timeout: 60000 });
-  await pagina.getByRole("button", { name: /ESCANEAR/i }).first().waitFor({ timeout: 60000 });
-  const onboarding = pagina.getByRole("button", { name: /Entendido/i });
-  if (await onboarding.count()) await onboarding.first().click();
+  // Arranque duro en perfil fresco: (1) la GUÍA RÁPIDA (e14-ayuda-vista, ya
+  // sembrada arriba) se descarta por si acaso; (2) la cámara simulada del
+  // Chromium headless dispara la AUTO-CAPTURA nada más montar y la app entra
+  // en «analizando», que oculta las pestañas — el ESCANEAR jamás aparece.
+  // Se desarma la auto-captura antes de esperar nada (ScanView.tsx:738).
+  // La app abre en la vista de escaneo: esperar el input del importador montado.
+  await pagina.locator("input[type=file]").first().waitFor({ state: "attached", timeout: 120000 });
+  const guia = pagina.getByRole("button", { name: /Entendido|Cerrar|Empezar/i });
+  if (await guia.count()) await guia.first().click().catch(() => {});
+  await desarmarAutoCaptura();
 
-  for (const { archivo, etiqueta, optimo } of FIXTURES) {
-    const elegir = await irAEscanear();
+  for (const { archivo, etiqueta, optimo, revision } of FIXTURES) {
+    await prepararImporte();
+    await importar(archivo);
 
-    const [chooser] = await Promise.all([
-      pagina.waitForEvent("filechooser", { timeout: 15000 }),
-      elegir.click({ noWaitAfter: true }),
-    ]);
-    await chooser.setFiles(archivo);
+    // La importación debe SACAR la vista del veredicto anterior (entra a
+    // ANALIZANDO). Si a los 20 s sigue el veredicto viejo, el archivo no
+    // arrancó el pipeline: error honesto, no medir el resultado de otro fixture.
+    const tSalida = Date.now();
+    let salio = false;
+    while (Date.now() - tSalida < 20000) {
+      const t = await pagina.locator("body").innerText().catch(() => "");
+      if (!VEREDICTOS.test(t)) {
+        salio = true;
+        break;
+      }
+      await pagina.waitForTimeout(1000);
+    }
+    if (!salio) {
+      filas.push({ fixture: etiqueta, error: "la importación no arrancó (veredicto previo persiste)" });
+      console.log(`FALLA ${etiqueta.padEnd(30)} la importación no arrancó`);
+      continue;
+    }
 
     const t0 = Date.now();
     let texto = "";
@@ -193,12 +248,21 @@ try {
       continue;
     }
     await pagina.waitForTimeout(2500);
+    // Re-leer y VOLCAR la vista: el banner/chips pueden montarse con la
+    // animación posterior al veredicto; el TXT deja la evidencia inspeccionable.
+    try {
+      texto = (await pagina.locator("body").innerText()).replace(/\n{2,}/g, "\n");
+    } catch {
+      /* mantener el último texto bueno */
+    }
+    mkdirSync(RESULTADOS, { recursive: true });
+    writeFileSync(join(RESULTADOS, `vista-${++indiceFixture}.txt`), texto);
     const fila = {
       fixture: etiqueta,
       segundos: Math.round((Date.now() - t0) / 1000),
       score: (texto.match(/\d+\.\d+\/10/) ?? [])[0] ?? null,
       veredicto: (texto.match(VEREDICTOS) ?? [])[0] ?? null,
-      banner: (texto.match(/RECIBO DE PAGO|NO IDENTIFICADO/) ?? [])[0] ?? null,
+      banner: (texto.match(/RECIBO DE PAGO|NO IDENTIFICADO/i) ?? [])[0] ?? null,
       verificacion: (texto.match(/\d+% (?:OK|ALERTA|RECHAZADO)/) ?? [])[0] ?? null,
       molde: (texto.match(/MOLDE:[^\n]{0,60}/) ?? [])[0] ?? null,
       imagen: await metricasImagen(),
@@ -211,7 +275,12 @@ try {
     if (optimo) {
       if (fila.veredicto !== "ÓPTIMA") fallos.push("esperado ÓPTIMA");
       if (fila.verificacion !== "100% OK") fallos.push("esperado 100% OK");
-      if (fila.banner !== "RECIBO DE PAGO") fallos.push("molde no enrutado (banner)");
+      if (String(fila.banner ?? "").toUpperCase() !== "RECIBO DE PAGO") fallos.push("molde no enrutado (banner)");
+    } else if (revision) {
+      // Excepción honesta (§10): la foto cruzada no tiene lecturas; el gate
+      // debe mandar a REVISIÓN HUMANA, jamás inventar un ok ni rechazar por
+      // geometría. El ≥70% no aplica: no hay nada legible que leer.
+      if (fila.veredicto !== "REVISIÓN HUMANA") fallos.push("esperado REVISIÓN HUMANA");
     } else {
       const pct = Number((fila.verificacion ?? "0").split("%")[0]);
       if (pct < 70) fallos.push(`lectura insuficiente (${fila.verificacion ?? "sin dato"})`);

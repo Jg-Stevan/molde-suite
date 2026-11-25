@@ -443,3 +443,62 @@ el pin exacto de tamiz actúa de ancla de dedupe). Ninguna es código muerto.
    (2120×2505) aunque el OCR leyó 9/12; revisar por qué `processed` no llegó.
 5. **≥20 capturas REALES en el A56** antes de mover cualquier umbral (§9.6) y
    **prueba táctil** del editor (§9.8) — `adb` no está en este equipo.
+
+## §11. Verificación del porte del agente externo (2026-11-25)
+
+El agente externo entregó `molde-suite-cambios-f9ed87.zip` (motor v3.3.0 +
+tareas A–E del PLAN-AGENTE-EXTERNO). Se portó SELECTIVAMENTE a este monorepo
+(rama `feat/motor-v330-portado`): el agente había aplanado el repo (studio a
+la raíz) — se rechazó ese layout y se trajeron solo scanner-core, tamiz,
+scripts, docs, moldes y tests. Los cambios de Studio del agente (upload API,
+botón F5, Verificación re-ejecutable) NO se portaron; solo la compatibilidad
+de tipos con `umbral` opcional (EditorTab/VerificacionTab).
+
+**Banco oficial** (`scripts/resultados/importacion-2026-11-25T13-18-26-593Z.json`,
+`verificar-importacion.mjs`, 7/7 sin fallos, exit 0):
+
+| Fixture | s | score | veredicto | verificación |
+|---|---|---|---|---|
+| recibo_pago/pag-01 (limpia) | 15 | 10.0 | ÓPTIMA | 100 % OK · banner RECIBO DE PAGO |
+| recibo-tachado | 19 | 8.7 | REVISIÓN HUMANA | 18 % ALERTA (excepción honesta) |
+| recibo-datos-nuevos | 11 | 7.5 | RECHAZADA | 75 % · 9/12 |
+| recibo-sin-firmas | 11 | 7.5 | RECHAZADA | 75 % · 9/12 |
+| recorte-60pct-usuario | 15 | 7.5 | RECHAZADA | 75 % · 9/12 |
+| recorte-66pct-sin-firma | 15 | 7.5 | RECHAZADA | 75 % · 9/12 |
+| rotada-12 | 11 | 7.5 | RECHAZADA | 75 % · 9/12 |
+
+Distribución IDÉNTICA a la del §10 (el porte no movió el gate). Ningún score 0,
+ninguna imagen negra (medias 238–252).
+
+**Tarea A (QR capa 0)** — `scripts/resultados/qr-capa0-2026-11-25T13-15-02-761Z.json`
+(`verificar-qr-capa0.mjs`): sin QR el pre-chequeo corta en **932 ms** (antes
+~9.5 s muertos), jamás `fin=vencido`; con `qr-test-capa0.png` el worker devuelve
+el payload EXACTO `MOLDE-SUITE-QR-CAPA0-TEST-2026`. Test unitario del
+pre-chequeo en `packages/scanner-core/qr/prechequeo-qr.test.ts`.
+
+**Tarea B (rotada-12)** — el visor muestra **FOTO PROCESADA** (volcado
+`scripts/resultados/vista-7.txt`; ya no «SE MUESTRA LA FOTO ORIGINAL»). Causa
+raíz: la medida de tinta a 200 px borraba los trazos finos del quad sesgado →
+`ANCHO_MEDIDA_TINTA = 600` + `razonTintaDePixeles` pura + guardas de quad
+(`core/quad-guardas.ts`, gemelo en `workers/fallback-canvas.ts`) + guardia de
+procesada nunca vacía en el pipeline.
+
+**Tarea C (firmas)** — ya estaba en base: el motor marca `firma_ausente` por
+trazos (`universal-engine.ts:1431`); `recibo-sin-firmas` sigue RECHAZADA honesta
+(los 3 faltantes: firmas + fecha) y la limpia 100 %. `UMBRAL_RECHAZO_SCORE`
+intacto.
+
+**Tarea D (frame-loop)** — cableado detrás de flag `tamiz.flags.v1 → frameLoop`
+DEFAULT OFF con fallback al rAF propio; 23 tests del estabilizador verdes.
+Validación táctil pendiente en el A56 (anotado TODO en `useSesionCamara.ts`).
+
+**Tarea E (RapidOCR)** — decisión escrita en `docs/DECISION-rapidocr-fallback.md`:
+fallback sin pesos; no se inventaron URLs ni hashes.
+
+**Higiene (tarea F)** — scanner-core 36 ✓ · tamiz 93 ✓ · raíz motor 178 ✓ ·
+studio 34 ✓ · typecheck 0 y lint 0 en tamiz y studio. Moldes `recibo_pago` y
+`comprobante_entrega` v1.4.0 sincronizados en las 3 copias (tamiz, finales,
+studio; la de studio añade `paginasRef` a propósito).
+
+**Pendiente real de dispositivo (sin cambios):** prueba táctil A56 + ≥20
+capturas reales antes de mover cualquier umbral.
