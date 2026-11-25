@@ -6,13 +6,13 @@
  *
  *  · Cabecera: «PLANTILLAS» + chip MODO LOCAL (+ tuerca de diagnóstico).
  *  · Tarjeta CARGAR MOLDE .JSON (borde punteado): input de archivo REAL con
- *    drag & drop — el molde personalizado se registra en localStorage del
- *    dispositivo (nombre, tamaño, fecha) y pasa a ser el «molde vinculado».
- *  · MOLDE VINCULADO AL DISPOSITIVO: la plantilla ACTIVA (molde personalizado
- *    si el operador cargó uno; si no, la base integrada) con chips de estado,
- *    tamaño en caché, PREVIEW (N obligatorios / M opcionales — derivado de la
- *    definición de la plantilla) y tipos de campo presentes. Acciones:
- *    REEMPLAZAR .JSON · ELIMINAR · PROBAR.
+ *    drag & drop — el molde pasa por la MISMA puerta que PanelMoldes
+ *    (importarMoldeDesdeTexto → activarMolde en el registry + guardado en
+ *    IndexedDB); los metadatos (nombre, tamaño, fecha) quedan en localStorage.
+ *  · MOLDE VINCULADO AL DISPOSITIVO: la plantilla ACTIVA leída del registry
+ *    (el mismo molde que ejecuta el pipeline) o la base integrada, con chips
+ *    de estado, tamaño en caché, PREVIEW (campos reales de la plantilla) y
+ *    tipos de campo presentes. Acciones: REEMPLAZAR .JSON · ELIMINAR · PROBAR.
  *  · AJUSTES DE SISTEMA (colapsado al pie): puente a supervisión + reiniciar
  *    jornada — la operativa del mantenedor sale del flujo visual del mock
  *    pero NO se pierde.
@@ -44,6 +44,9 @@ import { TuercaResumen } from "../dev/TuercaResumen";
 // KIT e14-observabilidad-v1 (agente 2 · C4): panel completo del modo dev.
 import { PanelDev } from "../dev/PanelDev";
 import { DocLineIcon, StitchDocIcon } from "../icons";
+import { importarMoldeDesdeTexto } from "@/lib/e14/molde/importar";
+import { activarMolde, desactivarMolde, moldeActivo } from "@/lib/e14/molde/registry";
+import { guardarMolde } from "@/lib/e14/molde/almacen";
 
 /** Registro LOCAL del molde personalizado (localStorage del dispositivo). */
 interface MoldeLocal {
@@ -161,29 +164,66 @@ export function ResumenView() {
   const origenEquipo = typeof window === "undefined" ? "" : window.location.origin;
   const hubEsLocal = hubUsado === origenEquipo;
 
-  // ── PREVIEW de la plantilla ACTIVA (REAL): construirChecklist con un acta
-  // mínima SOLO para listar los campos que la definición verifica. El
-  // resultado son los GRUPOS de la plantilla con su cantidad de verificaciones
-  // (los estados por documento viven en REVISIÓN, aquí NO se muestran).
-  const previewPlantilla = useMemo(() => {
+  // ── PREVIEW de la plantilla ACTIVA (REAL): si hay molde universal activo
+  // (registry, misma fuente que usa el pipeline) el preview lista SUS campos
+  // agrupados; si no, los grupos de la plantilla base E-14. Antes se llamaba
+  // siempre a construirChecklist({} as Acta) y el panel mentía con un molde
+  // importado activo.
+  const previewMolde = useMemo(() => {
+    const activo = moldeActivo();
+    if (activo) {
+      const porGrupo = new Map<string, number>();
+      for (const c of activo.campos) {
+        const g = (c.grupo ?? "").trim() || "Campos";
+        porGrupo.set(g, (porGrupo.get(g) ?? 0) + 1);
+      }
+      return {
+        custom: true,
+        nombre: activo.nombre,
+        grupos: Array.from(porGrupo, ([titulo, total]) => ({ titulo, total })),
+        obligatorios: activo.campos.filter((c) => c.obligatorio).length,
+        opcionales: activo.campos.filter((c) => !c.obligatorio).length,
+      };
+    }
     const pl = construirChecklist({} as Acta);
-    return pl.grupos.map((g) => ({ titulo: g.titulo, total: g.items.length }));
-  }, []);
-  const totalVerificaciones = previewPlantilla.reduce((n, g) => n + g.total, 0);
-  const obligatorios = previewPlantilla
-    .filter((g) => g.titulo === "Huellas / Firmas" || g.titulo === "Campos Obligatorios")
-    .reduce((n, g) => n + g.total, 0);
-  const opcionales = totalVerificaciones - obligatorios;
+    const grupos = pl.grupos.map((g) => ({ titulo: g.titulo, total: g.items.length }));
+    const totalVerificaciones = grupos.reduce((n, g) => n + g.total, 0);
+    const obligatorios = grupos
+      .filter((g) => g.titulo === "Huellas / Firmas" || g.titulo === "Campos Obligatorios")
+      .reduce((n, g) => n + g.total, 0);
+    return {
+      custom: false,
+      nombre: null as string | null,
+      grupos,
+      obligatorios,
+      opcionales: totalVerificaciones - obligatorios,
+    };
+  }, [moldeLocal]);
+  const previewPlantilla = previewMolde.grupos;
+  const obligatorios = previewMolde.obligatorios;
+  const opcionales = previewMolde.opcionales;
 
-  // ── Registro del molde personalizado (REAL: file → JSON → localStorage).
+  // ── Carga del molde personalizado: la MISMA puerta que PanelMoldes
+  // (importarMoldeDesdeTexto valida el sobre/checksum del contrato). Antes
+  // solo se guardaba nombre/tamaño/fecha en localStorage y el JSON se
+  // descartaba: el motor nunca veía el molde y Tamiz seguía en la base E-14.
   const registrarArchivo = async (file: File): Promise<void> => {
     if (!file.name.toLowerCase().endsWith(".json")) {
       setFeedbackMolde("Archivo inválido: se espera un .json de definición.");
       return;
     }
     try {
-      const texto = await file.text();
-      JSON.parse(texto); // validación mínima: debe ser JSON parseable
+      const r = await importarMoldeDesdeTexto(await file.text());
+      if (!r.ok) {
+        setFeedbackMolde(`Molde rechazado: ${r.errores.join(" · ")}`);
+        return;
+      }
+      const act = activarMolde(r.molde);
+      if (!act.ok) {
+        setFeedbackMolde(`Molde inválido: ${act.errores.join(" · ")}`);
+        return;
+      }
+      await guardarMolde(r.molde, r.checksum);
       const registro: MoldeLocal = {
         nombre: file.name,
         tamanoKb: Math.max(0.1, Math.round((file.size / 1024) * 10) / 10),
@@ -191,13 +231,15 @@ export function ResumenView() {
       };
       window.localStorage.setItem(CLAVE_MOLDE, JSON.stringify(registro));
       setMoldeLocal(registro);
-      setFeedbackMolde(`Molde registrado: ${file.name} (${registro.tamanoKb} KB).`);
-    } catch {
-      setFeedbackMolde("El archivo no es un JSON válido — molde no registrado.");
+      const avisos = r.avisos.length > 0 ? ` Avisos: ${r.avisos.join(" · ")}` : "";
+      setFeedbackMolde(`MOLDE ACTIVO: ${act.nombre} (${registro.tamanoKb} KB).${avisos}`);
+    } catch (err) {
+      setFeedbackMolde(`No se pudo cargar el molde: ${(err as Error).message}`);
     }
   };
 
   const eliminarMolde = (): void => {
+    desactivarMolde();
     try {
       window.localStorage.removeItem(CLAVE_MOLDE);
     } catch {
@@ -301,7 +343,7 @@ export function ResumenView() {
           <div className="flex flex-wrap gap-1.5">
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[#10b981]/40 bg-[#10b981]/10 font-mono text-[9px] font-bold text-[#10b981] uppercase tracking-wider">
               <span className="w-1 h-1 rounded-full bg-[#10b981]" aria-hidden />
-              {moldeLocal ? "Molde personalizado" : "Activo en dispositivo"}
+              {previewMolde.custom ? "Molde personalizado" : "Activo en dispositivo"}
             </span>
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-[#090d12] font-mono text-[9px] font-bold text-slate-300 uppercase tracking-wider">
               Esquema base v1
@@ -314,10 +356,14 @@ export function ResumenView() {
           {/* Título + archivo. */}
           <div>
             <h2 className="text-base lg:text-lg font-bold text-[#10b981] leading-snug">
-              {moldeLocal ? moldeLocal.nombre.replace(/\.json$/i, "") : "Documento · Plantilla base integrada"}
+              {previewMolde.custom
+                ? moldeLocal?.nombre.replace(/\.json$/i, "") ?? previewMolde.nombre
+                : "Documento · Plantilla base integrada"}
             </h2>
             <p className="font-mono text-[10px] text-slate-500 mt-0.5">
-              {moldeLocal ? moldeLocal.nombre : "plantilla base · integrada en la app"}
+              {previewMolde.custom
+                ? moldeLocal?.nombre ?? "molde activo · importado en este dispositivo"
+                : "plantilla base · integrada en la app"}
             </p>
           </div>
 
@@ -327,7 +373,7 @@ export function ResumenView() {
               Tamaño en caché:
             </span>
             <span className="font-mono text-[11px] font-bold text-white">
-              {moldeLocal ? `${moldeLocal.tamanoKb} KB` : "INTEGRADA"}
+              {moldeLocal ? `${moldeLocal.tamanoKb} KB` : previewMolde.custom ? "JSON ACTIVO" : "INTEGRADA"}
             </span>
           </div>
           {moldeLocal?.fecha && (
@@ -374,8 +420,8 @@ export function ResumenView() {
             <button
               type="button"
               onClick={eliminarMolde}
-              disabled={!moldeLocal}
-              aria-disabled={!moldeLocal}
+              disabled={!previewMolde.custom}
+              aria-disabled={!previewMolde.custom}
               className="px-2 py-2.5 rounded-lg border border-red-500/40 bg-[#090d12] font-mono text-[10px] font-bold text-[#E52222] hover:border-red-500 hover:bg-red-500/10 uppercase tracking-wider transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed min-h-[40px]"
             >
               Eliminar

@@ -378,3 +378,68 @@ mapa se regenera con `bun run agent:map` después de la mezcla.
    `0f83cfe..5dae3fa` la saltó con permisos de admin. Decidir si el siguiente
    cambio va por rama + PR.
 
+
+---
+
+## §10. Cierre medido en navegador real (2026-11-24, noche)
+
+Lo cerrado en esta jornada, verificado con `Importar imagen` sobre el banco
+`scripts/resultados/fixtures/` (SW desregistrado, auto-captura desactivada):
+
+| Hallazgo | Cierre |
+|---|---|
+| **Todo PNG/JPEG subido salía NEGRO** (`bw` mapeaba blanco→0 con rango p5=p95=255) → OCR 0 lecturas → «PAPEL CORTADO» → score 0 en el 100 % del banco | guarda `degenerado = p95 - p5 < 8` en `core/image-processor.ts` **y** su gemelo `workers/fallback-canvas.ts`; workers regenerados con `construir-workers.mjs` |
+| **Enrutado de moldes** (§9.1): `!contexto?.esE14` no enrutaba ningún documento que mencionara MESA/DELEGADOS | `debeEnrutar()` (puro, testeado): decide por `molde.documento === 'acta_e14'`, no por el flag del clasificador |
+| **Rechazos tempranos se saltaban el router** (`recortada`, `procesadaVacia` retornaban antes de `evaluarMolde`) | evaluación de molde movida ANTES y ambos rechazos condicionados a `!veredictoMolde` |
+| **Importador de PLANTILLAS era falso**: solo escribía metadatos en localStorage; el motor nunca veía el molde | `registrarArchivo` usa `importarMoldeDesdeTexto → activarMolde → guardarMolde` (misma puerta que PanelMoldes); `eliminarMolde` desactiva el registry |
+| **PREVIEW de PLANTILLAS mentía**: `construirChecklist({} as Acta)` mostraba siempre los grupos base E-14 | el preview lee el molde ACTIVO del registry y lista SUS campos (grupo/obligatorio); sin molde, cae a la base |
+
+**Distribución medida (banco de 7, gate 0-10 y verificación documental):**
+
+| Fixture | px | score bruto | veredicto UI | verificación | molde |
+|---|---|---|---|---|---|
+| ref-limpia-pag01 | 1700×2200 | 7.5 (10.0 con molde) | ÓPTIMA | 100 % OK | 12/12 enrutado |
+| recibo-tachado | 1700×1519 | 8.7 | REVISIÓN HUMANA | 18 % ALERTA | no enrutado (0 lecturas) |
+| recibo-datos-nuevos | 1700×2200 | 7.5 | RECHAZADA | 75 % | 9/12 |
+| recibo-sin-firmas | 1700×2200 | 7.5 | RECHAZADA | 75 % | 9/12 |
+| recorte-60pct-usuario | 1700×1227 | 7.5 | RECHAZADA | 75 % | 9/12 |
+| recorte-66pct-sin-firma | 1700×1447 | 7.5 | RECHAZADA | 75 % | 9/12 |
+| rotada-12 | 2120×2505 | 7.5 | RECHAZADA | 75 % | 9/12 |
+
+Lectura de la tabla: **el score del gate NO discrimina** (7.5–8.7 en todo el
+banco, siempre > 6.5). Los rechazos salen de la VERIFICACIÓN DOCUMENTAL, y en
+los 4 casos de 9/12 los 3 campos que faltan son **firmas + fecha/título**: las
+firmas no son texto OCR. Es un asunto de ESTRUCTURA DEL MOLDE (firmas
+`tipo: 'firma'` con `min_trazos`/`firma_esperada`, o no obligatorias), no del
+umbral. **No se toca `UMBRAL_RECHAZO_SCORE`.**
+
+**§9.2 (CALIDAD sobre binarizada vs. la que lee el OCR) — decidido por medición.**
+Métricas reales de `calidadDeActa` sobre la imagen CRUDA de los 7 fixtures
+(400 px, misma fórmula): scores 6.6 / 7.2 / 7.3 / 7.4 / 7.7 / 7.7 / 8.2 —
+`recibo-sin-firmas` cae a **6.6, a 0.1 del umbral**. Sobre la imagen procesada
+el score es 7.5 estable. Mudar la entrada de CALIDAD estrecharía el margen a
+cero y produciría rechazos falsos en fotos reales algo más blandas. **Se queda
+en la procesada.** La doctrina «el OCR manda» (C3) ya impide que la calidad
+tapa un documento legible.
+
+**§9.5 (dependencias) — confirmadas por uso real:** `framer-motion` (ZoomableVisor),
+`jspdf` (pdf-export + tests), `zxing-wasm` (QR + test), `onnxruntime-web` (solo
+`packages/dla-onnx`; copia única 1.31.1 instalada que satisface ambos rangos —
+el pin exacto de tamiz actúa de ancla de dedupe). Ninguna es código muerto.
+
+**Pendientes que quedan (para retomar):**
+
+1. **`CameraFrameLoop`/`live.corners` sin cablear** (§9.3) — los módulos
+   `apps/tamiz/src/lib/e14/core/{frame-loop,motion-stabilizer}.ts` existen y
+   NADIE los importa; `useSesionCamara` sigue con su rAF propio de 250 ms.
+   Cablearlos cambia el disparo de la auto-captura: exige validación en
+   dispositivo, no en headless.
+2. **RapidOCR `.onnx`: URL + SHA-256** en `apps/tamiz/scripts/assets.lock.json`
+   (§9.4). Requiere decisión del dueño sobre el origen de los pesos.
+3. **QR capa 0: presupuesto ~8 s** (§9.7). Evidencia en vivo: en cada escaneo
+   sin QR el worker agota `presupuesto=8000+1500` y el acta muestra «CÓDIGO QR
+   NO CORRIÓ EN ESTA CAPTURA» — 9.5 s de espera por documento sin QR.
+4. **«SE MUESTRA LA FOTO ORIGINAL» con `rotada-12`**: el visor cae al original
+   (2120×2505) aunque el OCR leyó 9/12; revisar por qué `processed` no llegó.
+5. **≥20 capturas REALES en el A56** antes de mover cualquier umbral (§9.6) y
+   **prueba táctil** del editor (§9.8) — `adb` no está en este equipo.
