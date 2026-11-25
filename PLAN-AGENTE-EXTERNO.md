@@ -83,7 +83,10 @@ lee firmas. Es estructura de molde, no umbral (ver tarea C).
   veredicto.
 - Aceptación: escaneo de documento **sin** QR no espera 8 s (medir en el JSON
   `segundos` y el log `ms=`), y un fixture/imagen **con** QR sigue devolviendo
-  payload. Añadir test unitario del pre-chequeo.
+  payload — usar `scripts/resultados/fixtures/qr-test-capa0.png` (QR 400×400,
+  texto `MOLDE-SUITE-QR-CAPA0-TEST-2026`; verificar que `decodificarQrCapa0Camara`
+  o `decodificarQrDeCapture` devuelve ese payload exacto). Añadir test unitario
+  del pre-chequeo.
 
 ### B. `rotada-12`: el visor cae a la foto original — **P2**
 - Evidencia: el acta sale «SE MUESTRA LA FOTO ORIGINAL» (`ReviewView.tsx:354-358`,
