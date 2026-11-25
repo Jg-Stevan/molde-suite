@@ -119,6 +119,28 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
     bien (caso real: fecha_pago correcto se degradaba porque fecha_emision
     estaba bajo un revelado). `ok: false` mantiene la democión (defensa
     principal). El gate global `requiere_revision` sigue encendido con null.
+- **Plan extracción relacional (FASE 5 — arnés geométrico)**: `fuente: 'arnes'`
+  — el campo perdió su ancla y el motor proyectó su rect desde ≥3 anclas de alta
+  confianza (`ARNES_ANCLAS_MIN`) con un afín de mínimos cuadrados cuyo modelo se
+  reajusta solo sobre los votos que se sustentan entre sí (leave-one-out:
+  residual normalizado ≤ `ARNES_VOTO_TOL` = 0.02). `confProy` = fracción de votos
+  soportados; se adopta con `conf ≥ ARNES_CONF_PROY_MIN` = 0.8. Bandera
+  `ancla_inferida` (posición inferida, no medida) y aditivo `auto_reparado_numero`
+  (ver FASE 6). Adopción texto exige lectura válida + conf ≥ 0.7 + patrón; sin
+  eso queda `requiere_revision` — NUNCA un `ok` silencioso. Las firmas se
+  separan por caja: con `cajasLayout` de clase `seal` (la inyecta la app; el
+  motor no importa dla-onnx), cada firma recibe su propio rect y se acaba el
+  «dos firmas en el mismo rect» por construcción.
+- **Plan extracción relacional (FASE 6 — votación 2/3 y letras↔número)**: un
+  campo rescatado por el arnés vale `ok` solo con dos de tres señales de acuerdo
+  (geometría del arnés + patrón validado + conf OCR ≥ `ARNES_TEXTO_CONF_MIN`).
+  `letrasANumero` convierte «dos mil cuatrocientos…» a número (español, 10-15/
+  20-29, millone/billón, «con» decimales); devuelve null ante cualquier token
+  desconocido — nunca inventa. `repararNumeroAmbiguo` solo mapea dígitos
+  ambiguos (O→0 I/l→1 S→5 B→8 Z→2 G→6 T→7 q→9) y la reparación se acepta
+  ÚNICAMENTE si el otro operando de la validación la cruza por letras al mismo
+  valor (`auto_reparado_numero`); sin cruce, el valor queda intacto y la
+  validación `ok: null`.
 - **v3.2.0 — faro (ancla_relacional)**: `ancla_fuera_de_zona` (el texto existe
   PERO fuera del faro — el mapa está mal puesto o la variante es otra; cae a
   referencia), `relacion_sin_candidato` (nada en la dirección pedida →

@@ -560,7 +560,7 @@ export interface ResultadoCampoUniversal {
   crop?: string | null;
   /** Dimensiones reales en px del crop generado (G-6: nunca hardcodear DPI). */
   crop_dims?: [number, number] | null;
-  fuente?: 'ancla' | 'respaldo' | 'referencia' | 'fija' | null;
+  fuente?: 'ancla' | 'respaldo' | 'referencia' | 'fija' | 'arnes' | null;
   banderas: string[];
   /**
    * Fase A2 (blueprint DLA — port checkbox-extractor): clasificación de la

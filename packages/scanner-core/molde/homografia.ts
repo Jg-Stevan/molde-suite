@@ -273,3 +273,67 @@ export function corregirDeskew(src: HTMLCanvasElement, anguloCorrector: number):
   ctx.drawImage(src, -src.width / 2, -src.height / 2);
   return out;
 }
+
+// ---- FASE 5 (plan extracción relacional): arnés geométrico ----------------
+// Ajuste AFÍN por mínimos cuadrados sobre N≥3 pares de puntos (referencia →
+// encontrado). A diferencia de resolverHomografia (exacta, 4 pares), esta es
+// la transformación del arnés: proyecta la posición de los campos cuyo ancla
+// textual no apareció, usando los anclajes de alta confianza del resto. El
+// modelo 2D completo (perspectiva) es inestable con pocos votos y el caso
+// medido (recorte/ruido, no foto en ángulo) es afín: rotación + escala +
+// traslación.
+
+export type Afin6 = [number, number, number, number, number, number];
+
+/** x' = a·x + b·y + c ; y' = d·x + e·y + f. Resuelve dos regresiones
+ *  lineales 3-param (ecuaciones normales) sobre los pares. null si <3 pares
+ *  o la matriz es singular (puntos colineales). */
+export function ajustarAfin(
+  src: { x: number; y: number }[],
+  dst: { x: number; y: number }[],
+): Afin6 | null {
+  const n = Math.min(src.length, dst.length);
+  if (n < 3) return null;
+  // Ecuaciones normales de [x y 1]·[a b c]ᵀ = x' (y simétrica para y').
+  let sxx = 0, sxy = 0, syy = 0, sx = 0, sy = 0;
+  let sxxd = 0, syxd = 0, sxd = 0, sxyd = 0, sydd = 0, syd = 0;
+  for (let i = 0; i < n; i++) {
+    const { x, y } = src[i];
+    const { x: X, y: Y } = dst[i];
+    sxx += x * x; sxy += x * y; syy += y * y; sx += x; sy += y;
+    sxxd += x * X; syxd += y * X; sxd += X;
+    sxyd += x * Y; sydd += y * Y; syd += Y;
+  }
+  const A3: number[][] = [
+    [sxx, sxy, sx],
+    [sxy, syy, sy],
+    [sx, sy, n],
+  ];
+  const abc = gauss3(A3, [sxxd, syxd, sxd]);
+  const def = gauss3(A3, [sxyd, sydd, syd]);
+  if (!abc || !def) return null;
+  return [abc[0], abc[1], abc[2], def[0], def[1], def[2]];
+}
+
+/** Aplica el afín a un punto. */
+export function aplicarAfin(A: Afin6, x: number, y: number): { x: number; y: number } {
+  return { x: A[0] * x + A[1] * y + A[2], y: A[3] * x + A[4] * y + A[5] };
+}
+
+/** Gauss 3x3 con pivoteo parcial; null si singular. */
+function gauss3(A: number[][], b: number[]): [number, number, number] | null {
+  const M = A.map((r, i) => [...r, b[i]]);
+  for (let col = 0; col < 3; col++) {
+    let piv = col;
+    for (let r = col + 1; r < 3; r++) if (Math.abs(M[r][col]) > Math.abs(M[piv][col])) piv = r;
+    if (Math.abs(M[piv][col]) < 1e-9) return null;
+    if (piv !== col) [M[piv], M[col]] = [M[col], M[piv]];
+    for (let r = 0; r < 3; r++) {
+      if (r === col) continue;
+      const f = M[r][col] / M[col][col];
+      if (f === 0) continue;
+      for (let c = col; c < 4; c++) M[r][c] -= f * M[col][c];
+    }
+  }
+  return [M[0][3] / M[0][0], M[1][3] / M[1][1], M[2][3] / M[2][2]];
+}
