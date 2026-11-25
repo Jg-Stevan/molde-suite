@@ -1,0 +1,19 @@
+{
+  "cdp": "http://127.0.0.1:9224",
+  "medidoEn": "2026-11-25T17:39:08.800Z",
+  "filas": [
+    {
+      "fixture": "recibo-tachado",
+      "segundos": 18,
+      "score": "6.7/10",
+      "veredicto": "RECHAZADA",
+      "banner": "RECIBO DE PAGO",
+      "verificacion": "67% RECHAZADO",
+      "molde": "MOLDE: RECIBO DE PAGO · 8/12 CAMPOS OK",
+      "captura": "a56-01-recibo-tachado.png",
+      "fallos": [
+        "esperado REVISIÓN HUMANA"
+      ]
+    }
+  ]
+}

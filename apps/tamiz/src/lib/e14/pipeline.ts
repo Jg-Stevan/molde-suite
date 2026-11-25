@@ -8,7 +8,7 @@ import {
   clasificarDesdeOcr,
   type ClasificacionE14,
 } from '@molde-suite/scanner-core/dominio/clasificador';
-import { detectDocumentEdgesDetail, processImage } from '@molde-suite/scanner-core/core/image-processor';
+import { processImage } from '@molde-suite/scanner-core/core/image-processor';
 import { defaultQuad, type PageFilter } from '@molde-suite/scanner-core/core/types';
 import type { Acta, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/types';
 import type { OpcionesEscaneo } from '@molde-suite/scanner-core/dominio/bridge';
@@ -25,6 +25,15 @@ import { logger } from '../logger';
 import { probeOrientacion, rotarDataUrl } from './orientacion';
 import type { ProbeOrientacion } from './orientacion';
 import { decodificarQrCapa0Camara } from '@molde-suite/scanner-core/qr/capa0-qr.client';
+// KIT e14-ocr-cascada-v1: con `ocrCascada` ON el OCR es la CASCADA de
+// digielect (intento 1 → GATE → core → rescate); OFF = escalonado de siempre.
+import { cascadaActiva } from '@molde-suite/scanner-core/orquestacion/cascada';
+import { leerFlags } from './flags';
+import { presupuestoEscaneoEfectivo } from './adaptacion/plan';
+import type { CfgOcr } from './bridge/ocr';
+// Detección del quad de la foto: worker OpenCV (la misma vía del visor en
+// vivo) con la heurística del core como respaldo.
+import { detectarQuadDeFoto } from './bridge/deteccion-quad';
 // 2.4 — política universal del gate (C3 lectura + escudo-fondo).
 import { aplicarPoliticaUniversal } from './politica/gate';
 import { senalDeLectura } from '@molde-suite/scanner-core/dominio/senal-lectura';
@@ -107,6 +116,10 @@ export async function correrPipelineL2(
   emitir: (p: ProgresoAnalisis) => void,
   pasos: PasosPipelineL2,
 ): Promise<Acta> {
+  // Base del PRESUPUESTO del OCR (el timeout existente del pipeline manda —
+  // §3 del kit escalonado): cuenta desde el arranque del pipeline, como en
+  // digielect14.
+  const tInicioPipeline = performance.now();
   // ---- CAPTURA: decode + warm-up ----
   let t0 = performance.now();
   emitir(pasos.conRampa('DETECTANDO', 0));
@@ -132,16 +145,13 @@ export async function correrPipelineL2(
   emitir(pasos.conRampa('DETECTANDO', 0.6));
   let quad = pasos.quadIdentidad;
   let origenDeteccion: string | null = null;
-  // La cámara también entrega un File; solo los archivos importados omiten la detección.
-  const esArchivoSubido = 'archivo' in entrada && opciones.fuente !== 'CAMARA';
+  // Regresión del port corregida (2026-11-25): los archivos importados TAMBIÉN
+  // pasan por el detector — antes usaban quad identidad y la «procesada» era
+  // el fotograma entero con fondo. Sin bordes, el detector degrada a identidad.
   try {
-    if (esArchivoSubido) {
-      origenDeteccion = 'archivo-identidad';
-    } else {
-      const detalle = await detectDocumentEdgesDetail(fotoOriginal);
-      quad = detalle.quad;
-      origenDeteccion = detalle.origen;
-    }
+    const detalle = await detectarQuadDeFoto(fotoOriginal);
+    quad = detalle.quad;
+    origenDeteccion = detalle.origen;
   } catch {
     quad = defaultQuad(); // degradación honesta: la foto entera es el documento
   }
@@ -255,10 +265,22 @@ export async function correrPipelineL2(
   // ---- OCR ----
   t0 = performance.now();
   emitir(pasos.conRampa('OCR', 0.15));
-  let ocrTexto = await pasos.reconocerRapidOcrEscalonado(fotoOcr);
-  if (ocrTexto.length < 60) {
-    ocrTexto = await pasos.reconocerRapidOcrCascada(fotoOcr);
-  }
+  // KIT e14-ocr-cascada-v1 — `ocrCascada` ON: CASCADA de digielect (intento 1
+  // Tesseract best / RapidOCR según `ocrPrimeraPasadaRapida` → GATE entre
+  // motores → core RapidOCR escalonado → rescate ROI/motor). OFF: escalonado
+  // de siempre byte a byte. SIM: una pasada completa, 0 trazas (§3).
+  const cfgOcr: CfgOcr = {
+    simular: opciones.fuente === 'SIMULACION',
+    presupuestoMs: opciones.timeoutMs ?? presupuestoEscaneoEfectivo(),
+    inicioMs: tInicioPipeline,
+    orientacionDecidida: false, // la brújula QR aún no se cablea al pipeline
+    corteIncompleta: false,
+  };
+  const onProgresoOcr = (p: number): void =>
+    emitir(pasos.conRampa('OCR', Math.min(1, 0.15 + 0.85 * Math.max(0, p))));
+  const ocrTexto = cascadaActiva(leerFlags().ocrCascada, cfgOcr.simular)
+    ? await pasos.reconocerRapidOcrCascada(fotoOcr, onProgresoOcr, cfgOcr)
+    : await pasos.reconocerRapidOcrEscalonado(fotoOcr, onProgresoOcr, cfgOcr);
   // FASE B3 (blueprint DLA): banda DINÁMICA desde regiones de layout cuando
   // el paso inyectado la provee (flag + modelo); caída a las bandas fijas
   // 16%/20% de siempre sin señal (Nivel 1 intacto).
@@ -330,9 +352,14 @@ export async function correrPipelineL2(
   // Fallo del paso → null honesto (el escaneo sigue sin él).
   let evaluacionMolde: CamposActa['evaluacionMolde'] = null;
   try {
-    evaluacionMolde = await pasos.evaluarMolde(fotoProcesada, {
-      esE14: (clasificacionBase?.tipo ?? null) !== null,
-    });
+    evaluacionMolde = await pasos.evaluarMolde(
+      fotoProcesada,
+      { esE14: (clasificacionBase?.tipo ?? null) !== null },
+      // Fase 4 (plan primera ola): la geometría SIN binarizar ya existe
+      // (`fotoOcr`, la que leyó RapidOCR) — el molde la usa como A/B cuando
+      // la imagen bw no produce ninguna lectura.
+      { fotoOriginal: fotoOcr },
+    );
   } catch (e) {
     logger.warn('[pipeline] paso de molde falló (el escaneo sigue sin él)', {
       mensaje: (e as Error).message,

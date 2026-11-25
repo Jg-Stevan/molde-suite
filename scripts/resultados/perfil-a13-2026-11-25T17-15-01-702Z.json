@@ -1,0 +1,2977 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "serial": "192.168.1.4:35543",
+  "medidoEn": "2026-11-25T17:15:46.875Z",
+  "sinSampler": false,
+  "mismaPestana": true,
+  "sinCooldown": false,
+  "arranque": {
+    "wakefulness": "mWakefulness=Awake",
+    "logcat": "limpiado",
+    "killAll": "ok",
+    "chromeAlFrente": "am start ok",
+    "forwards": [
+      "192.168.1.4:35543 tcp:9223 localabstract:chrome_devtools_remote"
+    ],
+    "cdp": "ya expuesto"
+  },
+  "sistema": {
+    "kernel": "4.19.198-28701120-abA135MUBSDDZB3",
+    "termica": "Temperature{mValue=0.0, mType=2, mName=SUBBAT, mStatus=0}\r\n\tTemperature{mValue=23.6, mType=0, mName=AP, mStatus=0}\r\n\tTemperature{mValue=21.5, mType=5, mName=PA, mStatus=0}\r\n\tTemperature{mValue=20.1, mType=2, mName=BAT, mStatus=0}\r\n\tTemperature{mValue=0.0, mType=4, mName=USB, mStatus=0}\r\n\tTemperature{mValue=38.1, mType=3, mName=SKIN, mStatus=1}\r\n\tTemperature{mValue=37.3, mType=0, mName=AP, mStatus=0}\r\n\tTemperature{mValue=32.7, mType=2, mName=BAT, mStatus=0}"
+  },
+  "tempInicialC": 32.7,
+  "fase": "final",
+  "tempFinalC": 32.7,
+  "meminfoInicial": [
+    "Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap",
+    "EGL mtrack    10272    10272        0        0    10272",
+    "Java Heap:    20028                          30232",
+    "Native Heap:    23816                          24664",
+    "Graphics:    10272                          10272",
+    "TOTAL PSS:   188760            TOTAL RSS:   249296       TOTAL SWAP PSS:      501"
+  ],
+  "meminfoFinal": [
+    "Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap",
+    "Java Heap:     7156                          24212",
+    "Native Heap:     7080                           7960",
+    "Graphics:        0                              0",
+    "TOTAL PSS:   122037            TOTAL RSS:   151996       TOTAL SWAP PSS:    33814"
+  ],
+  "logcat": {
+    "eventos": [
+      "11-25 12:14:54.635 30696 31680 I am_kill : [0,1436,com.sec.android.app.chromecustomizations,965,kill all background]",
+      "11-25 12:14:54.638 30696 31680 I am_kill : [0,1505,com.android.vending,945,kill all background]",
+      "11-25 12:14:54.644 30696 31680 I am_kill : [0,2644,com.sec.android.provider.badge,915,kill all background]",
+      "11-25 12:14:54.647 30696 31680 I am_kill : [0,1911,com.samsung.android.app.telephonyui,935,kill all background]",
+      "11-25 12:14:54.652 30696 31680 I am_kill : [0,2030,com.android.vending:background,905,kill all background]",
+      "11-25 12:14:54.654 30696 31680 I am_kill : [0,1413,com.google.process.gservices,955,kill all background]",
+      "11-25 12:14:54.658 30696 31680 I am_kill : [0,1960,com.sec.android.diagmonagent,925,kill all background]",
+      "11-25 12:14:54.661 30696 31680 I am_kill : [0,2420,com.facebook.katana,905,kill all background]",
+      "11-25 12:14:54.667 30696 31680 I am_kill : [0,1905,com.samsung.android.dqagent,935,kill all background]",
+      "11-25 12:14:54.670 30696 31680 I am_kill : [0,1733,com.android.providers.partnerbookmarks,945,kill all background]",
+      "11-25 12:14:54.673 30696 31680 I am_kill : [0,1881,com.samsung.android.networkdiagnostic,925,kill all background]",
+      "11-25 12:14:54.676 30696 31680 I am_kill : [0,1891,com.google.android.cellbroadcastreceiver,915,kill all background]",
+      "11-25 12:14:54.678 30696 31680 I am_kill : [0,1606,com.google.process.gapps,955,kill all background]",
+      "11-25 12:14:54.691 30696 31680 I am_low_memory: 25",
+      "11-25 12:14:56.996 30696 31609 I am_kill : [0,2928,com.android.chrome:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:1,0,isolated not needed]",
+      "11-25 12:14:57.022 30696 31609 I am_proc_died: [0,2928,com.android.chrome:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:1,0,10,814,941]",
+      "11-25 12:15:45.236 30696 31166 I am_proc_died: [0,4504,com.samsung.adaptivebrightnessgo,100,6,133,885]"
+    ],
+    "main": [
+      "11-25 12:14:54.809 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10195 pid 2030 in 0ms",
+      "11-25 12:14:54.809 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10196 pid 1413 in 0ms",
+      "11-25 12:14:54.810 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 1000 pid 1960 in 0ms",
+      "11-25 12:14:54.811 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10244 pid 2420 in 0ms",
+      "11-25 12:14:54.843 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 1000 pid 1905 in 0ms",
+      "11-25 12:14:54.844 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10151 pid 1733 in 0ms",
+      "11-25 12:14:54.845 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 5023 pid 1881 in 0ms",
+      "11-25 12:14:54.845 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10234 pid 1891 in 0ms",
+      "11-25 12:14:54.846 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10196 pid 1606 in 0ms",
+      "11-25 12:14:57.002 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 90001 pid 2928 in 0ms",
+      "11-25 12:14:59.031  5542  5542 I lmkd    : check camkillboostmode : 0 , ionheap: 73146, pid : 2731, index : 3 , camprocall/provider/server size : (48975, -1, -1), available : 374297, heap_pool : 7904, kreclaimable : 26621, init_cam : 0",
+      "11-25 12:14:59.031  5542  5542 I lmkd    : check CAMERA OPEN -86125, memlimit: 116664, other_free: 145910, saved_ion_idle_camera: 64556, cameraprocsize: 48975, kgsl: 0, vmallocapi: 36914, diff_available: 82162 ",
+      "11-25 12:14:59.031  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:14:59.240  5542  5542 I lmkd    : check camkillboostmode : 11 , ionheap: 96711, pid : 2731, index : 3 , camprocall/provider/server size : (49173, -1, -1), available : 342307, heap_pool : 0, kreclaimable : 18769, init_cam : 0",
+      "11-25 12:14:59.240  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:15:00.256  5542  5542 I lmkd    : check camkillboostmode : 2 , ionheap: 118297, pid : 2731, index : 3 , camprocall/provider/server size : (55384, -1, -1), available : 309706, heap_pool : 0, kreclaimable : 18720, init_cam : 0",
+      "11-25 12:15:00.256  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:15:00.394  5542  5542 I lmkd    : check camkillboostmode : 3 , ionheap: 73562, pid : 2731, index : 3 , camprocall/provider/server size : (56432, -1, -1), available : 346602, heap_pool : 42784, kreclaimable : 60889, init_cam : 0",
+      "11-25 12:15:00.394  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:15:01.266  5542  5542 I lmkd    : check camkillboostmode : 0 , ionheap: 73146, pid : 2731, index : 3 , camprocall/provider/server size : (49993, -1, -1), available : 355855, heap_pool : 45151, kreclaimable : 63826, init_cam : 0",
+      "11-25 12:15:01.266  5542  5542 I lmkd    : check CAMERA OPEN -90368, memlimit: 101891, other_free: 97115, saved_ion_idle_camera: 45151, cameraprocsize: 49993, kgsl: 0, vmallocapi: 36771, diff_available: 64591 ",
+      "11-25 12:15:01.266  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:15:01.433  5542  5542 I lmkd    : check camkillboostmode : 11 , ionheap: 94760, pid : 2731, index : 3 , camprocall/provider/server size : (49944, -1, -1), available : 323302, heap_pool : 21586, kreclaimable : 40361, init_cam : 0",
+      "11-25 12:15:01.433  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:15:02.498  5542  5542 I lmkd    : check camkillboostmode : 2 , ionheap: 118680, pid : 2731, index : 3 , camprocall/provider/server size : (50926, -1, -1), available : 312006, heap_pool : 0, kreclaimable : 18720, init_cam : 0",
+      "11-25 12:15:02.498  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:15:02.686  5542  5542 I lmkd    : check camkillboostmode : 3 , ionheap: 73413, pid : 2731, index : 3 , camprocall/provider/server size : (51115, -1, -1), available : 355160, heap_pool : 45267, kreclaimable : 63983, init_cam : 0",
+      "11-25 12:15:02.686  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:15:02.911  5542  5542 I lmkd    : check CAMERA OPEN but time within 500ms, skip to active",
+      "11-25 12:15:02.911  5542  5542 I lmkd    : check camkillboostmode : 1 , ionheap: 73413, pid : 2731, index : 3 , camprocall/provider/server size : (52616, -1, -1), available : 353539, heap_pool : 45267, kreclaimable : 63987, init_cam : 0",
+      "11-25 12:15:02.911  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:15:03.096  5542  5542 I lmkd    : check camkillboostmode : 11 , ionheap: 97027, pid : 2731, index : 3 , camprocall/provider/server size : (48705, -1, -1), available : 325164, heap_pool : 21653, kreclaimable : 40421, init_cam : 0",
+      "11-25 12:15:03.096  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:15:03.980  5542  5542 I lmkd    : check camkillboostmode : 2 , ionheap: 101870, pid : 2731, index : 3 , camprocall/provider/server size : (48627, -1, -1), available : 329849, heap_pool : 16810, kreclaimable : 35548, init_cam : 0",
+      "11-25 12:15:03.980  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:15:04.145  5542  5542 I lmkd    : check camkillboostmode : 3 , ionheap: 70842, pid : 2731, index : 3 , camprocall/provider/server size : (48538, -1, -1), available : 366330, heap_pool : 47838, kreclaimable : 66418, init_cam : 0",
+      "11-25 12:15:04.145  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:15:27.143 30696 31020 I ChimeraAggressivePolicyHandler: executePolicy() - triggerSource: TRIGGER_SOURCE_LMKD",
+      "11-25 12:15:34.988  5542  5542 I lmkd    : 0(delay), 50(swap), 34(freelimit), 0(reentrymode) memory pressure events were skipped after a kill!",
+      "11-25 12:15:45.233 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 5021 pid 4504 in 0ms"
+    ]
+  },
+  "errores": [],
+  "fotos": [
+    {
+      "archivo": "20261123_222555.jpg",
+      "error": null,
+      "bootMs": 12294,
+      "msHost": 12254,
+      "camara": [
+        0
+      ],
+      "W": 1472,
+      "H": 1963,
+      "corners": [
+        0.05666666850447655,
+        0.11999999731779099,
+        0.9166666865348816,
+        0.12250000238418579,
+        0.9300000071525574,
+        0.949999988079071,
+        0.05666666850447655,
+        0.9674999713897705
+      ],
+      "areaPct": 72.6,
+      "w": 1286,
+      "h": 1664,
+      "mime": "image/png",
+      "pngBytes": 92484,
+      "dataUrlLen": 123334,
+      "marcas": {
+        "fetch": 348,
+        "decode": 245,
+        "mini": 66,
+        "detect": 1241,
+        "warp": 3577,
+        "enhanceBw": 5066,
+        "dataUrl": 95,
+        "total": 10638
+      },
+      "ipc": [
+        {
+          "tipo": "detect",
+          "tEnvio": 16774.21500003338,
+          "tRecv": 18013.2800000906,
+          "workerMs": null,
+          "memoriaWorker": null,
+          "respuesta": "result"
+        },
+        {
+          "tipo": "warp",
+          "tEnvio": 18015.62000000477,
+          "tRecv": 21590.84500002861,
+          "workerMs": null,
+          "memoriaWorker": null,
+          "respuesta": "warped"
+        },
+        {
+          "tipo": "enhance",
+          "tEnvio": 21591.080000042915,
+          "tRecv": 26656.59500002861,
+          "workerMs": 5040.575000047684,
+          "memoriaWorker": {
+            "jsHeapBytes": null,
+            "wasmBytes": null
+          },
+          "respuesta": "enhanced"
+        }
+      ],
+      "memoriaPagina": {
+        "base": {
+          "hostEpoch": 1795626919530,
+          "paginaT": 16049.460000038147
+        },
+        "muestras": [
+          {
+            "t": 16318.935000061989,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 16557.2800000906,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 16827.480000019073,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 17050.455000042915,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 17300.375,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 17612.87999999523,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 17802.295000076294,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 18053.300000071526,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 18346.144999980927,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 18615.240000009537,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 18802.240000009537,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 19055.009999990463,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 19313.085000038147,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 19554.84500002861,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 19800.115000009537,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 20138.550000071526,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 20300.775000095367,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 20553.305000066757,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 20804.730000019073,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 21052.920000076294,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 21300.12000000477,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 21556.134999990463,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 21802.360000014305,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 22062.62999999523,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 22300.5300000906,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 22592.475000023842,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 22810.43500006199,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 23050.269999980927,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 23300.16000008583,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 23550.43500006199,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 23800.830000042915,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 24052.925000071526,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 24303.550000071526,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 24550.175000071526,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 24810.705000042915,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 25099.575000047684,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 25306.165000081062,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 25550.889999985695,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 25800.165000081062,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 26054.865000009537,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 26307.4050000906,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 26550.525000095367,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          }
+        ],
+        "lag": [
+          {
+            "t": 16225.170000076294,
+            "ms": 0
+          },
+          {
+            "t": 16339.805000066757,
+            "ms": 0
+          },
+          {
+            "t": 16441.19000005722,
+            "ms": 0
+          },
+          {
+            "t": 16556.990000009537,
+            "ms": 0
+          },
+          {
+            "t": 16663.790000081062,
+            "ms": 0
+          },
+          {
+            "t": 16782.514999985695,
+            "ms": 0
+          },
+          {
+            "t": 16886.44000005722,
+            "ms": 0
+          },
+          {
+            "t": 16987.09500002861,
+            "ms": 0
+          },
+          {
+            "t": 17088.639999985695,
+            "ms": 0
+          },
+          {
+            "t": 17198.865000009537,
+            "ms": 0
+          },
+          {
+            "t": 17299.865000009537,
+            "ms": 0
+          },
+          {
+            "t": 17400.394999980927,
+            "ms": 0
+          },
+          {
+            "t": 17501.290000081062,
+            "ms": 0
+          },
+          {
+            "t": 17613.56000006199,
+            "ms": 0
+          },
+          {
+            "t": 17736.69000005722,
+            "ms": 0
+          },
+          {
+            "t": 17837.675000071526,
+            "ms": 0
+          },
+          {
+            "t": 17941.330000042915,
+            "ms": 0
+          },
+          {
+            "t": 18044.195000052452,
+            "ms": 0
+          },
+          {
+            "t": 18148.450000047684,
+            "ms": 0
+          },
+          {
+            "t": 18345.475000023842,
+            "ms": 0
+          },
+          {
+            "t": 18613.12999999523,
+            "ms": 68
+          },
+          {
+            "t": 18714.75,
+            "ms": 0
+          },
+          {
+            "t": 18822.415000081062,
+            "ms": 0
+          },
+          {
+            "t": 18923.44000005722,
+            "ms": 0
+          },
+          {
+            "t": 19023.94000005722,
+            "ms": 0
+          },
+          {
+            "t": 19125.764999985695,
+            "ms": 0
+          },
+          {
+            "t": 19226.6550000906,
+            "ms": 0
+          },
+          {
+            "t": 19329.475000023842,
+            "ms": 0
+          },
+          {
+            "t": 19429.93500006199,
+            "ms": 0
+          },
+          {
+            "t": 19530.53500008583,
+            "ms": 0
+          },
+          {
+            "t": 19655.855000019073,
+            "ms": 0
+          },
+          {
+            "t": 19759.53500008583,
+            "ms": 0
+          },
+          {
+            "t": 19860.144999980927,
+            "ms": 0
+          },
+          {
+            "t": 19979.675000071526,
+            "ms": 0
+          },
+          {
+            "t": 20145,
+            "ms": 0
+          },
+          {
+            "t": 20245.925000071526,
+            "ms": 0
+          },
+          {
+            "t": 20352.545000076294,
+            "ms": 0
+          },
+          {
+            "t": 20454.335000038147,
+            "ms": 0
+          },
+          {
+            "t": 20561.28500008583,
+            "ms": 0
+          },
+          {
+            "t": 20661.865000009537,
+            "ms": 0
+          },
+          {
+            "t": 20767.75,
+            "ms": 0
+          },
+          {
+            "t": 20868.480000019073,
+            "ms": 0
+          },
+          {
+            "t": 20969.330000042915,
+            "ms": 0
+          },
+          {
+            "t": 21070.335000038147,
+            "ms": 0
+          },
+          {
+            "t": 21176.050000071526,
+            "ms": 0
+          },
+          {
+            "t": 21276.610000014305,
+            "ms": 0
+          },
+          {
+            "t": 21377.070000052452,
+            "ms": 0
+          },
+          {
+            "t": 21477.72000002861,
+            "ms": 0
+          },
+          {
+            "t": 21578.430000066757,
+            "ms": 0
+          },
+          {
+            "t": 21682.21500003338,
+            "ms": 0
+          },
+          {
+            "t": 21786.475000023842,
+            "ms": 0
+          },
+          {
+            "t": 21887.019999980927,
+            "ms": 0
+          },
+          {
+            "t": 22017.134999990463,
+            "ms": 0
+          },
+          {
+            "t": 22119.7800000906,
+            "ms": 0
+          },
+          {
+            "t": 22231.235000014305,
+            "ms": 0
+          },
+          {
+            "t": 22335.300000071526,
+            "ms": 0
+          },
+          {
+            "t": 22435.894999980927,
+            "ms": 0
+          },
+          {
+            "t": 22592.1550000906,
+            "ms": 0
+          },
+          {
+            "t": 22701.894999980927,
+            "ms": 0
+          },
+          {
+            "t": 22828.71500003338,
+            "ms": 0
+          },
+          {
+            "t": 22930.41000008583,
+            "ms": 0
+          },
+          {
+            "t": 23034.045000076294,
+            "ms": 0
+          },
+          {
+            "t": 23135.210000038147,
+            "ms": 0
+          },
+          {
+            "t": 23237.865000009537,
+            "ms": 0
+          },
+          {
+            "t": 23349.115000009537,
+            "ms": 0
+          },
+          {
+            "t": 23449.775000095367,
+            "ms": 0
+          },
+          {
+            "t": 23551.634999990463,
+            "ms": 0
+          },
+          {
+            "t": 23657.600000023842,
+            "ms": 0
+          },
+          {
+            "t": 23758.134999990463,
+            "ms": 0
+          },
+          {
+            "t": 23858.930000066757,
+            "ms": 0
+          },
+          {
+            "t": 23959.41000008583,
+            "ms": 0
+          },
+          {
+            "t": 24133.775000095367,
+            "ms": 0
+          },
+          {
+            "t": 24258.445000052452,
+            "ms": 0
+          },
+          {
+            "t": 24358.91000008583,
+            "ms": 0
+          },
+          {
+            "t": 24460.805000066757,
+            "ms": 0
+          },
+          {
+            "t": 24564.6550000906,
+            "ms": 0
+          },
+          {
+            "t": 24665.125,
+            "ms": 0
+          },
+          {
+            "t": 24791.585000038147,
+            "ms": 0
+          },
+          {
+            "t": 24902.795000076294,
+            "ms": 0
+          },
+          {
+            "t": 25007.420000076294,
+            "ms": 0
+          },
+          {
+            "t": 25126.730000019073,
+            "ms": 0
+          },
+          {
+            "t": 25227.835000038147,
+            "ms": 0
+          },
+          {
+            "t": 25328.325000047684,
+            "ms": 0
+          },
+          {
+            "t": 25439.305000066757,
+            "ms": 0
+          },
+          {
+            "t": 25539.740000009537,
+            "ms": 0
+          },
+          {
+            "t": 25640.18500006199,
+            "ms": 0
+          },
+          {
+            "t": 25741.210000038147,
+            "ms": 0
+          },
+          {
+            "t": 25842.445000052452,
+            "ms": 0
+          },
+          {
+            "t": 25997.5,
+            "ms": 0
+          },
+          {
+            "t": 26104.350000023842,
+            "ms": 0
+          },
+          {
+            "t": 26205.28500008583,
+            "ms": 0
+          },
+          {
+            "t": 26308.275000095367,
+            "ms": 0
+          },
+          {
+            "t": 26411.075000047684,
+            "ms": 0
+          },
+          {
+            "t": 26511.71500003338,
+            "ms": 0
+          },
+          {
+            "t": 26612.195000052452,
+            "ms": 0
+          },
+          {
+            "t": 26739.44000005722,
+            "ms": 0
+          }
+        ],
+        "longtasks": [
+          {
+            "t": 16690.115000009537,
+            "dur": 84
+          },
+          {
+            "t": 18354.210000038147,
+            "dur": 249
+          }
+        ]
+      },
+      "basePag": {
+        "hostEpoch": 1795626919530,
+        "paginaT": 16049.460000038147
+      },
+      "muestrasDispositivo": [
+        {
+          "t": 1795626919738,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 91,
+            "MemAvailable": 974,
+            "Cached": 993,
+            "SwapTotal": 4096,
+            "SwapFree": 3217,
+            "Dirty": 7,
+            "Writeback": 0,
+            "AnonPages": 1149,
+            "Shmem": 21,
+            "SUnreclaim": 229
+          },
+          "psi": {
+            "some": {
+              "avg10": 0.72,
+              "avg300": 0.54,
+              "total": 4287599964
+            },
+            "full": {
+              "avg10": 0.24,
+              "avg300": 0.2,
+              "total": 2346156299
+            }
+          },
+          "zram": {
+            "origMb": 715,
+            "comprMb": 156,
+            "memUsadaMb": 198,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 9118,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 16.11,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626920625,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 94,
+            "MemAvailable": 948,
+            "Cached": 971,
+            "SwapTotal": 4096,
+            "SwapFree": 3217,
+            "Dirty": 7,
+            "Writeback": 0,
+            "AnonPages": 1184,
+            "Shmem": 21,
+            "SUnreclaim": 229
+          },
+          "psi": {
+            "some": {
+              "avg10": 0.59,
+              "avg300": 0.54,
+              "total": 4287615191
+            },
+            "full": {
+              "avg10": 0.19,
+              "avg300": 0.2,
+              "total": 2346161111
+            }
+          },
+          "zram": {
+            "origMb": 714,
+            "comprMb": 156,
+            "memUsadaMb": 197,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 9117,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 16.11,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626921589,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 109,
+            "MemAvailable": 943,
+            "Cached": 961,
+            "SwapTotal": 4096,
+            "SwapFree": 3218,
+            "Dirty": 7,
+            "Writeback": 0,
+            "AnonPages": 1189,
+            "Shmem": 21,
+            "SUnreclaim": 229
+          },
+          "psi": {
+            "some": {
+              "avg10": 0.59,
+              "avg300": 0.54,
+              "total": 4287621856
+            },
+            "full": {
+              "avg10": 0.19,
+              "avg300": 0.2,
+              "total": 2346162693
+            }
+          },
+          "zram": {
+            "origMb": 713,
+            "comprMb": 156,
+            "memUsadaMb": 197,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 9116,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 18.67,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626922404,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 155,
+            "MemAvailable": 993,
+            "Cached": 965,
+            "SwapTotal": 4096,
+            "SwapFree": 3218,
+            "Dirty": 7,
+            "Writeback": 0,
+            "AnonPages": 1137,
+            "Shmem": 21,
+            "SUnreclaim": 229
+          },
+          "psi": {
+            "some": {
+              "avg10": 0.59,
+              "avg300": 0.54,
+              "total": 4287623112
+            },
+            "full": {
+              "avg10": 0.19,
+              "avg300": 0.2,
+              "total": 2346162698
+            }
+          },
+          "zram": {
+            "origMb": 712,
+            "comprMb": 155,
+            "memUsadaMb": 197,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 9098,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 18.67,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626923183,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 107,
+            "MemAvailable": 937,
+            "Cached": 957,
+            "SwapTotal": 4096,
+            "SwapFree": 3220,
+            "Dirty": 7,
+            "Writeback": 0,
+            "AnonPages": 1188,
+            "Shmem": 21,
+            "SUnreclaim": 229
+          },
+          "psi": {
+            "some": {
+              "avg10": 0.48,
+              "avg300": 0.53,
+              "total": 4287634123
+            },
+            "full": {
+              "avg10": 0.16,
+              "avg300": 0.2,
+              "total": 2346164360
+            }
+          },
+          "zram": {
+            "origMb": 707,
+            "comprMb": 154,
+            "memUsadaMb": 197,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 9061,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 18.67,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626923992,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 110,
+            "MemAvailable": 954,
+            "Cached": 972,
+            "SwapTotal": 4096,
+            "SwapFree": 3220,
+            "Dirty": 8,
+            "Writeback": 0,
+            "AnonPages": 1173,
+            "Shmem": 21,
+            "SUnreclaim": 229
+          },
+          "psi": {
+            "some": {
+              "avg10": 0.48,
+              "avg300": 0.53,
+              "total": 4287634358
+            },
+            "full": {
+              "avg10": 0.16,
+              "avg300": 0.2,
+              "total": 2346164365
+            }
+          },
+          "zram": {
+            "origMb": 707,
+            "comprMb": 154,
+            "memUsadaMb": 197,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 9048,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 18.67,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626924770,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 92,
+            "MemAvailable": 943,
+            "Cached": 978,
+            "SwapTotal": 4096,
+            "SwapFree": 3221,
+            "Dirty": 2,
+            "Writeback": 0,
+            "AnonPages": 1184,
+            "Shmem": 21,
+            "SUnreclaim": 229
+          },
+          "psi": {
+            "some": {
+              "avg10": 0.39,
+              "avg300": 0.53,
+              "total": 4287636012
+            },
+            "full": {
+              "avg10": 0.13,
+              "avg300": 0.2,
+              "total": 2346164369
+            }
+          },
+          "zram": {
+            "origMb": 706,
+            "comprMb": 154,
+            "memUsadaMb": 196,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 9036,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 18.67,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626925583,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 119,
+            "MemAvailable": 910,
+            "Cached": 936,
+            "SwapTotal": 4096,
+            "SwapFree": 3203,
+            "Dirty": 2,
+            "Writeback": 0,
+            "AnonPages": 1235,
+            "Shmem": 21,
+            "SUnreclaim": 229
+          },
+          "psi": {
+            "some": {
+              "avg10": 0.39,
+              "avg300": 0.53,
+              "total": 4287704590
+            },
+            "full": {
+              "avg10": 0.13,
+              "avg300": 0.2,
+              "total": 2346213452
+            }
+          },
+          "zram": {
+            "origMb": 723,
+            "comprMb": 155,
+            "memUsadaMb": 196,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 12295,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 18.67,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626926389,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 87,
+            "MemAvailable": 904,
+            "Cached": 963,
+            "SwapTotal": 4096,
+            "SwapFree": 3195,
+            "Dirty": 2,
+            "Writeback": 0,
+            "AnonPages": 1244,
+            "Shmem": 21,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 0.39,
+              "avg300": 0.53,
+              "total": 4287741205
+            },
+            "full": {
+              "avg10": 0.13,
+              "avg300": 0.2,
+              "total": 2346229835
+            }
+          },
+          "zram": {
+            "origMb": 732,
+            "comprMb": 156,
+            "memUsadaMb": 196,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 13727,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 20.13,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626927134,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 90,
+            "MemAvailable": 918,
+            "Cached": 981,
+            "SwapTotal": 4096,
+            "SwapFree": 3211,
+            "Dirty": 2,
+            "Writeback": 0,
+            "AnonPages": 1255,
+            "Shmem": 22,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 1.41,
+              "avg300": 0.57,
+              "total": 4287801270
+            },
+            "full": {
+              "avg10": 0.65,
+              "avg300": 0.21,
+              "total": 2346259194
+            }
+          },
+          "zram": {
+            "origMb": 734,
+            "comprMb": 157,
+            "memUsadaMb": 196,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 13741,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 20.13,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626927906,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 89,
+            "MemAvailable": 918,
+            "Cached": 984,
+            "SwapTotal": 4096,
+            "SwapFree": 3232,
+            "Dirty": 2,
+            "Writeback": 0,
+            "AnonPages": 1279,
+            "Shmem": 22,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 1.41,
+              "avg300": 0.57,
+              "total": 4287845471
+            },
+            "full": {
+              "avg10": 0.65,
+              "avg300": 0.21,
+              "total": 2346286718
+            }
+          },
+          "zram": {
+            "origMb": 733,
+            "comprMb": 156,
+            "memUsadaMb": 196,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 13727,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 20.13,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626928764,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 69,
+            "MemAvailable": 928,
+            "Cached": 1017,
+            "SwapTotal": 4096,
+            "SwapFree": 3245,
+            "Dirty": 3,
+            "Writeback": 0,
+            "AnonPages": 1299,
+            "Shmem": 20,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 2.06,
+              "avg300": 0.6,
+              "total": 4287915777
+            },
+            "full": {
+              "avg10": 1.07,
+              "avg300": 0.23,
+              "total": 2346337907
+            }
+          },
+          "zram": {
+            "origMb": 747,
+            "comprMb": 162,
+            "memUsadaMb": 197,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 13905,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 20.13,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        }
+      ],
+      "meminfo": [
+        "Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap",
+        "EGL mtrack    10272    10272        0        0    10272",
+        "Java Heap:    10364                          27352",
+        "Native Heap:    16612                          17528",
+        "Graphics:    10272                          10272",
+        "TOTAL PSS:   139585            TOTAL RSS:   205124       TOTAL SWAP PSS:      161"
+      ],
+      "termica": {
+        "antes": {
+          "bateriaC": 32.7,
+          "zonas": {
+            "SUBBAT": 0,
+            "AP": 40.2,
+            "PA": 21.5,
+            "BAT": 32.7,
+            "USB": 0,
+            "SKIN": 38.1
+          }
+        },
+        "despues": {
+          "bateriaC": 32.7,
+          "zonas": {
+            "SUBBAT": 0,
+            "AP": 40.8,
+            "PA": 21.5,
+            "BAT": 32.7,
+            "USB": 0,
+            "SKIN": 38.1
+          }
+        }
+      },
+      "procesos": {
+        "antes": [
+          {
+            "pid": 2731,
+            "rssMb": 195,
+            "nombre": "com.android.chrome"
+          },
+          {
+            "pid": 2796,
+            "rssMb": 26,
+            "nombre": "com.sec.android.app.chromecustomizations"
+          },
+          {
+            "pid": 2818,
+            "rssMb": 20,
+            "nombre": "com.android.chrome_zygote"
+          },
+          {
+            "pid": 2834,
+            "rssMb": 484,
+            "nombre": "com.android.chrome:sandboxed_process0:org.chromium.content.app.SandboxedPro"
+          },
+          {
+            "pid": 2853,
+            "rssMb": 187,
+            "nombre": "com.android.chrome:privileged_process0"
+          }
+        ],
+        "despues": [
+          {
+            "pid": 2731,
+            "rssMb": 188,
+            "nombre": "com.android.chrome"
+          },
+          {
+            "pid": 2796,
+            "rssMb": 26,
+            "nombre": "com.sec.android.app.chromecustomizations"
+          },
+          {
+            "pid": 2818,
+            "rssMb": 19,
+            "nombre": "com.android.chrome_zygote"
+          },
+          {
+            "pid": 2834,
+            "rssMb": 523,
+            "nombre": "com.android.chrome:sandboxed_process0:org.chromium.content.app.SandboxedPro"
+          },
+          {
+            "pid": 2853,
+            "rssMb": 187,
+            "nombre": "com.android.chrome:privileged_process0"
+          }
+        ]
+      },
+      "cooldown": {
+        "temperaturaC": 32.7,
+        "esperaMs": 216
+      }
+    },
+    {
+      "archivo": "20261123_223112.jpg",
+      "error": null,
+      "bootMs": 24,
+      "msHost": 10882,
+      "camara": [
+        0
+      ],
+      "W": 2006,
+      "H": 1505,
+      "corners": [
+        0.07000000029802322,
+        0.0533333346247673,
+        0.9325000047683716,
+        0.03999999910593033,
+        0.949999988079071,
+        0.95333331823349,
+        0.06750000268220901,
+        0.949999988079071
+      ],
+      "areaPct": 79,
+      "w": 1770,
+      "h": 1375,
+      "mime": "image/png",
+      "pngBytes": 120185,
+      "dataUrlLen": 160270,
+      "marcas": {
+        "fetch": 182,
+        "decode": 272,
+        "mini": 51,
+        "detect": 307,
+        "warp": 2435,
+        "enhanceBw": 6356,
+        "dataUrl": 10,
+        "total": 9613
+      },
+      "ipc": [
+        {
+          "tipo": "detect",
+          "tEnvio": 31138.12999999523,
+          "tRecv": 31444.415000081062,
+          "workerMs": null,
+          "memoriaWorker": null,
+          "respuesta": "result"
+        },
+        {
+          "tipo": "warp",
+          "tEnvio": 31444.680000066757,
+          "tRecv": 33879.25999999046,
+          "workerMs": null,
+          "memoriaWorker": null,
+          "respuesta": "warped"
+        },
+        {
+          "tipo": "enhance",
+          "tEnvio": 33879.47500002384,
+          "tRecv": 40235.580000042915,
+          "workerMs": 6339.444999933243,
+          "memoriaWorker": {
+            "jsHeapBytes": null,
+            "wasmBytes": null
+          },
+          "respuesta": "enhanced"
+        }
+      ],
+      "memoriaPagina": {
+        "base": {
+          "hostEpoch": 1795626934077,
+          "paginaT": 30596.9050000906
+        },
+        "muestras": [
+          {
+            "t": 30855.730000019073,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 31149.915000081062,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 31347.66000008583,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 31598.730000019073,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 31848.34000003338,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 32106.28500008583,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 32347.805000066757,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 32597.705000042915,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 32847.670000076294,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 33100.330000042915,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 33352.69500005245,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 33603.34500002861,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 33848.14499998093,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 34097.5300000906,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 34347.68500006199,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 34597.62000000477,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 34847.700000047684,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 35097.81000006199,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 35347.56500005722,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 35597.65000009537,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 35847.830000042915,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 36101.66000008583,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 36347.74000000954,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 36597.93500006199,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 36847.62000000477,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 37102.81500005722,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 37347.68500006199,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 37657.56000006199,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 37848.014999985695,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 38097.56000006199,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 38347.550000071526,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 38693.29000008106,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 38848.014999985695,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 39098.65000009537,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 39347.75499999523,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 39597.625,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 39847.580000042915,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          },
+          {
+            "t": 40097.84000003338,
+            "mem": {
+              "usadoMb": 13.6,
+              "totalMb": 17.4,
+              "limiteMb": 961.3
+            }
+          }
+        ],
+        "lag": [
+          {
+            "t": 30700.105000019073,
+            "ms": 0
+          },
+          {
+            "t": 30800.6550000906,
+            "ms": 0
+          },
+          {
+            "t": 30905.25,
+            "ms": 0
+          },
+          {
+            "t": 31149.06500005722,
+            "ms": 44
+          },
+          {
+            "t": 31254.925000071526,
+            "ms": 0
+          },
+          {
+            "t": 31358.990000009537,
+            "ms": 0
+          },
+          {
+            "t": 31460.12000000477,
+            "ms": 0
+          },
+          {
+            "t": 31560.860000014305,
+            "ms": 0
+          },
+          {
+            "t": 31691.019999980927,
+            "ms": 0
+          },
+          {
+            "t": 31795.235000014305,
+            "ms": 0
+          },
+          {
+            "t": 31896.400000095367,
+            "ms": 0
+          },
+          {
+            "t": 31996.915000081062,
+            "ms": 0
+          },
+          {
+            "t": 32107.014999985695,
+            "ms": 0
+          },
+          {
+            "t": 32207.56500005722,
+            "ms": 0
+          },
+          {
+            "t": 32311.070000052452,
+            "ms": 0
+          },
+          {
+            "t": 32411.775000095367,
+            "ms": 0
+          },
+          {
+            "t": 32514.110000014305,
+            "ms": 0
+          },
+          {
+            "t": 32617.355000019073,
+            "ms": 0
+          },
+          {
+            "t": 32717.925000071526,
+            "ms": 0
+          },
+          {
+            "t": 32818.47500002384,
+            "ms": 0
+          },
+          {
+            "t": 32921.30500006676,
+            "ms": 0
+          },
+          {
+            "t": 33024.97000002861,
+            "ms": 0
+          },
+          {
+            "t": 33125.68000006676,
+            "ms": 0
+          },
+          {
+            "t": 33238.52500009537,
+            "ms": 0
+          },
+          {
+            "t": 33340.700000047684,
+            "ms": 0
+          },
+          {
+            "t": 33451.170000076294,
+            "ms": 0
+          },
+          {
+            "t": 33551.830000042915,
+            "ms": 0
+          },
+          {
+            "t": 33652.5,
+            "ms": 0
+          },
+          {
+            "t": 33753.04000008106,
+            "ms": 0
+          },
+          {
+            "t": 33854.22500002384,
+            "ms": 0
+          },
+          {
+            "t": 33954.79000008106,
+            "ms": 0
+          },
+          {
+            "t": 34055.97000002861,
+            "ms": 0
+          },
+          {
+            "t": 34167.19000005722,
+            "ms": 0
+          },
+          {
+            "t": 34296.78500008583,
+            "ms": 0
+          },
+          {
+            "t": 34400.175000071526,
+            "ms": 0
+          },
+          {
+            "t": 34501.110000014305,
+            "ms": 0
+          },
+          {
+            "t": 34601.79000008106,
+            "ms": 0
+          },
+          {
+            "t": 34702.545000076294,
+            "ms": 0
+          },
+          {
+            "t": 34803.420000076294,
+            "ms": 0
+          },
+          {
+            "t": 34905.325000047684,
+            "ms": 0
+          },
+          {
+            "t": 35007.68500006199,
+            "ms": 0
+          },
+          {
+            "t": 35108.18500006199,
+            "ms": 0
+          },
+          {
+            "t": 35211.10500001907,
+            "ms": 0
+          },
+          {
+            "t": 35311.74500000477,
+            "ms": 0
+          },
+          {
+            "t": 35412.21500003338,
+            "ms": 0
+          },
+          {
+            "t": 35512.75499999523,
+            "ms": 0
+          },
+          {
+            "t": 35613.175000071526,
+            "ms": 0
+          },
+          {
+            "t": 35713.675000071526,
+            "ms": 0
+          },
+          {
+            "t": 35821.360000014305,
+            "ms": 0
+          },
+          {
+            "t": 35935.87999999523,
+            "ms": 0
+          },
+          {
+            "t": 36046.56000006199,
+            "ms": 0
+          },
+          {
+            "t": 36161.48000001907,
+            "ms": 0
+          },
+          {
+            "t": 36268.625,
+            "ms": 0
+          },
+          {
+            "t": 36369.09500002861,
+            "ms": 0
+          },
+          {
+            "t": 36469.93500006199,
+            "ms": 0
+          },
+          {
+            "t": 36574.68000006676,
+            "ms": 0
+          },
+          {
+            "t": 36675.389999985695,
+            "ms": 0
+          },
+          {
+            "t": 36779.64499998093,
+            "ms": 0
+          },
+          {
+            "t": 36883.58500003815,
+            "ms": 0
+          },
+          {
+            "t": 36984.125,
+            "ms": 0
+          },
+          {
+            "t": 37084.64499998093,
+            "ms": 0
+          },
+          {
+            "t": 37185.78500008583,
+            "ms": 0
+          },
+          {
+            "t": 37286.485000014305,
+            "ms": 0
+          },
+          {
+            "t": 37387.40000009537,
+            "ms": 0
+          },
+          {
+            "t": 37488.24500000477,
+            "ms": 0
+          },
+          {
+            "t": 37657.29000008106,
+            "ms": 0
+          },
+          {
+            "t": 37784.24500000477,
+            "ms": 0
+          },
+          {
+            "t": 37890.44000005722,
+            "ms": 0
+          },
+          {
+            "t": 37990.93500006199,
+            "ms": 0
+          },
+          {
+            "t": 38091.44500005245,
+            "ms": 0
+          },
+          {
+            "t": 38191.830000042915,
+            "ms": 0
+          },
+          {
+            "t": 38293.55500006676,
+            "ms": 0
+          },
+          {
+            "t": 38394.110000014305,
+            "ms": 0
+          },
+          {
+            "t": 38513.85000002384,
+            "ms": 0
+          },
+          {
+            "t": 38693.65000009537,
+            "ms": 0
+          },
+          {
+            "t": 38794.09500002861,
+            "ms": 0
+          },
+          {
+            "t": 38894.50499999523,
+            "ms": 0
+          },
+          {
+            "t": 38995.56000006199,
+            "ms": 0
+          },
+          {
+            "t": 39098.19000005722,
+            "ms": 0
+          },
+          {
+            "t": 39198.73000001907,
+            "ms": 0
+          },
+          {
+            "t": 39300.98000001907,
+            "ms": 0
+          },
+          {
+            "t": 39401.514999985695,
+            "ms": 0
+          },
+          {
+            "t": 39505.455000042915,
+            "ms": 0
+          },
+          {
+            "t": 39608.36500000954,
+            "ms": 0
+          },
+          {
+            "t": 39709.43500006199,
+            "ms": 0
+          },
+          {
+            "t": 39810.41500008106,
+            "ms": 0
+          },
+          {
+            "t": 39910.825000047684,
+            "ms": 0
+          },
+          {
+            "t": 40011.19000005722,
+            "ms": 0
+          },
+          {
+            "t": 40112.110000014305,
+            "ms": 0
+          },
+          {
+            "t": 40212.47500002384,
+            "ms": 0
+          }
+        ],
+        "longtasks": [
+          {
+            "t": 30964.375,
+            "dur": 175
+          }
+        ]
+      },
+      "basePag": {
+        "hostEpoch": 1795626934077,
+        "paginaT": 30596.9050000906
+      },
+      "muestrasDispositivo": [
+        {
+          "t": 1795626934311,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 93,
+            "MemAvailable": 879,
+            "Cached": 946,
+            "SwapTotal": 4096,
+            "SwapFree": 3211,
+            "Dirty": 3,
+            "Writeback": 0,
+            "AnonPages": 1325,
+            "Shmem": 19,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 3.85,
+              "avg300": 0.7,
+              "total": 4288334743
+            },
+            "full": {
+              "avg10": 1.94,
+              "avg300": 0.29,
+              "total": 2346543625
+            }
+          },
+          "zram": {
+            "origMb": 801,
+            "comprMb": 182,
+            "memUsadaMb": 202,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 14365,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 22.05,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626935132,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 97,
+            "MemAvailable": 840,
+            "Cached": 903,
+            "SwapTotal": 4096,
+            "SwapFree": 3210,
+            "Dirty": 3,
+            "Writeback": 0,
+            "AnonPages": 1363,
+            "Shmem": 19,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 4.42,
+              "avg300": 0.74,
+              "total": 4288396447
+            },
+            "full": {
+              "avg10": 2.31,
+              "avg300": 0.31,
+              "total": 2346592497
+            }
+          },
+          "zram": {
+            "origMb": 804,
+            "comprMb": 183,
+            "memUsadaMb": 203,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 14370,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 22.05,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626935924,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 117,
+            "MemAvailable": 858,
+            "Cached": 903,
+            "SwapTotal": 4096,
+            "SwapFree": 3207,
+            "Dirty": 3,
+            "Writeback": 0,
+            "AnonPages": 1346,
+            "Shmem": 19,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 4.42,
+              "avg300": 0.74,
+              "total": 4288426788
+            },
+            "full": {
+              "avg10": 2.31,
+              "avg300": 0.31,
+              "total": 2346606604
+            }
+          },
+          "zram": {
+            "origMb": 808,
+            "comprMb": 185,
+            "memUsadaMb": 203,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 14377,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 22.44,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626936702,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 97,
+            "MemAvailable": 843,
+            "Cached": 908,
+            "SwapTotal": 4096,
+            "SwapFree": 3200,
+            "Dirty": 3,
+            "Writeback": 0,
+            "AnonPages": 1358,
+            "Shmem": 20,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 4.16,
+              "avg300": 0.76,
+              "total": 4288453581
+            },
+            "full": {
+              "avg10": 2.25,
+              "avg300": 0.32,
+              "total": 2346622066
+            }
+          },
+          "zram": {
+            "origMb": 816,
+            "comprMb": 188,
+            "memUsadaMb": 205,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 14394,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 22.44,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626937485,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 124,
+            "MemAvailable": 875,
+            "Cached": 911,
+            "SwapTotal": 4096,
+            "SwapFree": 3200,
+            "Dirty": 3,
+            "Writeback": 0,
+            "AnonPages": 1328,
+            "Shmem": 19,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 4.16,
+              "avg300": 0.76,
+              "total": 4288464504
+            },
+            "full": {
+              "avg10": 2.25,
+              "avg300": 0.32,
+              "total": 2346624028
+            }
+          },
+          "zram": {
+            "origMb": 815,
+            "comprMb": 187,
+            "memUsadaMb": 205,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 14393,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 22.44,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626938258,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 105,
+            "MemAvailable": 880,
+            "Cached": 935,
+            "SwapTotal": 4096,
+            "SwapFree": 3201,
+            "Dirty": 3,
+            "Writeback": 0,
+            "AnonPages": 1319,
+            "Shmem": 19,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 4.16,
+              "avg300": 0.76,
+              "total": 4288481405
+            },
+            "full": {
+              "avg10": 2.25,
+              "avg300": 0.32,
+              "total": 2346626782
+            }
+          },
+          "zram": {
+            "origMb": 811,
+            "comprMb": 186,
+            "memUsadaMb": 205,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 14322,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 22.44,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626939096,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 108,
+            "MemAvailable": 893,
+            "Cached": 946,
+            "SwapTotal": 4096,
+            "SwapFree": 3201,
+            "Dirty": 3,
+            "Writeback": 0,
+            "AnonPages": 1307,
+            "Shmem": 19,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 3.77,
+              "avg300": 0.77,
+              "total": 4288488567
+            },
+            "full": {
+              "avg10": 1.84,
+              "avg300": 0.32,
+              "total": 2346627051
+            }
+          },
+          "zram": {
+            "origMb": 810,
+            "comprMb": 186,
+            "memUsadaMb": 205,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 14321,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 22.44,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626939947,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 86,
+            "MemAvailable": 885,
+            "Cached": 960,
+            "SwapTotal": 4096,
+            "SwapFree": 3193,
+            "Dirty": 2,
+            "Writeback": 0,
+            "AnonPages": 1303,
+            "Shmem": 19,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 3.77,
+              "avg300": 0.77,
+              "total": 4288528243
+            },
+            "full": {
+              "avg10": 1.84,
+              "avg300": 0.32,
+              "total": 2346644789
+            }
+          },
+          "zram": {
+            "origMb": 820,
+            "comprMb": 190,
+            "memUsadaMb": 206,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 14328,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 22.44,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626940758,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 134,
+            "MemAvailable": 877,
+            "Cached": 905,
+            "SwapTotal": 4096,
+            "SwapFree": 3168,
+            "Dirty": 1,
+            "Writeback": 0,
+            "AnonPages": 1274,
+            "Shmem": 19,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 3.99,
+              "avg300": 0.79,
+              "total": 4288625922
+            },
+            "full": {
+              "avg10": 2.05,
+              "avg300": 0.34,
+              "total": 2346706026
+            }
+          },
+          "zram": {
+            "origMb": 842,
+            "comprMb": 197,
+            "memUsadaMb": 211,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 14536,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 22.44,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626941605,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 103,
+            "MemAvailable": 862,
+            "Cached": 894,
+            "SwapTotal": 4096,
+            "SwapFree": 3162,
+            "Dirty": 1,
+            "Writeback": 0,
+            "AnonPages": 1296,
+            "Shmem": 21,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 3.99,
+              "avg300": 0.79,
+              "total": 4288753103
+            },
+            "full": {
+              "avg10": 2.05,
+              "avg300": 0.34,
+              "total": 2346728134
+            }
+          },
+          "zram": {
+            "origMb": 840,
+            "comprMb": 195,
+            "memUsadaMb": 211,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 14751,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 22.65,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            650,
+            650,
+            650,
+            650
+          ],
+          "thermal": {},
+          "procs": {}
+        },
+        {
+          "t": 1795626942350,
+          "msAdb": null,
+          "mem": {
+            "MemFree": 92,
+            "MemAvailable": 864,
+            "Cached": 891,
+            "SwapTotal": 4096,
+            "SwapFree": 3159,
+            "Dirty": 2,
+            "Writeback": 0,
+            "AnonPages": 1324,
+            "Shmem": 17,
+            "SUnreclaim": 230
+          },
+          "psi": {
+            "some": {
+              "avg10": 3.99,
+              "avg300": 0.79,
+              "total": 4288800697
+            },
+            "full": {
+              "avg10": 2.05,
+              "avg300": 0.34,
+              "total": 2346743992
+            }
+          },
+          "zram": {
+            "origMb": 841,
+            "comprMb": 196,
+            "memUsadaMb": 211,
+            "usadaMaxMb": 1052,
+            "mismasPaginas": 14716,
+            "paginasCompactadas": 12159304
+          },
+          "load1": 22.65,
+          "freqsMhz": [
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586,
+            1586
+          ],
+          "thermal": {},
+          "procs": {}
+        }
+      ],
+      "meminfo": [
+        "Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap",
+        "Java Heap:     7680                          24728",
+        "Native Heap:     6944                           7824",
+        "Graphics:        0                              0",
+        "TOTAL PSS:   122915            TOTAL RSS:   152592       TOTAL SWAP PSS:    34010"
+      ],
+      "termica": {
+        "antes": {
+          "bateriaC": 32.7,
+          "zonas": {
+            "SUBBAT": 0,
+            "AP": 40.8,
+            "PA": 21.5,
+            "BAT": 32.7,
+            "USB": 0,
+            "SKIN": 38.1
+          }
+        },
+        "despues": {
+          "bateriaC": 32.7,
+          "zonas": {
+            "SUBBAT": 0,
+            "AP": 41.3,
+            "PA": 21.5,
+            "BAT": 32.7,
+            "USB": 0,
+            "SKIN": 38.1
+          }
+        }
+      },
+      "procesos": {
+        "antes": [
+          {
+            "pid": 2731,
+            "rssMb": 188,
+            "nombre": "com.android.chrome"
+          },
+          {
+            "pid": 2796,
+            "rssMb": 26,
+            "nombre": "com.sec.android.app.chromecustomizations"
+          },
+          {
+            "pid": 2818,
+            "rssMb": 19,
+            "nombre": "com.android.chrome_zygote"
+          },
+          {
+            "pid": 2834,
+            "rssMb": 486,
+            "nombre": "com.android.chrome:sandboxed_process0:org.chromium.content.app.SandboxedPro"
+          },
+          {
+            "pid": 2853,
+            "rssMb": 186,
+            "nombre": "com.android.chrome:privileged_process0"
+          }
+        ],
+        "despues": [
+          {
+            "pid": 2731,
+            "rssMb": 150,
+            "nombre": "com.android.chrome"
+          },
+          {
+            "pid": 2796,
+            "rssMb": 25,
+            "nombre": "com.sec.android.app.chromecustomizations"
+          },
+          {
+            "pid": 2818,
+            "rssMb": 17,
+            "nombre": "com.android.chrome_zygote"
+          },
+          {
+            "pid": 2834,
+            "rssMb": 415,
+            "nombre": "com.android.chrome:sandboxed_process0:org.chromium.content.app.SandboxedPro"
+          },
+          {
+            "pid": 2853,
+            "rssMb": 102,
+            "nombre": "com.android.chrome:privileged_process0"
+          }
+        ]
+      },
+      "cooldown": null
+    }
+  ]
+}

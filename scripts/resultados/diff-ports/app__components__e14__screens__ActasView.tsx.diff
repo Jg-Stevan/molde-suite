@@ -1,0 +1,912 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:49.458630200 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:49.459624600 -0500
+@@ -1,412 +1,548 @@
+ "use client";
+ 
+ /**
+- * ACTAS (§7.6 / C1) — "CONTROL ACTAS E-14": puesto ACTUAL (el de la ÚLTIMA
+- * clasificación archivada — regla del mantenedor: SOLO un puesto en pantalla) con
+- * la cantidad de mesas DIVIPOL del puesto, y acordeón con TODAS las mesas de
+- * ESE puesto (1..countTable; PENDIENTE lo no archivado). MODO SIMULACIÓN:
+- * toggle que llena la vista con el puesto demo (seed §6.4) cuando NO hay
+- * puesto real — jamás escribe en archivadas (overlay de vista). Sin datos →
+- * estado vacío honesto. La alerta «N MESAS INCOMPLETAS» quedó FUERA.
+- * Task 3 (agente B): responsive 360→1280 — contenedor hasta max-w-3xl,
+- * tarjetas de mesa en grid de 2 columnas en xl+ (acordeón intacto) y
+- * cabecera/buscador con más aire en lg+.
++ * HISTORIAL DE ESCANEOS (mock del mantenedor, 2026-11-16) — reconstrucción
++ * de la vista ACTAS según el mock:
++ *
++ *  · Cabecera: título + toggle SIM + lupa (buscador colapsable).
++ *  · Filtros: TODOS / ÓPTIMAS / ADVERTENCIA / RECHAZADAS con conteos reales.
++ *  · Grupos por fecha (HOY · fecha — AYER · fecha) con tarjetas de documento:
++ *    chip de TIPO + título + badge de score/estado (verde sólido · ámbar
++ *    outline · rojo sólido), línea de metadata mono, fila de MÉTRICAS en 3
++ *    columnas, franja de aviso (✓ procesado / ⚠ recorte + hora / ✗ error +
++ *    hora) y acciones [Repetir captura] + [Ver detalle] (desplegable).
++ *
++ * DATOS HONESTOS (doctrina del repo):
++ *  · REAL: tarjetas derivadas de `historial` (envíos de la sesión) — sin
++ *    score/métricas inventadas: badge por estado y aviso por desenlace.
++ *  · SIM (modoSimulacion): dataset DEMO bandera del mock (RECIBO PÚBLICO ·
++ *    FACTURA POS · ACTA DE ENTREGA) — mismo contrato que PUESTO_SIMULADO:
++ *    overlay de vista, jamás escribe en el store real.
+  */
+-import { useEffect, useMemo, useState } from "react";
+-import { useE14Store, type ActaArchivada, type PuestoActual } from "@/lib/e14/store";
+-// KIT actas-vivas-paginas-v1 (FASE A): mesasIniciales ya NO se importa — el
+-// guion del SIM vive en el store (mesas) y avanzan con el tick de 5 s.
+-import { PUESTO_SIMULADO } from "@/lib/e14/fachada";
+-import { cargarDivipol, mesasDePuesto } from "@/lib/e14/fachada";
+-import type { Mesa, MesaPagina } from "@/lib/e14/fachada";
+-import { ChevronDownIcon, MapPinIcon, SensorsIcon } from "../icons";
+-
+-function chipPagina(p: MesaPagina): { label: string; clases: string } {
+-  switch (p.estado) {
+-    case "OK":
+-      return { label: `P${p.pagina} ✓`, clases: "px-2.5 py-1 bg-[#10b981]/15 border border-[#10b981]/40 text-[#10b981] font-mono font-bold shadow-xs" };
+-    case "RESCANEO":
+-      return { label: `P${p.pagina} ⚠ Rescaneo`, clases: "px-2.5 py-1 bg-[#ef4444]/15 border border-[#ef4444]/40 text-[#ef4444] font-mono font-bold shadow-xs" };
+-    case "EN_PROCESO":
+-      return { label: `P${p.pagina} ⏳`, clases: "px-2.5 py-1 bg-amber-400/15 border border-amber-400/40 text-amber-400 font-mono font-bold shadow-xs" };
+-    default:
+-      return { label: `P${p.pagina}`, clases: "px-2.5 py-1 bg-slate-800/60 border border-slate-700/60 text-slate-400 font-mono" };
+-  }
+-}
+ 
+-function estadoMesa(mesa: Mesa): { label: string; clases: string; dot: string } {
+-  switch (mesa.estado) {
+-    case "COMPLETADA":
+-      return { label: `COMPLETADA ${mesa.progresoPct}%`, clases: "bg-[#10b981]/10 border-[#10b981]/40 text-[#10b981]", dot: "bg-[#10b981]" };
+-    case "EN_PROCESO":
+-      return { label: `EN PROCESO ${mesa.progresoPct}%`, clases: "bg-amber-400/10 border-amber-400/40 text-amber-400", dot: "bg-amber-400" };
+-    default:
+-      return { label: "PENDIENTE", clases: "bg-slate-800/40 border-slate-700/40 text-slate-400", dot: "bg-slate-500" };
+-  }
++import { useEffect, useMemo, useState } from "react";
++import { useE14Store } from "@/lib/e14/store";
++import { downloadBlob, nombrePdf, pdfConsolidadoDeActas, type DocPdf } from "@/lib/e14/core/pdf-export";
++import type { HistorialRow } from "@/lib/e14/fachada";
++import {
++  ChevronDownIcon,
++  DocLineIcon,
++  SearchIcon,
++  StitchClockIcon,
++} from "../icons";
++
++/** Tono visual de una tarjeta de historial (mock: verde/ámbar/rojo). */
++type Tono = "ok" | "warn" | "crit";
++
++/** UN documento del historial — plano, render-only. */
++interface DocHistorial {
++  id: string;
++  tipoChip: string;
++  titulo: string;
++  /** null → badge por ESTADO (sin score inventado). */
++  score: number | null;
++  tono: Tono;
++  meta: string | null;
++  metricas: { etiqueta: string; valor: string; tono?: Tono }[];
++  aviso: { texto: string; tono: Tono; hora?: string } | null;
++  /** Con acción de repetir (mock: advertencia/rechazada la llevan). */
++  repetir: boolean;
++  grupo: "HOY" | "AYER";
++  sim?: boolean;
+ }
+ 
+-function CardMesa({ mesa, abierta, onToggle }: { mesa: Mesa; abierta: boolean; onToggle: () => void }) {
+-  const grupos: { tipo: "DELEGADOS" | "TRANSMISIÓN"; paginas: MesaPagina[] }[] = [
+-    { tipo: "DELEGADOS", paginas: mesa.paginas.filter((p) => p.tipo === "DELEGADOS") },
+-    { tipo: "TRANSMISIÓN", paginas: mesa.paginas.filter((p) => p.tipo === "TRANSMISIÓN") },
+-  ];
+-  const estado = estadoMesa(mesa);
+-
++/** Paleta por tono (barra izquierda, chip de tipo, badge, aviso). */
++const TONO = {
++  ok: {
++    barra: "border-l-[#10b981]",
++    chip: "bg-[#10b981]/15 border-[#10b981]/40 text-[#10b981]",
++    badge: "bg-[#10b981] text-[#052012] shadow-[0_2px_10px_rgba(16,185,129,0.35)]",
++    aviso: "text-[#10b981]",
++  },
++  warn: {
++    barra: "border-l-amber-400",
++    chip: "bg-amber-400/15 border-amber-400/40 text-amber-400",
++    badge: "bg-transparent border border-amber-400 text-amber-400",
++    aviso: "text-amber-400",
++  },
++  crit: {
++    barra: "border-l-[#E52222]",
++    chip: "bg-[#E52222]/15 border-[#E52222]/40 text-[#E52222]",
++    badge: "bg-[#E52222] text-white shadow-[0_2px_10px_rgba(229,34,34,0.35)]",
++    aviso: "text-[#E52222]",
++  },
++} as const;
++
++const GLIFO_TONO: Record<Tono, string> = { ok: "✓", warn: "●", crit: "✗" };
++
++/** Tarjeta de documento (mock §HISTORIAL). */
++function TarjetaDoc({
++  doc,
++  detalleAbierto,
++  onToggleDetalle,
++  onRepetir,
++}: {
++  doc: DocHistorial;
++  detalleAbierto: boolean;
++  onToggleDetalle: () => void;
++  onRepetir: () => void;
++}) {
++  const t = TONO[doc.tono];
+   return (
+-    <div className={`bg-[#10161f] border transition-all duration-200 p-3.5 flex flex-col gap-2.5 rounded-2xl shadow-sm ${
+-      mesa.estado === "COMPLETADA" ? "border-[#10b981]/30 hover:border-[#10b981]/50" : "border-slate-800 hover:border-slate-700"
+-    }`}>
+-      <button
+-        type="button"
+-        onClick={onToggle}
+-        aria-expanded={abierta}
+-        className="flex justify-between items-center cursor-pointer select-none w-full text-left min-h-[44px]"
+-      >
+-        <span className="text-base font-mono font-bold text-white flex items-center gap-2">
+-          {mesa.id}
+-          <ChevronDownIcon
+-            className={`w-4 h-4 text-slate-400 transition-transform duration-200 ease-out ${
+-              abierta ? "rotate-180 text-white" : ""
+-            }`}
+-          />
++    <article
++      className={`bg-[#10161f] border ${t.barra} border-slate-800 rounded-xl p-3.5 flex flex-col gap-2.5 shadow-sm`}
++    >
++      {/* Fila 1: chip de tipo — badge de score/estado a la derecha. */}
++      <div className="flex items-center justify-between gap-2">
++        <span
++          className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md border font-mono text-[9px] font-bold uppercase tracking-wider ${t.chip}`}
++        >
++          <DocLineIcon className="w-3 h-3" />
++          {doc.tipoChip}
+         </span>
+         <span
+-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-mono text-[10px] font-bold uppercase tracking-wider ${estado.clases}`}
++          className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md font-mono text-[11px] font-bold ${t.badge}`}
+         >
+-          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${estado.dot}`} aria-hidden />
+-          {estado.label}
++          <span aria-hidden>{GLIFO_TONO[doc.tono]}</span>
++          {doc.score != null ? `${doc.score.toFixed(1)}/10` : doc.tono === "ok" ? "OK" : doc.tono === "warn" ? "PARCIAL" : "ERROR"}
+         </span>
+-      </button>
+-      {abierta && (
+-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-800/80">
+-          {grupos.map(({ tipo, paginas }) => (
+-            <div key={tipo} className="p-2.5 bg-[#090d12]/60 border border-slate-800/70 rounded-xl flex flex-col gap-1.5">
+-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">{tipo}</span>
+-              <div className="flex gap-1.5 flex-wrap">
+-                {paginas.map((p) => {
+-                  const chip = chipPagina(p);
+-                  return (
+-                    <span key={`${p.tipo}-${p.pagina}`} className={`${chip.clases} rounded-lg text-[10px] whitespace-nowrap`}>
+-                      {chip.label}
+-                    </span>
+-                  );
+-                })}
+-              </div>
++      </div>
++
++      {/* Fila 2: título COMPLETO en su propia línea (mock). */}
++      <h3 className="text-[13px] font-bold text-white uppercase tracking-wide leading-snug">
++        {doc.titulo}
++      </h3>
++
++      {/* Fila 2: metadata mono. */}
++      {doc.meta && (
++        <p className="font-mono text-[10px] text-slate-400 uppercase tracking-wide truncate">
++          {doc.meta}
++        </p>
++      )}
++
++      {/* Fila 3: métricas en 3 columnas (mock: panel interno). */}
++      {doc.metricas.length > 0 && (
++        <div className="grid grid-cols-3 gap-2 rounded-lg bg-[#090d12]/70 border border-slate-800/80 px-3 py-2.5">
++          {doc.metricas.map((m) => (
++            <div key={m.etiqueta} className="flex flex-col gap-0.5 min-w-0">
++              <span className="font-mono text-[8.5px] font-bold uppercase tracking-wider text-slate-500 truncate">
++                {m.etiqueta}
++              </span>
++              <span
++                className={`font-mono text-[10.5px] font-bold uppercase truncate ${
++                  m.tono === "ok"
++                    ? "text-[#10b981]"
++                    : m.tono === "warn"
++                      ? "text-amber-400"
++                      : m.tono === "crit"
++                        ? "text-[#E52222]"
++                        : "text-slate-200"
++                }`}
++              >
++                {m.valor}
++              </span>
+             </div>
+           ))}
+         </div>
+       )}
+-    </div>
++
++      {/* Fila 4: franja de aviso + hora (mock: ✓ / ⚠ RECORTE / ✗ ERROR). */}
++      {doc.aviso && (
++        <div className="flex items-center justify-between gap-2 border-t border-slate-800/80 pt-2">
++          <span className={`flex items-center gap-1.5 min-w-0 font-mono text-[10.5px] font-bold ${TONO[doc.aviso.tono].aviso}`}>
++            <span aria-hidden className="shrink-0">
++              {doc.aviso.tono === "ok" ? "✓" : doc.aviso.tono === "warn" ? "▲" : "✗"}
++            </span>
++            <span className="uppercase tracking-wide truncate">{doc.aviso.texto}</span>
++          </span>
++          {doc.aviso.hora && (
++            <span className="shrink-0 font-mono text-[10px] text-slate-500">{doc.aviso.hora}</span>
++          )}
++        </div>
++      )}
++
++      {/* Detalle desplegable (Ver detalle). */}
++      {detalleAbierto && (
++        <div className="rounded-lg bg-[#090d12]/70 border border-slate-800/80 px-3 py-2 flex flex-col gap-1">
++          <div className="flex justify-between gap-2 font-mono text-[10px]">
++            <span className="text-slate-500 uppercase tracking-wider">ID:</span>
++            <span className="text-slate-300 truncate">{doc.id}</span>
++          </div>
++          <div className="flex justify-between gap-2 font-mono text-[10px]">
++            <span className="text-slate-500 uppercase tracking-wider">ESTADO:</span>
++            <span className={TONO[doc.tono].aviso}>
++              {doc.tono === "ok" ? "PROCESADO Y GUARDADO" : doc.tono === "warn" ? "ADVERTENCIA" : "RECHAZADO"}
++            </span>
++          </div>
++          {doc.sim && (
++            <div className="flex justify-between gap-2 font-mono text-[10px]">
++              <span className="text-slate-500 uppercase tracking-wider">ORIGEN:</span>
++              <span className="text-amber-400">SIMULACIÓN · DATOS DE PRUEBA</span>
++            </div>
++          )}
++        </div>
++      )}
++
++      {/* Fila 5: acciones (mock: Ver detalle + Repetir captura). */}
++      <div className="flex items-center justify-between gap-2">
++        <button
++          type="button"
++          onClick={onToggleDetalle}
++          aria-expanded={detalleAbierto}
++          className="flex items-center gap-1 font-mono text-[10.5px] font-bold text-slate-400 hover:text-white uppercase tracking-wider transition-colors cursor-pointer min-h-[32px] px-1"
++        >
++          Ver detalle
++          <ChevronDownIcon className={`w-3 h-3 transition-transform duration-200 ${detalleAbierto ? "rotate-180" : ""}`} />
++        </button>
++        {doc.repetir && (
++          <button
++            type="button"
++            onClick={onRepetir}
++            className="px-3 py-1.5 rounded-lg border border-slate-700 bg-[#090d12] font-mono text-[10.5px] font-bold text-slate-200 hover:border-[#10b981]/50 hover:text-[#10b981] uppercase tracking-wider transition-colors cursor-pointer min-h-[32px]"
++          >
++            Repetir captura
++          </button>
++        )}
++      </div>
++    </article>
+   );
+ }
+ 
++/** Tarjeta REAL derivada de una fila de envíos (sin datos inventados). */
++function docDeFila(fila: HistorialRow, indice: number): DocHistorial {
++  const tono: Tono =
++    fila.estado === "ENVIADO" ? "ok" : fila.estado === "REVISION_HUMANA" ? "warn" : "crit";
++  const aviso =
++    fila.estado === "ENVIADO"
++      ? { texto: "Documento procesado y guardado", tono: "ok" as const }
++      : fila.estado === "REVISION_HUMANA"
++        ? { texto: "Enviado a revisión humana", tono: "warn" as const }
++        : { texto: "Requiere nueva toma", tono: "crit" as const };
++  return {
++    id: fila.id,
++    tipoChip: "DOCUMENTO",
++    titulo: fila.titulo,
++    score: null,
++    tono,
++    meta: fila.hora ? `HORA: ${fila.hora}` : null,
++    metricas: [],
++    aviso: { ...aviso, hora: fila.hora ?? undefined },
++    repetir: fila.estado !== "ENVIADO",
++    grupo: "HOY",
++    // índice de estabilidad para las claves (los ids del core son únicos).
++    ...(indice === -1 ? {} : {}),
++  };
++}
++
++/** Dataset DEMO del SIM — las tarjetas EXACTAS del mock (bandera: sim). */
++const DEMO_SIM: DocHistorial[] = [
++  {
++    id: "sim-doc-1",
++    tipoChip: "RECIBO PÚBLICO",
++    titulo: "ACUEDUCTO CENTRAL - FACTURA",
++    score: 9.1,
++    tono: "ok",
++    meta: "CUENTA: 9492011-2 · REF PAGO: #99321",
++    metricas: [
++      { etiqueta: "VALOR LIQUIDADO", valor: "$142.500 COP" },
++      { etiqueta: "VENCIMIENTO", valor: "28/NOV/2026" },
++      { etiqueta: "CUFE / BARRAS", valor: "10/10 OK", tono: "ok" },
++    ],
++    aviso: { texto: "Documento procesado y guardado", tono: "ok" },
++    repetir: false,
++    grupo: "HOY",
++    sim: true,
++  },
++  {
++    id: "sim-doc-2",
++    tipoChip: "FACTURA POS",
++    titulo: "FACTURA POS - ÉXITO CALI",
++    score: 7.9,
++    tono: "warn",
++    meta: "POS #8492 · NIT: 900.123.456-7",
++    metricas: [
++      { etiqueta: "TOTAL VENTA", valor: "$148.500 COP" },
++      { etiqueta: "TERMINAL / CAJA", valor: "CAJA 04 · OP 12" },
++      { etiqueta: "DIAN / RESOLUCIÓN", valor: "PARCIAL RECORTE", tono: "warn" },
++    ],
++    aviso: { texto: "RECORTE: Pie de factura / Resolución DIAN cortada", tono: "warn", hora: "11:36:31" },
++    repetir: true,
++    grupo: "HOY",
++    sim: true,
++  },
++  {
++    id: "sim-doc-3",
++    tipoChip: "ACTA DE ENTREGA",
++    titulo: "ACTA DE ENTREGA - LOGÍSTICA BOGOTÁ",
++    score: 4.9,
++    tono: "crit",
++    meta: "ACTA #00281 · PÁG 1 DE 3 · BODEGA 02",
++    metricas: [
++      { etiqueta: "FIRMA / SELLO", valor: "NO DETECTADO", tono: "crit" },
++      { etiqueta: "LEGIBILIDAD", valor: "62% PARCIAL", tono: "warn" },
++      { etiqueta: "ESTADO OCR", valor: "BLOQUEADO", tono: "crit" },
++    ],
++    aviso: { texto: "ERROR: Falta firma de recibido o sello no detectado", tono: "crit", hora: "11:49:33" },
++    repetir: true,
++    grupo: "HOY",
++    sim: true,
++  },
++  {
++    id: "sim-doc-4",
++    tipoChip: "ACTA DE ENTREGA",
++    titulo: "ACTA DE ENTREGA - SURAMERICANA",
++    score: 9.4,
++    tono: "ok",
++    meta: "GUÍA #77120 · PÁG 1 DE 1 · SEDE 05",
++    metricas: [
++      { etiqueta: "FIRMA / SELLO", valor: "COMPLETAS", tono: "ok" },
++      { etiqueta: "LEGIBILIDAD", valor: "98% ÓPTIMA", tono: "ok" },
++      { etiqueta: "ESTADO OCR", valor: "OK", tono: "ok" },
++    ],
++    aviso: { texto: "Documento procesado y guardado", tono: "ok", hora: "09:14:02" },
++    repetir: false,
++    grupo: "AYER",
++    sim: true,
++  },
++];
++
++type Filtro = "todos" | "ok" | "warn" | "crit";
++
++const FILTROS: { id: Filtro; label: string; dot: string }[] = [
++  { id: "todos", label: "TODOS", dot: "" },
++  { id: "ok", label: "ÓPTIMAS", dot: "bg-[#10b981]" },
++  { id: "warn", label: "ADVERTENCIA", dot: "bg-amber-400" },
++  { id: "crit", label: "RECHAZADAS", dot: "bg-[#E52222]" },
++];
++
++/** Fecha LARGA es-CO en mayúsculas («16 NOVIEMBRE 2026»). */
++function fechaLarga(offsetDias = 0): string {
++  const d = new Date();
++  d.setDate(d.getDate() - offsetDias);
++  return d
++    .toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })
++    .toUpperCase();
++}
++
+ export function ActasView() {
+-  const archivadas = useE14Store((s) => s.archivadas);
+-  const puestoReal = useE14Store((s) => s.puestoActual);
++  const historial = useE14Store((s) => s.historial);
+   const modoSimulacion = useE14Store((s) => s.modoSimulacion);
+   const alternarModoSimulacion = useE14Store((s) => s.alternarModoSimulacion);
+-  // KIT actas-vivas-paginas-v1 (FASE A): guion VIVO del SIM (store) —
+-  // avanzarSimulacion marca una página OK cada 5 s.
+-  // KIT e14-esquinas-suaves-v1 (T-R): el TICK se SUBIÓ al shell (page.tsx) —
+-  // corre en TODAS las vistas (en ACTAS se pausaba al navegar a RESUMEN).
+-  // Aquí SOLO queda la lectura del guion (mesas/simCompleta/simUltima).
+-  const mesas = useE14Store((s) => s.mesas);
+-  const simCompleta = useE14Store((s) => s.simCompleta);
+-  const simUltima = useE14Store((s) => s.simUltima);
+-  const online = useE14Store((s) => s.online);
+-  const alternarConexion = useE14Store((s) => s.alternarConexion);
+-  const [mesaAbierta, setMesaAbierta] = useState<string | null>(null);
+-  const [totalMesas, setTotalMesas] = useState<number | null>(null);
+-  const [busqueda, setBusqueda] = useState<string>("");
+-
+-  // Puesto mostrado: el real manda; en simulación (sin puesto real) el demo.
+-  const puestoActual: PuestoActual | null = puestoReal ?? (modoSimulacion ? PUESTO_SIMULADO : null);
+-  // KIT e14-luz-sim-puntos-v1 (T-S): el SIM corre TAMBIÉN con puesto real
+-  // (llena el puesto del acta escaneada — decisión del mantenedor ⑤). El guion
+-  // vive en store.mesas (guionDePuesto); archivadas/puestoActual NUNCA se
+-  // tocan (D6). Apagar devuelve la vista real exacta.
+-  const enSimulacion = modoSimulacion;
++  const navegar = useE14Store((s) => s.navegar);
+ 
+-  // Cantidad de mesas del puesto (countTable DIVIPOL §1). En simulación:
+-  // fija 3 (mesas del mock). Base en caché de módulo → consulta instantánea.
+-  useEffect(() => {
+-    let vivo = true;
+-    if (enSimulacion) {
+-      // KIT e14-luz-sim-puntos-v1 (T-S): con puesto real el encabezado
+-      // muestra el total DIVIPOL REAL (el mismo del guion); sin real, 3.
+-      if (puestoReal) {
+-        const [dep, mun, zon, std] = puestoReal.clave.split("-");
+-        cargarDivipol().then((base) => {
+-          if (vivo) setTotalMesas(mesasDePuesto(base, dep, mun, zon, std));
+-        });
+-      } else {
+-        setTotalMesas(3);
+-      }
+-      return () => {
+-        vivo = false;
+-      };
+-    }
+-    if (!puestoReal) {
+-      setTotalMesas(null);
+-      return;
++  const [filtro, setFiltro] = useState<Filtro>("todos");
++  const [buscadorAbierto, setBuscadorAbierto] = useState(false);
++  const [busqueda, setBusqueda] = useState("");
++  const [detalleAbierto, setDetalleAbierto] = useState<string | null>(null);
++  const pdfLibro = useE14Store((s2) => s2.pdfLibro);
++  const [pdfEnVuelo, setPdfEnVuelo] = useState(false);
++  // Bloque 2.6 — exportar el LIBRO DE LA SESIÓN a PDF multipágina (jspdf).
++  const exportarPdf = () => {
++    if (pdfLibro.length === 0 || pdfEnVuelo) return;
++    setPdfEnVuelo(true);
++    try {
++      const docs: DocPdf[] = pdfLibro.map((e) => ({
++        titulo: e.titulo, estado: e.estado, score: e.score, foto: e.foto, hora: e.hora, qr: e.qr ?? null,
++      }));
++      const blob = pdfConsolidadoDeActas(docs);
++      downloadBlob(blob, nombrePdf(docs.length, "documentos-tamiz"));
++    } finally {
++      setPdfEnVuelo(false);
+     }
+-    const [dep, mun, zon, std] = puestoReal.clave.split("-");
+-    cargarDivipol().then((base) => {
+-      if (vivo) setTotalMesas(mesasDePuesto(base, dep, mun, zon, std));
++  };
++
++  // Documentos: REAL (envíos de la sesión) + DEMO del SIM (encima, bandera).
++  const docs = useMemo<DocHistorial[]>(() => {
++    const reales = historial.map((f, i) => docDeFila(f, i));
++    return modoSimulacion ? [...DEMO_SIM, ...reales] : reales;
++  }, [historial, modoSimulacion]);
++
++  // Conteos de los filtros (mock: TODOS (14) · ÓPTIMAS (10) · …).
++  const conteos = useMemo(
++    () => ({
++      todos: docs.length,
++      ok: docs.filter((d) => d.tono === "ok").length,
++      warn: docs.filter((d) => d.tono === "warn").length,
++      crit: docs.filter((d) => d.tono === "crit").length,
++    }),
++    [docs],
++  );
++
++  // Filtro + búsqueda por título.
++  const filtrados = useMemo(() => {
++    const q = busqueda.trim().toLowerCase();
++    return docs.filter((d) => {
++      const pasaFiltro = filtro === "todos" || d.tono === filtro;
++      const pasaBusqueda = !q || d.titulo.toLowerCase().includes(q);
++      return pasaFiltro && pasaBusqueda;
+     });
+-    return () => {
+-      vivo = false;
+-    };
+-  }, [enSimulacion, puestoReal]);
++  }, [docs, filtro, busqueda]);
+ 
+-  // Mesas DEL PUESTO ACTUAL: 1..countTable (PENDIENTE lo no archivado) +
+-  // defensivamente archivadas fuera de rango. Sin base → solo las archivadas.
+-  const mesasDelPuesto = useMemo<Mesa[]>(() => {
+-    if (!puestoReal) return [];
+-    const prefijo = `${puestoReal.clave}-`;
+-    const porNumero = new Map<number, ActaArchivada>();
+-    for (const [clave, entrada] of Object.entries(archivadas)) {
+-      if (!clave.startsWith(prefijo)) continue;
+-      const numero = Number.parseInt(clave.slice(prefijo.length), 10);
+-      if (Number.isFinite(numero)) porNumero.set(numero, entrada);
+-    }
+-    const construir = (numero: number, entrada: ActaArchivada | undefined): Mesa => {
+-      const total = Math.min(2, entrada?.clasificacion.pagina?.total ?? 2);
+-      const paginas: MesaPagina[] = [];
+-      for (const tipo of ["DELEGADOS", "TRANSMISIÓN"] as const) {
+-        for (let p = 1; p <= total; p += 1) {
+-          paginas.push({
+-            tipo,
+-            pagina: p as 1 | 2,
+-            // KIT actas-vivas-paginas-v1 (FASE C): el estado de la página
+-            // viene del hueco REAL (OK | RESCANEO) — el chip «P# ⚠ Rescaneo»
+-            // ya existía muerto; con RESCANEO la mesa queda EN PROCESO
+-            // (ocupadas cuenta SOLO OK) y el re-archivo del mismo hueco la
+-            // sube a ✓ (AC-RC5).
+-            estado:
+-              entrada?.huecos.find((h) => h.tipo === tipo && h.pagina === p)?.estado ??
+-              ("PENDIENTE" as const),
+-          });
+-        }
++  // Grupos por fecha (mock: HOY · fecha — AYER · fecha). Las filas reales
++  // son de la SESIÓN actual → HOY.
++  const grupos = useMemo(() => {
++    const hoy = filtrados.filter((d) => d.grupo === "HOY");
++    const ayer = filtrados.filter((d) => d.grupo === "AYER");
++    return [
++      { etiqueta: `HOY · ${fechaLarga(0)}`, docs: hoy },
++      { etiqueta: `AYER · ${fechaLarga(1)}`, docs: ayer },
++    ].filter((g) => g.docs.length > 0);
++  }, [filtrados]);
++
++  // El buscador abierto con Escape se cierra (patrón del visor).
++  useEffect(() => {
++    if (!buscadorAbierto) return;
++    const onKey = (e: KeyboardEvent) => {
++      if (e.key === "Escape") {
++        setBuscadorAbierto(false);
++        setBusqueda("");
+       }
+-      const ocupadas = paginas.filter((p) => p.estado === "OK").length;
+-      return {
+-        id: `MESA ${String(numero).padStart(2, "0")}`,
+-        estado:
+-          ocupadas === 0 ? "PENDIENTE" : ocupadas === paginas.length ? "COMPLETADA" : "EN_PROCESO",
+-        progresoPct: Math.round((ocupadas / paginas.length) * 100),
+-        paginas,
+-      };
+     };
+-    const numeros =
+-      totalMesas != null
+-        ? Array.from({ length: totalMesas }, (_, i) => i + 1)
+-        : [...porNumero.keys()].sort((a, b) => a - b);
+-    const lista = numeros.map((n) => construir(n, porNumero.get(n)));
+-    for (const [n, entrada] of porNumero) {
+-      if (totalMesas != null && n > totalMesas) lista.push(construir(n, entrada));
+-    }
+-    return lista;
+-  }, [archivadas, puestoReal, totalMesas]);
+-
+-  // Vista efectiva: simulación (sin puesto real) = guion VIVO del store
+-  // (KIT actas-vivas-paginas-v1, FASE A — mesasIniciales() se recreaba en
+-  // cada render y por eso el mock nunca avanzaba); si no, real.
+-  const mesasMostradas: Mesa[] = enSimulacion ? mesas : mesasDelPuesto;
+-
+-  const mesasFiltradas = useMemo(() => {
+-    const q = busqueda.trim().toLowerCase();
+-    if (!q) return mesasMostradas;
+-    return mesasMostradas.filter((m) => m.id.toLowerCase().includes(q));
+-  }, [mesasMostradas, busqueda]);
+-
+-  // Progreso del puesto demo o real
+-  const paginasOcupadas = mesas.reduce(
+-    (n, m) => n + m.paginas.filter((p) => p.estado === "OK").length,
+-    0,
+-  );
+-  const paginasTotales = mesas.reduce((n, m) => n + m.paginas.length, 0);
+-  const pctGeneral = paginasTotales > 0 ? Math.round((paginasOcupadas / paginasTotales) * 100) : 0;
++    window.addEventListener("keydown", onKey, true);
++    return () => window.removeEventListener("keydown", onKey, true);
++  }, [buscadorAbierto]);
+ 
+   return (
+     <div className="flex-1 min-h-0 overflow-y-auto thin-scroll bg-[#090d12] flex flex-col">
+-      <header className="sticky top-0 z-40 w-full bg-[#090d12]/92 backdrop-blur-xl border-b border-slate-800/80 px-4 h-14 shrink-0 shadow-xs">
+-        {/* Task 3: el contenido de la barra se alinea al ancho del contenedor
+-            de la vista (en lg+ ya no queda pegado al borde del viewport). */}
+-        <div className="max-w-md lg:max-w-2xl xl:max-w-3xl mx-auto w-full h-full flex items-center justify-between">
+-          <div className="flex items-center gap-2">
+-            <span className="w-2 h-2 rounded-full bg-[#10b981]" />
+-            <h1 className="font-mono text-sm font-bold tracking-widest text-[#10b981] uppercase">
+-              CONTROL ACTAS E-14
+-            </h1>
++      {/* Cabecera — título + SIM + lupa (mock: «HISTORIAL DE ESCANEOS» + 🔍). */}
++      <header className="sticky top-0 z-40 w-full bg-[#090d12]/92 backdrop-blur-xl border-b border-slate-800/80 px-4 pt-3 pb-2.5 shrink-0 shadow-xs">
++        <div className="max-w-md lg:max-w-2xl xl:max-w-3xl mx-auto w-full flex items-center justify-between gap-2">
++          <h1 className="font-mono text-[15px] font-bold tracking-[0.12em] text-white uppercase">
++            Historial de Escaneos
++          </h1>
++          <div className="flex items-center gap-1.5 shrink-0">
++            <button
++              type="button"
++              onClick={alternarModoSimulacion}
++              aria-pressed={modoSimulacion}
++              title="Modo simulación: llena el historial con documentos demo"
++              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border font-mono text-[10px] font-bold uppercase tracking-wider transition min-h-[32px] ${
++                modoSimulacion
++                  ? "bg-amber-400/20 border-amber-400 text-amber-400 shadow-xs shadow-amber-400/10"
++                  : "bg-[#10161f] border-slate-700 text-slate-400 hover:text-white"
++              }`}
++            >
++              <StitchClockIcon className="w-3 h-3" />
++              SIM
++            </button>
++            <button
++              type="button"
++              onClick={exportarPdf}
++              disabled={pdfLibro.length === 0 || pdfEnVuelo}
++              aria-label={`Exportar ${pdfLibro.length} documentos a PDF`}
++              title="Exportar la sesión a PDF multipágina (una página por documento)"
++              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border font-mono text-[10px] font-bold uppercase tracking-wider transition min-h-[32px] bg-[#10161f] border-slate-700 text-slate-300 hover:text-white disabled:opacity-40"
++            >
++              PDF{pdfLibro.length > 0 ? ` (${pdfLibro.length})` : ""}
++            </button>
++            <button
++              type="button"
++              onClick={() => {
++                setBuscadorAbierto((v) => !v);
++                if (buscadorAbierto) setBusqueda("");
++              }}
++              aria-pressed={buscadorAbierto}
++              aria-label={buscadorAbierto ? "Cerrar buscador" : "Buscar documentos"}
++              className={`flex items-center justify-center w-9 h-9 rounded-lg border transition min-h-[36px] ${
++                buscadorAbierto
++                  ? "border-[#10b981]/50 bg-[#10b981]/10 text-[#10b981]"
++                  : "border-slate-700 bg-[#10161f] text-slate-400 hover:text-white"
++              }`}
++            >
++              <SearchIcon className="w-4 h-4" />
++            </button>
+           </div>
+-          <span className="font-mono text-[11px] text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-md border border-slate-700/60">
+-            {mesasFiltradas.length} {mesasFiltradas.length === 1 ? "MESA" : "MESAS"}
+-          </span>
+         </div>
+-      </header>
+-
+-      <div className="flex-grow flex flex-col gap-5 px-4 pt-4 pb-8 max-w-md lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
+-        {/* Puesto actual — Card Ejecutiva (Task 3: aire en lg+) */}
+-        <section className="bg-[#10161f] border border-slate-800 rounded-2xl p-4 lg:p-5 shadow-sm flex flex-col gap-3 lg:gap-4">
+-          <div className="flex justify-between items-start gap-2">
+-            <div className="flex flex-col gap-0.5 min-w-0">
+-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">
+-                PUESTO DE VOTACIÓN
+-              </span>
+-              <h2 className="text-lg lg:text-xl font-bold text-white uppercase tracking-wide truncate">
+-                {puestoActual?.titulo ?? "SIN PUESTO REGISTRADO"}
+-              </h2>
+-            </div>
+-            <div className="flex items-center gap-1.5 shrink-0">
++        {/* Buscador colapsable. */}
++        {buscadorAbierto && (
++          <div className="max-w-md lg:max-w-2xl xl:max-w-3xl mx-auto w-full mt-2.5 relative">
++            <input
++              type="text"
++              value={busqueda}
++              onChange={(e) => setBusqueda(e.target.value)}
++              placeholder="Buscar por título…"
++              aria-label="Buscar documentos por título"
++              autoFocus
++              className="w-full h-10 px-3 bg-[#10161f] border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-[#10b981]/60 focus:ring-1 focus:ring-[#10b981]/30 transition"
++            />
++            {busqueda && (
+               <button
+                 type="button"
+-                onClick={alternarModoSimulacion}
+-                aria-pressed={modoSimulacion}
+-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full border font-mono text-[10px] font-bold uppercase tracking-wider transition ${
+-                  modoSimulacion
+-                    ? "bg-amber-400/20 border-amber-400 text-amber-400 shadow-xs shadow-amber-400/10"
+-                    : "bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white"
+-                } ${enSimulacion && !simCompleta ? "animate-pulse-sync" : ""}`}
++                onClick={() => setBusqueda("")}
++                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1.5 text-xs"
++                aria-label="Limpiar búsqueda"
+               >
+-                SIM
++                ✕
+               </button>
++            )}
++          </div>
++        )}
++      </header>
++
++      <div className="flex-grow flex flex-col gap-3 px-4 pt-3 pb-8 max-w-md lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
++        {/* Filtros con conteos (mock: chips horizontales). */}
++        <div className="flex gap-1 overflow-x-auto no-scrollbar -mx-1 px-1 py-1" role="group" aria-label="Filtrar por estado">
++          {FILTROS.map((f) => {
++            const activo = filtro === f.id;
++            const n = conteos[f.id];
++            return (
+               <button
++                key={f.id}
+                 type="button"
+-                onClick={alternarConexion}
+-                aria-pressed={!online}
+-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-mono text-[10px] font-bold uppercase tracking-wider transition ${
+-                  online
+-                    ? "bg-[#10b981]/15 border-[#10b981]/40 text-[#10b981]"
+-                    : "bg-amber-400/20 border-amber-400 text-amber-400"
++                onClick={() => setFiltro(f.id)}
++                aria-pressed={activo}
++                className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-1 rounded-md border font-mono text-[9px] font-bold uppercase transition min-h-[32px] cursor-pointer ${
++                  activo
++                    ? "bg-[#10b981] border-[#10b981] text-[#052012] shadow-[0_2px_12px_rgba(16,185,129,0.3)]"
++                    : "bg-[#10161f] border-slate-700 text-slate-300 hover:border-slate-500"
+                 }`}
+               >
+-                <SensorsIcon
+-                  className={`w-3 h-3 ${
+-                    online
+-                      ? // Regresión #5 (audit 4f9c871) restaurada en B3: el
+-                        // pulso del indicador EN LÍNEA (mismo patrón del botón
+-                        // SIM de arriba — animate-pulse-sync vive en
+-                        // globals.css).
+-                        "animate-pulse-sync text-[#10b981]"
+-                      : "text-amber-400"
+-                  }`}
+-                />
+-                {online ? "EN LÍNEA" : "OFFLINE"}
++                {f.dot && (
++                  <span className={`w-1 h-1 rounded-full ${f.dot}`} aria-hidden />
++                )}
++                {f.label} ({n})
+               </button>
+-            </div>
+-          </div>
+-
+-          <div className="flex items-center justify-between text-xs lg:text-[13px] font-mono text-slate-400 border-t border-slate-800/80 pt-2.5">
+-            <span className="truncate">
+-              {puestoActual
+-                ? `${puestoActual.municipio} › ZONA ${puestoActual.zona} › PTO ${puestoActual.puesto}`
+-                : "Escanee un acta para identificar el puesto"}
+-            </span>
+-            {totalMesas != null && (
+-              <span className="shrink-0 font-bold text-slate-300 ml-2">
+-                {totalMesas} MESAS
+-              </span>
+-            )}
+-          </div>
+-
+-          {/* Barra de progreso global del puesto */}
+-          <div className="flex flex-col gap-1.5 mt-1">
+-            <div className="flex justify-between items-center text-[11px] font-mono">
+-              <span className="text-slate-400">PROGRESO DEL PUESTO:</span>
+-              <span className="font-bold text-[#10b981]">{pctGeneral}%</span>
+-            </div>
+-            <div className="w-full h-1.5 rounded-full bg-slate-800/80 overflow-hidden">
+-              <div
+-                className="h-full bg-gradient-to-r from-[#10b981] to-[#059669] transition-all duration-300 rounded-full"
+-                style={{ width: `${pctGeneral}%` }}
+-              />
+-            </div>
+-          </div>
+-        </section>
+-
+-        {/* Buscador de Mesas — Task 3: más cómodo en lg+ (alto 44px, texto sm). */}
+-        <div className="relative w-full">
+-          <input
+-            type="text"
+-            value={busqueda}
+-            onChange={(e) => setBusqueda(e.target.value)}
+-            placeholder="Buscar mesa... (ej. 01, 12)"
+-            className="w-full h-10 lg:h-11 pl-9 pr-10 bg-[#10161f] border border-slate-800 rounded-xl text-xs lg:text-sm text-white placeholder-slate-500 font-mono focus:outline-none focus:border-[#10b981]/60 focus:ring-1 focus:ring-[#10b981]/30 transition shadow-xs"
+-          />
+-          <span
+-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"
+-            aria-hidden
+-          >
+-            🔍
+-          </span>
+-          {busqueda && (
+-            <button
+-              type="button"
+-              onClick={() => setBusqueda("")}
+-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1.5 text-xs"
+-              aria-label="Limpiar búsqueda"
+-            >
+-              ✕
+-            </button>
+-          )}
++            );
++          })}
+         </div>
+ 
+-        {/* Acordeón de mesas */}
+-        <div className="flex flex-col gap-3">
+-          <div className="flex items-center gap-2 pt-1">
+-            <MapPinIcon className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+-            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#10b981]">
+-              {enSimulacion ? "MESAS SIMULADAS" : "MESAS DEL PUESTO"} ({mesasFiltradas.length})
+-            </span>
+-            <span className="h-px flex-1 bg-slate-800" />
+-          </div>
+-
+-          {/* Feedback de simulación */}
+-          {enSimulacion && (
+-            <div className="flex flex-col gap-1 -mt-1 p-2.5 rounded-xl bg-[#10161f]/60 border border-slate-800 text-[11px] font-mono text-slate-400">
+-              <div className="flex justify-between">
+-                <span>ÚLTIMA TRANSMISIÓN:</span>
+-                <span className="text-white font-bold">{simUltima ?? "—"}</span>
+-              </div>
+-              <div className="flex justify-between">
+-                <span>TRANSMITIDAS:</span>
+-                <span className="text-[#10b981] font-bold">{paginasOcupadas} DE {paginasTotales} PÁGINAS</span>
+-              </div>
+-              {simCompleta && (
+-                <div className="mt-1 flex items-center justify-center py-1.5 rounded-lg bg-[#10b981]/15 border border-[#10b981]/40 text-[#10b981] font-bold uppercase">
+-                  PUESTO COMPLETADO ✓
+-                </div>
+-              )}
+-            </div>
+-          )}
+-
+-          {mesasFiltradas.length === 0 && (
+-            <div className="p-6 text-center rounded-2xl bg-[#10161f]/50 border border-slate-800/60">
+-              <p className="font-mono text-xs uppercase tracking-wider text-slate-400">
+-                {busqueda
+-                  ? `NO SE ENCONTRARON MESAS PARA "${busqueda}"`
+-                  : puestoActual
+-                    ? "SIN MESAS ARCHIVADAS"
+-                    : "AÚN NO HAY ACTAS ESCANEADAS"}
++        {/* Estado vacío honesto. */}
++        {filtrados.length === 0 && (
++          <div className="p-8 text-center rounded-2xl bg-[#10161f]/50 border border-slate-800/60 mt-2">
++            <p className="font-mono text-xs uppercase tracking-wider text-slate-400 leading-relaxed">
++              {busqueda
++                ? `SIN RESULTADOS PARA "${busqueda}"`
++                : modoSimulacion
++                  ? "SIN DOCUMENTOS EN ESTE FILTRO"
++                  : "AÚN NO HAY DOCUMENTOS ESCANEADOS"}
++            </p>
++            {!modoSimulacion && !busqueda && historial.length === 0 && (
++              <p className="font-mono text-[10px] text-slate-500 mt-2">
++                Active SIM para ver el historial demo o escanee un documento.
+               </p>
+-            </div>
+-          )}
++            )}
++          </div>
++        )}
+ 
+-          {/* Task 3 (agente B): en xl+ las tarjetas de mesa van en 2 columnas
+-              (items-start: una abierta no estira a su vecina). El acordeón
+-              interno (CardMesa/onToggle) queda INTACTO — mismos handlers. */}
+-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 xl:gap-4 items-start">
+-            {mesasFiltradas.map((mesa) => (
+-              <CardMesa
+-                key={mesa.id}
+-                mesa={mesa}
+-                abierta={mesaAbierta === mesa.id}
+-                onToggle={() => setMesaAbierta(mesaAbierta === mesa.id ? null : mesa.id)}
++        {/* Grupos por fecha + tarjetas. */}
++        {grupos.map((grupo) => (
++          <section key={grupo.etiqueta} className="flex flex-col gap-2.5" aria-label={grupo.etiqueta}>
++            <h2 className="font-mono text-[10.5px] font-bold tracking-[0.14em] text-slate-400 uppercase pt-1">
++              {grupo.etiqueta}
++            </h2>
++            {grupo.docs.map((doc) => (
++              <TarjetaDoc
++                key={doc.id}
++                doc={doc}
++                detalleAbierto={detalleAbierto === doc.id}
++                onToggleDetalle={() =>
++                  setDetalleAbierto(detalleAbierto === doc.id ? null : doc.id)
++                }
++                onRepetir={() => navegar("escanear")}
+               />
+             ))}
+-          </div>
+-        </div>
++          </section>
++        ))}
+       </div>
+     </div>
+   );

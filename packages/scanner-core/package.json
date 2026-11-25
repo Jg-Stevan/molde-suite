@@ -36,6 +36,8 @@
     "./dominio/entorno": "./dominio/entorno.ts",
     "./dominio/image-utils": "./dominio/image-utils.ts",
     "./dominio/senal-lectura": "./dominio/senal-lectura.ts",
+    "./dominio/ocr-escalonado": "./dominio/ocr-escalonado.ts",
+    "./orquestacion/cascada": "./orquestacion/cascada.ts",
     "./dominio/logger": "./dominio/logger.ts",
     "./dominio/plan": "./dominio/plan.ts",
     "./geom/orientacion": "./geom/orientacion.ts",

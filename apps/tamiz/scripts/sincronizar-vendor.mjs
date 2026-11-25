@@ -20,6 +20,19 @@ const pkg = JSON.parse(readFileSync(join(RAIZ, "package.json"), "utf-8"));
 // Los `.wasm` crudos de tesseract.js-core NO se copian: el worker solo importa
 // los `.wasm.js` (wasm embebido en base64).
 const COPIAS = [
+  // ORT wasm SIMD-threaded: el motor RapidOCR fija `wasmPaths` a este
+  // directorio (same-origin, sin CDN — offline-first). Mismos dos archivos
+  // que vendoriza digielect14.
+  {
+    paquete: "onnxruntime-web",
+    origen: "dist/ort-wasm-simd-threaded.mjs",
+    destino: "public/vendor/onnxruntime/ort-wasm-simd-threaded.mjs",
+  },
+  {
+    paquete: "onnxruntime-web",
+    origen: "dist/ort-wasm-simd-threaded.wasm",
+    destino: "public/vendor/onnxruntime/ort-wasm-simd-threaded.wasm",
+  },
   { paquete: "tesseract.js", origen: "dist/worker.min.js", destino: "public/vendor/tesseract/worker.min.js" },
 ];
 

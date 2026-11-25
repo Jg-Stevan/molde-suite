@@ -1,0 +1,54 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:45.912324200 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:45.912324200 -0500
+@@ -1,37 +1,18 @@
+-/**
+- * Ítem 3.2 (mapa v2.3): UN motor en el paquete (ocr/motores/tesseract).
+- * Este wrapper fija el langPath de ESTA app y CONSERVA el contrato de D
+- * (throw en fallo + {texto, conf} — el bridge de D cae a RapidOCR por su
+- * camino de siempre, byte a byte).
+- * D88 (2026-11-10): el langPath lleva la versión del sabor servido
+- * (/models/tess/4.0.0_fast) para invalidar IndexedDB/SW/HTTP en equipos
+- * que ya cachearon el traineddata anterior.
+- */
+-import {
+-  configurarTesseract,
+-  tesseractReconocer,
+-  tesseractInit,
+-  tesseractReiniciar,
+-  tessPrecalentar as tessPrecalentarPaquete,
+-} from "@jg-stevan/scanner-core/ocr/motores/tesseract";
++// Precalentamiento del OCR de cascada (segundo motor — mismo Tesseract con
++// parámetros de página distintos).
+ 
+-configurarTesseract({ langPath: "/models/tess/4.0.0_fast" });
++let caliente = false;
+ 
+-export { tesseractInit, tesseractReiniciar };
+-
+-/** Contrato de D: throw en fallo (la cascada del bridge cae a RapidOCR). */
+-export async function tessReconocer(
+-  dataUrl: string,
+-  presupuestoMs?: number,
+-): Promise<{ texto: string; conf: number }> {
+-  const r = await tesseractReconocer(dataUrl, presupuestoMs);
+-  if (!r || r.texto.length === 0) {
+-    throw new Error("tess-best: sin resultado — cascada cae a RapidOCR");
+-  }
+-  return { texto: r.texto, conf: r.confMedia };
+-}
+-
+-/** Precalentamiento fire-and-forget (mismo contrato del kit GO-B). */
++/** Idempotente y silencioso. */
+ export function tessPrecalentar(): void {
+-  tessPrecalentarPaquete();
++  if (caliente) return;
++  caliente = true;
++  void import('../bridge/ocr-worker')
++    .then(async ({ getWorker }) => {
++      // Mismo criterio P7a: el singleton compartido es el que se calienta.
++      await getWorker();
++    })
++    .catch(() => {
++      /* silencioso por diseño (kill-switch del mantenedor) */
++    });
+ }

@@ -3,7 +3,7 @@
   "_notas": [
     "OpenCV: @techstark/opencv-js@4.12.0-release.1 por unpkg. El tarball de npm es inmutable, así que la versión fijada es garantía de reproducibilidad. docs.opencv.org devuelve 403 con challenge JS de Cloudflare y el alias /4.x/ es móvil: no sirve para un pipeline. La ruta lleva versión para invalidar las cachés (IndexedDB de tesseract.js, MOTOR_CACHE del SW y HTTP).",
     "spa.traineddata.gz: naptha/tessdata en commit fijo 806cd9a, sabor 4.0.0_fast (1,14 MB comprimido). La ruta lleva versión por el mismo motivo.",
-    "DIFERIDO (fuera del alcance de este port): los 3 .onnx de RapidOCR PP-OCRv4 y el vendor de jsQR. Se agregan aquí cuando tamiz porte el OCR ONNX."
+    "RapidOCR PP-OCRv4 (det/rec/cls): SWHL/RapidOCR en commit fijo 1cfba2e (mismos URL+SHA-256 probados del repo original e14-suite). Se materializan en public/models/rapidocr/ al preparar el entorno; los .onnx jamás se versionan (gitignore)."
   ],
   "archivos": [
     {
@@ -15,6 +15,21 @@
       "destino": "public/models/tess/4.0.0_fast/spa.traineddata.gz",
       "url": "https://raw.githubusercontent.com/naptha/tessdata/806cd9adc8c6e8abc11c782db1818c990576bebc/4.0.0_fast/spa.traineddata.gz",
       "sha256": "8db1167a8c9bb015ac8e97278384c3b07dfa9bc8271569beea071d9e296b4487"
+    },
+    {
+      "destino": "public/models/rapidocr/ch_PP-OCRv4_det_infer.onnx",
+      "url": "https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173/PP-OCRv4/ch_PP-OCRv4_det_infer.onnx",
+      "sha256": "d2a7720d45a54257208b1e13e36a8479894cb74155a5efe29462512d42f49da9"
+    },
+    {
+      "destino": "public/models/rapidocr/ch_PP-OCRv4_rec_infer.onnx",
+      "url": "https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173/PP-OCRv4/ch_PP-OCRv4_rec_infer.onnx",
+      "sha256": "48fc40f24f6d2a207a2b1091d3437eb3cc3eb6b676dc3ef9c37384005483683b"
+    },
+    {
+      "destino": "public/models/rapidocr/ch_ppocr_mobile_v2.0_cls_infer.onnx",
+      "url": "https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173/PP-OCRv1/ch_ppocr_mobile_v2.0_cls_infer.onnx",
+      "sha256": "e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c"
     }
   ]
 }

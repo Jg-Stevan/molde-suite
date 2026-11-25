@@ -1,0 +1,84 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:42.181938000 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:42.182941900 -0500
+@@ -36,9 +36,10 @@
+  */
+ import { logger } from "../dominio/logger";
+ import { publicBaseEfectivo } from "../dominio/entorno";
+-import type { FinCapa0, FasesCapa0, RespuestaCapa0 } from "../../workers/capa0-qr.worker";
++import { prechequeoDesdeCanvas } from "./prechequeo-qr";
++import type { FinCapa0, FasesCapa0, RespuestaCapa0 } from "../workers/capa0-qr.worker";
+ 
+-export type { FinCapa0, FasesCapa0, PeticionCapa0 } from "../../workers/capa0-qr.worker";
++export type { FinCapa0, FasesCapa0, PeticionCapa0 } from "../workers/capa0-qr.worker";
+ 
+ /** Resultado del worker — ESPEJO de RespuestaCapa0 (sin el id). */
+ export type ResultadoCapa0Worker = {
+@@ -295,6 +296,33 @@
+ const QR_LADO_LARGO = 2048;
+ 
+ /**
++ * Tarea A (PLAN-AGENTE-EXTERNO, P1) — decodifica el blob a un canvas del DOM
++ * SOLO para el pre-chequeo (createImageBitmap + drawImage). Jamás throw: un
++ * navegador sin createImageBitmap o un decode fallido devuelven null y el
++ * caller sigue por el camino de HOY (el pre-chequeo es una OPTIMIZACIÓN, no
++ * una puerta nueva de fallo).
++ */
++async function canvasDeBlobParaPrechequeo(blob: Blob): Promise<HTMLCanvasElement | null> {
++  try {
++    if (typeof createImageBitmap !== "function" || typeof document === "undefined") return null;
++    const bitmap = await createImageBitmap(blob);
++    const canvas = document.createElement("canvas");
++    canvas.width = bitmap.width;
++    canvas.height = bitmap.height;
++    const ctx = canvas.getContext("2d", { willReadFrequently: true });
++    if (!ctx) {
++      bitmap.close();
++      return null;
++    }
++    ctx.drawImage(bitmap, 0, 0);
++    bitmap.close();
++    return canvas;
++  } catch {
++    return null;
++  }
++}
++
++/**
+  * API 2 (de D) — la CAPA 0 QR de la CÁMARA en el worker. Contrato EXACTO del
+  * bloque e64-qr T-2.1 del bridge ({payload} | null, jamás throw):
+  *  · dataUrl → Blob (fetch local — sin re-decode en main).
+@@ -310,6 +338,34 @@
+   try {
+     const respuesta = await fetch(dataUrl);
+     const blob = await respuesta.blob();
++    // Tarea A (P1) — PRE-CHEQUEO BARATO antes de pagar el worker: los patrones
++    // localizadores (1:1:3:1:1) que TODO QR lleva se buscan en ~decenas de ms
++    // (downscale ≤320 + rescate ≤1280). Sin candidato ⇒ null INMEDIATO: el
++    // documento sin QR deja de morder presupuesto 8 s/5 s + rescate zxing +
++    // camino base (el acta mantiene «CÓDIGO QR NO CORRIÓ EN ESTA CAPTURA» —
++    // payload null es el mismo contrato de siempre, solo más rápido).
++    // Generoso contra falsos negativos (doctrina de prechequeo-qr.ts):
++    // candidato, error o indisponibilidad del pre-chequeo ⇒ camino de HOY
++    // COMPLETO (worker + rescate, byte-idéntico). Kill-switch OFF ⇒ sin
++    // pre-chequeo ni worker: el camino base de main queda exactamente como
++    // antes (el interruptor del mantenedor manda).
++    const killSwitchOff = opciones.habilitado ? opciones.habilitado() === false : false;
++    if (!killSwitchOff) {
++      const tPre = performance.now();
++      const canvasPre = await canvasDeBlobParaPrechequeo(blob);
++      const pre = canvasPre ? prechequeoDesdeCanvas(canvasPre) : null;
++      if (pre && !pre.candidato) {
++        try {
++          logger.info(
++            `[e14] qr-capa0 prechequeo sin-candidato ms=${Math.round(performance.now() - tPre)} patrones=${pre.patrones} confianza=${pre.confianza.toFixed(2)}`,
++          );
++        } catch {
++          /* la traza jamás tumba el pipeline */
++        }
++        return null;
++      }
++      // candidato=true (o pre-chequeo indisponible — null) ⇒ continuar.
++    }
+     let presupuestoMs = 8_000;
+     let rescate4096 = true;
+     try {

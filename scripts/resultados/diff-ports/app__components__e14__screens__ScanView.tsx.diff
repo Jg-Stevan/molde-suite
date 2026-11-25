@@ -1,0 +1,413 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:49.945649900 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:49.946659800 -0500
+@@ -56,9 +56,10 @@
+  *    automática a SIMULACIÓN (spec §7).
+  *
+  * FIDELIDAD AL LAB (fix/e14-fidelidad-lab — SPEC-auditoria-copias.md):
+- *  · F-LENS v4 COMPLETO (H1): sondas secuenciales cerrando cada cámara +
++ *  · F-LENS v5 CABLEADO (H1): la cámara la abre `core/camara-principal.ts`
++ *    desde `useSesionCamara` (sondas secuenciales cerrando cada cámara +
+  *    chooseMainProbe (autofocus real → mayor resolución) + fix zoom +
+- *    telemetría window.__cameraChoice — la cascada facingMode quedó como red
++ *    telemetría window.__cameraChoice); la cascada facingMode queda como red
+  *    de seguridad (lab L116-223 + L1095-1207).
+  *  · F-SENSOR-PROFILER (H2): perfilado del track + takePhotoBlob con capa 1
+  *    (photoSettings al ISP) y capa 2 (clampBlobToSafeCap) + capa 3 (decode
+@@ -99,6 +100,7 @@
+   FolderImportIcon,
+   SparklesIcon,
+   StitchBoltIcon,
++  StitchChevronLeftIcon,
+   StitchGridIcon,
+   StitchImportIcon,
+   StitchShutterDocIcon,
+@@ -156,6 +158,10 @@
+   const visorRef = useRef<HTMLDivElement | null>(null);
+   const streamRef = useRef<MediaStream | null>(null);
+   const procesandoRef = useRef(false);
++  /** Candado del OBTURADOR (toma ZSL + foto + burst), distinto del del
++   *  ANÁLISIS (`procesandoRef`, dueño: `despacharArchivo`). Ver
++   *  `capturarInteligente`. */
++  const capturandoRef = useRef(false);
+   const cooldownRef = useRef(0);
+   // D9 (SPEC-e14-guard-borde Rev. 2): captura automática ARMADA por defecto —
+   // REVISA el default OFF de D22/D24 por mandato del mantenedor («cuando se habra
+@@ -349,6 +355,23 @@
+   const scoreAlto = (live.score ?? 0) > SHUTTER_SCORE;
+   const scorePct = live.score !== null ? Math.round(live.score * 100) : null;
+ 
++  // MOCK 2026-11-16 (escaneo libre y limpio): en MODO CÁMARA el visor es la
++  // pantalla inmersiva del mock — píldora IA centrada, sin selector de modo,
++  // sin nav inferior (oculta en el shell). Aplica también con la cámara
++  // caída (mismo header limpio; el aviso ofrece SIMULACIÓN); en
++  // SIMULACIÓN/ARCHIVO el header clásico regresa (selector a la derecha).
++  const escaneoLibre = modoCamara;
++
++  // Botón VOLVER del visor (mock: chevron «‹» circular arriba a la
++  // izquierda): regresa a la última vista APP visitada (HISTORIAL o
++  // PLANTILLAS). Arranque fresco o historial contaminado con
++  // analizando/revision → cae SIEMPRE a «actas» (destino útil garantizado).
++  const vistaPrevia = useE14Store((s) => s.vistaPrevia);
++  const navegar = useE14Store((s) => s.navegar);
++  const volverAlApp = useCallback(() => {
++    navegar(vistaPrevia === "actas" || vistaPrevia === "resumen" ? vistaPrevia : "actas");
++  }, [vistaPrevia, navegar]);
++
+   /** KIT e14-simulacion-imagenes-v1: abrir la galería de imágenes simuladas
+    *  (icono del header y aviso de cámara). Con una captura en vuelo no se
+    *  abre: el disparo de la simulación se ignoraría (guard del store). */
+@@ -393,82 +416,93 @@
+    *  3. Sin foto → burst {zsl, snapA, snap} por lapVar → encode del ganador.
+    *  4. Sin NADA → grab del video vivo vía frameActual del bridge. */
+   const capturarInteligente = useCallback(async (): Promise<void> => {
+-    if (procesandoRef.current) return;
++    // DOS CANDADOS, DOS DUEÑOS. `capturandoRef` = obturador en vuelo (lo toma
++    // y lo suelta ESTA función, siempre por finally); `procesandoRef` = análisis
++    // en vuelo (lo toma y lo suelta `despacharArchivo`). Con un solo ref
++    // compartido había que apagarlo justo antes del hand-off, y cualquier
++    // excepción en el camino (canvas roto, tope, `takePhoto` colgado) dejaba la
++    // cámara sorda para siempre: el gate del loop ya no vuelve a llamar.
++    if (capturandoRef.current || procesandoRef.current) return;
+     if (cooldownRef.current > Date.now()) return;
+-    loopRef.current?.notifyCaptured();
+-    cooldownRef.current = Date.now() + COOLDOWN_MS;
+-    procesandoRef.current = true;
++    capturandoRef.current = true;
+     setProcesando(true);
+-
+-    const zsl = tomarZsl();
+-    // §5.4 — frame A ANTES de la foto: si takePhoto cuelga y cae (8 s),
+-    // ya queda un candidato válido medido del momento real del tap.
+-    // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L843-L845
+-    // (remediación H3 — snapA existe antes del disparo; el burst de respaldo
+-    //  queda [zsl, snapA, snapB] con snapA del instante correcto).
+-    const snapA = instantanea();
+-    // G3/G5 (lab L1770): canPhoto = gate de plataforma (CAN_TAKEPHOTO, ya en
+-    // el ref) Y lista negra temporal NO activa — un sensor con el takePhoto
+-    // colgado no vuelve a pagar los 8 s en cada disparo.
+-    const puedeFotoAhora = puedeTomarFotoRef.current && !takePhotoBrokenRef.current;
+-    const fotoBlob = puedeFotoAhora
+-      ? await tomarFoto((upgrade) => void mejorarSilenciosa(upgrade))
+-      : null;
+-    if (fotoBlob) {
+-      // La foto full-sensor gana: suelta los frames de respaldo (R-14).
+-      if (zsl) liberarCanvas(zsl.canvas);
+-      if (snapA) liberarCanvas(snapA.canvas);
+-      // Capa 3 H2: decode único + tope por GAMA antes del bridge (el blob ya
+-      // viene ≤tope de las capas 1-2 — aquí es verificación barata, como el
+-      // dispatch L574-589 del lab).
+-      void despacharArchivo(fotoBlob, false);
+-      return;
+-    }
+-    if (puedeFotoAhora && camEstado === "viva") {
+-      // takePhoto colgó (> 8 s) o no existe → aviso honesto del fallback
+-      // (franja del visor — redesign-stitch §3.1.4).
+-      mostrarAviso(
+-        "CAPTURA A RESOLUCIÓN DEL VISOR — la foto del sensor no respondió; se analiza el mejor fotograma reciente.",
+-        "warn",
+-        5000,
++    try {
++      loopRef.current?.notifyCaptured();
++      cooldownRef.current = Date.now() + COOLDOWN_MS;
++
++      const zsl = tomarZsl();
++      // §5.4 — frame A ANTES de la foto: si takePhoto cuelga y cae (8 s),
++      // ya queda un candidato válido medido del momento real del tap.
++      // Fuente: apps/scanner-lab/src/components/scanner/CameraView.tsx L843-L845
++      // (remediación H3 — snapA existe antes del disparo; el burst de respaldo
++      //  queda [zsl, snapA, snapB] con snapA del instante correcto).
++      const snapA = instantanea();
++      // G3/G5 (lab L1770): canPhoto = gate de plataforma (CAN_TAKEPHOTO, ya en
++      // el ref) Y lista negra temporal NO activa — un sensor con el takePhoto
++      // colgado no vuelve a pagar los 8 s en cada disparo.
++      const puedeFotoAhora = puedeTomarFotoRef.current && !takePhotoBrokenRef.current;
++      const fotoBlob = puedeFotoAhora
++        ? await tomarFoto((upgrade) => void mejorarSilenciosa(upgrade))
++        : null;
++      if (fotoBlob) {
++        // La foto full-sensor gana: suelta los frames de respaldo (R-14).
++        if (zsl) liberarCanvas(zsl.canvas);
++        if (snapA) liberarCanvas(snapA.canvas);
++        // Capa 3 H2: decode único + tope por GAMA antes del bridge (el blob ya
++        // viene ≤tope de las capas 1-2 — aquí es verificación barata, como el
++        // dispatch L574-589 del lab).
++        void despacharArchivo(fotoBlob, true);
++        return;
++      }
++      if (puedeFotoAhora && camEstado === "viva") {
++        // takePhoto colgó (> 8 s) o no existe → aviso honesto del fallback
++        // (franja del visor — redesign-stitch §3.1.4).
++        mostrarAviso(
++          "CAPTURA A RESOLUCIÓN DEL VISOR — la foto del sensor no respondió; se analiza el mejor fotograma reciente.",
++          "warn",
++          5000,
++        );
++      }
++      const snapB = instantanea();
++      const candidatos = [zsl, snapA, snapB].filter(
++        (f): f is { canvas: HTMLCanvasElement; lapVar: number } => f !== null,
+       );
+-    }
+-    const snapB = instantanea();
+-    const candidatos = [zsl, snapA, snapB].filter(
+-      (f): f is { canvas: HTMLCanvasElement; lapVar: number } => f !== null,
+-    );
+-    if (candidatos.length === 0) {
+-      // Último recurso (lab B8 → e14): grab del video vivo por el bridge
+-      // (frameActual → canvas a resolución del stream).
+-      const video = videoRef.current;
+-      if (video && video.readyState >= 2 && video.videoWidth) {
+-        destellar();
+-        procesandoRef.current = false;
+-        setProcesando(false);
+-        void dispararEscaneo();
++      if (candidatos.length === 0) {
++        // Último recurso (lab B8 → e14): grab del video vivo por el bridge
++        // (frameActual → canvas a resolución del stream). No hay blob que
++        // despachar: el escaneo usa `framePendiente` y el gate del loop se
++        // protege solo con `analisisEnVuelo` del store.
++        const video = videoRef.current;
++        if (video && video.readyState >= 2 && video.videoWidth) {
++          setArchivoPendiente(null);
++          setFramePendiente(video);
++          destellar();
++          setProcesando(false);
++          void dispararEscaneo();
++        } else {
++          setProcesando(false);
++          mostrarAviso("NO SE PUDO CAPTURAR — inténtalo de nuevo.", "crit");
++        }
++        return;
++      }
++      const ganador = candidatos.reduce((a, b) => (b.lapVar > a.lapVar ? b : a));
++      const blob = await canvasABlob(ganador.canvas);
++      for (const c of candidatos) {
++        // FIX (auditoría 2-b #8): TODOS los canvases se liberan (antes el
++        // ganador quedaba vivo esperando al GC — inconsistente con la
++        // disciplina iOS del propio módulo, error #22 del lab).
++        liberarCanvas(c.canvas);
++      }
++      if (blob) {
++        // Capa 3 H2: el frame ganador también pasa por el tope (decode único,
++        // verificación barata — frames de preview, muy por debajo del tope).
++        void despacharArchivo(blob, true);
+       } else {
+-        procesandoRef.current = false;
+         setProcesando(false);
+         mostrarAviso("NO SE PUDO CAPTURAR — inténtalo de nuevo.", "crit");
+       }
+-      return;
+-    }
+-    const ganador = candidatos.reduce((a, b) => (b.lapVar > a.lapVar ? b : a));
+-    const blob = await canvasABlob(ganador.canvas);
+-    for (const c of candidatos) {
+-      // FIX (auditoría 2-b #8): TODOS los canvases se liberan (antes el
+-      // ganador quedaba vivo esperando al GC — inconsistente con la
+-      // disciplina iOS del propio módulo, error #22 del lab).
+-      liberarCanvas(c.canvas);
+-    }
+-    if (blob) {
+-      // Capa 3 H2: el frame ganador también pasa por el tope (decode único,
+-      // verificación barata — frames de preview, muy por debajo del tope).
+-      void despacharArchivo(blob, false);
+-    } else {
+-      procesandoRef.current = false;
+-      setProcesando(false);
+-      mostrarAviso("NO SE PUDO CAPTURAR — inténtalo de nuevo.", "crit");
++    } finally {
++      capturandoRef.current = false;
+     }
+   }, [
+     tomarZsl,
+@@ -589,7 +623,7 @@
+     <button
+       type="button"
+       id="shutter-capture-btn"
+-      aria-label="Capturar fotografía del acta E-14"
++      aria-label="Capturar fotografía del documento"
+       onClick={alDisparar}
+       disabled={procesando}
+       className={`obturador-scanner relative w-[74px] h-[74px] rounded-full p-1 bg-transparent border-2 border-white/80 flex items-center justify-center active:scale-90 transition-all duration-100 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:border-[#10b981] focus:outline-none focus:border-[#10b981] cursor-pointer ${
+@@ -659,9 +693,28 @@
+               la fila se acota a max-w-2xl centrada — segment control
+               profesional, no dos islas a los bordes del visor. */}
+           <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex flex-col gap-2 p-3 lg:gap-3 lg:px-5 lg:pt-4">
+-            <div className="flex items-center justify-between w-full lg:max-w-2xl lg:mx-auto">
+-              {/* Píldora IA: AUTO + Grid */}
+-              <div className="pointer-events-auto flex items-center gap-1.5 bg-[#10161f]/90 border border-slate-800 rounded-full px-2.5 py-1 lg:px-3.5 lg:py-1.5 backdrop-blur-md shadow-md">
++            <div className="relative flex h-11 items-center w-full lg:max-w-2xl lg:mx-auto">
++              {/* MOCK 2026-11-16 (escaneo libre y limpio): botón VOLVER circular
++                  con chevron «‹» arriba a la izquierda — el escáner es una
++                  pantalla inmersiva (sin nav inferior en el shell). */}
++              <button
++                type="button"
++                onClick={volverAlApp}
++                aria-label="Volver a la vista anterior"
++                title="Volver"
++                className="pointer-events-auto absolute left-0 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white/85 backdrop-blur-md shadow-md transition hover:bg-black/75 hover:text-white active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
++              >
++                <StitchChevronLeftIcon className="w-5 h-5" />
++              </button>
++
++              {/* Píldora IA: AUTO + Grid — CENTRADA en modo cámara (mock
++                  escaneo libre); en SIMULACIÓN/ARCHIVO queda junto al botón
++                  volver y el selector de modo ocupa la derecha. */}
++              <div
++                className={`pointer-events-auto absolute top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-[#10161f]/90 border border-slate-800 rounded-full px-2.5 py-1 lg:px-3.5 lg:py-1.5 backdrop-blur-md shadow-md transition-[left] ${
++                  escaneoLibre ? "left-1/2 -translate-x-1/2" : "left-11 lg:left-[52px]"
++                }`}
++              >
+                 <span className="inline-flex items-center justify-center bg-white text-slate-900 text-[10px] font-black rounded px-1.5 py-0.5 leading-none select-none">
+                   IA
+                 </span>
+@@ -687,7 +740,7 @@
+                   aria-pressed={modoCamara ? autoArmado : undefined}
+                   title={
+                     modoCamara
+-                      ? "Captura automática (dispara sola con el acta quieta y nítida)"
++                      ? "Captura automática (dispara sola con el documento quieto y nítido)"
+                       : "Captura automática (disponible en modo cámara)"
+                   }
+                   onClick={alternarAutoHUD}
+@@ -727,13 +780,18 @@
+               {/* Selector de modo rápido segmented: [CÁMARA | SIMULACIÓN].
+                   KIT e14-simulacion-imagenes-v1: el antiguo «SUBIR» se
+                   reemplazó por el icono SIMULACIÓN — abre la galería de
+-                  imágenes simuladas. Importar foto real sigue en el dock. */}
+-              <div className="pointer-events-auto flex items-center p-0.5 lg:p-1 bg-[#10161f]/90 border border-slate-800 rounded-full backdrop-blur-md shadow-md">
++                  imágenes simuladas. Importar foto real sigue en el dock.
++                  MOCK escaneo libre: OCULTO en modo cámara (la pantalla
++                  inmersiva del mock no lo muestra — con cámara fallida el
++                  aviso ofrece SIMULACIÓN; en SIM/ARCHIVO reaparece aquí
++                  para regresar a CÁMARA). */}
++              {!escaneoLibre && (
++                <div className="pointer-events-auto absolute right-0 top-1/2 -translate-y-1/2 flex items-center p-0.5 lg:p-1 bg-[#10161f]/90 border border-slate-800 rounded-full backdrop-blur-md shadow-md">
+                 <button
+                   type="button"
+                   onClick={() => setFuente("CAMARA")}
+                   className={`flex items-center gap-1 px-2.5 lg:px-3.5 py-1 lg:py-1.5 rounded-full text-[11px] lg:text-xs font-semibold transition-all ${
+-                    fuente === "CAMARA"
++                    (fuente as string) === "CAMARA"
+                       ? "bg-[#10b981] text-[#090d12] font-bold shadow-sm"
+                       : "text-slate-400 hover:text-white"
+                   }`}
+@@ -758,7 +816,8 @@
+                   <SparklesIcon className="w-3.5 h-3.5" />
+                   <span className="hidden sm:inline">SIMULACIÓN</span>
+                 </button>
+-              </div>
++                </div>
++              )}
+             </div>
+           </div>
+ 
+@@ -805,12 +864,12 @@
+                         permite el acceso.
+                       </li>
+                       <li>O prueba con una imagen simulada del proyecto.</li>
+-                      <li>O sube una foto del acta desde tu galería o tu disco.</li>
++                      <li>O sube una foto del documento desde tu galería o tu disco.</li>
+                     </ol>
+                   ) : (
+                     <p className="text-xs leading-relaxed text-slate-300 font-sans">
+                       La cámara se detuvo u otra aplicación se quedó con ella.
+-                      Ciérrala y presiona «Reintentar», o sube una foto del acta.
++                      Ciérrala y presiona «Reintentar», o sube una foto del documento.
+                     </p>
+                   )}
+                   <div className="mt-4 flex flex-col sm:flex-row gap-2">
+@@ -851,7 +910,7 @@
+                       className="h-10 rounded-xl px-3 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 transition flex items-center justify-center gap-1"
+                     >
+                       <FolderImportIcon className="w-3.5 h-3.5" />
+-                      Subir foto del acta
++                      Subir foto del documento
+                     </button>
+                   </div>
+                 </div>
+@@ -906,7 +965,7 @@
+                       aria-hidden
+                     />
+                     <p className="text-[11px] font-bold tracking-[0.08em] text-white/85">
+-                      BUSCANDO ACTA…
++                      BUSCANDO DOCUMENTO…
+                     </p>
+                   </div>
+                 </div>
+@@ -950,13 +1009,22 @@
+                       </div>
+                     </div>
+                   )}
+-                  <div className="pointer-events-none absolute bottom-[118px] right-3 z-20 rounded-full border border-white/10 bg-black/55 px-2.5 py-1.5 backdrop-blur-sm">
++                  {/* MOCK escaneo libre: píldora de detección con punto de
++                      estado — rojo «NO DETECTADO», verde «DOCUMENTO
++                      DETECTADO» (antes solo texto). */}
++                  <div className="pointer-events-none absolute bottom-[118px] right-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/55 px-2.5 py-1.5 backdrop-blur-sm">
++                    <span
++                      aria-hidden
++                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
++                        live.corners ? "bg-[#34c759]" : "bg-rose-400"
++                      }`}
++                    />
+                     <span
+                       className={`text-[10px] font-bold tracking-[0.12em] font-mono ${
+                         live.corners ? "text-brand-green" : "text-white/60"
+                       }`}
+                     >
+-                      {live.corners ? "ACTA DETECTADA" : "NO DETECTADA"}
++                      {live.corners ? "DOCUMENTO DETECTADO" : "NO DETECTADO"}
+                     </span>
+                   </div>
+                 </>
+@@ -968,7 +1036,7 @@
+                   <div className="flex items-center gap-2.5 rounded-full bg-black/75 border border-white/10 px-4 py-2.5 shadow-[0_4px_12px_rgba(0,0,0,0.3)] backdrop-blur-sm">
+                     <span className="h-2 w-2 rounded-full bg-brand-green" aria-hidden />
+                     <p className="text-[13px] font-bold text-white">
+-                      MANTÉN INMÓVIL EL ACTA…
++                      MANTÉN INMÓVIL EL DOCUMENTO…
+                     </p>
+                   </div>
+                 </div>
+@@ -1006,7 +1074,7 @@
+                 <span className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-[#10b981]" />
+ 
+                 <div className="w-full flex items-center justify-between text-[10px] font-mono font-bold tracking-widest text-[#10b981] uppercase">
+-                  <span>FORMATO E-14</span>
++                  <span>DOCUMENTO</span>
+                   <span>{fuente}</span>
+                 </div>
+ 
+@@ -1019,7 +1087,7 @@
+                     )}
+                   </div>
+                   <h3 className="text-sm font-bold text-white tracking-wide uppercase">
+-                    {fuente === "SIMULACION" ? "SIMULADOR ELECTORAL" : "IMPORTAR ARCHIVO"}
++                    {fuente === "SIMULACION" ? "SIMULADOR DE DOCUMENTOS" : "IMPORTAR ARCHIVO"}
+                   </h3>
+                   {/* D-36 (plan 2026-11-12) — banner de DEMOSTRACIÓN NO
+                       descartable (D89-sup es el ADR origen; aquí el móvil lo
+@@ -1032,13 +1100,13 @@
+                       className="w-full max-w-[220px] lg:max-w-[280px] rounded-lg border border-amber-500/50 bg-amber-500/10 px-2.5 py-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-amber-400"
+                     >
+                       Modo demostración — fixtures sintéticas; no usar con
+-                      actas reales
++                      documentos reales
+                     </p>
+                   )}
+                   <p className="text-[11px] font-mono text-slate-400 leading-relaxed max-w-[220px] lg:max-w-[280px]">
+                     {fuente === "SIMULACION"
+                       ? "Abra el icono de simulación y elija una imagen de prueba (normal, rotada, inclinada, con sombras o recortada)."
+-                      : "Seleccione un archivo de imagen o fotografía de acta electoral E-14."}
++                      : "Seleccione un archivo de imagen o fotografía del documento."}
+                   </p>
+                   {fuente === "SIMULACION" && (
+                     <button
+@@ -1062,7 +1130,7 @@
+ 
+                 <div className="w-full py-1 border-t border-slate-800/80 flex items-center justify-center">
+                   <span className="text-[9px] font-mono text-slate-400 tracking-wider uppercase">
+-                    DIGITALIZADOR OFICIAL E-14
++                    DIGITALIZADOR DE DOCUMENTOS
+                   </span>
+                 </div>
+               </div>

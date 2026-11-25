@@ -1,0 +1,164 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "serial": "192.168.1.4:35543",
+  "medidoEn": "2026-11-25T17:03:39.084Z",
+  "sinSampler": true,
+  "mismaPestana": false,
+  "sinCooldown": false,
+  "arranque": {
+    "wakefulness": "mWakefulness=Awake",
+    "logcat": "limpiado",
+    "killAll": "ok",
+    "chromeAlFrente": "ya abierto",
+    "forwards": [
+      "192.168.1.4:35543 tcp:9223 localabstract:chrome_devtools_remote"
+    ],
+    "cdp": "ya expuesto"
+  },
+  "sistema": {
+    "kernel": "4.19.198-28701120-abA135MUBSDDZB3",
+    "thermalZonas": "=\r\n=\r\n=\r\n=\r\n="
+  },
+  "tempInicialC": 31.9,
+  "tempFinalC": 31.9,
+  "meminfoInicial": null,
+  "meminfoFinal": null,
+  "logcat": {
+    "eventos": [
+      "11-25 12:03:13.404 30696 31246 I am_kill : [0,14670,com.sec.android.app.chromecustomizations,985,kill all background]",
+      "11-25 12:03:13.407 30696 31246 I am_kill : [0,16770,com.huawei.health,935,kill all background]",
+      "11-25 12:03:13.412 30696 31246 I am_kill : [0,13680,com.whatsapp,850,kill all background]",
+      "11-25 12:03:13.423 30696 31246 I am_kill : [0,13436,com.google.android.apps.messaging,935,kill all background]",
+      "11-25 12:03:13.427 30696 31246 I am_kill : [0,5384,com.android.vending,975,kill all background]",
+      "11-25 12:03:13.443 30696 31246 I am_kill : [0,14044,com.microsoft.skydrive,905,kill all background]",
+      "11-25 12:03:13.446 30696 31246 I am_kill : [0,32152,com.samsung.cmh,850,kill all background]",
+      "11-25 12:03:13.448 30696 31246 I am_kill : [0,6304,com.instagram.android,915,kill all background]",
+      "11-25 12:03:13.453 30696 31246 I am_kill : [0,15992,com.samsung.android.app.telephonyui,965,kill all background]",
+      "11-25 12:03:13.457 30696 31246 I am_kill : [0,14546,com.google.android.apps.turbo:aab,999,kill all background]",
+      "11-25 12:03:13.459 30696 31246 I am_kill : [0,14252,com.google.android.permissioncontroller,999,kill all background]",
+      "11-25 12:03:13.462 30696 31246 I am_kill : [0,11655,com.google.process.gservices,985,kill all background]",
+      "11-25 12:03:13.464 30696 31246 I am_kill : [0,14545,com.google.android.partnersetup,995,kill all background]",
+      "11-25 12:03:13.467 30696 31246 I am_kill : [0,16047,com.sec.android.diagmonagent,945,kill all background]",
+      "11-25 12:03:13.471 30696 31246 I am_kill : [0,6305,com.facebook.katana,905,kill all background]",
+      "11-25 12:03:13.475 30696 31246 I am_kill : [0,16003,com.samsung.android.dqagent,955,kill all background]",
+      "11-25 12:03:13.478 30696 31246 I am_kill : [0,14857,com.android.providers.partnerbookmarks,975,kill all background]",
+      "11-25 12:03:13.481 30696 31246 I am_kill : [0,14209,com.samsung.android.scloud,925,kill all background]",
+      "11-25 12:03:13.486 30696 31246 I am_kill : [0,9945,com.android.settings,900,kill all background]",
+      "11-25 12:03:13.518 30696 31246 I am_kill : [0,11391,com.google.android.apps.turbo,925,kill all background]",
+      "11-25 12:03:13.521 30696 31246 I am_kill : [0,15962,com.samsung.android.networkdiagnostic,955,kill all background]",
+      "11-25 12:03:13.523 30696 31246 I am_kill : [0,28205,android.process.acore,850,kill all background]",
+      "11-25 12:03:13.529 30696 31246 I am_kill : [0,2613,android.process.media,850,kill all background]",
+      "11-25 12:03:13.550 30696 31246 I am_kill : [0,15979,com.google.android.cellbroadcastreceiver,945,kill all background]",
+      "11-25 12:03:13.553 30696 31246 I am_kill : [0,14599,com.google.process.gapps,995,kill all background]",
+      "11-25 12:03:13.576 30696 31246 I am_low_memory: 27"
+    ],
+    "main": [
+      "11-25 12:03:13.411 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10127 pid 14670 in 5ms",
+      "11-25 12:03:13.607 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10254 pid 16770 in 102ms",
+      "11-25 12:03:13.704 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10246 pid 13680 in 41ms",
+      "11-25 12:03:14.017 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10194 pid 13436 in 0ms",
+      "11-25 12:03:14.019 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10195 pid 5384 in 0ms",
+      "11-25 12:03:14.022 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10086 pid 14044 in 0ms",
+      "11-25 12:03:14.024 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 5004 pid 32152 in 0ms",
+      "11-25 12:03:14.025 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10266 pid 6304 in 0ms",
+      "11-25 12:03:14.050 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 1001 pid 15992 in 0ms",
+      "11-25 12:03:14.051 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10193 pid 14546 in 0ms",
+      "11-25 12:03:14.053 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10225 pid 14252 in 1ms",
+      "11-25 12:03:14.054 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10196 pid 11655 in 0ms",
+      "11-25 12:03:14.055 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10190 pid 14545 in 0ms",
+      "11-25 12:03:14.055 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 1000 pid 16047 in 0ms",
+      "11-25 12:03:14.057 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10244 pid 6305 in 0ms",
+      "11-25 12:03:14.110 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 1000 pid 16003 in 1ms",
+      "11-25 12:03:14.111 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10151 pid 14857 in 0ms",
+      "11-25 12:03:14.111 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 5009 pid 14209 in 0ms",
+      "11-25 12:03:14.112 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 1000 pid 9945 in 0ms",
+      "11-25 12:03:14.112 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10193 pid 11391 in 0ms",
+      "11-25 12:03:14.113 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 5023 pid 15962 in 0ms",
+      "11-25 12:03:14.114 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10047 pid 28205 in 0ms",
+      "11-25 12:03:14.114 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10053 pid 2613 in 0ms",
+      "11-25 12:03:14.115 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10234 pid 15979 in 0ms",
+      "11-25 12:03:14.116 30696 30741 I libprocessgroup: Successfully killed process cgroup uid 10196 pid 14599 in 0ms",
+      "11-25 12:03:17.016  5542  5542 I lmkd    : check camkillboostmode : 2 , ionheap: 139455, pid : 14627, index : 3 , camprocall/provider/server size : (47544, -1, -1), available : 287505, heap_pool : 6126, kreclaimable : 25157, init_cam : 0",
+      "11-25 12:03:17.016  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:03:17.093 30696 31020 I ChimeraAggressivePolicyHandler: executePolicy() - triggerSource: TRIGGER_SOURCE_LMKD",
+      "11-25 12:03:17.383  5542  5542 I lmkd    : check camkillboostmode : 3 , ionheap: 73961, pid : 14627, index : 3 , camprocall/provider/server size : (48058, -1, -1), available : 352889, heap_pool : 70860, kreclaimable : 89853, init_cam : 0",
+      "11-25 12:03:17.383  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:03:18.452  5542  5542 I lmkd    : check camkillboostmode : 0 , ionheap: 73153, pid : 14627, index : 3 , camprocall/provider/server size : (45106, -1, -1), available : 356034, heap_pool : 72428, kreclaimable : 91463, init_cam : 0",
+      "11-25 12:03:18.452  5542  5542 I lmkd    : check CAMERA OPEN -138364, memlimit: 111288, other_free: 132118, saved_ion_idle_camera: 63744, cameraprocsize: 45106, kgsl: 0, vmallocapi: 36068, diff_available: -52041 ",
+      "11-25 12:03:18.452  5542  5542 I lmkd    : check finished camerakillboostmode",
+      "11-25 12:03:18.740  5542  5542 I lmkd    : check camkillboostmode : 11 , ionheap: 101149, pid : 14627, index : 3 , camprocall/provider/server size : (44758, -1, -1), available : 312306, heap_pool : 42497, kreclaimable : 62398, init_cam : 0",
+      "11-25 12:03:18.740  5542  5542 I lmkd    : check finished camerakillboostmode"
+    ]
+  },
+  "errores": [],
+  "fotos": [
+    {
+      "archivo": "20261123_201944.jpg",
+      "error": null,
+      "bootMs": 10467,
+      "msHost": 8224,
+      "W": 1506,
+      "H": 2008,
+      "corners": [
+        0.02666666731238365,
+        0.09000000357627869,
+        0.8966666460037231,
+        0.08250000327825546,
+        0.95333331823349,
+        0.949999988079071,
+        0.009999999776482582,
+        0.9700000286102295
+      ],
+      "areaPct": 79.2,
+      "w": 1421,
+      "h": 1767,
+      "mime": "image/png",
+      "pngBytes": 105595,
+      "dataUrlLen": 140818,
+      "marcas": {
+        "fetch": 537,
+        "decode": 104,
+        "mini": 50,
+        "detect": 481,
+        "warp": 2674,
+        "enhanceBw": 4308,
+        "dataUrl": 42,
+        "total": 8198
+      },
+      "ipc": [
+        {
+          "tipo": "detect",
+          "tEnvio": 14289.325000047684,
+          "tRecv": 14769.695000052452,
+          "workerMs": null,
+          "memoriaWorker": null,
+          "respuesta": "result"
+        },
+        {
+          "tipo": "warp",
+          "tEnvio": 14770.06500005722,
+          "tRecv": 17443.6550000906,
+          "workerMs": null,
+          "memoriaWorker": null,
+          "respuesta": "warped"
+        },
+        {
+          "tipo": "enhance",
+          "tEnvio": 17443.805000066757,
+          "tRecv": 21752.0300000906,
+          "workerMs": 4186.5199999809265,
+          "memoriaWorker": {
+            "jsHeapBytes": null,
+            "wasmBytes": null
+          },
+          "respuesta": "enhanced"
+        }
+      ],
+      "memoriaPagina": null,
+      "basePag": null,
+      "muestrasDispositivo": [],
+      "meminfo": null,
+      "cooldown": null
+    }
+  ]
+}

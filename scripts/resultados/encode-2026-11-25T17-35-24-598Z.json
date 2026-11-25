@@ -1,0 +1,157 @@
+{
+  "foto": "20261123_201944.jpg",
+  "reps": 2,
+  "medidoEn": "2026-11-25T17:35:24.598Z",
+  "lados": [
+    {
+      "lado": 4032,
+      "w": 3024,
+      "h": 4032,
+      "getImageDataMs": 200,
+      "pngMs": 14414,
+      "pngBytes": 556124,
+      "webpMs": 6228,
+      "webpBytes": 397034,
+      "jpegMs": 14967,
+      "jpegBytes": 853175,
+      "corridas": [
+        {
+          "getImageData": {
+            "ms": 200,
+            "bytes": null
+          },
+          "png": {
+            "ms": 14140,
+            "bytes": 556124
+          },
+          "webp": {
+            "ms": 6228,
+            "bytes": 397034
+          },
+          "jpeg": {
+            "ms": 14967,
+            "bytes": 853175
+          }
+        },
+        {
+          "getImageData": {
+            "ms": 180,
+            "bytes": null
+          },
+          "png": {
+            "ms": 14414,
+            "bytes": 556124
+          },
+          "webp": {
+            "ms": 5762,
+            "bytes": 397034
+          },
+          "jpeg": {
+            "ms": 14539,
+            "bytes": 853175
+          }
+        }
+      ]
+    },
+    {
+      "lado": 3000,
+      "w": 2250,
+      "h": 3000,
+      "getImageDataMs": 103,
+      "pngMs": 14152,
+      "pngBytes": 354571,
+      "webpMs": 3301,
+      "webpBytes": 258018,
+      "jpegMs": 14507,
+      "jpegBytes": 526205,
+      "corridas": [
+        {
+          "getImageData": {
+            "ms": 102,
+            "bytes": null
+          },
+          "png": {
+            "ms": 14152,
+            "bytes": 354571
+          },
+          "webp": {
+            "ms": 3210,
+            "bytes": 258018
+          },
+          "jpeg": {
+            "ms": 13747,
+            "bytes": 526205
+          }
+        },
+        {
+          "getImageData": {
+            "ms": 103,
+            "bytes": null
+          },
+          "png": {
+            "ms": 4998,
+            "bytes": 354571
+          },
+          "webp": {
+            "ms": 3301,
+            "bytes": 258018
+          },
+          "jpeg": {
+            "ms": 14507,
+            "bytes": 526205
+          }
+        }
+      ]
+    },
+    {
+      "lado": 2400,
+      "w": 1800,
+      "h": 2400,
+      "getImageDataMs": 68,
+      "pngMs": 13440,
+      "pngBytes": 243907,
+      "webpMs": 2384,
+      "webpBytes": 184512,
+      "jpegMs": 13924,
+      "jpegBytes": 362928,
+      "corridas": [
+        {
+          "getImageData": {
+            "ms": 65,
+            "bytes": null
+          },
+          "png": {
+            "ms": 13440,
+            "bytes": 243907
+          },
+          "webp": {
+            "ms": 2380,
+            "bytes": 184512
+          },
+          "jpeg": {
+            "ms": 13771,
+            "bytes": 362928
+          }
+        },
+        {
+          "getImageData": {
+            "ms": 68,
+            "bytes": null
+          },
+          "png": {
+            "ms": 13179,
+            "bytes": 243907
+          },
+          "webp": {
+            "ms": 2384,
+            "bytes": 184512
+          },
+          "jpeg": {
+            "ms": 13924,
+            "bytes": 362928
+          }
+        }
+      ]
+    }
+  ]
+}

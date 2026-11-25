@@ -1,0 +1,27 @@
+{
+  "foto": "20261123_201944.jpg",
+  "medidoEn": "2026-11-25T17:58:58.728Z",
+  "png": {
+    "enhanceHostMs": 4445,
+    "workerMs": 4407.634999990463,
+    "mime": "image/png",
+    "bytes": 105595,
+    "w": 1421,
+    "h": 1767,
+    "hostFile": "C:\\Users\\JG\\Documents\\PROYECTOS\\molde-suite\\scripts\\resultados\\webp-ab-png-20261123_201944.png",
+    "telefono": "/sdcard/Pictures/Tamiz/PNG-A13.png"
+  },
+  "webp": {
+    "enhanceHostMs": 4580,
+    "workerMs": 4564.5599999427795,
+    "mime": "image/png",
+    "bytes": 69844,
+    "w": 1421,
+    "h": 1767,
+    "hostFile": "C:\\Users\\JG\\Documents\\PROYECTOS\\molde-suite\\scripts\\resultados\\webp-ab-webp-20261123_201944.webp",
+    "telefono": "/sdcard/Pictures/Tamiz/WEBP-A13.webp"
+  },
+  "deltaMs": -135,
+  "factor": 0.97,
+  "deltaBytes": -35751
+}

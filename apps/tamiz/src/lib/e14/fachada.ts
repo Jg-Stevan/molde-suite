@@ -6,11 +6,11 @@ import type { ClasificacionE14, DivipolRef } from '@molde-suite/scanner-core/dom
 import type { Quad } from '@molde-suite/scanner-core/core/types';
 import { defaultQuad } from '@molde-suite/scanner-core/core/types';
 import {
-  detectDocumentEdgesDetail,
   ErrorRescateHeic,
   fileToCaptureDataUrl,
   jpegDimensionsFromBlob,
 } from '@molde-suite/scanner-core/core/image-processor';
+import { detectarQuadDeFoto } from './bridge/deteccion-quad';
 import { getBridge } from './get-bridge';
 import { esperarWorkerCaliente } from './bridge/captura';
 
@@ -31,9 +31,11 @@ export function loadImage(dataUrl: string): Promise<HTMLImageElement> {
 
 export { ErrorRescateHeic, fileToCaptureDataUrl, jpegDimensionsFromBlob };
 
-/** detectDocumentEdges (contrato upstream): quad del detector sobre la foto. */
+/** detectDocumentEdges (contrato upstream): quad del detector sobre la foto.
+ *  Usa el MISMO detector del visor en vivo (worker OpenCV); la heurística
+ *  Sobel del core queda solo como respaldo si el worker no está. */
 export function detectDocumentEdges(foto: string): Promise<Quad> {
-  return detectDocumentEdgesDetail(foto).then((d) => d.quad);
+  return detectarQuadDeFoto(foto).then((d) => d.quad);
 }
 
 /** Precalienta el motor de procesado (warm-up del canvas/worker). */

@@ -9,7 +9,7 @@ import type { ClasificacionE14 } from '@molde-suite/scanner-core/dominio/clasifi
 import { getBridge } from '../get-bridge';
 import { rotarDataUrl90 } from '@molde-suite/scanner-core/core/canvas-imagen';
 import { IMAGENES_SIMULADAS, type ImagenSimuladaId } from '../simulacion-imagenes';
-import { TEXTO_MOTIVO, type AvisoOperador, type MotivoOperador } from '../errores';
+import { TEXTO_MOTIVO, esFalloMemoriaMotor, type AvisoOperador, type MotivoOperador } from '../errores';
 import { logger } from '../../logger';
 import { crearNavegacion } from './navegacion';
 import { crearEnvio } from './envio';
@@ -125,30 +125,56 @@ function crearCaptura(
         avisoVisor: null,
       });
       const bridge = getBridge();
+      const opciones: Parameters<typeof bridge.escanearActa>[0] = {
+        archivo: archivo ?? undefined,
+        fuente,
+        frameActual: frame,
+        intento: intentoArg ?? 1,
+        maxIntentos: 3,
+        objetivo: get().paginaObjetivo,
+        imagenSimulada: sim?.imagenSimulada,
+        onProgreso: (p: ProgresoAnalisis) => set({ progresoAnalisis: p }),
+      };
       try {
-        const acta = await bridge.escanearActa({
-          archivo: archivo ?? undefined,
-          fuente,
-          frameActual: frame,
-          intento: intentoArg ?? 1,
-          maxIntentos: 3,
-          objetivo: get().paginaObjetivo,
-          imagenSimulada: sim?.imagenSimulada,
-          onProgreso: (p: ProgresoAnalisis) => set({ progresoAnalisis: p }),
-        });
+        // A4 (remediación móvil): el fallo de sesión del motor OCR (familia
+        // bad_alloc de ONNX Runtime) reinicia el runtime REAL y reintenta UNA
+        // vez; si vuelve a fallar, el catch externo monta MEMORIA_AGOTADA
+        // (nunca una cadena de reintentos condenados).
+        const acta = await (async (): Promise<Acta> => {
+          try {
+            return await bridge.escanearActa(opciones);
+          } catch (errPrimero) {
+            if (!esFalloMemoriaMotor(errPrimero)) throw errPrimero;
+            logger.error('[e14] sesión OCR caída (familia bad_alloc) — reinicio real del motor + 1 reintento', {
+              mensaje: errPrimero instanceof Error ? errPrimero.message : String(errPrimero),
+            });
+            try {
+              const { rapidOcrReiniciar } = await import('@molde-suite/scanner-core/ocr/rapidocr');
+              await rapidOcrReiniciar();
+            } catch {
+              /* el reinicio es best-effort — el reintento decide */
+            }
+            // Desarmar la auto-captura hasta interacción del operador (fin del
+            // bucle condenado). La bandera es persistente en la jornada.
+            set({ autoCapturaDesarmada: true });
+            return await bridge.escanearActa(opciones);
+          }
+        })();
         set({ actaActual: acta, analisisResuelto: true, archivoPendiente: null, framePendiente: null });
       } catch (e) {
         logger.warn('[store] escaneo falló', { mensaje: (e as Error).message });
         // El decode clasifica la causa: HEIC (iPhone) merece SU aviso, no el
-        // genérico ESCANEO_FALLIDO (upstream: guard HEIC_NO_SOPORTADO).
+        // genérico ESCANEO_FALLIDO (upstream: guard HEIC_NO_SOPORTADO); el
+        // motor sin memoria exige RECARGAR, no otro reintento.
         const esHeic = e instanceof ErrorRescateHeic;
+        const esMemoria = esFalloMemoriaMotor(e);
         set({
           actaActual: null,
           analisisResuelto: true,
           avisoVisor: {
             tipo: 'error',
-            motivo: esHeic ? 'HEIC_NO_SOPORTADO' : 'ESCANEO_FALLIDO',
-            accion: esHeic ? 'entendido' : 'reintentar',
+            motivo: esMemoria ? 'MEMORIA_AGOTADA' : esHeic ? 'HEIC_NO_SOPORTADO' : 'ESCANEO_FALLIDO',
+            accion: esMemoria ? 'recargar' : esHeic ? 'entendido' : 'reintentar',
           },
         });
       } finally {

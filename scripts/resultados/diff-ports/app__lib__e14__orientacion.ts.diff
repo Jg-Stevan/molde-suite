@@ -1,0 +1,20 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:46.003316400 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:46.003316400 -0500
+@@ -1,8 +1,6 @@
+-/**
+- * FASE 2 (mapa v2.3) — WRAPPER: el probe vive en el paquete (geom/);
+- * aquí se inyecta lo adaptativo de digielect14 (§3.1/D3).
+- */
+-import { configurarPlan } from "@jg-stevan/scanner-core/dominio/plan";
++/** D3 — WRAPPER: el probe vive en el paquete (geom/); aquí se inyecta lo
++ *  adaptativo de Tamiz (§3.1/D3). Universal: sin lógica electoral. */
++import { configurarPlan } from "@molde-suite/scanner-core/dominio/plan";
+ import { presupuestoProbeOrientacionEfectivo } from "./adaptacion/plan";
+ import { leerFlags } from "./flags";
+ 
+@@ -11,4 +9,4 @@
+   ladoMiniProbe: () => leerFlags().probeMiniLado,
+ });
+ 
+-export * from "@jg-stevan/scanner-core/geom/orientacion";
++export * from "@molde-suite/scanner-core/geom/orientacion";

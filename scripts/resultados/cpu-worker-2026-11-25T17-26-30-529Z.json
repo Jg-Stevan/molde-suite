@@ -1,0 +1,455 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "intervaloUs": 250,
+  "medidoEn": "2026-11-25T17:26:30.532Z",
+  "fotos": [
+    {
+      "archivo": "20261123_201944.jpg",
+      "msHost": 10558,
+      "marcas": {
+        "fetch": 110,
+        "decode": 173,
+        "detect": 385,
+        "warp": 3843,
+        "enhanceBw": 5793,
+        "total": 10356
+      },
+      "ipc": [
+        {
+          "tipo": "detect",
+          "tEnvio": 12038.170000076294,
+          "tRecv": 12422.519999980927,
+          "workerMs": null
+        },
+        {
+          "tipo": "warp",
+          "tEnvio": 12422.889999985695,
+          "tRecv": 16265.759999990463,
+          "workerMs": null
+        },
+        {
+          "tipo": "enhance",
+          "tEnvio": 16265.930000066757,
+          "tRecv": 22058.860000014305,
+          "workerMs": 5761.594999909401
+        }
+      ],
+      "pngBytes": 105595,
+      "w": 1421,
+      "h": 1767,
+      "workerMsBw": 5761.594999909401,
+      "cpu": {
+        "totalMs": 11045,
+        "wasmMs": 5747.7,
+        "jsMs": 5298,
+        "wasmPct": 0.1,
+        "top": [
+          {
+            "funcion": "handleWarp",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 1755,
+            "selfMs": 1495.5,
+            "pct": 13.5,
+            "wasm": false,
+            "hits": 2028
+          },
+          {
+            "funcion": "wasm-function[4303]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 1427,
+            "pct": 12.9,
+            "wasm": true,
+            "hits": 1285
+          },
+          {
+            "funcion": "wasm-function[4778]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 1299.2,
+            "pct": 11.8,
+            "wasm": true,
+            "hits": 1554
+          },
+          {
+            "funcion": "wasm-function[4770]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 1181,
+            "pct": 10.7,
+            "wasm": true,
+            "hits": 1460
+          },
+          {
+            "funcion": "(idle)",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 979.3,
+            "pct": 8.9,
+            "wasm": false,
+            "hits": 298
+          },
+          {
+            "funcion": "wasm-function[1670]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 553.7,
+            "pct": 5,
+            "wasm": true,
+            "hits": 572
+          },
+          {
+            "funcion": "slidingMinMax1D",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 808,
+            "selfMs": 481.7,
+            "pct": 4.4,
+            "wasm": false,
+            "hits": 539
+          },
+          {
+            "funcion": "wasm-function[4343]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 399.2,
+            "pct": 3.6,
+            "wasm": true,
+            "hits": 377
+          },
+          {
+            "funcion": "morphClose",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 829,
+            "selfMs": 372.6,
+            "pct": 3.4,
+            "wasm": false,
+            "hits": 427
+          },
+          {
+            "funcion": "correctedGrayWithModel",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 893,
+            "selfMs": 236.9,
+            "pct": 2.1,
+            "wasm": false,
+            "hits": 312
+          },
+          {
+            "funcion": "handleEnhance",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 1851,
+            "selfMs": 227.1,
+            "pct": 2.1,
+            "wasm": false,
+            "hits": 325
+          },
+          {
+            "funcion": "bradleyRoth",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 488,
+            "selfMs": 218,
+            "pct": 2,
+            "wasm": false,
+            "hits": 132
+          },
+          {
+            "funcion": "wasm-function[13368]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 217.6,
+            "pct": 2,
+            "wasm": true,
+            "hits": 213
+          },
+          {
+            "funcion": "despeckleBinary",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 545,
+            "selfMs": 185.1,
+            "pct": 1.7,
+            "wasm": false,
+            "hits": 239
+          },
+          {
+            "funcion": "(garbage collector)",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 176,
+            "pct": 1.6,
+            "wasm": false,
+            "hits": 90
+          },
+          {
+            "funcion": "integralImage",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 451,
+            "selfMs": 123.7,
+            "pct": 1.1,
+            "wasm": false,
+            "hits": 132
+          },
+          {
+            "funcion": "grayToRgba",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 761,
+            "selfMs": 105.3,
+            "pct": 1,
+            "wasm": false,
+            "hits": 157
+          },
+          {
+            "funcion": "self.onmessage",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 1696,
+            "selfMs": 102.2,
+            "pct": 0.9,
+            "wasm": false,
+            "hits": 118
+          },
+          {
+            "funcion": "matDataRGBA",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 1605,
+            "selfMs": 92.7,
+            "pct": 0.8,
+            "wasm": false,
+            "hits": 101
+          },
+          {
+            "funcion": "wasm-function[13356]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 89.5,
+            "pct": 0.8,
+            "wasm": true,
+            "hits": 77
+          }
+        ]
+      }
+    },
+    {
+      "archivo": "20261123_223112.jpg",
+      "msHost": 8587,
+      "marcas": {
+        "fetch": 108,
+        "decode": 128,
+        "detect": 307,
+        "warp": 2692,
+        "enhanceBw": 5080,
+        "total": 8368
+      },
+      "ipc": [
+        {
+          "tipo": "detect",
+          "tEnvio": 22746.455000042915,
+          "tRecv": 23052.66000008583,
+          "workerMs": null
+        },
+        {
+          "tipo": "warp",
+          "tEnvio": 23052.820000052452,
+          "tRecv": 25745.18500006199,
+          "workerMs": null
+        },
+        {
+          "tipo": "enhance",
+          "tEnvio": 25745.295000076294,
+          "tRecv": 30825.675000071526,
+          "workerMs": 5052.985000014305
+        }
+      ],
+      "pngBytes": 120185,
+      "w": 1770,
+      "h": 1375,
+      "workerMsBw": 5052.985000014305,
+      "cpu": {
+        "totalMs": 8585.9,
+        "wasmMs": 4953.7,
+        "jsMs": 3633.6,
+        "wasmPct": 0.1,
+        "top": [
+          {
+            "funcion": "wasm-function[4778]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 1392.1,
+            "pct": 16.2,
+            "wasm": true,
+            "hits": 2387
+          },
+          {
+            "funcion": "wasm-function[4303]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 1268.6,
+            "pct": 14.8,
+            "wasm": true,
+            "hits": 2178
+          },
+          {
+            "funcion": "wasm-function[4770]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 1157.9,
+            "pct": 13.5,
+            "wasm": true,
+            "hits": 1971
+          },
+          {
+            "funcion": "getImageData",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 833.8,
+            "pct": 9.7,
+            "wasm": false,
+            "hits": 1426
+          },
+          {
+            "funcion": "(idle)",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 541.5,
+            "pct": 6.3,
+            "wasm": false,
+            "hits": 426
+          },
+          {
+            "funcion": "wasm-function[1670]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 466.2,
+            "pct": 5.4,
+            "wasm": true,
+            "hits": 870
+          },
+          {
+            "funcion": "slidingMinMax1D",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 808,
+            "selfMs": 440.6,
+            "pct": 5.1,
+            "wasm": false,
+            "hits": 600
+          },
+          {
+            "funcion": "morphClose",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 829,
+            "selfMs": 297,
+            "pct": 3.5,
+            "wasm": false,
+            "hits": 490
+          },
+          {
+            "funcion": "wasm-function[4343]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 253.3,
+            "pct": 3,
+            "wasm": true,
+            "hits": 480
+          },
+          {
+            "funcion": "correctedGrayWithModel",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 893,
+            "selfMs": 230.3,
+            "pct": 2.7,
+            "wasm": false,
+            "hits": 327
+          },
+          {
+            "funcion": "bradleyRoth",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 488,
+            "selfMs": 190.1,
+            "pct": 2.2,
+            "wasm": false,
+            "hits": 286
+          },
+          {
+            "funcion": "integralImage",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 451,
+            "selfMs": 138.5,
+            "pct": 1.6,
+            "wasm": false,
+            "hits": 134
+          },
+          {
+            "funcion": "despeckleBinary",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 545,
+            "selfMs": 137.5,
+            "pct": 1.6,
+            "wasm": false,
+            "hits": 202
+          },
+          {
+            "funcion": "convertToBlob",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 109.7,
+            "pct": 1.3,
+            "wasm": false,
+            "hits": 225
+          },
+          {
+            "funcion": "matDataRGBA",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 1605,
+            "selfMs": 70.4,
+            "pct": 0.8,
+            "wasm": false,
+            "hits": 118
+          },
+          {
+            "funcion": "matDataRGBA",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 1605,
+            "selfMs": 67,
+            "pct": 0.8,
+            "wasm": false,
+            "hits": 58
+          },
+          {
+            "funcion": "grayToRgba",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 761,
+            "selfMs": 65.8,
+            "pct": 0.8,
+            "wasm": false,
+            "hits": 120
+          },
+          {
+            "funcion": "getImageData",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 62.3,
+            "pct": 0.7,
+            "wasm": false,
+            "hits": 113
+          },
+          {
+            "funcion": "rgbaToGray",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 751,
+            "selfMs": 56.5,
+            "pct": 0.7,
+            "wasm": false,
+            "hits": 65
+          },
+          {
+            "funcion": "estimateShadowModel",
+            "archivo": "detection-worker.js?cpu=1",
+            "linea": 864,
+            "selfMs": 46.1,
+            "pct": 0.5,
+            "wasm": false,
+            "hits": 33
+          }
+        ]
+      }
+    }
+  ]
+}

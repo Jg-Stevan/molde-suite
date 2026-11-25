@@ -1,0 +1,49 @@
+{
+  "fotos": [
+    {
+      "foto": "recibo-tachado.png",
+      "segundos": 20,
+      "veredicto": "RECHAZADA",
+      "imagenMostrada": {
+        "nw": 1700,
+        "nh": 1519,
+        "cssW": 388,
+        "src": "data:image/png;base64,iVBORw0K"
+      },
+      "vista": {
+        "nw": 1700,
+        "nh": 1519,
+        "cssW": 388,
+        "src": "data:image/png;base64,iVBORw0K",
+        "captura": "a56-app-vista-recibo-tachado-1795629425493.png"
+      },
+      "capturas": [
+        "a56-app-vista-recibo-tachado-1795629425493.png",
+        "a56-app-veredicto-recibo-tachado-1795629429189.png"
+      ]
+    },
+    {
+      "foto": "reales/20261123_201944.jpg",
+      "segundos": 27,
+      "veredicto": "RECHAZADA",
+      "imagenMostrada": {
+        "nw": 1506,
+        "nh": 2008,
+        "cssW": 338,
+        "src": "data:image/jpeg;base64,/9j/4QE"
+      },
+      "vista": {
+        "nw": 1506,
+        "nh": 2008,
+        "cssW": 338,
+        "src": "data:image/jpeg;base64,/9j/4QE",
+        "captura": "a56-app-vista-20261123_201944-1795629456610.png"
+      },
+      "capturas": [
+        "a56-app-vista-20261123_201944-1795629456610.png",
+        "a56-app-veredicto-20261123_201944-1795629459853.png"
+      ]
+    }
+  ],
+  "medidoEn": "2026-11-25T17:57:40.882Z"
+}

@@ -1,0 +1,49 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "intervaloUs": 250,
+  "medidoEn": "2026-11-25T17:24:51.940Z",
+  "fotos": [
+    {
+      "archivo": "20261123_201944.jpg",
+      "msHost": 795,
+      "cpu": {
+        "totalMs": 1501.9,
+        "wasmMs": 0,
+        "jsMs": 1501.9,
+        "wasmPct": 0,
+        "top": [
+          {
+            "funcion": "(idle)",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 1501.9,
+            "pct": 100,
+            "wasm": false,
+            "hits": 116
+          }
+        ]
+      }
+    },
+    {
+      "archivo": "20261123_223112.jpg",
+      "msHost": 475,
+      "cpu": {
+        "totalMs": 756.3,
+        "wasmMs": 0,
+        "jsMs": 756.3,
+        "wasmPct": 0,
+        "top": [
+          {
+            "funcion": "(idle)",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 756.3,
+            "pct": 100,
+            "wasm": false,
+            "hits": 73
+          }
+        ]
+      }
+    }
+  ]
+}
