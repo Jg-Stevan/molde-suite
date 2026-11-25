@@ -138,6 +138,59 @@ const ESTADO_ESTRUCTURA_TONO: Record<
 /** Tope de rects del overlay (señal visual, no auditoría — memoria/DOM). */
 const MAX_CAJAS_OVERLAY = 20;
 
+/* Overlay por campo: azul=ancla, verde=ok, rojo=faltante, ámbar=revisión. */
+const TONO_CAMPO: Record<"ok" | "revision" | "faltante" | "ancla", string> = {
+  ok: "#10b981",
+  revision: "#f59e0b",
+  faltante: "#ef4444",
+  ancla: "#3b82f6",
+};
+
+type CajaCampo = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  clase: "ok" | "revision" | "faltante" | "ancla";
+  etiqueta: string;
+  /** Palabra pintada sobre la foto (pedido del mantenedor 2026-11-25c):
+   *  ancla → la etiqueta del campo («Fecha» en azul); valor → el texto
+   *  reconocido (o la etiqueta si no hay texto, p. ej. firmas). */
+  palabra: string;
+};
+
+/** Palabras del overlay por campo (%). Lo usan la tarjeta y el visor
+ *  ampliado: mismo contrato de coordenadas normalizadas sobre la foto
+ *  PROCESADA. Sin rectángulos: solo la palabra, con fondo oscuro tenue para
+ *  leerse sobre papel blanco y sobre la binarizada. */
+function CajasCampos({ cajas }: { cajas: CajaCampo[] }) {
+  return cajas.map((c, i) => {
+    const tono = TONO_CAMPO[c.clase];
+    const esAncla = c.clase === "ancla";
+    return (
+      <span
+        key={`campo-${i}`}
+        aria-hidden
+        data-testid="campo-palabra"
+        className="absolute max-w-[70%] overflow-hidden text-ellipsis whitespace-nowrap rounded-[3px] px-1 py-[1px] font-mono text-[9px] font-bold leading-tight"
+        style={{
+          left: `${c.x * 100}%`,
+          top: `${c.y * 100}%`,
+          // La etiqueta del ancla se eleva SOBRE su línea para no chocar con
+          // la palabra del valor (que nace en el mismo renglón).
+          transform: esAncla ? "translateY(-100%)" : undefined,
+          zIndex: esAncla ? 2 : 3,
+          color: tono,
+          backgroundColor: "rgba(2,6,12,0.78)",
+          border: `1px solid ${tono}`,
+        }}
+      >
+        {c.palabra}
+      </span>
+    );
+  });
+}
+
 function TarjetaEstructura({ estructura }: { estructura: EstructuraActaVista }) {
   const nOk = estructura.reglas.filter((r) => r.estado === "ok").length;
   const nProblemas = estructura.reglas.length - nOk;
@@ -218,6 +271,10 @@ export function ReviewView() {
   // Mantenedor 2026-11-22: el ojo de ZONAS arranca APAGADO (no se muestran
   // las cajas) y se resetea al cambiar de acta.
   const [zonasVisibles, setZonasVisibles] = useState(false);
+  // Overlay de verificación por campo: azul = ancla encontrada, verde = valor
+  // reconocido (ok), rojo = no reconocido / firma faltante. Default ON: es la
+  // señal que le dice al operador QUÉ vio el motor y DÓNDE.
+  const [camposVisibles, setCamposVisibles] = useState(true);
   // G4 (KIT camara-visor-v1): mismo patrón de feedback — 1.5 s en el botón
   // «Imagen» («DESCARGADA ✓» / «NO SE PUDO»), sin toast flotante.
   const [imagenDesc, setImagenDesc] = useState<"ok" | "err" | null>(null);
@@ -252,6 +309,37 @@ export function ReviewView() {
   useEffect(() => {
     setZonasVisibles(false);
   }, [acta?.id]);
+  useEffect(() => {
+    setCamposVisibles(true);
+  }, [acta?.id]);
+
+  // Palabras del overlay por campo (sobre la foto PROCESADA, coordenadas 0-1):
+  // una palabra de VALOR por cada campo con rect + una palabra de ANCLA azul
+  // donde el OCR halló la etiqueta. `requiere_revision` y `no_encontrado` van
+  // en rojo (no es un reconocimiento confiable); `ok` en verde.
+  const cajasCampos = useMemo<CajaCampo[]>(() => {
+    const campos = acta?.evaluacionMolde?.campos ?? [];
+    const recorte = (s: string) => (s.length > 28 ? `${s.slice(0, 27)}…` : s);
+    const out: CajaCampo[] = [];
+    for (const c of campos) {
+      if (c.rect) {
+        const texto =
+          typeof c.valor === "string" && c.valor.trim() && c.tipo !== "firma" && c.tipo !== "checkbox"
+            ? c.valor.trim()
+            : c.etiqueta;
+        out.push({
+          ...c.rect,
+          clase: c.estado === "ok" ? "ok" : c.estado === "requiere_revision" ? "revision" : "faltante",
+          etiqueta: c.etiqueta,
+          palabra: recorte(texto),
+        });
+      }
+      if (c.ancla_rect) {
+        out.push({ ...c.ancla_rect, clase: "ancla", etiqueta: c.etiqueta, palabra: recorte(c.etiqueta) });
+      }
+    }
+    return out.slice(0, MAX_CAJAS_OVERLAY * 2);
+  }, [acta?.evaluacionMolde?.campos]);
 
   // L5: Esc cierra el visor (el cierre por toque lo resuelve el
   // ZoomableVisor dentro del modal — ver §4 del sync-visor).
@@ -360,7 +448,14 @@ export function ReviewView() {
   // cambia.
   const esRechazo = status === "RECHAZADA";
   const fotoSinTinta = !acta.fotoProcesada || acta.procesadaVacia === true;
-  const mostrarCruda = Boolean(acta.fotoOriginal) && (esRechazo || fotoSinTinta);
+  // Overlay de CAMPOS (mantenedor 2026-11-25b): sus rects están medidos sobre
+  // la foto PROCESADA (filtro BW/binarizada). Para poder pintarlos en la
+  // imagen hay que mostrar ESA foto — también cuando el acta salió RECHAZADA
+  // por el veredicto del molde: la cruda tiene otra geometría (sin recorte) y
+  // verificaría una posición falsa. La cruda solo manda sin overlay que pintar.
+  const hayCamposOverlay = cajasCampos.length > 0 && !fotoSinTinta;
+  const mostrarCruda =
+    Boolean(acta.fotoOriginal) && (esRechazo || fotoSinTinta) && !hayCamposOverlay;
   const fotoVisible = mostrarCruda ? acta.fotoOriginal : acta.fotoProcesada;
   const mostrandoOriginal = mostrarCruda;
   // §D8.4/AC4/AC14 (SPEC-e14-score-ocr Rev. 3) + SERIE 1 (sync-visor
@@ -386,6 +481,7 @@ export function ReviewView() {
   // estructural (alineación exacta con la foto PROCESADA; con la original
   // de respaldo las coordenadas no aplican → el ojo no se ofrece).
   const puedeVerZonas = cajasZonas.length > 0 && !mostrandoOriginal;
+  const puedeVerCampos = cajasCampos.length > 0 && !mostrandoOriginal;
   const contenidoFoto = fotoVisible ? (
     // P5 (plan PLAN-AJUSTES-VISUALES — adaptación E-14 del zip): SIN SCROLL,
     // todo cabe en pantalla. La FOTO DEL DOCUMENTO es el ÚNICO elemento
@@ -422,6 +518,34 @@ export function ReviewView() {
             </span>
           </button>
         )}
+        {puedeVerCampos && (
+          <button
+            type="button"
+            aria-pressed={camposVisibles}
+            aria-label={camposVisibles ? "Ocultar campos" : "Mostrar campos"}
+            title="Palabras: anclas (azul) · reconocidos (verde) · por confirmar (ámbar) · no leídos (rojo)"
+            data-testid="toggle-campos"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCamposVisibles((v) => !v);
+            }}
+            onKeyDown={(e) => e.stopPropagation()}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 transition-colors ${
+              camposVisibles
+                ? "border-sky-500/60 bg-sky-500/15 text-sky-300"
+                : "border-slate-700 bg-[#090d12] text-slate-300 hover:text-white"
+            }`}
+          >
+            <span aria-hidden className="inline-flex gap-0.5">
+              <span className="h-3 w-1 rounded-sm bg-[#3b82f6]" />
+              <span className="h-3 w-1 rounded-sm bg-[#10b981]" />
+              <span className="h-3 w-1 rounded-sm bg-[#ef4444]" />
+            </span>
+            <span className="font-mono text-[9px] font-bold uppercase tracking-wide">
+              Campos
+            </span>
+          </button>
+        )}
       </div>
       {/* Área del documento: foto ESCALADA (FitScale) + overlay de verificación */}
       <div className="relative flex-1 min-h-0 w-full mt-1.5" data-purpose="visor-documento">
@@ -454,6 +578,7 @@ export function ReviewView() {
                   />
                 );
               })}
+            {camposVisibles && puedeVerCampos && <CajasCampos cajas={cajasCampos} />}
           </div>
         </FitScale>
         {/* P4+P5 — VERIFICACIÓN DOCUMENTAL como OVERLAY sobre la imagen:
@@ -853,6 +978,14 @@ export function ReviewView() {
                 : undefined
             }
             onClose={() => setVisorAbierto(false)}
+            /* Overlay por campo también en pantalla completa: la capa vive
+               dentro del wrapper de zoom (escala/panea con la foto) y se
+               oculta sola al comparar el original. */
+            overlay={
+              camposVisibles && puedeVerCampos ? (
+                <CajasCampos cajas={cajasCampos} />
+              ) : undefined
+            }
           />
           <span className="pointer-events-none absolute top-3 inset-x-0 text-center font-mono text-[9px] tracking-[0.2em] text-gray-400 uppercase">
             Toca o ESC para cerrar

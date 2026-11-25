@@ -74,6 +74,9 @@ function filasDeCampos(molde: MoldeUniversal, resultado: ResultadoUniversal): Re
       valor: c.valor,
       conf: c.conf,
       rect: c.rect,
+      ancla_rect: c.ancla_rect ?? null,
+      fuente: c.fuente ?? null,
+      banderas: c.banderas ?? [],
       ...(def?.destacado ? { destacado: true } : {}),
       ...(def?.obligatorio ? { obligatorio: true } : {}),
       // FASE 4 (v3.2.0 — interfaz táctica): grupo/orden para la presentación

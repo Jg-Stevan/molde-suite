@@ -93,3 +93,18 @@ final se reajusta solo sobre votos soportados. Adopción `ok` además exige
 patrón + conf OCR ≥ 0.7 (votación 2/3), nunca geometría sola.
 
 **Lecciones:** recibo_pago/2026-11-25-arnes-loo-soporte.md
+
+## P7 — Overlay con coordenadas de OTRA foto (procesada vs cruda)
+
+**Síntomas:** las cajas/palabras del molde no aparecen o caen desplazadas; el
+acta está RECHAZADA y el visor muestra la foto CRUDA mientras los rects fueron
+normalizados sobre la PROCESADA (warp + filtro); al ampliar, el overlay
+desaparece porque el visor modal no acepta capa del consumidor.
+
+**Mitigación (Tamiz, 2026-11-25):** si hay rects que pintar
+(`evaluacionMolde.campos` con `rect`/`ancla_rect`), se fuerza la foto
+PROCESADA en pantalla; el visor gana la prop aditiva `overlay` montada DENTRO
+del wrapper de zoom, con la caja del `<img>` medida por `ResizeObserver`
+(escala/panea con la foto y se oculta al comparar el original).
+
+**Lecciones:** recibo_pago/2026-11-25-overlay-campos-escritorio.md
