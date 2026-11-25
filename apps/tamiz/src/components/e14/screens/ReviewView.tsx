@@ -156,15 +156,54 @@ type CajaCampo = {
   /** Palabra pintada sobre la foto: el texto reconocido (o la etiqueta si no
    *  hay texto, p. ej. firmas). */
   palabra: string;
+  /** Firma/manuscrito: se RESALTA la zona y el rótulo va DEBAJO (mantenedor
+   *  2026-11-25f). */
+  esFirma: boolean;
 };
 
 /** Palabras del overlay por campo (%). Lo usan la tarjeta y el visor
  *  ampliado: mismo contrato de coordenadas normalizadas sobre la foto
- *  PROCESADA. Sin rectángulos: solo la palabra, con fondo oscuro tenue para
- *  leerse sobre papel blanco y sobre la binarizada. */
+ *  PROCESADA. Los campos de texto muestran solo la palabra; las firmas
+ *  resaltan la rúbrica y rotulan debajo qué manuscrito es. */
 function CajasCampos({ cajas }: { cajas: CajaCampo[] }) {
   return cajas.map((c, i) => {
     const tono = TONO_CAMPO[c.clase];
+    if (c.esFirma) {
+      // Rótulo debajo de la banda; si la banda está pegada al pie, arriba.
+      const rotuloArriba = c.y + c.h > 0.93;
+      return (
+        <span
+          key={`campo-${i}`}
+          aria-hidden
+          data-testid="campo-firma"
+          className="absolute rounded-[4px]"
+          style={{
+            left: `${c.x * 100}%`,
+            top: `${c.y * 100}%`,
+            width: `${c.w * 100}%`,
+            height: `${c.h * 100}%`,
+            border: `2px solid ${tono}`,
+            backgroundColor: `${tono}26`,
+            boxShadow: `0 0 8px ${tono}73`,
+          }}
+        >
+          <span
+            data-testid="campo-firma-etiqueta"
+            className="absolute left-0 whitespace-nowrap rounded-[3px] px-1 py-[1px] font-mono text-[9px] font-bold leading-tight"
+            style={{
+              [rotuloArriba ? "bottom" : "top"]: "100%",
+              marginTop: rotuloArriba ? undefined : 2,
+              marginBottom: rotuloArriba ? 2 : undefined,
+              color: tono,
+              backgroundColor: "rgba(2,6,12,0.85)",
+              border: `1px solid ${tono}`,
+            }}
+          >
+            {c.palabra}
+          </span>
+        </span>
+      );
+    }
     return (
       <span
         key={`campo-${i}`}
@@ -326,6 +365,7 @@ export function ReviewView() {
         clase: c.estado === "ok" ? "ok" : c.estado === "requiere_revision" ? "revision" : "faltante",
         etiqueta: c.etiqueta,
         palabra: recorte(texto),
+        esFirma: c.tipo === "firma",
       });
     }
     return out.slice(0, MAX_CAJAS_OVERLAY);

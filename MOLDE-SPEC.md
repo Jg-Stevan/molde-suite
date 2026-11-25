@@ -69,8 +69,11 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
   ANCLA; `null` en `zona_fija`/`referencia`/`arnés`, donde no hubo hit real que
   señalar). La app Tamiz pinta sobre la foto procesada SOLO el valor
   reconocido como PALABRA coloreada (mantenedor 2026-11-25d): verde (`ok`),
-  ámbar (`requiere_revision`) o rojo (`no_encontrado`/firma faltante). Las
-  anclas NO se dibujan (queda `ancla_rect` como dato del contrato). También en
+  ámbar (`requiere_revision`) o rojo (`no_encontrado`/firma faltante). Los
+  campos `tipo: "firma"` (manuscritos) se RESALTAN como banda translúcida con
+  el rótulo de qué firma es DEBAJO de la banda (mantenedor 2026-11-25f; si la
+  banda toca el pie, el rótulo va arriba). Las anclas NO se dibujan (queda
+  `ancla_rect` como dato del contrato). También en
   el visor a pantalla completa: la capa vive dentro del wrapper de zoom y
   escala/panea con la foto (se oculta al comparar el original). Los rects son
   normalizados (0-1) sobre el canvas de la foto PROCESADA — el overlay solo
