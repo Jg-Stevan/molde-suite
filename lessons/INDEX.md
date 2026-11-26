@@ -214,17 +214,3 @@ con SHA-256 fijado; la verificación de navegador §7 ahora incluye un caso SIM
 solo-Rapid (detecta esta familia en 5 s).
 
 **Lecciones:** app_tamiz/2026-11-26-ppocr-keys-404.md
-
-## P13 — Corrupción de YAML que no rompe el parseo (triggers de CI muertos)
-
-**Patrón:** un literal `[main]` que pierde el `[ma` queda como `ain]` — YAML
-válido, workflow que nunca matchea la rama. El gate sigue corriendo en PRs
-(ese trigger no filtra rama) y el deploy manual enmascara el resto.
-
-**Síntomas:** cero runs de `deploy-pages.yml`/`quality.yml` en push a main;
-greps que muestran `branches: ain]`.
-
-**Mitigación (Agente A, 2026-11-26):** verificación de bytes con `od -c` al
-tocar workflows + push canario a main tras cada cambio de CI.
-
-**Lecciones:** app_tamiz/2026-11-26-workflow-trigger-corrupto.md
