@@ -37,6 +37,17 @@ export interface ItemChecklist {
   /** Texto mono del detalle (p. ej. «Margen inferior izquierdo: corte detectado»). */
   detalle: string | null;
   estado: EstadoChecklist;
+  /** §5 (plan cierre 2 agentes) — confianza de lectura 0-1 del motor
+   *  (null = el OCR no reportó). Presente SOLO en filas del motor universal;
+   *  el panel la muestra junto al valor («conf 87%»). */
+  conf?: number | null;
+  /** §5 — tipo del campo del molde (para el editor de valores). */
+  tipoCampo?: 'texto' | 'presencia' | 'firma' | 'checkbox';
+  /** §5 — el operador puede CORREGIR este valor desde el panel
+   *  (texto/checkbox; firma/presencia no — su evidencia es la tinta medida). */
+  editable?: boolean;
+  /** §5 — el valor fue corregido por el operador (marca EDITADO). */
+  editado?: boolean;
 }
 
 export interface GrupoChecklist {
