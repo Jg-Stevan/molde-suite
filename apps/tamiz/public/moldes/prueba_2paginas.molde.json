@@ -1,0 +1,35 @@
+{
+  "tipo": "universal",
+  "nombre": "Prueba dos páginas",
+  "version": "1.4.0",
+  "huella": {
+    "frasesClave": ["PRUEBA", "PAGINA UNO", "PAGINA DOS"],
+    "paginas": 2,
+    "franja": { "x": 0, "y": 0, "w": 1, "h": 0.5 },
+    "minFrases": 1
+  },
+  "campos": [
+    {
+      "id": "pag1_contenido",
+      "etiqueta": "Contenido página 1",
+      "pagina": 1,
+      "tipo": "presencia",
+      "estrategia": "zona_fija",
+      "zona": { "x": 0.1, "y": 0.1, "w": 0.8, "h": 0.8 },
+      "umbral": 0.002,
+      "obligatorio": true,
+      "nota": "Molde de PRUEBA multipágina: presencia de tinta en el centro de la página 1."
+    },
+    {
+      "id": "pag2_contenido",
+      "etiqueta": "Contenido página 2",
+      "pagina": 2,
+      "tipo": "presencia",
+      "estrategia": "zona_fija",
+      "zona": { "x": 0.1, "y": 0.1, "w": 0.8, "h": 0.8 },
+      "umbral": 0.002,
+      "obligatorio": true,
+      "nota": "Molde de PRUEBA multipágina: presencia de tinta en el centro de la página 2."
+    }
+  ]
+}

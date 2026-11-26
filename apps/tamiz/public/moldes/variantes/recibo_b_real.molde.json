@@ -1,0 +1,333 @@
+{
+  "tipo": "universal",
+  "version": "1.0.0",
+  "nombre": "Recibo de pago — B (todo a mano)",
+  "descripcion": "Variante B del papel real: formulario con líneas en blanco; TODOS los datos a mano (htr). Solo título y etiquetas son impresos. Calibrado sobre recibo-b-todo-mano-01.",
+  "documento": "generico/recibo_pago",
+  "idioma": "es",
+  "campos": [
+    {
+      "id": "titulo",
+      "etiqueta": "RECIBO DE PAGO",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.01,
+        "y": -0.006,
+        "w": 0.26,
+        "h": 0.028
+      },
+      "ancla": {
+        "texto": "RECIBO DE PAGO",
+        "rect": {
+          "x": 0.409,
+          "y": 0.088,
+          "w": 0.179,
+          "h": 0.012
+        }
+      },
+      "umbral": 0.02,
+      "patron": ".*RECIBO\\s+DE\\s+PAGO.*",
+      "obligatorio": true,
+      "realce": true
+    },
+    {
+      "id": "fecha_emision",
+      "etiqueta": "FECHA",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.05,
+        "y": -0.004,
+        "w": 0.3,
+        "h": 0.028
+      },
+      "ancla": {
+        "texto": "Fecha",
+        "rect": {
+          "x": 0.366,
+          "y": 0.144,
+          "w": 0.041,
+          "h": 0.02
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": false,
+      "realce": true
+    },
+    {
+      "id": "numero_recibo",
+      "etiqueta": "N.º RECIBO",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.078,
+        "y": -0.004,
+        "w": 0.17,
+        "h": 0.026
+      },
+      "ancla": {
+        "texto": "Recibo",
+        "rect": {
+          "x": 0.522,
+          "y": 0.179,
+          "w": 0.076,
+          "h": 0.012
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": false
+    },
+    {
+      "id": "datos_emisor",
+      "etiqueta": "DNI EMISOR",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.035,
+        "y": -0.006,
+        "w": 0.3,
+        "h": 0.022
+      },
+      "ancla": {
+        "texto": "con DNI",
+        "rect": {
+          "x": 0.443,
+          "y": 0.225,
+          "w": 0.063,
+          "h": 0.007
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": false
+    },
+    {
+      "id": "datos_pagador",
+      "etiqueta": "PAGADOR (nombre y DNI)",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.09,
+        "y": -0.004,
+        "w": 0.62,
+        "h": 0.032
+      },
+      "ancla": {
+        "texto": "Recibí de",
+        "rect": {
+          "x": 0.135,
+          "y": 0.281,
+          "w": 0.067,
+          "h": 0.01
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": true
+    },
+    {
+      "id": "importe",
+      "etiqueta": "IMPORTE (€)",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.108,
+        "y": -0.004,
+        "w": 0.12,
+        "h": 0.026
+      },
+      "ancla": {
+        "texto": "La suma de",
+        "rect": {
+          "x": 0.135,
+          "y": 0.343,
+          "w": 0.08,
+          "h": 0.01
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": true,
+      "destacado": true,
+      "realce": true
+    },
+    {
+      "id": "importe_texto",
+      "etiqueta": "IMPORTE EN LETRAS",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.24,
+        "y": -0.004,
+        "w": 0.52,
+        "h": 0.026
+      },
+      "ancla": {
+        "texto": "La suma de",
+        "rect": {
+          "x": 0.135,
+          "y": 0.343,
+          "w": 0.08,
+          "h": 0.01
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": false
+    },
+    {
+      "id": "concepto",
+      "etiqueta": "CONCEPTO",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.14,
+        "y": -0.004,
+        "w": 0.64,
+        "h": 0.032
+      },
+      "ancla": {
+        "texto": "En concepto de",
+        "rect": {
+          "x": 0.135,
+          "y": 0.373,
+          "w": 0.107,
+          "h": 0.01
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": true
+    },
+    {
+      "id": "forma_pago",
+      "etiqueta": "FORMA DE PAGO",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.14,
+        "y": -0.004,
+        "w": 0.62,
+        "h": 0.028
+      },
+      "ancla": {
+        "texto": "Forma de pago",
+        "rect": {
+          "x": 0.136,
+          "y": 0.751,
+          "w": 0.112,
+          "h": 0.013
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": false
+    },
+    {
+      "id": "fecha_pago",
+      "etiqueta": "FECHA DE PAGO",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.138,
+        "y": -0.004,
+        "w": 0.18,
+        "h": 0.026
+      },
+      "ancla": {
+        "texto": "Fecha de pago",
+        "rect": {
+          "x": 0.135,
+          "y": 0.78,
+          "w": 0.108,
+          "h": 0.012
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": false
+    },
+    {
+      "id": "firma_emisor",
+      "etiqueta": "Firma emisor",
+      "pagina": 1,
+      "tipo": "firma",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.168,
+        "y": -0.074,
+        "w": 0.34,
+        "h": 0.062
+      },
+      "ancla": {
+        "texto": "Firma",
+        "rect": {
+          "x": 0.288,
+          "y": 0.851,
+          "w": 0.047,
+          "h": 0.01
+        }
+      },
+      "umbral": 0.02,
+      "obligatorio": true
+    },
+    {
+      "id": "firma_pagador",
+      "etiqueta": "Firma pagador",
+      "pagina": 1,
+      "tipo": "firma",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.161,
+        "y": -0.074,
+        "w": 0.34,
+        "h": 0.062
+      },
+      "ancla": {
+        "texto": "Firma",
+        "rect": {
+          "x": 0.652,
+          "y": 0.861,
+          "w": 0.045,
+          "h": 0.01
+        }
+      },
+      "umbral": 0.02,
+      "obligatorio": true
+    }
+  ],
+  "huella": {
+    "frasesClave": [
+      "RECIBO DE PAGO",
+      "La suma de",
+      "En concepto de",
+      "Forma de pago"
+    ],
+    "paginas": 1,
+    "franja": {
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 0.85
+    },
+    "minFrases": 2
+  },
+  "meta": {
+    "orden": 11,
+    "estado": "activo",
+    "etiquetaCampos": "Campos mapeados"
+  }
+}

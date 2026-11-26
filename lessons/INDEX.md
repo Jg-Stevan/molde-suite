@@ -80,3 +80,120 @@ página; 5 campos del mismo bloque central con el mismo desplazamiento;
   (`validacion_no_evaluable` ≠ `validacion_fallida`).
 
 **Lecciones:** recibo_pago/2026-11-24-tachado-posicion-ancla.md
+
+## P6 — Confianza geométrica medida con residual de modelo exacto (F5)
+
+**Síntomas:** el arnés de proyección nunca dispara (`confProy` ≈ 0.3-0.4 pese a
+anclas coherentes), 0 campos con `fuente: 'arnes'`; con 3-4 anclas el residuo
+es 0 SIEMPRE (modelo exacto) y no discrimina un voto dellado de tres buenos.
+
+**Mitigación (ya en el motor, FASE 5):** confianza = fracción de votos
+soportados en leave-one-out (tolerancia `ARNES_VOTO_TOL` 0.02); el modelo
+final se reajusta solo sobre votos soportados. Adopción `ok` además exige
+patrón + conf OCR ≥ 0.7 (votación 2/3), nunca geometría sola.
+
+**Lecciones:** recibo_pago/2026-11-25-arnes-loo-soporte.md
+
+## P7 — Overlay con coordenadas de OTRA foto (procesada vs cruda)
+
+**Síntomas:** las cajas/palabras del molde no aparecen o caen desplazadas; el
+acta está RECHAZADA y el visor muestra la foto CRUDA mientras los rects fueron
+normalizados sobre la PROCESADA (warp + filtro); al ampliar, el overlay
+desaparece porque el visor modal no acepta capa del consumidor.
+
+**Mitigación (Tamiz, 2026-11-25):** si hay rects que pintar
+(`evaluacionMolde.campos` con `rect`/`ancla_rect`), se fuerza la foto
+PROCESADA en pantalla; el visor gana la prop aditiva `overlay` montada DENTRO
+del wrapper de zoom, con la caja del `<img>` medida por `ResizeObserver`
+(escala/panea con la foto y se oculta al comparar el original).
+
+**Lecciones:** recibo_pago/2026-11-25-overlay-campos-escritorio.md,
+recibo_pago/2026-11-25-firma-resaltada-rotulo.md
+
+## P8 — Ancla repetida (dos «Firma») rechazada por penalización posicional
+
+**Patrón:** etiquetas idénticas para campos distintos (firma emisor/pagador).
+En un canvas recortado verticalmente las dos etiquetas se desplazan (dy ≈
+0.27); el score posicional cae < 0.72 y el bypass `solo_textual` no aplica
+porque hay ≥2 matches perfectos → fallback a la banda de referencia, que en
+el recorte queda a media página.
+
+**Síntomas:** `firma_emisor`/`firma_pagador` con `fuente: 'referencia'` y rect
+y ≈ 0.548 (la banda del molde) mientras las palabras «Firma» impresas están
+al pie; el overlay pinta las etiquetas de firma a media página.
+
+**Mitigación (motor v1.4.1, 2026-11-25):** desambiguación por COLUMNA — con
+≥2 perfectos y score posicional bajo el corte, `ancla_solo_textual` se
+concede si exactamente un perfecto cae en la columna esperada (`|dx| ≤ 0.1`)
+y `|dy| ≤ 0.3`; unicidad juzgada por `dx` sobre todos los perfectos. El bypass
+en campos de tinta sigue demolido a `requiere_revision`
+(`ancla_sin_geometria`) — jamás un `ok` falso.
+
+**Lecciones:** recibo_pago/2026-11-25-firma-ancla-columna.md
+
+## P9 — Variantes del mismo papel impreso: empate de anclas y verde falso
+
+**Patrón:** varias «variantes» (A impreso / B en blanco / C mixto) del MISMO
+formulario impreso. Empatan en ratio de anclas y geometría → el router elige a
+ciegas la primera fila de la biblioteca. Y las zonas `htr` calibradas solo
+sobre la variante llena empiezan encima de la etiqueta impresa (`zona.x = 0`)
+→ miden tinta de la impresión → VERDE falso en el formulario en blanco.
+
+**Síntomas:** todas las fotos de una familia enrutan al mismo molde «vecino»;
+formulario en blanco con bandas verdes; scores repetidos entre fotos
+distintas (sonda leyendo el historial); overlay 0/0 en fotos giradas 90°
+(recorte sello).
+
+**Mitigaciones (2026-11-26):**
+- Un molde por familia con unión de `htr`/`obligatorio`; semáforo de
+  manuscritos por `tinta` medida (v1.5.1), nunca por lectura.
+- Calibración de zonas con NEGATIVO en blanco del mismo papel (ratio ≈ 0
+  requisito duro) + positivo con relleno; desplazamiento mínimo que cumple
+  ambos (`scripts/entrega/validar-moldes.ts` + probe de calibración).
+- Rescate con `realce` omitido en `zona_vacia` (motor): un vacío medido no
+  inventa glifos.
+- Banco CDP: despertar + Chrome al frente, `bringToFront` por poll, sonda
+  atada al acta renderizada, enderezado con «Rotar 90°».
+
+**Lecciones:** recibo_pago/2026-11-26-variantes-mismo-papel-tinta.md
+
+## P10 — Multipágina: veredicto del documento como criterio de página
+
+**Patrón:** con un molde de >1 páginas, la evaluación POR PÁGINA del bridge
+corre el molde COMPLETO sobre esa foto y devuelve RECHAZADA tipo MOLDE
+(faltan campos de otras páginas). Si esa señal decide si la captura se
+acumula, ningún documento multipágina avanza (0/N para siempre).
+
+**Síntomas:** progreso congelado en 0/N; «REPETIR» eterno; el lote nunca se
+evalúa; una página casi vacía (rechazo físico 0.0) o un fixture válido dan
+el mismo resultado.
+
+**Mitigación (Fase 3, e4ef18b):** acumular por validez FÍSICA (foto presente,
+con tinta, sin rechazo INCOMPLETA/ILEGIBLE/SIN_VOTOS/BAJO/TIMEOUT) y emitir
+el veredicto UNA vez sobre el lote (`evaluarMoldeMultipagina` +
+`veredictoDeResumen`). Historial: UNA fila por documento, título = nombre del
+molde. Verificar historial en la MISMA sesión (es memoria de sesión; HMR lo
+vacía).
+
+**Lecciones:** app_tamiz/2026-11-25-multipagina-tamiz.md
+
+## P11 — Layout re-escalado: medir sin cambiar el viewport
+
+**Patrón:** cuando un componente escala su contenido para caber
+(FitScale/`transform: scale`), cualquier `setDeviceMetricsOverride` entre dos
+mediciones de `getBoundingClientRect()` invalida la comparación: el delta que
+sale es del viewport, no del cambio de UI. Además, en un acordeón
+`grid-rows-[0fr]→[1fr]` el padding del item que colapsa NO desaparece con el
+`0fr` — deja una franja visible (12 px con `p-1.5`).
+
+**Síntomas:** «no empuja la imagen» parece fallar en el e2e (`dH 29 / dW 31`)
+con el bloque ya absoluto; raya del borde del panel asomando sobre la foto con
+la tarjeta cerrada.
+
+**Mitigación (FASE 4, plan rosy-meadow-swan):** fijar las métricas ANTES de
+medir cerrado y abierto y mover las capturas al final; poner el inset en el
+contenedor ABSOLUTO portalizado (`absolute inset-1.5`), nunca como padding del
+item colapsable. Portal al visor resuelto en effect: mientras el host es `null`
+el acordeón está en `0fr`, así que no hay salto de layout.
+
+**Lecciones:** app_tamiz/2026-11-26-overlay-verificacion-documental.md

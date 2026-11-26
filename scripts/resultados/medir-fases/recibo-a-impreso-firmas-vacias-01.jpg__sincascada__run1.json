@@ -1,0 +1,55 @@
+{
+  "archivo": "recibo-a-impreso-firmas-vacias-01.jpg",
+  "config": "sincascada",
+  "pase": "run1",
+  "msVeredicto": 20925,
+  "veredicto": "REVISIÓN HUMANA",
+  "etapas": [
+    {
+      "fase": "DETECTANDO",
+      "t": 461
+    }
+  ],
+  "acta": null,
+  "rotacion": null,
+  "rssAntes": [
+    "TOTAL   280405   153916    39280    66272   331008   159538    48341   106162",
+    "TOTAL PSS:   280405            TOTAL RSS:   331008       TOTAL SWAP PSS:    66272"
+  ],
+  "rssDespues": [
+    "TOTAL   251915   132156    37564    66328   296720   160118    49889   105186",
+    "TOTAL PSS:   251915            TOTAL RSS:   296720       TOTAL SWAP PSS:    66328"
+  ],
+  "consola": [
+    "[e14-rapidocr] det run [1,3,480,640]...",
+    "[e14-rapidocr] det run OK (558ms)",
+    "[e14-rapidocr] celda: det=692ms cls=25.009999990463257ms rec=577ms (run=528.6299999952316 js=48.37000000476837) · 3 cajas · 3 líneas · conf 98.0% · 1273ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-prowarm] listo det=692ms cls=25.009999990463257ms rec=577ms · 3 cajas · 3 líneas",
+    "[e14-rapidocr] det run [1,3,480,640]...",
+    "[e14] qr-capa0 prechequeo sin-candidato ms=546 patrones=0 confianza=0.00",
+    "[e14-rapidocr] det run OK (728ms)",
+    "[e14-rapidocr] celda: det=819ms cls=58.605000019073486ms rec=916ms (run=821.0549999475479 js=94.94500005245209) · 3 cajas · 3 líneas · conf 98.0% · 1737ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-prowarm] listo det=819ms cls=58.605000019073486ms rec=916ms · 3 cajas · 3 líneas",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (1953ms)",
+    "[e14] orientacion crop=1031x1280 rot=0 probe={0:6.83} anclas0=3 conf0=0.54 aplicado=0 ms=3777 cortes=sana orden=0,90,180,270 gan=90 exif=0 escala=1280",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (1478ms)",
+    "[e14-rapidocr] celda: det=1529ms cls=177.5600000023842ms rec=2922ms (run=2621.8749999403954 js=300.12500005960464) · 14 cajas · 8 líneas · conf 92.9% · 4452ms detMemo=miss · leidas=14/14 anclasBordes=-1 pieBordes=-1 rescate=0 crops=5ms",
+    "[e14-rapidocr] det run [1,3,448,1440]...",
+    "[e14-rapidocr] det run OK (793ms)",
+    "[e14-rapidocr] celda: det=824ms cls=39.2849999666214ms rec=918ms (run=859.5149999856949 js=58.485000014305115) · 4 cajas · 3 líneas · conf 94.2% · 1749ms detMemo=miss · leidas=4/4 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[tamiz:info] [e14] ocr-rescate-cabecera y0=0 y1=0.25 ms=1780 anclas1=4 anclas2=4 adoptado=0",
+    "[tamiz:info] [e14] ocr-escalonado pasada1=1280 lectura=MEDIA reocr=1 elegido=1280 anclas1=4 anclas2=4 ms1=4455 ms2=1780 ventana=45000 k=1.2 est=5346 abre=1",
+    "[e14-rapidocr] det run [1,3,256,1280]...",
+    "[e14-rapidocr] det run OK (481ms)",
+    "[e14-rapidocr] celda: det=520ms cls=0ms rec=190ms (run=178.30500000715256 js=11.694999992847443) · 1 cajas · 1 líneas · conf 95.0% · 716ms detMemo=miss · leidas=1/1 anclasBordes=-1 pieBordes=-1 rescate=0 crops=0ms",
+    "[e14-rapidocr] det run [1,3,352,1440]...",
+    "[e14-rapidocr] det run OK (640ms)",
+    "[e14-rapidocr] celda: det=673ms cls=16.610000014305115ms rec=395ms (run=366.02000004053116 js=28.97999995946884) · 2 cajas · 2 líneas · conf 98.6% · 1072ms detMemo=miss · leidas=2/2 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[tamiz:info] [molde] ratio de anclas por molde {\"ocrMs\":2910,\"lineas\":17,\"activo\":null,\"ratios\":[{\"nombre\":\"Comprobante de entrega — real (A/B/C)\",\"ratio\":0},{\"nombre\":\"Recibo de pago — real (A/B/C)\",\"ratio\":0.9}]}",
+    "[tamiz:info] [molde] candidato del router {\"nombre\":\"Recibo de pago — real (A/B/C)\",\"ratioAnclas\":0.9}",
+    "[tamiz:info] [molde] resumen del motor universal {\"molde\":\"Recibo de pago — real (A/B/C)\",\"score\":16.7,\"ok\":2,\"total\":12,\"obligatoriosFaltantes\":[\"FECHA\",\"N.º RECIBO\",\"DNI EMISOR\",\"PAGADOR (nombre y DNI)\",\"IMPORTE (€)\",\"CONCEPTO\",\"FORMA DE PAGO\",\"FECHA DE PAGO\",\"Firma emisor\",\"Firma pagador\"],\"campos\":[\"RECIBO DE PAGO=ok(RECIBO DE PAGO)[ancla_solo_textual] rect=0.399,0.082,0.260,0.028 fuente=ancla"
+  ],
+  "medidoEn": "2026-11-26T04:06:04.163Z"
+}

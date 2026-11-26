@@ -25,6 +25,13 @@ const IDEAL_PREVIEW_FPS = 30;
  *  bloquear el arranque 10 s — caduca y se sigue con la siguiente. */
 const PROBE_TIMEOUT_MS = 2000;
 
+/** Plazo de las aperturas REALES (no sondas): un permiso sin responder o un
+ *  sensor ocupado dejaban «INICIANDO CÁMARA…» infinito en el A56 (medido
+ *  2026-11-26: la vista de escaneo quedó atascada en esa pantalla). Vencido
+ *  el plazo la apertura se da por fallida — el caller cae a su aviso con
+ *  salida a SIMULACIÓN — y un stream que llegue tarde se cierra al aparecer. */
+const OPEN_TIMEOUT_MS = 15_000;
+
 /** Clave de la elección (la misma del upstream: tamiz es la continuación de
  *  e14, y el cacheado es por origen, así que no colisiona con el lab). */
 const MAIN_CAMERA_CACHE_KEY = 'e14-main-camera-v1';
@@ -168,6 +175,34 @@ async function probeCamera(
   }
 }
 
+/** getUserMedia con reloj (ver OPEN_TIMEOUT_MS). Rechazos del navegador
+ *  (permiso, no disponible) siguen propagándose: los callers conservan sus
+ *  `permisoDenegado`/cascada. `null` = plazo vencido (apertura colgada). */
+async function abrirConTimeout(
+  media: MediaDevices,
+  constraints: MediaStreamConstraints,
+  ms = OPEN_TIMEOUT_MS,
+): Promise<MediaStream | null> {
+  let timedOut = false;
+  const opening = media.getUserMedia(constraints);
+  const stream = await Promise.race([
+    opening,
+    new Promise<null>((resolve) => {
+      window.setTimeout(() => {
+        timedOut = true;
+        resolve(null);
+      }, ms);
+    }),
+  ]);
+  if (timedOut || stream === null) {
+    void opening
+      .then((s) => s.getTracks().forEach((t) => t.stop()))
+      .catch(() => undefined);
+    return null;
+  }
+  return stream;
+}
+
 /** Elige la principal: entre traseras con AF real gana la de MAYOR resolución
  *  de sensor (la principal siempre es el sensor grande; el torch desempata).
  *  Sin AF en ninguna (típico iOS, D6): label más simple (sin palabras de
@@ -274,7 +309,9 @@ async function abrirConCascada(media: MediaDevices): Promise<{ stream: MediaStre
   ];
   for (const c of intentos) {
     try {
-      return { stream: await media.getUserMedia(c), permisoDenegado: false };
+      const stream = await abrirConTimeout(media, c);
+      if (!stream) continue; // plazo vencido: siguiente nivel
+      return { stream, permisoDenegado: false };
     } catch (e) {
       if (esErrorPermiso(e)) return { stream: null, permisoDenegado: true }; // permiso: la cascada no ayuda
       /* siguiente nivel */
@@ -294,7 +331,7 @@ async function abrirCamaraPrincipal(
   const cache = readMainCameraCache();
   if (cache) {
     try {
-      const stream = await media.getUserMedia({
+      const stream = await abrirConTimeout(media, {
         video: {
           deviceId: { exact: cache.deviceId },
           width: { ideal: IDEAL_PREVIEW_WIDTH },
@@ -303,9 +340,12 @@ async function abrirCamaraPrincipal(
         },
         audio: false,
       });
-      // Guard de la vía rápida: si lo abierto reporta 'user' la caché estaba
-      // venenada MÁS ALLÁ del label (un driver mintió al escribirla).
-      if (leerFacingDeStream(stream) === 'user') {
+      if (!stream) {
+        // Apertura colgada: la caché no es confiable — re-sondeo completo.
+        clearMainCameraCache();
+      } else if (leerFacingDeStream(stream) === 'user') {
+        // Guard de la vía rápida: si lo abierto reporta 'user' la caché estaba
+        // venenada MÁS ALLÁ del label (un driver mintió al escribirla).
         stream.getTracks().forEach((t) => t.stop());
         clearMainCameraCache();
       } else {
@@ -320,8 +360,8 @@ async function abrirCamaraPrincipal(
   // Desbloqueo de labels: sin permiso previo, enumerateDevices trae label y
   // deviceId vacíos.
   try {
-    const unlock = await media.getUserMedia({ video: true, audio: false });
-    unlock.getTracks().forEach((t) => t.stop());
+    const unlock = await abrirConTimeout(media, { video: true, audio: false });
+    unlock?.getTracks().forEach((t) => t.stop());
   } catch (e) {
     // Sin permiso los probes fallarán y se cae a la cascada — pero el motivo
     // hay que preservarlo para el aviso del visor.
@@ -362,7 +402,8 @@ async function abrirCamaraPrincipal(
   for (let ai = 0; ai < intentos.length; ai += 1) {
     if (cancelado()) return { stream: null, main, sondas, permisoDenegado: false };
     try {
-      const stream = await media.getUserMedia(intentos[ai]!);
+      const stream = await abrirConTimeout(media, intentos[ai]!);
+      if (!stream) continue; // plazo vencido: siguiente intento
       // Guard de apertura (última línea de defensa): facing 'user' NO es la
       // principal pedida → cerrar y seguir con el siguiente intento.
       if (leerFacingDeStream(stream) === 'user') {

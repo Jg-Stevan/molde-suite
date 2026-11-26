@@ -251,6 +251,8 @@ export function ScanView() {
     // KIT e14-prowarm-ocr-v1 (T2b): pre-warm del OCR diferido 2 s (app recién
     // abierta — no competir con la carga). Idempotente: si el precalentamiento
     // ya corrió, rapidOcrPrecalentar() resuelve al instante (flag de módulo).
+    // F4: kill-switch ocrProwarmScanView — OFF ⇒ sin pre-warm al montar.
+    if (!leerFlags().ocrProwarmScanView) return;
     const t = window.setTimeout(() => {
       void rapidOcrPrecalentar().then(() => {
         // KIT e14-ocr-tessbest-v1 (GO-B): pre-warm de TESSERACT BEST SOLO

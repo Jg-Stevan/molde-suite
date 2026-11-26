@@ -20,6 +20,7 @@ import {
 import { etiquetaFormulario } from "../checklist";
 import type { HistorialRow } from "@molde-suite/scanner-core/dominio/types";
 import { marcarPaginaOK, refrescarMesasDeArchivo } from "./guion";
+import { guardarCrudaEnIdb } from "../jornada";
 import type { ActaArchivada, E14Get, E14Set, E14Store, HuecoArchivado, PuestoActual } from "./tipos";
 
 /** FIX (auditoría 2-a #10): contador de ids de historial — dos filas creadas
@@ -239,6 +240,60 @@ export async function registrarEnvio(
   return { online: true, hora }; // compat de firma — ya no hay red que consultar
 }
 
+/**
+ * 2026-11-26 («aceptar y guardar automáticamente las imágenes»): archiva la
+ * CAPTURA analizada (procesada u original) con su VEREDICTO REAL — también
+ * RECHAZADA/ADVERTENCIA/EN_REVISION_HUMANA, que no pasan por registrarEnvio.
+ * La evidencia deja de perderse sin que el operador pulse nada; el veredicto
+ * y su motivo quedan honestos (la fila NO cuenta como envío: completadas,
+ * mesas y huecos no se tocan). Idempotente por acta (capturaArchivada).
+ */
+export async function archivarCaptura(
+  set: E14Set,
+  get: E14Get,
+  titulo: string,
+): Promise<boolean> {
+  const acta = get().actaActual;
+  if (!acta || acta.capturaArchivada) return false;
+  // Procesada VACÍA (recorte fallido) no es evidencia útil: manda la original.
+  const foto = (!acta.procesadaVacia && acta.fotoProcesada) || acta.fotoOriginal;
+  if (!foto) return false;
+  const hash = (await sha256HexDeDataUrl(foto)) ?? undefined;
+  const fotoLibro = await fotoParaLibro(foto);
+  const hora = getBridge().horaHistorial();
+  const motivo = acta.rechazo?.detalle ?? acta.rechazo?.tipo ?? null;
+  const fila: HistorialRow = {
+    id: idHistorial(),
+    titulo,
+    // Estado REAL del veredicto (no «enviado»): ActasView lo pinta por tono
+    // y la nota dice exactamente qué pasó con la captura.
+    estado: acta.status,
+    hora,
+    nota: `CAPTURA ARCHIVADA · ${acta.status}${motivo ? ` — ${motivo}` : ''}`,
+  };
+  const pdfLibro = [
+    {
+      id: fila.id,
+      titulo,
+      estado: fila.estado,
+      score: acta.score ?? null,
+      hora,
+      foto: fotoLibro,
+      qr: acta.qrPayload ?? null,
+    },
+    ...get().pdfLibro,
+  ].slice(0, 30);
+  const actual = get().actaActual;
+  set({
+    historial: [fila, ...get().historial],
+    pdfLibro,
+    ...(actual && actual.id === acta.id
+      ? { actaActual: { ...actual, hashSha256: hash, capturaArchivada: true } }
+      : {}),
+  });
+  return true;
+}
+
 export function tituloPaginaActual(get: E14Get): string {
   const { paginaObjetivo, actaActual } = get();
   // Fase B (§6): título de mesa REAL cuando la clasificación está resuelta.
@@ -268,6 +323,7 @@ export function crearEnvio(
   | "archivadas"
   | "puestoActual"
   | "enviarActa"
+  | "guardarCruda"
   | "escalarRevisionHumana"
   | "guardarUbicacion"
 > {
@@ -300,6 +356,36 @@ export function crearEnvio(
       set({
         vista: "revision",
       });
+    },
+
+    guardarCruda: async () => {
+      const acta = get().actaActual;
+      // Solo RECHAZADA con foto ORIGINAL (la cruda ES el papel completo —
+      // recortes automáticos malos conservan firmas; la procesada no sirve).
+      if (!acta || acta.status !== "RECHAZADA" || !acta.fotoOriginal) return false;
+      if (acta.guardadaCruda) return true; // idempotente: ya archivada
+      const hash = (await sha256HexDeDataUrl(acta.fotoOriginal)) ?? undefined;
+      const guardada = await guardarCrudaEnIdb({
+        fotoOriginalDataUrl: acta.fotoOriginal,
+        titulo: acta.titulo || tituloPaginaActual(get),
+        hora: bridge.horaHistorial(),
+        hashSha256: hash,
+        score: acta.score,
+      });
+      if (!guardada) return false; // cuota/IDB — el aviso del visor ya salió (§6.10)
+      const fila: HistorialRow = {
+        id: idHistorial(),
+        titulo: acta.titulo || tituloPaginaActual(get),
+        // Fase 2: NO es envío ni escalación — evidencia SIN verificar (ámbar).
+        estado: "GUARDADO_CRUDO",
+        hora: guardada.hora,
+        nota: `CRUDA · NO VERIFICADA (score ${acta.score.toFixed(1)})`,
+      };
+      set({
+        actaActual: { ...acta, guardadaCruda: true, hashSha256: hash },
+        historial: [fila, ...get().historial],
+      });
+      return true;
     },
 
     escalarRevisionHumana: () => {

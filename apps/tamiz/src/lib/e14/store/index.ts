@@ -12,8 +12,12 @@ import { IMAGENES_SIMULADAS, type ImagenSimuladaId } from '../simulacion-imagene
 import { TEXTO_MOTIVO, esFalloMemoriaMotor, type AvisoOperador, type MotivoOperador } from '../errores';
 import { logger } from '../../logger';
 import { crearNavegacion } from './navegacion';
-import { crearEnvio } from './envio';
+import { archivarCaptura, crearEnvio, registrarEnvio, tituloPaginaActual } from './envio';
 import { refrescarMesasDeArchivo } from './guion';
+import { moldeActivo, paginasEsperadas } from '../molde/registry';
+import { veredictoDeResumen } from '../molde/enrutamiento';
+import type { ResumenMoldeActa } from '@molde-suite/scanner-core/dominio/types';
+import type { DocumentoEnCurso } from './tipos';
 import {
   cargarJornada,
   enFalloEscrituraJornada,
@@ -22,7 +26,10 @@ import {
   TOPE_HISTORIAL,
 } from '../jornada';
 import { ErrorRescateHeic } from '@molde-suite/scanner-core/core/image-processor';
-import type { E14Store, Vista } from './tipos';
+import { reiniciarMotorOcrSiInactivo } from '@molde-suite/scanner-core/ocr/rapidocr';
+import { reiniciarWorkerTesseractSiInactivo } from '../bridge/ocr-worker';
+import { leerFlags } from '../flags';
+import type { E14Get, E14Store, Vista } from './tipos';
 
 export type { Vista, ActaArchivada, PuestoActual, HuecoArchivado, E14Store } from './tipos';
 
@@ -34,6 +41,32 @@ export type { Vista, ActaArchivada, PuestoActual, HuecoArchivado, E14Store } fro
  *  store/edicion.ts:24 — la rotación rápida es async y un doble tap
  *  giraría 180°). */
 let rotandoFotoEnVuelo = false;
+
+/** Título humano del registro de archivo/envío. El `titulo` del acta solo es
+ *  FIABLE cuando hay clasificación electoral AUTO (puesto/mesa reales); sin
+ *  ella el clasificador deja «— · DOC — —» con huecos y el nombre del MOLDE
+ *  enrutado identifica el documento (medido 2026-11-26 en el A56). */
+function tituloDeArchivo(get: E14Get, respaldo?: string | null): string {
+  const acta = get().actaActual;
+  const tituloElectoral =
+    acta?.clasificacion?.nivel === 'AUTO' && acta.titulo ? acta.titulo : '';
+  return (
+    tituloElectoral ||
+    acta?.evaluacionMolde?.moldeNombre ||
+    respaldo ||
+    moldeActivo()?.nombre ||
+    tituloPaginaActual(get)
+  );
+}
+
+/** F4 — reciclado best-effort de workers OCR tras el veredicto. Libera
+ *  memoria nativa WASM; jamás bloquea la UI ni lanza. Kill-switch:
+ *  ocrReciclarPostEscaneo=false ⇒ no-op (comportamiento histórico). */
+function reciclarWorkersPostEscaneo(): void {
+  if (!leerFlags().ocrReciclarPostEscaneo) return;
+  void reiniciarMotorOcrSiInactivo().catch(() => {});
+  void reiniciarWorkerTesseractSiInactivo().catch(() => {});
+}
 
 function crearCaptura(
   set: (partial: Partial<E14Store> | ((s: E14Store) => Partial<E14Store>)) => void,
@@ -52,6 +85,10 @@ function crearCaptura(
   | 'recortando'
   | 'errorRecorte'
   | 'revelando'
+  | 'rechazosConsecutivos'
+  | 'documentoEnCurso'
+  | 'siguientePagina'
+  | 'cancelarDocumento'
   | 'modoSimulacion'
   | 'simCompleta'
   | 'simUltima'
@@ -93,6 +130,8 @@ function crearCaptura(
     recortando: false,
     errorRecorte: null,
     revelando: false,
+    rechazosConsecutivos: 0,
+    documentoEnCurso: null,
     modoSimulacion: false,
     simCompleta: false,
     simUltima: null,
@@ -206,16 +245,183 @@ function crearCaptura(
     },
 
     analisisCompletado: async () => {
-      const { actaActual, analisisEnVuelo } = get();
+      const { actaActual, analisisEnVuelo, rechazosConsecutivos, documentoEnCurso } = get();
       if (analisisEnVuelo) return;
       if (!actaActual) {
         set({ vista: 'escanear', progresoAnalisis: null, analisisResuelto: false });
         return;
       }
+      // Fase 3 (multipágina REAL): con molde de >1 páginas, cada captura con
+      // fotografía FÍSICAMENTE válida es una página del documento — se
+      // acumula y, al completar las esperadas, `evaluarMoldeMultipagina`
+      // evalúa el lote y su veredicto manda (misma ruta del pipeline:
+      // veredictoDeResumen sobre el resumen enrutado). OJO: la evaluación
+      // POR PÁGINA del bridge corre el molde COMPLETO sobre esa foto, así
+      // que un `RECHAZADA` tipo MOLDE (faltan campos de OTRAS páginas) NO
+      // descalifica la captura: solo los rechazos FÍSICOS (vacía, recorte
+      // incompleto, ilegible, baja calidad, timeout) piden repetir.
+      const esperadas = paginasEsperadas();
+      const rechazo = actaActual.rechazo;
+      const rechazoFisico =
+        rechazo != null &&
+        (rechazo.tipo === 'INCOMPLETA' ||
+          rechazo.tipo === 'ILEGIBLE' ||
+          rechazo.tipo === 'SIN_VOTOS' ||
+          rechazo.tipo === 'BAJO' ||
+          rechazo.tipo === 'TIMEOUT');
+      const fotoPagina = actaActual.fotoProcesada;
+      if (esperadas > 1 && fotoPagina && !actaActual.procesadaVacia && !rechazoFisico) {
+        const sesion: DocumentoEnCurso = documentoEnCurso ?? {
+          moldeNombre: moldeActivo()?.nombre ?? '',
+          esperadas,
+          paginas: [],
+        };
+        const paginas = [
+          ...sesion.paginas,
+          {
+            pagina: sesion.paginas.length + 1,
+            fotoProcesada: fotoPagina,
+            fotoOriginal: actaActual.fotoOriginal,
+            quad: actaActual.quadDetectado,
+            rotation: actaActual.rotation,
+          },
+        ];
+        if (paginas.length < sesion.esperadas) {
+          // 2026-11-26: cada PÁGINA capturada es evidencia — se archiva sola
+          // con su veredicto antes de pedir la siguiente.
+          try {
+            await archivarCaptura(set, get, tituloDeArchivo(get, sesion.moldeNombre));
+          } catch (e) {
+            logger.warn('[store] archivado de página falló', { mensaje: (e as Error).message });
+          }
+          // Documento INCOMPLETO: la UI muestra PROGRESO (N/M) + CTA
+          // ESCANEAR PÁGINA N+1; sin veredicto final todavía.
+          set({
+            documentoEnCurso: { ...sesion, paginas },
+            vista: 'revision',
+            progresoAnalisis: null,
+            analisisResuelto: false,
+            rechazosConsecutivos: 0,
+          });
+          return;
+        }
+        let resumen: ResumenMoldeActa | null = null;
+        try {
+          const { evaluarMoldeMultipagina } = await import('../molde/evaluacion');
+          resumen = await evaluarMoldeMultipagina(paginas.map((p) => p.fotoProcesada));
+        } catch (e) {
+          // El lote es el veredicto del documento, pero su fallo no debe
+          // tumbar la sesión: queda el veredicto de la última página.
+          logger.warn('[store] evaluación multipágina falló — queda el veredicto de la página', {
+            mensaje: (e as Error).message,
+          });
+        }
+        let actaFinal = actaActual;
+        if (resumen) {
+          const veredicto = veredictoDeResumen(resumen);
+          actaFinal = {
+            ...actaActual,
+            score: veredicto.score,
+            status: veredicto.status,
+            rechazo: veredicto.rechazo,
+            evaluacionMolde: resumen,
+          };
+        }
+        set({
+          actaActual: actaFinal,
+          documentoEnCurso: { ...sesion, paginas },
+          vista: 'revision',
+          progresoAnalisis: null,
+          analisisResuelto: false,
+          rechazosConsecutivos:
+            actaFinal.status === 'RECHAZADA' ? rechazosConsecutivos + 1 : 0,
+        });
+        // Documento multipágina COMPLETO y VÁLIDO: UNA sola fila de historial
+        // (el documento, no cada página) — misma ruta G.1 de guardado local.
+        // Título: el del acta; sin clasificación electoral, el NOMBRE DEL
+        // MOLDE identifica el documento mejor que el genérico «DOC».
+        if (actaFinal.status === 'OPTIMA' || actaFinal.status === 'ADVERTENCIA') {
+          try {
+            await registrarEnvio(set, get, tituloDeArchivo(get, sesion.moldeNombre));
+          } catch (e) {
+            logger.warn('[store] registro del documento multipágina falló', {
+              mensaje: (e as Error).message,
+            });
+          }
+        } else {
+          // 2026-11-26: lote RECHAZADO — la última captura también queda
+          // archivada (las anteriores ya se archivaron página a página).
+          try {
+            await archivarCaptura(set, get, tituloDeArchivo(get, sesion.moldeNombre));
+          } catch (e) {
+            logger.warn('[store] archivado del lote rechazado falló', {
+              mensaje: (e as Error).message,
+            });
+          }
+        }
+        reciclarWorkersPostEscaneo();
+        return;
+      }
+      // D4/G4 — ACEPTACIÓN Y GUARDADO AUTOMÁTICOS (documento de UNA página):
+      // el acta ÓPTIMA (completa, verificada y legible) se archiva SIN
+      // operador por el punto único G.1 — misma ruta que la multipágina.
+      // ADVERTENCIA sigue siendo decisión del operador (D20: su motivo
+      // manda) y RECHAZADA jamás se auto-acepta (negación explicable, sin
+      // ok falso). El status pasa a ENVIADA para que REVISIÓN muestre el
+      // banner «ENVIADO AUTOMÁTICAMENTE» + CTA SEGUIR ESCANEANDO.
+      if (actaActual.status === 'OPTIMA') {
+        try {
+          const { hora } = await registrarEnvio(set, get, tituloDeArchivo(get));
+          const actual = get().actaActual;
+          if (actual) {
+            set({
+              actaActual: { ...actual, status: 'ENVIADA', enviadoAutomaticamente: hora },
+            });
+          }
+        } catch (e) {
+          // registrarEnvio es no-lanzable (hash null honesto, fotoLibro en
+          // try) — si algo fallara, el acta queda ÓPTIMA y REVISIÓN da la
+          // salida (no se pierde en silencio).
+          logger.warn('[store] auto-guardado del acta óptima falló', {
+            mensaje: (e as Error).message,
+          });
+        }
+        set({
+          vista: 'revision',
+          progresoAnalisis: null,
+          analisisResuelto: false,
+          rechazosConsecutivos: 0,
+        });
+        reciclarWorkersPostEscaneo();
+        return;
+      }
       // RECHAZADA también va a REVISIÓN: el veredicto y su motivo (incluido
       // el corte temprano del gate estructural) deben llegar al operador —
       // volver a ESCANEAR en silencio ocultaba la regla que faltó.
-      set({ vista: 'revision', progresoAnalisis: null, analisisResuelto: false });
+      // 2026-11-26 («aceptar y guardar automáticamente»): ADVERTENCIA y
+      // RECHAZADA se ARCHIVAN solas con su veredicto real antes de mostrar
+      // REVISIÓN — el operador decide repetir/revisar, pero la imagen ya
+      // no se pierde. (La ÓPTIMA se envió arriba por G.1.)
+      if (!actaActual.capturaArchivada && (actaActual.fotoProcesada || actaActual.fotoOriginal)) {
+        try {
+          await archivarCaptura(set, get, tituloDeArchivo(get));
+        } catch (e) {
+          logger.warn('[store] archivado automático de la captura falló', {
+            mensaje: (e as Error).message,
+          });
+        }
+      }
+      set({
+        vista: 'revision',
+        progresoAnalisis: null,
+        analisisResuelto: false,
+        // Fase 2 (guardar cruda): contador de rechazos CONSECUTIVOS — cruza
+        // capturas (repetirFoto NO lo toca); cualquier desenlace distinto lo
+        // pone a cero. ≥ 2 → REVISIÓN ofrece GUARDAR CRUDA.
+        rechazosConsecutivos:
+          actaActual.status === 'RECHAZADA' ? rechazosConsecutivos + 1 : 0,
+      });
+      reciclarWorkersPostEscaneo();
     },
 
     rescatarActaPostTimeout: (vencida, real, tiempoRealMs) => {
@@ -227,13 +433,49 @@ function crearCaptura(
     },
 
     repetirFoto: () =>
-      set((s) => ({
+      set((s) => {
+        // Fase 3 (multipágina): repetir DESCARTAR la última página capturada
+        // del documento — solo si el acta actual ES esa página (una captura
+        // RECHAZADA nunca se acumuló y conserva las anteriores). Documento
+        // completo (veredicto final) → repetir empieza un documento nuevo.
+        let docNuevo = s.documentoEnCurso;
+        if (docNuevo) {
+          if (docNuevo.paginas.length < docNuevo.esperadas) {
+            const ultima = docNuevo.paginas[docNuevo.paginas.length - 1];
+            if (s.actaActual && ultima && ultima.fotoProcesada === s.actaActual.fotoProcesada) {
+              const paginas = docNuevo.paginas.slice(0, -1);
+              docNuevo = paginas.length > 0 ? { ...docNuevo, paginas } : null;
+            }
+          } else {
+            docNuevo = null;
+          }
+        }
+        return {
+          vista: 'escanear',
+          vistaPrevia: s.vista,
+          actaActual: null,
+          progresoAnalisis: null,
+          analisisResuelto: false,
+          documentoEnCurso: docNuevo,
+        };
+      }),
+
+    siguientePagina: () =>
+      set({
         vista: 'escanear',
-        vistaPrevia: s.vista,
         actaActual: null,
         progresoAnalisis: null,
         analisisResuelto: false,
-      })),
+      }),
+
+    cancelarDocumento: () =>
+      set({
+        documentoEnCurso: null,
+        vista: 'escanear',
+        actaActual: null,
+        progresoAnalisis: null,
+        analisisResuelto: false,
+      }),
 
     aplicarRecorte: async (quad, rotacionNueva) => {
       const acta = get().actaActual;
@@ -413,6 +655,8 @@ function crearJornada(
         colaOffline: 0,
         solicitudesRescaneo: 0,
         motivosNoEnvio: {},
+        rechazosConsecutivos: 0,
+        documentoEnCurso: null,
         actaActual: null,
         vista: 'escanear',
       });

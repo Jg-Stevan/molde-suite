@@ -1,0 +1,53 @@
+{
+  "archivo": "comprobante-b-todo-mano-01.jpg",
+  "config": "rapid",
+  "pase": "run1",
+  "msVeredicto": 28792,
+  "veredicto": "REVISIÓN HUMANA",
+  "etapas": [
+    {
+      "fase": "DETECTANDO",
+      "t": 591
+    }
+  ],
+  "acta": null,
+  "rotacion": null,
+  "rssAntes": [
+    "sin meminfo: Error: Command failed: C:\\platform-tools\\adb.exe shell dumpsys meminfo com.andro"
+  ],
+  "rssDespues": [
+    "sin meminfo: Error: Command failed: C:\\platform-tools\\adb.exe shell dumpsys meminfo com.andro"
+  ],
+  "consola": [
+    "[e14-rapidocr] celda: det=905ms cls=104.48500001430511ms rec=833ms (run=704.125 js=128.875) · 3 cajas · 3 líneas · conf 98.0% · 1742ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-prowarm] listo det=905ms cls=104.48500001430511ms rec=833ms · 3 cajas · 3 líneas",
+    "[e14-rapidocr] det run [1,3,480,640]...",
+    "[e14-rapidocr] det run OK (591ms)",
+    "[e14] qr-capa0 prechequeo sin-candidato ms=381 patrones=0 confianza=0.00",
+    "[e14-rapidocr] celda: det=1103ms cls=130.03999996185303ms rec=860ms (run=702.6400000452995 js=157.35999995470047) · 3 cajas · 3 líneas · conf 98.0% · 1967ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-prowarm] listo det=1103ms cls=130.03999996185303ms rec=860ms · 3 cajas · 3 líneas",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (1765ms)",
+    "[e14] orientacion crop=1022x1280 rot=0 probe={0:8.34} anclas0=3 conf0=0.79 aplicado=0 ms=3487 cortes=sana orden=0,90,180,270 gan=90 exif=0 escala=1280",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (1544ms)",
+    "[e14-rapidocr] celda: det=1646ms cls=261.9899999499321ms rec=3678ms (run=3198.725000023842 js=479.27499997615814) · 19 cajas · 18 líneas · conf 93.5% · 5324ms detMemo=miss · leidas=19/19 anclasBordes=-1 pieBordes=-1 rescate=0 crops=5ms",
+    "[e14-rapidocr] det run [1,3,1760,1408]...",
+    "[e14-rapidocr] det run OK (2696ms)",
+    "[e14-rapidocr] celda: det=2816ms cls=228.8850000500679ms rec=3656ms (run=3302.219999909401 js=353.78000009059906) · 19 cajas · 18 líneas · conf 91.6% · 6472ms detMemo=miss · leidas=19/19 anclasBordes=-1 pieBordes=-1 rescate=0 crops=10ms",
+    "[e14-rapidocr] det run [1,3,448,1408]...",
+    "[e14-rapidocr] det run OK (918ms)",
+    "[e14-rapidocr] celda: det=992ms cls=65.6700000166893ms rec=1402ms (run=1265.8449999690056 js=136.15500003099442) · 6 cajas · 6 líneas · conf 89.2% · 2401ms detMemo=miss · leidas=6/6 anclasBordes=-1 pieBordes=-1 rescate=0 crops=2ms",
+    "[e14-rapidocr] det run [1,3,448,1408]...",
+    "[e14-rapidocr] det run OK (903ms)",
+    "[tamiz:info] [e14] tess-best ok conf=0.71 chars=124",
+    "[tamiz:info] [e14] ocr-cascada intento1=1280 gate1=NO elegido=1280 rescate=1 ms1=5335 ms2=6480 msRoi=3365 msMotor=1442",
+    "[e14-rapidocr] det run [1,3,256,1280]...",
+    "[e14-rapidocr] det run OK (646ms)",
+    "[e14-rapidocr] celda: det=738ms cls=0ms rec=740ms (run=708.1999999880791 js=31.80000001192093) · 3 cajas · 3 líneas · conf 81.0% · 1490ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-rapidocr] det run [1,3,352,1408]...",
+    "[e14-rapidocr] det run OK (675ms)",
+    "[tamiz:info] [molde] ratio de anclas por molde {\"ocrMs\":2628,\"lineas\":15,\"activo\":null,\"ratios\":[{\"nombre\":\"Comprobante de entrega — real (A/B/C)\",\"ratio\":0.4},{\"nombre\":\"Recibo de pago — real (A/B/C)\",\"ratio\":0}]}"
+  ],
+  "medidoEn": "2026-11-26T04:40:46.114Z"
+}

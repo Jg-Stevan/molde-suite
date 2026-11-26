@@ -1,0 +1,61 @@
+{
+  "archivo": "recibo-a-impreso-firmas-vacias-01.jpg",
+  "config": "rapid",
+  "pase": "run1",
+  "msVeredicto": 28073,
+  "veredicto": "REVISIÓN HUMANA",
+  "etapas": [
+    {
+      "fase": "DETECTANDO",
+      "t": 443
+    }
+  ],
+  "acta": null,
+  "rotacion": null,
+  "rssAntes": [
+    "TOTAL   282693   155392    42128    63705   336320   159446    48290   106120",
+    "TOTAL PSS:   282693            TOTAL RSS:   336320       TOTAL SWAP PSS:    63705"
+  ],
+  "rssDespues": [
+    "TOTAL   256515   130732    42852    66304   303052   159418    49188   105195",
+    "TOTAL PSS:   256515            TOTAL RSS:   303052       TOTAL SWAP PSS:    66304"
+  ],
+  "consola": [
+    "[e14-rapidocr] det run [1,3,480,640]...",
+    "[e14-rapidocr] det run OK (684ms)",
+    "[e14-rapidocr] celda: det=772ms cls=40.439999997615814ms rec=655ms (run=575.4850000143051 js=79.51499998569489) · 3 cajas · 3 líneas · conf 98.0% · 1431ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-prowarm] listo det=772ms cls=40.439999997615814ms rec=655ms · 3 cajas · 3 líneas",
+    "[e14-rapidocr] det run [1,3,480,640]...",
+    "[e14] qr-capa0 prechequeo sin-candidato ms=389 patrones=0 confianza=0.00",
+    "[e14-rapidocr] det run OK (678ms)",
+    "[e14-rapidocr] celda: det=777ms cls=50.53999996185303ms rec=880ms (run=815.6949999928474 js=64.30500000715256) · 3 cajas · 3 líneas · conf 98.0% · 1659ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-prowarm] listo det=777ms cls=50.53999996185303ms rec=880ms · 3 cajas · 3 líneas",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (1656ms)",
+    "[e14] orientacion crop=1031x1280 rot=0 probe={0:6.83} anclas0=3 conf0=0.54 aplicado=0 ms=3366 cortes=sana orden=0,90,180,270 gan=90 exif=0 escala=1280",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (1348ms)",
+    "[e14-rapidocr] celda: det=1394ms cls=153.85999995470047ms rec=2494ms (run=2231.1299999952316 js=262.8700000047684) · 14 cajas · 8 líneas · conf 92.9% · 3890ms detMemo=miss · leidas=14/14 anclasBordes=-1 pieBordes=-1 rescate=0 crops=6ms",
+    "[e14-rapidocr] det run [1,3,1760,1440]...",
+    "[e14-rapidocr] det run OK (2166ms)",
+    "[e14-rapidocr] celda: det=2256ms cls=141.09499996900558ms rec=2783ms (run=2583.6650000214577 js=199.33499997854233) · 15 cajas · 10 líneas · conf 91.4% · 5039ms detMemo=miss · leidas=15/15 anclasBordes=-1 pieBordes=-1 rescate=0 crops=4ms",
+    "[e14-rapidocr] det run [1,3,448,1440]...",
+    "[e14-rapidocr] det run OK (830ms)",
+    "[e14-rapidocr] celda: det=873ms cls=72.85500001907349ms rec=881ms (run=778.5299999713898 js=102.47000002861023) · 4 cajas · 3 líneas · conf 94.2% · 1760ms detMemo=miss · leidas=4/4 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-rapidocr] det run [1,3,448,1440]...",
+    "[e14-rapidocr] det run OK (788ms)",
+    "[e14-rapidocr] celda: det=822ms cls=51.52499997615814ms rec=1006ms (run=937.0250000357628 js=68.97499996423721) · 6 cajas · 5 líneas · conf 97.7% · 1837ms detMemo=miss · leidas=6/6 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[tamiz:info] [e14] tess-best ok conf=0.85 chars=355",
+    "[tamiz:info] [e14] ocr-cascada intento1=1280 gate1=NO elegido=roi rescate=1 ms1=3896 ms2=5046 msRoi=3607 msMotor=1588",
+    "[e14-rapidocr] det run [1,3,256,1280]...",
+    "[e14-rapidocr] det run OK (530ms)",
+    "[e14-rapidocr] celda: det=578ms cls=0ms rec=210ms (run=201.44499999284744 js=8.555000007152557) · 1 cajas · 1 líneas · conf 95.0% · 797ms detMemo=miss · leidas=1/1 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-rapidocr] det run [1,3,352,1440]...",
+    "[e14-rapidocr] det run OK (694ms)",
+    "[e14-rapidocr] celda: det=725ms cls=25.6599999666214ms rec=361ms (run=315.2249999642372 js=45.77500003576279) · 2 cajas · 2 líneas · conf 98.6% · 1090ms detMemo=miss · leidas=2/2 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[tamiz:info] [molde] ratio de anclas por molde {\"ocrMs\":2293,\"lineas\":17,\"activo\":null,\"ratios\":[{\"nombre\":\"Comprobante de entrega — real (A/B/C)\",\"ratio\":0},{\"nombre\":\"Recibo de pago — real (A/B/C)\",\"ratio\":0.9}]}",
+    "[tamiz:info] [molde] candidato del router {\"nombre\":\"Recibo de pago — real (A/B/C)\",\"ratioAnclas\":0.9}",
+    "[tamiz:info] [molde] resumen del motor universal {\"molde\":\"Recibo de pago — real (A/B/C)\",\"score\":16.7,\"ok\":2,\"total\":12,\"obligatoriosFaltantes\":[\"FECHA\",\"N.º RECIBO\",\"DNI EMISOR\",\"PAGADOR (nombre y DNI)\",\"IMPORTE (€)\",\"CONCEPTO\",\"FORMA DE PAGO\",\"FECHA DE PAGO\",\"Firma emisor\",\"Firma pagador\"],\"campos\":[\"RECIBO DE PAGO=ok(RECIBO DE PAGO)[ancla_solo_textual] rect=0.399,0.082,0.260,0.028 fuente=ancla"
+  ],
+  "medidoEn": "2026-11-26T04:05:17.872Z"
+}

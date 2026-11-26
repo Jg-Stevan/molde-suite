@@ -14,6 +14,7 @@
 // la NORMALIZACIÓN aquí.
 
 import type { LineaOcr, PalabraOcr } from './ocr-tipos';
+import type { RapidOcrLinea } from '../ocr/rapidocr';
 
 export interface RespuestaBlocksTesseract {
   confidence: number;
@@ -71,4 +72,33 @@ export function lineasDesdeBlocksTesseract(data: RespuestaBlocksTesseract): {
     lines,
     conf: typeof data.confidence === 'number' && data.confidence >= 0 ? data.confidence / 100 : null,
   };
+}
+
+/** F2 — Normaliza líneas de RapidOCR a LineaOcr[] del motor universal.
+ *  Rapid no da palabras: `palabras: []` (los rescates por campo usan
+ *  ocrTextoUnico Tesseract, que ya existe). bbox = min/max de los puntos
+ *  del polígono `box`, escalado por `factorEscala` (anchoDestino/anchoOriginal).
+ *  conf de página = media de conf de líneas (null si vacío). */
+export function lineasDesdeRapid(
+  rapidLineas: RapidOcrLinea[],
+  factorEscala: number,
+): { lines: LineaOcr[]; conf: number | null } {
+  const lines: LineaOcr[] = [];
+  for (const l of rapidLineas) {
+    const texto = (l.texto ?? '').trim();
+    if (!texto || !l.box || l.box.length === 0) continue;
+    const xs = l.box.map((p) => p.x);
+    const ys = l.box.map((p) => p.y);
+    const x0 = Math.min(...xs) * factorEscala;
+    const y0 = Math.min(...ys) * factorEscala;
+    const x1 = Math.max(...xs) * factorEscala;
+    const y1 = Math.max(...ys) * factorEscala;
+    lines.push({ texto, bbox: [x0, y0, x1, y1], palabras: [] });
+  }
+  lines.sort((a, b) => a.bbox[1] - b.bbox[1] || a.bbox[0] - b.bbox[0]);
+  const confs = rapidLineas.filter(
+    (l) => (l.texto ?? '').trim().length > 0 && l.box && l.box.length > 0 && typeof l.conf === 'number' && l.conf >= 0,
+  );
+  const conf = confs.length > 0 ? confs.reduce((s, l) => s + l.conf, 0) / confs.length : null;
+  return { lines, conf };
 }

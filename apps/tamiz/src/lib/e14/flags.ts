@@ -61,6 +61,32 @@ export interface Flags {
    *  red de seguridad automática; kill-switch del operador sin redeploy:
    *  localStorage `tamiz.flags.v1` = {"frameLoop":false}. */
   frameLoop: boolean;
+  /** F4 — pre-warm de RapidOCR al montar la vista de escaneo (no solo al
+   *  importar). Reduce el arranque frío de la 1.ª foto. */
+  ocrProwarmScanView: boolean;
+  /** F4 — reciclar los workers OCR (Rapid + Tesseract) tras cada veredicto
+   *  para liberar memoria nativa WASM y evitar el cuelgue del 2.º escaneo. */
+  ocrReciclarPostEscaneo: boolean;
+  /** F4 — fallback det1920→1280 ante bad_alloc/presión de memoria en la
+   *  escalada del OCR. Evita el hang tipo A13 en gama baja. */
+  ocrFallbackBadAlloc: boolean;
+  /** F2 — reusar las líneas RapidOCR del cascade como ocrLines del router
+   *  (elimina el 2.º Tesseract de página completa). Default-off hasta pasar
+   *  el banco de 21 fotos. */
+  ocrRouterReusado: boolean;
+  /** F1 — warp compartido: un solo warp (original) y bw derivado.
+   *  Default-off hasta pasar fixture de equivalencia pixel-a-pixel. */
+  warpCompartido: boolean;
+  /** F3 — skip del A/B binarizada-vs-original cuando el cascade ya leyó
+   *  campos (las líneas Rapid reusadas prueban que el original tiene tinta). */
+  ocrSkipABSiCascadeLee: boolean;
+  /** F3 — tope de variantes de realce por campo en el motor universal
+   *  (histórico: 6). Menos variantes = menos latencia en fotos difíciles. */
+  ocrRescatePresupuesto: number;
+  /** Dictamen HTR por confianza: umbral mínimo (0-1) para que un campo
+   *  `htr && obligatorio` con patrón cumplido pueda ser ok. null = regla
+   *  histórica (manuscritos siempre a revisión). */
+  htrConfDictamen: number | null;
 }
 
 const CLAVE = 'tamiz.flags.v1';
@@ -109,6 +135,20 @@ const DEFAULTS: Flags = {
   // (marcas en vivo + auto-disparo). El rAF propio retoma solo si el bucle
   // cae (watchdog en useSesionCamara).
   frameLoop: true,
+  // F4: warm-up al montar ScanView, reciclado post-veredicto, fallback
+  // bad_alloc. Kill-switch: {"ocrProwarmScanView":false,...} → histórico.
+  ocrProwarmScanView: true,
+  ocrReciclarPostEscaneo: true,
+  ocrFallbackBadAlloc: true,
+  // F2: reuso de líneas Rapid en el router — OFF hasta pasar banco 21.
+  ocrRouterReusado: false,
+  // F1: warp compartido — OFF hasta pasar fixture de equivalencia bw.
+  warpCompartido: false,
+  // F3: skip A/B si el cascade ya leyó + presupuesto de rescates acotado.
+  ocrSkipABSiCascadeLee: true,
+  ocrRescatePresupuesto: 3,
+  // Dictamen HTR por confianza: OFF (null) hasta validarlo con el banco.
+  htrConfDictamen: null,
 };
 
 let cache: Flags | null = null;
@@ -127,6 +167,12 @@ function sanearFlags(f: Flags): Flags {
   f.ocrRecPie = num(f.ocrRecPie, DEFAULTS.ocrRecPie, 0, 60);
   f.ocrRecBordesRescate = num(f.ocrRecBordesRescate, DEFAULTS.ocrRecBordesRescate, 0, 10);
   f.ocrSegundaTopeMs = num(f.ocrSegundaTopeMs, DEFAULTS.ocrSegundaTopeMs, 0, 120_000);
+  f.ocrRescatePresupuesto = num(f.ocrRescatePresupuesto, DEFAULTS.ocrRescatePresupuesto, 1, 6);
+  // Dictamen HTR: null = OFF. Un override corrupto apaga (nunca enciende solo).
+  f.htrConfDictamen =
+    typeof f.htrConfDictamen === 'number' && Number.isFinite(f.htrConfDictamen)
+      ? num(f.htrConfDictamen, 0.8, 0.5, 1, 0.01)
+      : null;
   if (f.ocrSegundaPresupuestoMs !== null) {
     f.ocrSegundaPresupuestoMs = num(
       f.ocrSegundaPresupuestoMs,
