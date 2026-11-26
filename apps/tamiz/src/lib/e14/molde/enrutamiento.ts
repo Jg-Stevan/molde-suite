@@ -11,11 +11,12 @@
 //      candidato.
 //   3. La evaluación COMPLETA corre una sola vez (motor universal compartido
 //      `evaluarDocumentoUniversal`, modo ligero).
-//   4. Si el documento NO fue reconocido como E-14 y el candidato responde
-//      (score ≥ UMBRAL_RUTA_SCORE), el resultado del MOLDE se convierte en
-//      el veredicto del acta (`enrutado: true`): score/estado/banner salen
-//      del molde. Si el documento ES un E-14, el resultado queda ADITIVO
-//      (doctrina intacta — el gate electoral manda).
+//   4. Si el molde ganador NO es el del acta E-14 (o el documento no fue
+//      reconocido como electoral) y el candidato responde (score ≥
+//      UMBRAL_RUTA_SCORE), el resultado del MOLDE se convierte en el veredicto
+//      del acta (`enrutado: true`): score/estado/banner salen del molde. Solo
+//      un acta E-14 reconocida contra su propio molde deja el resultado
+//      ADITIVO (doctrina intacta — el gate electoral manda).
 //
 // Molde demo: si la biblioteca está vacía se siembra UNA vez «RECIBO DE LUZ»
 // calibrado contra el fixture SIM «recibo» (simulacion-imagenes.ts) para que
@@ -39,6 +40,29 @@ export const UMBRAL_HIT_ANCLA = 0.6;
  *  reconoció el documento? (tipo TRANSMISION/DELEGADOS). */
 export interface ContextoE14Acta {
   esE14: boolean;
+}
+
+/** ¿Este molde describe el acta electoral E-14? Se decide por lo que el molde
+ *  DECLARA (`documento`), no por lo que el OCR del documento parezca decir:
+ *  solo ahí el gate electoral le cede el veredicto al molde. */
+export function moldeElectoral(molde: MoldeUniversal): boolean {
+  return molde.documento === 'acta_e14';
+}
+
+/** ¿El veredicto del MOLDE sustituye al del gate? El criterio es qué molde
+ *  ganó, no si el clasificador electoral leyó algo: `esE14` se enciende con
+ *  cualquier cabecera/MESA/tipo del OCR, así que un recibo que mencione
+ *  «MESA» o «DELEGADOS» quedaba aditivo y nunca se enrutaba. El gate solo
+ *  conserva la autoridad sobre un acta E-14 reconocida evaluada contra su
+ *  propio molde; el resto de la biblioteca manda sobre cualquier documento. */
+export function debeEnrutar(
+  molde: MoldeUniversal,
+  contexto: ContextoE14Acta | undefined,
+  score: number,
+  okCount: number,
+): boolean {
+  if (moldeElectoral(molde) && contexto?.esE14) return false;
+  return score >= UMBRAL_RUTA_SCORE && okCount > 0;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -147,19 +171,29 @@ export async function sembrarMoldeDemo(): Promise<void> {
  *  v3.2.0: incluye el modo relacional — esto es IDENTIFICACIÓN del documento
  *  (¿qué molde aplica?), no resolución de zonas: la doctrina del faro gobierna
  *  la resolución de campos (universal-engine), aquí solo reconocemos el papel. */
-function anclasDeMolde(molde: MoldeUniversal): string[] {
-  const set = new Set<string>();
+function anclasDeMolde(molde: MoldeUniversal): { texto: string; rect?: { x: number; y: number; w: number; h: number } }[] {
+  const mapa = new Map<string, { texto: string; rect?: { x: number; y: number; w: number; h: number } }>();
   for (const c of molde.campos) {
     if (c.pagina !== 1) continue;
     if ((c.estrategia === 'ancla_relativa' || c.estrategia === 'ancla_relacional') && c.ancla?.texto) {
-      set.add(c.ancla.texto);
+      const previo = mapa.get(c.ancla.texto);
+      if (!previo || (!previo.rect && c.ancla.rect)) {
+        mapa.set(c.ancla.texto, { texto: c.ancla.texto, rect: c.ancla.rect });
+      }
     }
   }
-  return [...set];
+  return [...mapa.values()];
 }
 
 /** Ratio de anclas del molde presentes en las líneas OCR (0-1). Un molde sin
- *  anclas no es enrutable por prefilter (null) — honesto: sin señal, sin ruta. */
+ *  anclas no es enrutable por prefilter (null) — honesto: sin señal, sin ruta.
+ *
+ *  v1.5.0 (fotos reales 2026-11-25): el rect DECLARADO viaja como referencia
+ *  posicional a `buscarAncla` (penalización suave 1/(1+3d) del motor). Es lo
+ *  que separa variantes del MISMO papel que comparten rótulos pero no
+ *  geometría (p. ej. la línea Fecha del recibo B vive a x≈0.37 y la de A/C a
+ *  x≈0.67): sin referencia, las tres variantes empatan y el router elige a
+ *  ciegas la primera de la biblioteca. */
 export function ratioAnclasDe(
   molde: MoldeUniversal,
   lineas: LineaOcr[],
@@ -169,8 +203,8 @@ export function ratioAnclasDe(
   const anclas = anclasDeMolde(molde);
   if (anclas.length === 0) return null;
   let hits = 0;
-  for (const texto of anclas) {
-    const hit = buscarAncla(texto, lineas, canvasW, canvasH);
+  for (const a of anclas) {
+    const hit = buscarAncla(a.texto, lineas, canvasW, canvasH, a.rect);
     if (hit && hit.score >= UMBRAL_HIT_ANCLA) hits += 1;
   }
   return hits / anclas.length;

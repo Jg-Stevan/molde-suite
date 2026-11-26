@@ -1,0 +1,9 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "flags": "{\"ocrRouterReusado\":true,\"warpCompartido\":true}",
+  "fixture": "reales-variantes/recibo-c-mixto-01.jpg",
+  "segundos": 25,
+  "veredicto": "REVISIÓN HUMANA",
+  "captura": "a56-velocidad-veredicto.png",
+  "medidoEn": "2026-11-26T13:04:23.278Z"
+}

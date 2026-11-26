@@ -1,0 +1,11 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:40.654057900 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:40.655057300 -0500
+@@ -8,7 +8,7 @@
+  * (`reescalarFueraDelHilo` local). Mismo patrón que el fallback-canvas:
+  * worker roto ⇒ sesión en modo local, nunca reintento.
+  */
+-import { publicBaseEfectivo } from "../dominio/entorno";
++import { publicBaseEfectivo } from "../../dominio/entorno";
+ 
+ export interface ResultadoReescalo {
+   jpeg: Blob;

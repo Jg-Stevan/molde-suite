@@ -575,6 +575,7 @@ describe("errores.ts — avisos al operador", () => {
       "ARCHIVO_INVALIDO",
       "HEIC_NO_SOPORTADO",
       "ESCANEO_FALLIDO",
+      "MEMORIA_AGOTADA",
     ];
     expect(Object.keys(TEXTO_MOTIVO).sort()).toEqual([...motivos].sort());
     for (const m of motivos) {

@@ -1,0 +1,30 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:47.486874200 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:47.487877000 -0500
+@@ -1,4 +1,23 @@
+-/** FASE 1 (mapa v2.3): shim — la implementación vive en el paquete
+- * (@jg-stevan/scanner-core/dominio/logger). MISMA política, MISMO
+- * transporte obs (buffer del paquete — una sola instancia). */
+-export { logger } from "@jg-stevan/scanner-core/dominio/logger";
++// Logger de la app (SPRINT-A A6 — console→logger): centraliza los mensajes
++// con nivel y prefijo para poder silenciarlos o enviarlos a observabilidad.
++
++type Datos = Record<string, unknown>;
++
++function linea(nivel: string, msg: string, datos?: Datos): string {
++  return `[tamiz:${nivel}] ${msg}${datos ? ' ' + JSON.stringify(datos) : ''}`;
++}
++
++export const logger = {
++  debug(msg: string, datos?: Datos): void {
++    console.debug(linea('debug', msg, datos));
++  },
++  info(msg: string, datos?: Datos): void {
++    console.info(linea('info', msg, datos));
++  },
++  warn(msg: string, datos?: Datos): void {
++    console.warn(linea('warn', msg, datos));
++  },
++  error(msg: string, datos?: Datos): void {
++    console.error(linea('error', msg, datos));
++  },
++};

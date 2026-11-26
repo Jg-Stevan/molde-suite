@@ -32,6 +32,27 @@ export function moldeActivo(): MoldeUniversal | null {
   return cache;
 }
 
+/**
+ * Fase 3 (multipágina): páginas esperadas del documento según el molde
+ * activo — `huella.paginas` si está declarada; si no, la página MÁXIMA de
+ * sus campos (`campo.pagina` — los moldes importados no siempre traen
+ * huella); sin molde → 1 (flujo de una página de siempre).
+ */
+export function paginasEsperadas(): number {
+  const molde = moldeActivo();
+  if (!molde) return 1;
+  const declaradas = molde.huella?.paginas;
+  if (typeof declaradas === "number" && Number.isFinite(declaradas) && declaradas >= 1) {
+    return Math.floor(declaradas);
+  }
+  let max = 1;
+  for (const c of molde.campos) {
+    const p = c.pagina ?? 1;
+    if (p > max) max = p;
+  }
+  return max;
+}
+
 /** Activa un molde (valida estructura v3 — un molde malformado NO se activa). */
 export function activarMolde(json: unknown): { ok: boolean; errores: string[]; nombre?: string } {
   if (!esMoldeUniversal(json)) {

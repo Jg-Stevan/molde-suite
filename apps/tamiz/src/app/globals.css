@@ -21,6 +21,7 @@
 .bg-brand-surface { background-color: var(--color-brand-surface); }
 .bg-brand-surfacelight { background-color: var(--color-brand-surfacelight); }
 .bg-brand-viewfinder { background-color: var(--color-brand-viewfinder); }
+.bg-brand-green { background-color: var(--color-brand-green); }
 .bg-brand-greendark { background-color: var(--color-brand-greendark); }
 .text-brand-green { color: var(--color-brand-green); }
 .border-brand-border { border-color: var(--color-brand-border); }

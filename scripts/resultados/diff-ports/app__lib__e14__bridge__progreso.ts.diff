@@ -1,0 +1,94 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:43.561466200 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:43.562463600 -0500
+@@ -1,47 +1,48 @@
+-/**
+- * R-28 (H-18, auditoría 2026-11-16) — partición de scanner-core-bridge.ts:
+- * PROGRESO de análisis. Helper de emisión interpolada compartido por el
+- * pipeline L2 (pipeline.ts, vía PasosPipelineL2) y el pipeline del recorte
+- * (bridge/pipeline-recorte.ts). Move-only: byte a byte con el original.
+- */
+-import type { ProgresoAnalisis } from "@jg-stevan/scanner-core/dominio/types";
++// Progreso del análisis: rampa de pesos por etapa (la UI muestra el porcentaje
++// global con piso escénico para que no salte de golpe).
++
++import type { EtapaAnalisis, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/types';
++
++/** Peso relativo de cada etapa (normalizado al vuelo). */
++export const PESOS: Record<EtapaAnalisis, number> = {
++  DETECTANDO: 1,
++  RECORTANDO: 1.5,
++  REALZANDO: 1,
++  CALIDAD: 0.5,
++  // PLAN-AGENTE-LAYOUT F4: el gate estructural es UNA inferencia S + evaluador
++  // puro — peso pequeño entre CALIDAD y OCR (el OCR domina como siempre).
++  LAYOUT: 0.5,
++  OCR: 3,
++};
++
++/** Orden canónico de las etapas. */
++export const ORDEN_ETAPAS: EtapaAnalisis[] = [
++  'DETECTANDO',
++  'RECORTANDO',
++  'REALZANDO',
++  'CALIDAD',
++  'LAYOUT',
++  'OCR',
++];
++
++const total = ORDEN_ETAPAS.reduce((acc, e) => acc + PESOS[e], 0);
++
++function baseDe(etapa: EtapaAnalisis): number {
++  let acc = 0;
++  for (const e of ORDEN_ETAPAS) {
++    if (e === etapa) break;
++    acc += PESOS[e];
++  }
++  return acc / total;
++}
+ 
+ /**
+- * Emite progreso INTERPOLADO mientras una espera real del core está en vuelo
+- * (decode/detect/proceso no exponen avance interno; el OCR sí lo reporta
+- * real). La fracción se cap al 95% para que la resolución de la etapa
+- * siempre produzca un salto visible en ANALIZANDO.
++ * Ramp: convierte (etapa, fracción interna 0..1) en un ProgresoAnalisis
++ * global monótono. Clamp de la fracción para nunca retroceder.
+  */
+-export function conRampa<T>(
+-  promesa: Promise<T>,
+-  msEstimados: number,
+-  evento: (fraccion: number) => ProgresoAnalisis,
+-  emitir: (p: ProgresoAnalisis) => void,
+-): Promise<T> {
+-  const inicio = performance.now();
+-  // FIX (auditoría 2-a #7): autolímite del ramp — si la promesa envuelta
+-  // cuelga SIN resolver (worker OpenCV muerto), el intervalo seguía
+-  // disparando indefinidamente (un timer fugado por pipeline colgado; el
+-  // timeout externo recupera la UI pero no el timer). 20× el estimado es
+-  // inalcanzable en operación normal y cubre el peor caso real.
+-  let ticks = 0;
+-  const maxTicks = Math.ceil((msEstimados * 20) / 140);
+-  const timer = setInterval(() => {
+-    if (++ticks > maxTicks) {
+-      clearInterval(timer);
+-      return;
+-    }
+-    const f = Math.min(1, (performance.now() - inicio) / msEstimados);
+-    emitir(evento(f * 0.95));
+-  }, 140);
+-  return promesa.then(
+-    (valor) => {
+-      clearInterval(timer);
+-      return valor;
+-    },
+-    (error) => {
+-      clearInterval(timer);
+-      throw error;
+-    },
+-  );
++export function conRampa(etapa: EtapaAnalisis, fraccion: number): ProgresoAnalisis {
++  const f = Math.min(1, Math.max(0, fraccion));
++  const desde = baseDe(etapa);
++  const hasta = desde + PESOS[etapa] / total;
++  return { etapa, progreso: Math.round((desde + (hasta - desde) * f) * 1000) / 1000 };
+ }

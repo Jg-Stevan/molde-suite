@@ -1,0 +1,27 @@
+{
+  "fotos": [
+    {
+      "foto": "pag-01.png",
+      "segundos": 16,
+      "veredicto": "ÓPTIMA",
+      "imagenMostrada": {
+        "nw": 1693,
+        "nh": 2193,
+        "cssW": 388,
+        "src": "data:image/png;base64,iVBORw0K"
+      },
+      "vista": {
+        "nw": 1693,
+        "nh": 2193,
+        "cssW": 388,
+        "src": "data:image/png;base64,iVBORw0K",
+        "captura": "a56-app-vista-pag-01-1795629515422.png"
+      },
+      "capturas": [
+        "a56-app-vista-pag-01-1795629515422.png",
+        "a56-app-veredicto-pag-01-1795629518673.png"
+      ]
+    }
+  ],
+  "medidoEn": "2026-11-25T17:58:39.181Z"
+}

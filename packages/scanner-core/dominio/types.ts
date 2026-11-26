@@ -107,6 +107,30 @@ export interface ResumenMoldeCampo {
   conf: number | null;
   /** Rectángulo normalizado resuelto (para el overlay). */
   rect?: { x: number; y: number; w: number; h: number } | null;
+  /**
+   * Overlay: dónde el OCR encontró el texto del ANCLA (normalizado). null si
+   * no hubo hit real (zona_fija / referencia / arnés). Aditivo.
+   */
+  ancla_rect?: { x: number; y: number; w: number; h: number } | null;
+  /** Procedencia del rect resuelto — el overlay la usa para el color del ancla. */
+  fuente?: "ancla" | "respaldo" | "referencia" | "fija" | "arnes" | null;
+  /**
+   * El molde declara el campo como MANUSCRITO (`htr: true` en la definición).
+   * Aditivo (v1.4.2): la UI lo necesita porque un manuscrito jamás puede
+   * quedar `ok` — el color del overlay decide «hay trazo / no hay trazo»,
+   * no «leyó bien / leyó mal».
+   */
+  htr?: boolean;
+  /**
+   * TINTA medida en la zona (ratio de píxeles oscuros del motor sobre la
+   * canónica; el mismo que alimenta `firma_ausente`/`zona_vacia`). Aditivo
+   * (v1.5.1): el overlay de manuscritos pinta por ESTO, no por la lectura —
+   * una rúbrica con trazo y sin texto legible es «hay trazo» (verde), y un
+   * campo en blanco es «no hay trazo» (rojo). `undefined` = zona sin resolver.
+   */
+  tinta?: boolean;
+  /** Banderas del motor para este campo (forense / tooltip del overlay). */
+  banderas?: string[];
   /** Presentación (G-7): el valor se resalta en la lista. */
   destacado?: boolean;
   obligatorio?: boolean;
@@ -117,6 +141,13 @@ export interface ResumenMoldeCampo {
    */
   grupo?: string;
   orden?: number;
+  /**
+   * Página del documento a la que pertenece el campo (1-indexada; viene de
+   * `campo.pagina` de la definición). Aditivo (fase 3 multipágina): la UI
+   * filtra la verificación a la página capturada. `undefined` = molde de
+   * una sola página / campo sin declaración.
+   */
+  pagina?: number;
 }
 
 /**
@@ -182,13 +213,55 @@ export interface Acta {
   qrPayload?: string | null;
   qrEstado?: "leido" | "sin-payload";
   enviadoAutomaticamente?: string | null;
+  /**
+   * GUARDADO_CRUDO (fase 2): la foto ORIGINAL del acta quedó archivada cruda
+   * (IDB «crudas», sin OCR/verificación — «NO VERIFICADA»). Aditivo: hosts
+   * viejos lo ignoran; `undefined` = acta normal.
+   */
+  guardadaCruda?: boolean;
+  /**
+   * 2026-11-26 (aceptar y guardar automáticamente): la CAPTURA quedó
+   * archivada sola en el historial/libro con su veredicto real (incluye
+   * RECHAZADA/ADVERTENCIA). Evita re-archivar la misma acta; `undefined` =
+   * acta sin archivar.
+   */
+  capturaArchivada?: boolean;
+  /**
+   * §5 (plan cierre 2 agentes, 2026-11-26) — VERIFICACIÓN Y ACTUALIZACIÓN
+   * DE DATOS: valores CORREGIDOS por el operador desde el panel de
+   * verificación (`campoId → valor nuevo`). Aditivo: hosts viejos lo
+   * ignoran; el hash de la foto cruda NO cambia (la edición es de DATOS,
+   * nunca de imagen); el JSON del acta sí.
+   */
+  valoresEditados?: Record<string, string | boolean>;
+  /**
+   * §5 — true cuando al menos un valor fue corregido por el operador
+   * (marca EDITADO en historial/fila). `undefined` = acta sin editar.
+   */
+  corregidoPorOperador?: boolean;
+  /**
+   * §5 — hora ISO de la ÚLTIMA corrección del operador (display EDITADO).
+   */
+  editadoEn?: string | null;
+  /**
+   * §5 — id de la FILA de historial que archivó/envió esta acta
+   * (registrarEnvio / archivarCaptura la estampan). La edición del
+   * operador ACTUALIZA esa fila en lugar de crear otra (una sola fila,
+   * estado EDITADO). `undefined` = acta sin fila propia.
+   */
+  historialFilaId?: string;
 }
 
 /** Fila del historial de envíos. */
 export interface HistorialRow {
   id: string;
   titulo: string;
-  estado: "ENVIADO" | "REVISION_HUMANA" | "RESCANEO_REQUERIDO" | (string & {});
+  /**
+   * GUARDADO_CRUDO (fase 2 — guardar cruda): la foto ORIGINAL quedó archivada
+   * SIN verificación (auto-recorte mal / rechazo persistente) — NO cuenta como
+   * envío verificado; la UI la marca «CRUDA · NO VERIFICADA».
+   */
+  estado: "ENVIADO" | "REVISION_HUMANA" | "RESCANEO_REQUERIDO" | "GUARDADO_CRUDO" | (string & {});
   hora: string | null;
   nota?: string | null;
 }

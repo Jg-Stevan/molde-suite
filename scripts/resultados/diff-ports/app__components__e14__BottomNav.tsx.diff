@@ -1,0 +1,181 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:47.705774800 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:47.706771200 -0500
+@@ -1,92 +1,113 @@
+ "use client";
+ 
+ /**
+- * BottomNav — STITCH REDESIGN (SPEC-e14-redesign-stitch §3.1.3, mocks):
+- * barra `bg-[#080C0A] border-t border-brand-borderdim/80 px-4 py-2` con
+- * 3 ítems flex justify-around.
+- *  · Ítem ACTIVO (ESCANEAR): cápsula `w-10 h-8 rounded-full
+- *    bg-brand-green/20 border border-brand-green text-brand-green
+- *    shadow-[0_0_10px_rgba(0,230,118,0.2)]` + label 10px bold verde.
+- *  · Inactivos: icono 20px gris-400 + label 10px medium gris-400.
+- *  · ACTAS: conteo real «(N)» en el MISMO label (data-driven del store).
+- *  · Home indicator: `w-32 h-1 bg-white/30 rounded-full` (mock 1) /
+- *    `h-1 w-28 bg-gray-700/60` (mocks 2-6).
+- *  · La vista `revision` sigue contando como ESCANEAR activo (el flujo de
++ * BottomNav — REDISEÑO «nav inferior» (mock del mantenedor 2026-02,
++ * «dejemos la parte de abajo como la imagen»): barra casi negra
++ * `bg-[#050708]` con grid-cols-3 items-center y tres piezas:
++ *  · Izquierda: HISTORIAL (reloj, trazo gris, etiqueta mono) → vista `actas`
++ *    (el control de documentos ES el historial de lo escaneado).
++ *  · Centro: círculo verde #00E676 (60px, doble glow) con glifo de
++ *    escaneo negro (4 esquinas + barra central) → vista `escanear`.
++ *    La REVISIÓN sigue contando como ESCANEAR activo (el flujo de
+  *    revisión ES el flujo del escáner) — solo presentación, `navegar`
+- *    intacto. El slot `children` (CTAs de ReviewCtas) se conserva.
+- *  · NOTA (eliminación del módulo masiva): el ítem MASIVA y la regla de
+- *    origen (`masivaOrigen` → MASIVA activo en REVISIÓN) se retiraron con
+- *    el módulo — REVISIÓN vuelve a activar ESCANEAR, como siempre.
++ *    intacto. NOTA (eliminación del módulo masiva): el ítem MASIVA y la
++ *    regla de origen (`masivaOrigen`) se retiraron con el módulo.
++ *  · Derecha: PLANTILLAS (cuadrícula sólida 2×2, etiqueta mono) → vista
++ *    `resumen`.
++ * Etiquetas UPPERCASE (mock del mantenedor 2026-11-16: «HISTORIAL» /
++ * «PLANTILLAS»), mono 11px con tracking. Activo lateral = esmeralda-300;
++ * inactivo = gris (icono 400 / etiqueta 300). SIN indicador home (el mock
++ * no lo trae) — `pb-safe` conserva la zona segura iOS. El badge de conteo
++ * de la sesión sobrevive sobre HISTORIAL (data-driven, solo si actasSesion > 0).
++ * El slot `children` (CTAs de ReviewCtas en REVISIÓN) se conserva sobre
++ * la barra, igual que antes.
+  */
+ import type { ReactNode } from "react";
+ import { useE14Store, type Vista } from "@/lib/e14/store";
+ import {
+-  StitchCameraIcon,
+-  StitchDocIcon,
+-  StitchGrid2Icon,
++  StitchClockIcon,
++  StitchGridSolidIcon,
++  StitchScanGlyphIcon,
+ } from "./icons";
+ 
+-const ITEMS: { vista: Vista; label: string; Icon: typeof StitchCameraIcon }[] = [
+-  { vista: "escanear", label: "ESCANEAR", Icon: StitchCameraIcon },
+-  { vista: "actas", label: "ACTAS", Icon: StitchDocIcon },
+-  { vista: "resumen", label: "RESUMEN", Icon: StitchGrid2Icon },
++type ItemLateral = { vista: Vista; label: string; Icon: typeof StitchClockIcon };
++
++const LATERALES: [ItemLateral, ItemLateral] = [
++  { vista: "actas", label: "HISTORIAL", Icon: StitchClockIcon },
++  { vista: "resumen", label: "PLANTILLAS", Icon: StitchGridSolidIcon },
+ ];
+ 
+-export function BottomNav({ mode = "dark", children }: { mode?: "dark" | "app"; children?: ReactNode }) {
++export function BottomNav({
++  mode = "dark",
++  children,
++}: {
++  mode?: "dark" | "app";
++  children?: ReactNode;
++}) {
+   const vista = useE14Store((s) => s.vista);
+   const navegar = useE14Store((s) => s.navegar);
+   const actasSesion = useE14Store((s) => s.actasSesion);
+ 
++  const itemLateral = ({ vista: v, label, Icon }: ItemLateral) => {
++    const activo = vista === v;
++    return (
++      <button
++        type="button"
++        onClick={() => navegar(v)}
++        aria-current={activo ? "page" : undefined}
++        className={`group flex min-h-[48px] flex-col items-center justify-center gap-4 rounded-2xl px-2 py-1.5 select-none transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 ${
++          activo ? "text-emerald-300" : "text-gray-400 hover:text-gray-200"
++        }`}
++      >
++        <span className="relative">
++          <Icon className="h-4 w-4" />
++          {v === "actas" && actasSesion > 0 && (
++            <span className="absolute -right-2.5 -top-1.5 rounded-full bg-emerald-500 px-1.5 py-px font-mono text-[9px] font-bold text-black shadow-sm tabular-nums">
++              {actasSesion}
++            </span>
++          )}
++        </span>
++        <span
++          className={`font-mono text-[11px] leading-none tracking-[0.08em] transition-colors ${
++            activo
++              ? "text-emerald-300"
++              : "text-gray-300 group-hover:text-gray-100"
++          }`}
++        >
++          {label}
++        </span>
++      </button>
++    );
++  };
++
++  const escaneoActivo = vista === "escanear" || vista === "revision";
++
+   return (
+     <footer className="relative z-30 shrink-0 pb-safe">
+-      {/* Slot de CTAs (modo dark/REVISIÓN): sobre la barra */}
++      {/* Slot de CTAs (REVISIÓN): sobre la barra, como siempre */}
+       {children && <div className="max-w-lg mx-auto px-4 pt-1 pb-2">{children}</div>}
+       <nav
+-        className="bg-[#090d12]/92 backdrop-blur-2xl border-t border-slate-800/80 shadow-[0_-8px_32px_rgba(0,0,0,0.55)]"
++        className="border-t border-white/[0.06] bg-[#050708]/95 backdrop-blur-xl shadow-[0_-10px_36px_rgba(0,0,0,0.6)]"
+         aria-label="Navegación principal"
+         data-mode={mode}
+       >
+-        <div className="max-w-md mx-auto px-3 py-1.5 flex justify-around items-center">
+-          {ITEMS.map(({ vista: v, label, Icon }) => {
+-            const activo =
+-              vista === v ||
+-              (vista === "revision" && v === "escanear");
+-            return (
+-              <button
+-                key={v}
+-                type="button"
+-                onClick={() => navegar(v)}
+-                aria-current={activo ? "page" : undefined}
+-                className="flex flex-col items-center gap-1 group py-1 px-3 select-none transition-all duration-150 min-h-[48px] justify-center"
+-              >
+-                <div
+-                  className={`relative flex items-center justify-center transition-all duration-200 rounded-2xl ${
+-                    activo
+-                      ? "w-11 h-8 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 shadow-[0_0_14px_rgba(16,185,129,0.22)] scale-105"
+-                      : "w-9 h-7 text-gray-400 group-hover:text-gray-200 group-hover:bg-white/5"
+-                  }`}
+-                >
+-                  <Icon className={`w-4 h-4 transition-transform duration-150 ${activo ? "scale-105" : ""}`} />
+-                  {v === "actas" && actasSesion > 0 && (
+-                    <span className="absolute -top-1 -right-1 px-1.5 py-0.2 bg-emerald-500 text-black font-mono font-bold text-[9px] rounded-full shadow-sm">
+-                      {actasSesion}
+-                    </span>
+-                  )}
+-                </div>
+-                <span
+-                  className={`text-[9.5px] tracking-wider uppercase font-sans transition-colors ${
+-                    activo ? "font-bold text-emerald-400" : "font-medium text-gray-400 group-hover:text-gray-300"
+-                  }`}
+-                >
+-                  {label}
+-                  {v === "actas" && actasSesion === 0 ? "" : ""}
+-                </span>
+-              </button>
+-            );
+-          })}
++        <div className="mx-auto grid max-w-md grid-cols-3 items-center px-4 py-3">
++          {itemLateral(LATERALES[0])}
++
++          {/* Botón central: círculo verde con glifo de escaneo */}
++          <button
++            type="button"
++            onClick={() => navegar("escanear")}
++            aria-current={escaneoActivo ? "page" : undefined}
++            aria-label="Escanear documento"
++            title="Escanear documento"
++            className="justify-self-center flex h-[56px] w-[56px] items-center justify-center rounded-full bg-[#00E676] text-black shadow-[0_0_24px_rgba(0,230,118,0.45),0_0_72px_rgba(0,230,118,0.16)] transition-all duration-150 hover:scale-[1.04] active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050708]"
++          >
++            <StitchScanGlyphIcon className="h-8 w-8" />
++          </button>
++
++          {itemLateral(LATERALES[1])}
+         </div>
+-        {/* Home indicator minimalista */}
+-        <div className="w-24 h-1 bg-white/20 rounded-full mx-auto my-1.5" aria-hidden />
+       </nav>
+     </footer>
+   );

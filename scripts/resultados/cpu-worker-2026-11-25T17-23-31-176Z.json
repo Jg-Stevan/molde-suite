@@ -1,0 +1,391 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "intervaloUs": 250,
+  "medidoEn": "2026-11-25T17:23:31.179Z",
+  "fotos": [
+    {
+      "archivo": "20261123_201944.jpg",
+      "msHost": 455,
+      "cpu": {
+        "totalMs": 433,
+        "wasmMs": 88.6,
+        "jsMs": 345.2,
+        "wasmPct": 0,
+        "top": [
+          {
+            "funcion": "(idle)",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 90.2,
+            "pct": 20.8,
+            "wasm": false,
+            "hits": 78
+          },
+          {
+            "funcion": "(anonymous)",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 41.1,
+            "pct": 9.5,
+            "wasm": false,
+            "hits": 2
+          },
+          {
+            "funcion": "wasm-function[63]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 27.9,
+            "pct": 6.4,
+            "wasm": true,
+            "hits": 39
+          },
+          {
+            "funcion": "makeDynCaller",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 22.8,
+            "pct": 5.3,
+            "wasm": false,
+            "hits": 36
+          },
+          {
+            "funcion": "(anonymous)",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 17.7,
+            "pct": 4.1,
+            "wasm": false,
+            "hits": 29
+          },
+          {
+            "funcion": "makeDynCaller",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 15.7,
+            "pct": 3.6,
+            "wasm": false,
+            "hits": 20
+          },
+          {
+            "funcion": "makeDynCaller",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 14.5,
+            "pct": 3.4,
+            "wasm": false,
+            "hits": 32
+          },
+          {
+            "funcion": "makeDynCaller",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 14.3,
+            "pct": 3.3,
+            "wasm": false,
+            "hits": 1
+          },
+          {
+            "funcion": "(garbage collector)",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 8.7,
+            "pct": 2,
+            "wasm": false,
+            "hits": 8
+          },
+          {
+            "funcion": "makeDynCaller",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 7,
+            "pct": 1.6,
+            "wasm": false,
+            "hits": 11
+          },
+          {
+            "funcion": "wasm-function[108]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 6,
+            "pct": 1.4,
+            "wasm": true,
+            "hits": 14
+          },
+          {
+            "funcion": "doRun",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 4.9,
+            "pct": 1.1,
+            "wasm": false,
+            "hits": 1
+          },
+          {
+            "funcion": "__embind_register_class",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 4.8,
+            "pct": 1.1,
+            "wasm": false,
+            "hits": 1
+          },
+          {
+            "funcion": "exposePublicSymbol",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 4.7,
+            "pct": 1.1,
+            "wasm": false,
+            "hits": 5
+          },
+          {
+            "funcion": "wasm-function[12072]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 4.4,
+            "pct": 1,
+            "wasm": true,
+            "hits": 7
+          },
+          {
+            "funcion": "makeDynCaller",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 4.4,
+            "pct": 1,
+            "wasm": false,
+            "hits": 9
+          },
+          {
+            "funcion": "(anonymous)",
+            "archivo": "",
+            "linea": 0,
+            "selfMs": 4.2,
+            "pct": 1,
+            "wasm": false,
+            "hits": 1
+          },
+          {
+            "funcion": "wasm-function[12050]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 4,
+            "pct": 0.9,
+            "wasm": true,
+            "hits": 6
+          },
+          {
+            "funcion": "wasm-function[12433]",
+            "archivo": "01e767ca",
+            "linea": 0,
+            "selfMs": 3.9,
+            "pct": 0.9,
+            "wasm": true,
+            "hits": 1
+          },
+          {
+            "funcion": "wasm-to-js",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 3.4,
+            "pct": 0.8,
+            "wasm": false,
+            "hits": 6
+          }
+        ]
+      }
+    },
+    {
+      "archivo": "20261123_223112.jpg",
+      "msHost": 228,
+      "cpu": {
+        "totalMs": 276.9,
+        "wasmMs": 0.4,
+        "jsMs": 276.5,
+        "wasmPct": 0,
+        "top": [
+          {
+            "funcion": "makeDynCaller",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 120.8,
+            "pct": 43.6,
+            "wasm": false,
+            "hits": 55
+          },
+          {
+            "funcion": "makeDynCaller",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 42.7,
+            "pct": 15.4,
+            "wasm": false,
+            "hits": 24
+          },
+          {
+            "funcion": "makeDynCaller",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 20.3,
+            "pct": 7.3,
+            "wasm": false,
+            "hits": 22
+          },
+          {
+            "funcion": "wasm-to-js",
+            "archivo": "",
+            "linea": -1,
+            "selfMs": 17.8,
+            "pct": 6.4,
+            "wasm": false,
+            "hits": 4
+          },
+          {
+            "funcion": "makeDynCaller",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 14,
+            "pct": 5.1,
+            "wasm": false,
+            "hits": 19
+          },
+          {
+            "funcion": "__embind_register_class_function",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 11.5,
+            "pct": 4.1,
+            "wasm": false,
+            "hits": 3
+          },
+          {
+            "funcion": "makeDynCaller",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 10.9,
+            "pct": 4,
+            "wasm": false,
+            "hits": 14
+          },
+          {
+            "funcion": "whenDependentTypesAreResolved",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 8.7,
+            "pct": 3.1,
+            "wasm": false,
+            "hits": 5
+          },
+          {
+            "funcion": "createNamedFunction",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 8.5,
+            "pct": 3.1,
+            "wasm": false,
+            "hits": 4
+          },
+          {
+            "funcion": "(anonymous)",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 4.3,
+            "pct": 1.6,
+            "wasm": false,
+            "hits": 1
+          },
+          {
+            "funcion": "exposePublicSymbol",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 2.6,
+            "pct": 0.9,
+            "wasm": false,
+            "hits": 2
+          },
+          {
+            "funcion": "(anonymous)",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 2.3,
+            "pct": 0.8,
+            "wasm": false,
+            "hits": 2
+          },
+          {
+            "funcion": "(anonymous)",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 1.9,
+            "pct": 0.7,
+            "wasm": false,
+            "hits": 3
+          },
+          {
+            "funcion": "embind__requireFunction",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 1,
+            "pct": 0.4,
+            "wasm": false,
+            "hits": 3
+          },
+          {
+            "funcion": "__embind_register_function",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 0.9,
+            "pct": 0.3,
+            "wasm": false,
+            "hits": 2
+          },
+          {
+            "funcion": "readLatin1String",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 0.8,
+            "pct": 0.3,
+            "wasm": false,
+            "hits": 1
+          },
+          {
+            "funcion": "new_",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 0.8,
+            "pct": 0.3,
+            "wasm": false,
+            "hits": 1
+          },
+          {
+            "funcion": "whenDependentTypesAreResolved",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 0.8,
+            "pct": 0.3,
+            "wasm": false,
+            "hits": 1
+          },
+          {
+            "funcion": "RegisteredPointer",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 0.6,
+            "pct": 0.2,
+            "wasm": false,
+            "hits": 1
+          },
+          {
+            "funcion": "(anonymous)",
+            "archivo": "opencv-4.12.0-core.js",
+            "linea": 29,
+            "selfMs": 0.5,
+            "pct": 0.2,
+            "wasm": false,
+            "hits": 1
+          }
+        ]
+      }
+    }
+  ]
+}

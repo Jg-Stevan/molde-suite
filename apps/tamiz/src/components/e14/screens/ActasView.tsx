@@ -210,21 +210,51 @@ function TarjetaDoc({
 
 /** Tarjeta REAL derivada de una fila de envíos (sin datos inventados). */
 function docDeFila(fila: HistorialRow, indice: number): DocHistorial {
+  // Fase 2: GUARDADO_LOCAL también es desenlace bueno (verde — bug: caía en
+  // «crit» por el else); GUARDADO_CRUDO es evidencia SIN verificar (ámbar).
+  // 2026-11-26: las capturas archivadas automáticamente llevan el veredicto
+  // real como estado — todo lo que no es RECHAZADA es ámbar (pendiente), y
+  // RECHAZADA conserva el rojo de «requiere nueva toma».
   const tono: Tono =
-    fila.estado === "ENVIADO" ? "ok" : fila.estado === "REVISION_HUMANA" ? "warn" : "crit";
+    fila.estado === "ENVIADO" || fila.estado === "GUARDADO_LOCAL"
+      ? "ok"
+      : fila.estado === "EDITADO"
+        ? "ok" // §5: los datos fueron corregidos por el operador y guardados
+        : fila.estado === "REVISION_HUMANA" ||
+            fila.estado === "GUARDADO_CRUDO" ||
+            fila.estado === "ADVERTENCIA" ||
+            fila.estado === "EN_REVISION_HUMANA" ||
+            fila.estado === "OPTIMA" ||
+            fila.estado === "CAPTURA_ARCHIVADA"
+          ? "warn"
+          : "crit";
   const aviso =
     fila.estado === "ENVIADO"
       ? { texto: "Documento procesado y guardado", tono: "ok" as const }
-      : fila.estado === "REVISION_HUMANA"
-        ? { texto: "Enviado a revisión humana", tono: "warn" as const }
-        : { texto: "Requiere nueva toma", tono: "crit" as const };
+      : fila.estado === "GUARDADO_LOCAL"
+        ? { texto: "Documento procesado y guardado", tono: "ok" as const }
+        : fila.estado === "EDITADO"
+          ? { texto: "Datos corregidos por el operador · guardado", tono: "ok" as const }
+          : fila.estado === "GUARDADO_CRUDO"
+            ? { texto: "CRUDA · NO VERIFICADA (FOTO ORIGINAL)", tono: "warn" as const }
+            : fila.estado === "REVISION_HUMANA"
+              ? { texto: "Enviado a revisión humana", tono: "warn" as const }
+              : fila.estado === "ADVERTENCIA" || fila.estado === "EN_REVISION_HUMANA"
+                ? { texto: "Captura archivada — pendiente de revisión", tono: "warn" as const }
+                : fila.estado === "OPTIMA" || fila.estado === "CAPTURA_ARCHIVADA"
+                  ? { texto: "Captura archivada automáticamente", tono: "warn" as const }
+                  : { texto: "Requiere nueva toma", tono: "crit" as const };
   return {
     id: fila.id,
     tipoChip: "DOCUMENTO",
     titulo: fila.titulo,
     score: null,
     tono,
-    meta: fila.hora ? `HORA: ${fila.hora}` : null,
+    meta: fila.nota
+      ? `${fila.hora ? `HORA: ${fila.hora} · ` : ''}${fila.nota}`
+      : fila.hora
+        ? `HORA: ${fila.hora}`
+        : null,
     metricas: [],
     aviso: { ...aviso, hora: fila.hora ?? undefined },
     repetir: fila.estado !== "ENVIADO",
@@ -531,15 +561,16 @@ export function ActasView() {
               {grupo.etiqueta}
             </h2>
             {grupo.docs.map((doc) => (
-              <TarjetaDoc
-                key={doc.id}
-                doc={doc}
-                detalleAbierto={detalleAbierto === doc.id}
-                onToggleDetalle={() =>
-                  setDetalleAbierto(detalleAbierto === doc.id ? null : doc.id)
-                }
-                onRepetir={() => navegar("escanear")}
-              />
+              <div key={doc.id} data-testid="historial-fila">
+                <TarjetaDoc
+                  doc={doc}
+                  detalleAbierto={detalleAbierto === doc.id}
+                  onToggleDetalle={() =>
+                    setDetalleAbierto(detalleAbierto === doc.id ? null : doc.id)
+                  }
+                  onRepetir={() => navegar("escanear")}
+                />
+              </div>
             ))}
           </section>
         ))}

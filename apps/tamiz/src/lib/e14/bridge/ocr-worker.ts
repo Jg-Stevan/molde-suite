@@ -23,6 +23,7 @@ function urlAbsoluta(ruta: string): string {
 const ASSET = (ruta: string) => urlAbsoluta(`${BASE_PATH}${ruta}`);
 
 let workerPromise: Promise<TesseractWorkerLike> | null = null;
+let reconocimientosEnVuelo = 0;
 
 /** Worker caliente único de Tamiz (createWorker('spa', 1), logger silencioso). */
 export function getWorker(): Promise<TesseractWorkerLike> {
@@ -45,4 +46,36 @@ export function getWorker(): Promise<TesseractWorkerLike> {
     })();
   }
   return workerPromise;
+}
+
+/** F4 — marca el inicio/fin de un reconocimiento para que el reciclado
+ *  post-escaneo no mate un worker con OCR en vuelo. */
+export function marcarReconocimientoTesseract(delta: 1 | -1): void {
+  reconocimientosEnVuelo = Math.max(0, reconocimientosEnVuelo + delta);
+}
+
+/** F4 — recicla el worker Tesseract si no hay OCR en vuelo. Libera la
+ *  memoria nativa WASM del singleton. Jamás lanza; false = no reiniciado.
+ *  CARRERA CERRADA (2026-11-26, RECHAZADA de 295 s con reciclado ON): la
+ *  promesa se anula SINCRÓNICAMENTE (antes de cualquier await) y el
+ *  terminate corre en segundo plano. Así un escaneo que llame getWorker()
+ *  durante el reciclado crea un worker fresco en vez de recibir el que está
+ *  siendo terminado (recognize sobre un worker terminado se cuelga y el
+ *  watchdog condena el documento). Los llamadores marcan el vuelo ANTES de
+ *  getWorker() para que el chequeo de inactividad no se adelante a un
+ *  reconocimiento que está por empezar. */
+export async function reiniciarWorkerTesseractSiInactivo(): Promise<boolean> {
+  try {
+    if (reconocimientosEnVuelo > 0) return false;
+    const viejo = workerPromise;
+    if (!viejo) return true;
+    workerPromise = null;
+    void viejo
+      .then((w) => w.terminate?.())
+      .catch(() => undefined);
+    return true;
+  } catch {
+    workerPromise = null;
+    return false;
+  }
 }

@@ -1,0 +1,22 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:44.837367600 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:44.838366800 -0500
+@@ -1,9 +1,11 @@
+-/**
+- * PUNTO ÚNICO DE INTERCAMBIO (SPEC §2) — FASE 1 (mapa v2.3): la fábrica
+- * CompositeBridge vive en el PAQUETE (crearGetBridge); el RealCoreBridge
+- * (composition root de ESTA app — FASE 4 del mapa) se inyecta aquí.
+- */
+-import { crearGetBridge } from "@jg-stevan/scanner-core/dominio/get-bridge";
+-import { RealCoreBridge } from "./scanner-core-bridge";
++// Singleton del bridge de escaneo (la UI siempre habla con ESTE).
+ 
+-export const getBridge = crearGetBridge(() => new RealCoreBridge());
++import type { E14Bridge } from '@molde-suite/scanner-core/dominio/bridge';
++import { RealCoreBridge } from './bridge/real-core-bridge';
++
++let bridge: E14Bridge | null = null;
++
++export function getBridge(): E14Bridge {
++  if (!bridge) bridge = new RealCoreBridge();
++  return bridge;
++}

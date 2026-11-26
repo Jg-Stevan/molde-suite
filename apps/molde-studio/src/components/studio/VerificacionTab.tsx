@@ -105,7 +105,10 @@ function detalleObligatorio(o: { def: CampoUniversal; res: ResultadoCampoUnivers
   const tipo = o.def.tipo;
   const estado = res?.estado ?? 'no_encontrado';
   const v: Veredicto = res ? veredictoDe(res) : 'ausente';
-  const umbralPct = Math.round(o.def.umbral * 1000) / 10;
+  // v3.3.0 (F9): `umbral` es OPCIONAL — puede venir de `herencia[tipo]`; sin
+  // valor propio ni heredado aquí, la tarjeta muestra «—» (jamás NaN).
+  const umbralPct = typeof o.def.umbral === 'number' ? Math.round(o.def.umbral * 1000) / 10 : null;
+  const umbralTxt = umbralPct !== null ? `${umbralPct.toFixed(1)}%` : '—';
   const ratioPct = typeof res?.ratio === 'number' ? res.ratio * 100 : null;
   // G-3/N-9: la confianza puede ser null (el OCR no reportó) — se muestra
   // "sin confianza" en vez de un número inventado.
@@ -129,7 +132,7 @@ function detalleObligatorio(o: { def: CampoUniversal; res: ResultadoCampoUnivers
           ? `Confianza insuficiente (${confTxt})`
           : tipo === 'texto'
             ? `Lectura dudosa (${confTxt})`
-            : `Densidad ${ratioPct !== null ? ratioPct.toFixed(1) : '—'}% ≈ Umbral ${umbralPct.toFixed(1)}%`;
+            : `Densidad ${ratioPct !== null ? ratioPct.toFixed(1) : '—'}% ≈ Umbral ${umbralTxt}`;
     return {
       Icono: AlertTriangle,
       iconoCls: 'text-warning',
@@ -145,7 +148,7 @@ function detalleObligatorio(o: { def: CampoUniversal; res: ResultadoCampoUnivers
       sub:
         tipo === 'texto'
           ? `Obligatorio · Confianza al borde (${confTxt})`
-          : `Obligatorio · Densidad ${ratioPct !== null ? ratioPct.toFixed(1) : '—'}% ≈ Umbral ${umbralPct.toFixed(1)}%`,
+          : `Obligatorio · Densidad ${ratioPct !== null ? ratioPct.toFixed(1) : '—'}% ≈ Umbral ${umbralTxt}`,
       badge: 'AL BORDE',
       badgeCls: 'bg-warning/15 text-warning-text',
     };
@@ -163,7 +166,7 @@ function detalleObligatorio(o: { def: CampoUniversal; res: ResultadoCampoUnivers
       return {
         Icono: CheckCircle2,
         iconoCls: 'text-success',
-        sub: `Obligatorio · Densidad > ${umbralPct.toFixed(1)}% (Real: ${ratioPct !== null ? ratioPct.toFixed(1) : '—'}%)`,
+        sub: `Obligatorio · Densidad > ${umbralTxt} (Real: ${ratioPct !== null ? ratioPct.toFixed(1) : '—'}%)`,
         badge: 'TRAZO VÁLIDO',
         badgeCls: 'bg-success-surface text-success-text',
       };
@@ -371,7 +374,11 @@ export default function VerificacionTab() {
   // vieja) se muestra «—» en vez de inventar un 0.12.
   const umbrales = useMemo(() => {
     const map = new Map<string, number>();
-    (molde?.campos ?? []).forEach((c) => map.set(c.id, c.umbral));
+    // v3.3.0: `umbral` puede ser undefined (herencia por tipo) — sin valor
+    // propio no se pinta umbral (la tarjeta cae a «—», nunca NaN).
+    (molde?.campos ?? []).forEach((c) => {
+      if (typeof c.umbral === 'number') map.set(c.id, c.umbral);
+    });
     return map;
   }, [molde]);
 

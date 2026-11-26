@@ -5,6 +5,7 @@
     "": {
       "name": "molde-suite",
       "devDependencies": {
+        "@molde-suite/scanner-core": "workspace:*",
         "typescript": "^5",
       },
     },

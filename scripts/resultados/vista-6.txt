@@ -1,0 +1,35 @@
+7.5/10
+RECHAZADA
+RECIBO DE PAGO
+FOTO PROCESADA
+✗
+VERIFICACIÓN DOCUMENTAL
+75% RECHAZADO
+▼
+MOLDE: RECIBO DE PAGO · 9/12 CAMPOS OK
+Campos Obligatorios
+8/11 · FALTAN 3
+•
+Fecha de pago
+CONFIRMAR
+•
+Firma emisor (receptor)
+CONFIRMAR
+•
+Firma pagador
+CONFIRMAR
+Campos Opcionales
+1/1 ✓
+▲
+✓
+Importe en letras
+3.150,00 € (TRES MIL CIENTO CINCUENTA EUROS)
+DOCUMENTO RECHAZADO
+Recortar
+Rotar 90°
+Imagen
+OBLIGATORIO REPETIR FOTO (INTENTO 1 DE 3)
+HISTORIAL
+PLANTILLAS
+Nueva versión disponible
+RECARGAR AHORA

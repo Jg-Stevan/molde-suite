@@ -11,6 +11,7 @@ import {
   endurecerFallbackNoVerificado,
   parsearFechaTexto,
   parsearRango,
+  resolverRectCampo,
   textoEnRect,
 } from './universal-engine';
 import type { CampoUniversal, RectNorm, ResultadoCampoUniversal } from './universal-types';
@@ -86,6 +87,43 @@ describe('buscarAncla — bypass textual solo_textual', () => {
     const hit = buscarAncla(textoAncla, [linea(textoAncla, 0.15 * H)], W, H);
     expect(hit!.solo_textual).toBeFalsy();
     expect(hit!.score).toBe(1);
+  });
+
+  test('DOS «Firma» perfectas en columnas distintas (recorte): la columna concede el bypass', () => {
+    // Medido en recorte-66pct-sin-firma: etiquetas al pie (y≈0.9) contra la
+    // referencia del molde (y≈0.622) → dy≈0.27 y score posicional < 0.72.
+    // El match no es único, pero cada campo espera SU columna: la x desambigua.
+    const izq = linea('Firma', 0.9 * H, 245);
+    const der = linea('Firma', 0.9 * H, 666);
+    const espEmisor: RectNorm = { x: 0.268, y: 0.622, w: 0.044, h: 0.01 };
+    const espPagador: RectNorm = { x: 0.689, y: 0.622, w: 0.045, h: 0.01 };
+    const hitE = buscarAncla('Firma', [izq, der], W, H, espEmisor);
+    const hitP = buscarAncla('Firma', [izq, der], W, H, espPagador);
+    expect(hitE!.solo_textual).toBe(true);
+    expect(hitP!.solo_textual).toBe(true);
+    expect(hitE!.rect.x).toBeCloseTo(245 / W, 6);
+    expect(hitP!.rect.x).toBeCloseTo(666 / W, 6);
+  });
+
+  test('única perfecta en columna pero FUERA de la cota vertical: sin bypass', () => {
+    // La «Firma» de la cabecera (dy≈0.48) no puede ganar el bypass aunque su
+    // columna coincida: aceptarla anclaría el campo en una zona equivocada.
+    const arriba = linea('Firma', 0.15 * H, 245);
+    const pie = linea('Firma', 0.9 * H, 666);
+    const espEmisor: RectNorm = { x: 0.268, y: 0.622, w: 0.044, h: 0.01 };
+    const hit = buscarAncla('Firma', [arriba, pie], W, H, espEmisor);
+    expect(hit!.solo_textual).toBeFalsy();
+    expect(hit!.score).toBeLessThan(ANCLA_SCORE_MIN);
+  });
+
+  test('un solo «Firma» en columna (el otro par ausente): sigue mandando la posición', () => {
+    // Recorte que elimina la columna derecha: el único perfecto está en la
+    // columna del emisor y dentro de la cota → bypass (comportamiento nuevo,
+    // misma cota que el caso único con desplazamiento).
+    const izq = linea('Firma', 0.9 * H, 245);
+    const espEmisor: RectNorm = { x: 0.268, y: 0.622, w: 0.044, h: 0.01 };
+    const hit = buscarAncla('Firma', [izq], W, H, espEmisor);
+    expect(hit!.solo_textual).toBe(true);
   });
 });
 
@@ -248,5 +286,54 @@ describe('endurecerFallbackNoVerificado (FASE 1b)', () => {
     });
     endurecerFallbackNoVerificado(campo(true, 'firma'), r);
     expect(r.estado).toBe('ok');
+  });
+});
+
+describe('resolverRectCampo — ancla_rect para el overlay (aditivo)', () => {
+  const campo: CampoUniversal = {
+    id: 'fecha',
+    etiqueta: 'Fecha',
+    pagina: 1,
+    tipo: 'texto',
+    estrategia: 'ancla_relativa',
+    zona: { x: 0.2, y: 0.02, w: 0.2, h: 0.02 },
+    ancla: { texto: 'Fecha:', rect: { x: 0.1, y: 0.5, w: 0.1, h: 0.02 } },
+  };
+  test('ancla encontrada → ancla_rect = rect del hit (normalizado)', () => {
+    // El hit vive en cy = 0.5·H → su bbox normalizado y ≈ 0.5 (no la referencia).
+    const r = resolverRectCampo(campo, [linea('Fecha:', 0.5 * H)], W, H);
+    expect(r?.fuente).toBe('ancla');
+    expect(r?.ancla_rect).toBeDefined();
+    expect(r!.ancla_rect!.y).toBeCloseTo(0.5 - 12 / H, 2);
+    expect(r!.ancla_rect!.x).toBeCloseTo(100 / W, 3);
+  });
+  test('referencia (ancla no encontrada) → sin ancla_rect', () => {
+    const sinHit = resolverRectCampo(campo, [linea('Otra cosa', 0.9 * H)], W, H);
+    expect(sinHit?.fuente).toBe('referencia');
+    expect(sinHit?.ancla_encontrada).toBe(false);
+    expect(sinHit?.ancla_rect).toBeUndefined();
+  });
+
+  test('firmas «Firma» duplicadas en documento recortado → rect al pie, no a la referencia', () => {
+    // Geometría REAL del molde recibo_pago v1.4.0 (zona relativa al ancla
+    // «Firma»). Antes: dy≈0.27 anulaba ambos matches → fallback y=0.548 (las
+    // palabras del overlay aparecían a media página). Ahora la columna
+    // desambigua y el rect cae sobre la rúbrica real (y≈0.82).
+    const firma = (zonaX: number, anclaX: number): CampoUniversal => ({
+      id: 'firma_emisor',
+      etiqueta: 'Firma emisor (receptor)',
+      pagina: 1,
+      tipo: 'firma',
+      estrategia: 'ancla_relativa',
+      zona: { x: zonaX, y: -0.074, w: 0.34, h: 0.06 },
+      ancla: { texto: 'Firma', rect: { x: anclaX, y: 0.622, w: 0.044, h: 0.01 } },
+    });
+    const lineas = [linea('Firma', 0.9 * H, 245), linea('Firma', 0.9 * H, 666)];
+    const r = resolverRectCampo(firma(-0.168, 0.268), lineas, W, H);
+    expect(r?.fuente).toBe('ancla');
+    expect(r?.ancla_solo_textual).toBe(true);
+    expect(r!.rect.y).toBeCloseTo(0.9 - 12 / H - 0.074, 3);
+    expect(r!.rect.y).toBeGreaterThan(0.8);
+    expect(r!.ancla_rect!.x).toBeCloseTo(245 / W, 6);
   });
 });

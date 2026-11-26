@@ -1,0 +1,20 @@
+{
+  "fotos": [
+    {
+      "foto": "pag-01.png",
+      "segundos": 94,
+      "veredicto": "REVISIÓN HUMANA",
+      "imagenMostrada": {
+        "nw": 575,
+        "nh": 892,
+        "cssW": 309,
+        "src": "data:image/png;base64,iVBORw0K"
+      },
+      "vista": null,
+      "capturas": [
+        "a56-app-veredicto-pag-01-1795630876844.png"
+      ]
+    }
+  ],
+  "medidoEn": "2026-11-25T18:21:17.539Z"
+}

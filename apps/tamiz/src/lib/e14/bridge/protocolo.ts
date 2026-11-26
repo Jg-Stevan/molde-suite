@@ -282,6 +282,15 @@ export type PasosMolde = {
   evaluarMolde: (
     fotoProcesada: string,
     contexto?: { esE14: boolean },
+    /** Plan primera ola (Fase 4): misma geometría sin binarizar (`fotoOcr`)
+     *  para el A/B medido cuando la binarizada no produce lecturas.
+     *  F2: líneas RapidOCR del cascade para reuso en el router. */
+    opciones?: {
+      fotoOriginal?: string;
+      lineasRapid?: Array<{ texto: string; conf: number; box: Array<{ x: number; y: number }> }>;
+      /** F2: ancho natural del warp OCR (para escalar líneas Rapid al canvas). */
+      anchoOcr?: number;
+    },
   ) => Promise<import("@molde-suite/scanner-core/dominio/types").ResumenMoldeActa | null>;
 };
 

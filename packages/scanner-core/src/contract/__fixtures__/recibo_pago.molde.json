@@ -1,0 +1,363 @@
+{
+  "tipo": "universal",
+  "version": "1.4.0",
+  "nombre": "Recibo de pago",
+  "descripcion": "Recalibrado (1.3.0) contra la plantilla HTML vigente (VAR 1-6 de variantes-prueba): título y cabecera centrados, bloques D./Recibí de/La suma de/En concepto de/Forma de pago/Fecha de pago en el tercio medio y ambas firmas al ~62% de la página. Datos impresos: los obligatorios de texto ya no usan htr. 1.3.2 (plan extracción relacional): validación de rango fecha_pago >= fecha_emision (gate honesto de fechas). 1.3.3: numero_recibo deja de colisionar con el título y datos_emisor deja de ser zona fija (último campo no relativo del molde). 1.4.0: huella de cascada (FASE 6) para la identificación barata del documento.",
+  "documento": "generico/recibo_pago",
+  "idioma": "es",
+  "campos": [
+    {
+      "id": "titulo",
+      "etiqueta": "Título del documento",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.01,
+        "y": -0.006,
+        "w": 0.26,
+        "h": 0.026
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "RECIBO DE PAGO",
+        "rect": {
+          "x": 0.386,
+          "y": 0.054,
+          "w": 0.227,
+          "h": 0.014
+        }
+      },
+      "patron": ".*RECIBO\\s+DE\\s+PAGO.*",
+      "nota": "Identidad del documento. 1.3.0: título centrado y zona ampliada para cubrirlo completo.",
+      "destacado": true
+    },
+    {
+      "id": "fecha_emision",
+      "etiqueta": "Fecha de emisión",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.134,
+        "y": -0.003,
+        "w": 0.3,
+        "h": 0.024
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Fecha",
+        "rect": {
+          "x": 0.416,
+          "y": 0.095,
+          "w": 0.055,
+          "h": 0.017
+        }
+      },
+      "patron": "\\d{1,2}\\s+de\\s+[A-Za-zÁÉÍÓÚáéíóúñ]+\\s+de\\s+\\d{4}",
+      "realce": true,
+      "nota": "Valor a la derecha del rótulo \"Fecha:\" en la cabecera. htr=false (impreso)."
+    },
+    {
+      "id": "numero_recibo",
+      "etiqueta": "N.º de recibo",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.134,
+        "y": -0.002,
+        "w": 0.2,
+        "h": 0.024
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "N.9 Recibo",
+        "rect": {
+          "x": 0.416,
+          "y": 0.119,
+          "w": 0.095,
+          "h": 0.012
+        }
+      },
+      "ancla_respaldo": "N.º Recibo",
+      "patron": "REC-\\d{4}-\\d{4}",
+      "realce": true,
+      "nota": "1.3.0: ancla \"N.º Recibo\" (antes \"Recibo\", que matcheaba el título RECIBO DE PAGO). 1.3.1 (auditoría con variantes): el OCR lee la etiqueta como «N.9 Recibo:» (º→9 y espacio extra) y con la penalización de dígitos (F1 1.3) el match \"N.º Recibo\" queda 0.718-0.719, DOS MILÉSIMAS bajo el corte 0.72 → ancla_no_encontrada en TODAS las páginas. El ancla volvió a \"Recibo\" (1.3.2) pero en recortes volvía a chocar con el título (ambos matches perfectos → sin bypass). 1.3.3: el ancla declara la lectura REAL del OCR «N.9 Recibo» (match perfecto SOLO de la etiqueta, nunca del título) con respaldo \"N.º Recibo\" para cuando el OCR sí lee el ordinal; zona recalibrada (x 0.103→0.134) para mantener el crop absoluto en 0.550 desde el inicio de la etiqueta."
+    },
+    {
+      "id": "datos_emisor",
+      "etiqueta": "Datos del receptor/emisor (nombre, DNI, cargo, empresa, CIF)",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.07,
+        "y": 0.0,
+        "w": 0.86,
+        "h": 0.024
+      },
+      "x_absoluto": true,
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "con DNI",
+        "rect": {
+          "x": 0.288,
+          "y": 0.158,
+          "w": 0.09,
+          "h": 0.014
+        }
+      },
+      "patron": ".*DNI\\s*\\d{1,3}(\\.\\d{3}){1,3}.*",
+      "realce": true,
+      "nota": "PRIMERA línea del bloque \"D. …, con DNI …\" (donde está el DNI; empresa/CIF van en la 2.ª). 1.3.3: era la única zona_fija del molde y fallaba con solo cambiar la proporción (recorte); ahora es ancla_relativa sobre SU PROPIA línea («con DNI», misma línea que el valor), con x_absoluto (la banda conserva x 0.07..0.93 y solo la y sigue al hit). No se cuelga de «Recibí de»: un dy entre líneas se distorsiona al recortar (la altura normalizada cambia). «con DNI» aparece dos veces (emisor y pagador) → dos matches perfectos, sin bypass; la posición esperada desempata del pagador (y 0.245), y una frase de dos palabras sobrevive a la rotación donde un «D.» de una letra se pierde. Centro x 0.333 (rect 0.288..0.378) medido con perfil de tinta: la x de «con DNI» depende del ancho del nombre previo (ref 0.3465, variante de nombres 0.3194, 0.3097), y el centro en el punto medio mantiene el dy máximo de un recorte inferior ×1.52 dentro del corte de score (dx 0.014 en vez de 0.041). Exige dígitos: bloque vacío (VAR 3) queda sin lectura válida."
+    },
+    {
+      "id": "datos_pagador",
+      "etiqueta": "Datos del pagador (nombre, DNI, cargo, empresa, CIF)",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.09,
+        "y": -0.003,
+        "w": 0.76,
+        "h": 0.028
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Recibí de",
+        "rect": {
+          "x": 0.075,
+          "y": 0.243,
+          "w": 0.085,
+          "h": 0.011
+        }
+      },
+      "patron": ".*DNI\\s*\\d{1,3}(\\.\\d{3}){1,3}.*",
+      "realce": true,
+      "nota": "Solo la PRIMERA línea tras \"Recibí de:\" (donde está el DNI). Exige dígitos: sin pagador (VAR 5) queda sin lectura válida."
+    },
+    {
+      "id": "importe",
+      "etiqueta": "Importe numérico",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.108,
+        "y": -0.003,
+        "w": 0.1,
+        "h": 0.024
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "La suma de",
+        "rect": {
+          "x": 0.075,
+          "y": 0.324,
+          "w": 0.105,
+          "h": 0.01
+        }
+      },
+      "patron": ".*\\d{1,3}(\\.\\d{3})*,\\d{2}.*",
+      "realce": true,
+      "nota": "Zona estrecha sobre la cifra (antes de las letras). Exige formato 1.250,00."
+    },
+    {
+      "id": "importe_texto",
+      "etiqueta": "Importe en letras",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.108,
+        "y": -0.003,
+        "w": 0.68,
+        "h": 0.024
+      },
+      "umbral": 0.02,
+      "obligatorio": false,
+      "ancla": {
+        "texto": "La suma de",
+        "rect": {
+          "x": 0.075,
+          "y": 0.324,
+          "w": 0.105,
+          "h": 0.01
+        }
+      },
+      "realce": true,
+      "nota": "Opcional; cifra + paréntesis con el importe en letras."
+    },
+    {
+      "id": "concepto",
+      "etiqueta": "Concepto del pago",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.143,
+        "y": -0.003,
+        "w": 0.68,
+        "h": 0.028
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "En concepto de",
+        "rect": {
+          "x": 0.075,
+          "y": 0.373,
+          "w": 0.138,
+          "h": 0.01
+        }
+      },
+      "realce": true,
+      "nota": "Primera línea del concepto (el valor puede seguir en una 2.ª línea fuera de la zona)."
+    },
+    {
+      "id": "forma_pago",
+      "etiqueta": "Forma de pago",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.14,
+        "y": -0.003,
+        "w": 0.7,
+        "h": 0.024
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Forma de pago",
+        "rect": {
+          "x": 0.075,
+          "y": 0.455,
+          "w": 0.135,
+          "h": 0.014
+        }
+      },
+      "realce": true,
+      "nota": "1.3.0: en la plantilla HTML \"Forma de pago\" está en el tercio medio (antes y=0.759)."
+    },
+    {
+      "id": "fecha_pago",
+      "etiqueta": "Fecha de pago",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.138,
+        "y": -0.003,
+        "w": 0.18,
+        "h": 0.024
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Fecha de pago",
+        "rect": {
+          "x": 0.075,
+          "y": 0.48,
+          "w": 0.133,
+          "h": 0.014
+        }
+      },
+      "patron": "\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}",
+      "realce": true,
+      "nota": "Formato dd/mm/aaaa. 1.3.0: posición actualizada a y≈0.480."
+    },
+    {
+      "id": "firma_emisor",
+      "etiqueta": "Firma emisor (receptor)",
+      "pagina": 1,
+      "tipo": "firma",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.168,
+        "y": -0.074,
+        "w": 0.34,
+        "h": 0.06
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Firma",
+        "rect": {
+          "x": 0.268,
+          "y": 0.622,
+          "w": 0.044,
+          "h": 0.01
+        }
+      },
+      "nota": "Rótulo IZQUIERDO \"Firma\". Zona SOLO sobre la rúbrica. Calibrada VAR 1/VAR 3 firmadas: ratio 0.046-0.049; sin firma ≤0.0086 → umbral 0.02."
+    },
+    {
+      "id": "firma_pagador",
+      "etiqueta": "Firma pagador",
+      "pagina": 1,
+      "tipo": "firma",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.161,
+        "y": -0.074,
+        "w": 0.34,
+        "h": 0.06
+      },
+      "umbral": 0.02,
+      "obligatorio": true,
+      "ancla": {
+        "texto": "Firma",
+        "rect": {
+          "x": 0.689,
+          "y": 0.622,
+          "w": 0.045,
+          "h": 0.01
+        }
+      },
+      "nota": "Rótulo DERECHO \"Firma\" (el ancla apunta al segundo rótulo para desambiguar de la columna izquierda). Zona SOLO sobre la rúbrica. Sin firma ≤0.0071 → umbral 0.02."
+    }
+  ],
+  "validaciones": [
+    {
+      "id": "fechas_coherentes",
+      "regla": "rango",
+      "expresion": "fecha_pago >= fecha_emision",
+      "descripcion": "La fecha de pago no puede ser anterior a la fecha de emisión"
+    }
+  ],
+  "meta": {
+    "orden": 10,
+    "etiquetaCampos": "Campos",
+    "etiquetas": {
+      "texto": "Texto",
+      "presencia": "Presencia",
+      "firma": "Firma",
+      "checkbox": "Casilla"
+    }
+  },
+  "huella": {
+    "frasesClave": [
+      "RECIBO DE PAGO",
+      "La suma de",
+      "En concepto de",
+      "Forma de pago"
+    ],
+    "paginas": 1,
+    "franja": {
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 0.5
+    },
+    "minFrases": 2
+  }
+}

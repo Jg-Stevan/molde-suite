@@ -1,0 +1,44 @@
+{
+  "archivo": "recibo-b-todo-mano-01.jpg",
+  "config": "suelo",
+  "pase": "run1",
+  "msVeredicto": 14518,
+  "veredicto": "REVISIÓN HUMANA",
+  "etapas": [
+    {
+      "fase": "DETECTANDO",
+      "t": 814
+    }
+  ],
+  "acta": null,
+  "rotacion": null,
+  "rssAntes": [
+    "TOTAL   283102   155276    37148    69883   329056   159509    49037   105528",
+    "TOTAL PSS:   283102            TOTAL RSS:   329056       TOTAL SWAP PSS:    69883"
+  ],
+  "rssDespues": [
+    "TOTAL   258805   136060    36652    69979   299956   160165    49443   105769",
+    "TOTAL PSS:   258805            TOTAL RSS:   299956       TOTAL SWAP PSS:    69979"
+  ],
+  "consola": [
+    "[e14-rapidocr] det run [1,3,480,640]...",
+    "[e14] qr-capa0 prechequeo sin-candidato ms=600 patrones=0 confianza=0.00",
+    "[e14-rapidocr] det run OK (731ms)",
+    "[e14-rapidocr] celda: det=817ms cls=45.700000047683716ms rec=901ms (run=817.6449999809265 js=83.35500001907349) · 3 cajas · 3 líneas · conf 98.0% · 1721ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-prowarm] listo det=817ms cls=45.700000047683716ms rec=901ms · 3 cajas · 3 líneas",
+    "[e14-rapidocr] det run [1,3,1056,1280]...",
+    "[e14-rapidocr] det run OK (1537ms)",
+    "[e14] orientacion crop=1280x1046 rot=90 probe={0:0.00,90:9.67} anclas90=4 conf90=0.96 aplicado=1 ms=4061 cortes=completo orden=0,90,270,180 gan=90 exif=0 escala=1280",
+    "[e14-rapidocr] det run [1,3,1280,1056]...",
+    "[e14-rapidocr] det run OK (1701ms)",
+    "[e14-rapidocr] celda: det=1775ms cls=259.77999997138977ms rec=3558ms (run=3178.2349999547005 js=379.76500004529953) · 23 cajas · 23 líneas · conf 92.9% · 5346ms detMemo=miss · leidas=23/23 anclasBordes=-1 pieBordes=-1 rescate=0 crops=5ms",
+    "[tamiz:info] [e14] ocr-cascada intento1=1280 gate1=AUTO elegido=1280 rescate=0 ms1=5353 ms2=- msRoi=- msMotor=-",
+    "[e14-rapidocr] det run [1,3,256,1280]...",
+    "[e14-rapidocr] det run OK (467ms)",
+    "[e14-rapidocr] celda: det=496ms cls=0ms rec=184ms (run=171.59499996900558 js=12.405000030994415) · 1 cajas · 1 líneas · conf 96.1% · 695ms detMemo=miss · leidas=1/1 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-rapidocr] det run [1,3,352,1408]...",
+    "[e14-rapidocr] det run OK (600ms)",
+    "[e14-rapidocr] celda: det=638ms cls=15.785000026226044ms rec=339ms (run=308.2199999690056 js=30.780000030994415) · 2 cajas · 2 líneas · conf 98.5% · 984ms detMemo=miss · leidas=2/2 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms"
+  ],
+  "medidoEn": "2026-11-26T04:17:38.462Z"
+}

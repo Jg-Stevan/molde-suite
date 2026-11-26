@@ -1,0 +1,28 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "medidoEn": "2026-11-25T15:16:26.640Z",
+  "pasos": [
+    {
+      "paso": "worker OpenCV del visor listo",
+      "ok": true,
+      "worker": {
+        "ready": true,
+        "dead": false
+      }
+    },
+    {
+      "paso": "importación recibo-en-mesa.png con veredicto",
+      "ok": true,
+      "veredicto": "REVISIÓN HUMANA"
+    },
+    {
+      "paso": "detección OpenCV devuelve quad real ROTADO (no marco completo)",
+      "ok": true,
+      "antes": "0.00,0.00 100.00,0.00 100.00,100.00 0.00,100.00",
+      "despues": "19.32,8.75 95.93,17.75 80.34,91.00 3.73,82.00",
+      "ms": 831,
+      "captura": "a56-warp-02-editor-quad-detectado.png",
+      "nota": ""
+    }
+  ]
+}

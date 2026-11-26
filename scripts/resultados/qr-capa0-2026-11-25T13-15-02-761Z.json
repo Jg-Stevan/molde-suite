@@ -1,0 +1,25 @@
+{
+  "base": "http://localhost:3100",
+  "medidoEn": "2026-11-25T13:14:04.875Z",
+  "sinQr": {
+    "segundos": 9,
+    "logPrechequeo": "[e14] qr-capa0 prechequeo sin-candidato ms=932 patrones=0 confianza=0.00",
+    "msPrechequeo": 932,
+    "workerVencido": null,
+    "logs": [
+      "[e14] qr-capa0 prechequeo sin-candidato ms=932 patrones=0 confianza=0.00"
+    ]
+  },
+  "conQr": {
+    "segundos": 15,
+    "payloads": [
+      "MOLDE-SUITE-QR-CAPA0-TEST-2026"
+    ],
+    "payloadEsperado": "MOLDE-SUITE-QR-CAPA0-TEST-2026",
+    "logWorker": "[e14] qr-capa0-worker tier=base ms=307 fin=payload fases={\"decode\":97,\"base\":210} presupuestoVencido=0",
+    "logs": [
+      "[e14] qr-capa0-worker tier=base ms=307 fin=payload fases={\"decode\":97,\"base\":210} presupuestoVencido=0"
+    ]
+  },
+  "fallos": []
+}
