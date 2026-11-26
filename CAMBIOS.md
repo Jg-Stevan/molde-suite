@@ -3,7 +3,9 @@
 - Fecha: 2026-11-26
 - Rama: `agent-b/mvp-captura-pwa` (desde `main` `ccb85b1`) — plan `PLAN-CIERRE-2-AGENTES-2026-11-26.md`
 - Ejecutado por: Agente B (producto, MVP y captura)
+- **SHAs finales (§8.4):** `f6132fc` feat(b3+b4) · `8583bad` docs(b5) · `f3f81c3` docs(b6) · **merge a main: `1d09f11`**
 - Verificación: typecheck ✓ · lint ✓ · bun test **132/132** (26 nuevos) · verificación en navegador §7 completa (PC 1280×800 + móvil 390×844 + build estático offline) — evidencia en `scripts/resultados/verificacion-agente-b/` (LOCAL)
+- **Verificación integrada §8.3 post-merge en main**: batería completa (tamiz 132/132 · scanner-core 77/77 · layout-core 14/14 · Studio typecheck+lint) + flujo COMPLETO en navegador (carga → escaneo RECHAZADA con obligatorio faltante → edición del campo → OPTIMA 10.0 → ENVIADO AUTOMÁTICAMENTE) ✓
 
 ## B4 — REGLA DE ORO (§4, recalzada por el dueño) — P0
 
