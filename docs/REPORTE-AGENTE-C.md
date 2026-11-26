@@ -235,3 +235,34 @@ Con esto, el repo queda listo para **A56 en el teléfono real** con: flags
 F2/F1 OFF, `autoGuardado` ON, fotos SOLO en el dispositivo (nunca en el repo),
 molde REC-A del banco (`variantes/recibo_a_real`) activo y el guion C1-C5
 como prueba de campo.
+
+## 10. Opción B ejecutada — reescritura del historial (2026-11-27)
+
+Orden explícita del dueño («elimina los blobs antiguos del historial»), tras
+la Opción A de §3. Detalle operativo en `CAMBIOS.md` (sección Opción B) y
+lección P14; aquí el resumen verificable:
+
+- **Purga:** `git filter-repo --invert-paths --paths-from-file <los 200 paths
+  de §3> --replace-text <3 reglas literales del saneo de
+  test-faro-relacional.ts>`.
+- **Resultado:** `main` `fba5037` → `bb43c08` con **árbol de HEAD
+  byte-idéntico** (`3a26734d`); `git rev-list --all --count -- <200 paths>` =
+  0 (antes 10); versiones pre-saneo del `.ts` fuera de la historia; tag
+  `post-auditoria-remediacion` `e676e9d` → `2d531f4` (su árbol tenía
+  `informe-calibracion.json`); rama remota `agent-c/v6-…` eliminada (el PR
+  #11 queda mergeado).
+- **Escaneo de contenido** de los 1.413 blobs de texto de la historia
+  reescrita: DNI=0 · CIF=0 · IBAN-patrón = 2 valores sintéticos nunca
+  presentes en el material purgado (contrastado con los 191 blobs del
+  material purgado en un clon pre-purge) · `20261123` solo en 4 markdown ·
+  `REC-2026-0157` en 6 rutas (3 aceptadas por H9 + 3 fixtures sintéticos que
+  lo usan de muestra; genericizable si se prefiere).
+- **Nota de SHAs:** los SHAs citados en §2-§6 y en este §10 para describir el
+  pre-estado (`b4f44c5`, `f681da6`, `c1502ce`, `fba5037`, `e676e9d`, …)
+  corresponden a la historia PRE-rewrite y ya no son accesibles; el mapeo
+  viejo→nuevo quedó en `.git/filter-repo/commit-map` del sandbox que ejecutó
+  la reescritura.
+- **Pendiente en GitHub:** `refs/pull/*/head` (PRs #1-#11) y cualquier fork
+  mantienen commits pre-rewrite alcanzables hasta GC — contactar GitHub
+  Support (docs.github.com: «Removing sensitive data from a repository»);
+  forks/clones existentes deben re-clonar tras el force-push.

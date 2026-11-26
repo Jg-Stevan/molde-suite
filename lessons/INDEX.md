@@ -237,3 +237,25 @@ privacidad (grep de patrones sobre `git ls-files`) incorporada al checklist
 §1.3 del plan V6 — verificar el ÍNDICE, no la intención.
 
 **Lecciones:** recibo_pago/2026-11-27-gitignore-no-desrastrea.md
+
+## P14 — filter-repo sin --invert-paths borra TODO menos lo pedido (Opción B)
+
+**Patrón:** purga de blobs con `git filter-repo --paths-from-file <lista>`
+sin `--invert-paths`. La semántica por defecto es INCLUSIVA: la historia
+queda reducida a SOLO la lista — en una purga de privacidad, SOLO los
+documentos reales — y el árbol de HEAD pasa al árbol vacío (`4b825dc`).
+
+**Síntomas:** tras el rewrite, `git rev-parse main^{tree}` devuelve el árbol
+vacío y el working tree pierde el contenido trackeado. Objetivo exacto
+inverso al buscado.
+
+**Mitigación (dueño vía sandbox, 2026-11-27):** fijar el SHA del árbol
+esperado de HEAD antes del rewrite y verificarlo después; snapshot de refs,
+SHAs y conteos de disco; el remoto intacto como copia maestra (descartar
+`.git` corrupto, re-clonar, repetir con `--invert-paths`); verificación en 3
+capas (paths = 0 · escaneo de contenido de todos los blobs contrastado con el
+clon pre-purge · SHAs viejos irrecuperables); `--replace-text` validado por
+simulación byte-idéntica antes de ejecutar; protección de rama guardada por
+API, `allow_force_pushes` temporal y restauración verificada idéntica.
+
+**Lecciones:** recibo_pago/2026-11-27-filter-repo-invert-paths.md

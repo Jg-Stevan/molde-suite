@@ -1,3 +1,54 @@
+# Cambios — Opción B: purga de blobs del historial (filter-repo + force-push, 2026-11-27)
+
+- Fecha: 2026-11-27
+- Base: `main` `fba5037` (pre-rewrite) · Resultado: `main` `bb43c08` (árbol de HEAD byte-idéntico `3a26734d`)
+- Ejecutado por: el dueño vía sandbox, con credenciales aportadas en la sesión
+- Orden explícita del dueño: «elimina los blobs antiguos del historial»
+
+## Qué se purgó
+
+- **Los 200 paths** de documentos reales (§3 del reporte): `git rev-list --all
+  --count -- <200 paths>` = **0** (antes: 10 commits los tocaban).
+- **Versiones previas de `test-faro-relacional.ts`** (desde `dea5093`, con
+  nombres/DNI/CIF/empresas reales): reemplazadas por el contenido saneado
+  actual vía `--replace-text` (3 reglas literales; simulación previa verificó
+  que el blob reescrito es byte-idéntico al archivo saneado,
+  sha `1370963b3bb8`).
+- **Tag `post-auditoria-remediacion`** reescrito (su árbol contenía
+  `herramientas/informe-calibracion.json`): `e676e9d` → `2d531f4`.
+
+## Cómo se verificó
+
+- Árbol de HEAD post-rewrite **byte-idéntico** al pre-rewrite (`3a26734d`) —
+  cero cambios de contenido actual.
+- Escaneo de contenido de los **1.413 blobs de texto** de la historia
+  reescrita (scripts del sandbox, sin volcar valores): **DNI=0 · CIF=0** ·
+  IBAN-patrón = **2 valores sintéticos** que jamás estuvieron en el material
+  purgado (contrastado contra los 191 blobs del material purgado en un clon
+  pre-purge: 0 valores de patrón IBAN); timestamp `20261123` solo en 4
+  markdown; `REC-2026-0157` en 6 rutas (3 docs aceptados por H9 + 3 fixtures
+  sintéticos que lo usan como muestra; genericizable si se prefiere).
+- SHAs viejos irrecuperables del clon reescrito (`git cat-file -t` falla para
+  `fba5037`/`12d172e`/`c1502ce`/`e676e9d`/`dea5093`).
+
+## Procedimiento y protecciones
+
+- `main` estaba PROTEGIDA (force-push deshabilitado): config original guardada
+  por API, `allow_force_pushes` activado temporalmente, force-push, y
+  **restauración verificada idéntica** (comparación JSON campo a campo).
+- Rama remota `agent-c/v6-privacidad-prueba-rec-a` **ELIMINADA** (su historia
+  contenía los blobs; el PR #11 queda mergeado).
+- **Pendiente en GitHub:** las `refs/pull/*/head` (PRs #1-#11) siguen apuntando
+  a commits pre-rewrite y mantienen los blobs alcanzables hasta que GitHub
+  ejecute GC — contactar GitHub Support para purgar las cached views
+  (docs.github.com: «Removing sensitive data from a repository»). Forks y
+  clones existentes deben re-clonar tras este force-push.
+- Lección P14 en `lessons/`: **filter-repo sin `--invert-paths` borra TODO
+  menos lo pedido** (incidente del sandbox: detectado por el árbol vacío de
+  HEAD y recuperado por re-clon desde el remoto intacto; sin pérdida).
+
+---
+
 # Cambios — V6 aplicada (inventario retirado) + prueba REC-A C1-C5 (plan PLAN-AGENTE-V6-PRIVACIDAD-Y-PRUEBA-REC-A-2026-11-26)
 
 - Fecha: 2026-11-27
