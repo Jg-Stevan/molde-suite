@@ -112,3 +112,15 @@ Supuestos adicionales:
 6. **La REGLA DE ORO multipágina** (lote 2/2 → una fila) no se Ejercitó aquí
    (requiere el molde de 2 páginas + 2 imágenes válidas — demo ya documentada
    en lessons 2026-11-26 multipágina); re-verificación conjunta en la fusión §8.3.
+6. **La REGLA DE ORO multipágina** (lote 2/2 → una fila) no se Ejercitó aquí
+   (requiere el molde de 2 páginas + 2 imágenes válidas — demo ya documentada
+   en lessons 2026-11-26 multipágina); re-verificación conjunta en la fusión §8.3.
+7. **Riesgo de privacidad PRE-EXISTENTE en main (fuera del alcance de esta
+   rama)**: `scripts/resultados/` ya versiona en main ~122 PNG/JPG previos al
+   plan — la mayoría son capturas de UI del app (`a56-*.png`), pero
+   `scripts/resultados/reales-recorte/` (14) y `reales-procesado/` (4) parecen
+   recortes/procesados de fotos reales de documentos (commit f681da6, anterior
+   al plan de cierre). El nuevo `.gitignore` evita que suban NUEVOS archivos,
+   pero los ya trackeados requieren decisión del dueño: `git rm --cached` +
+   commit (retira de la punta) o reescritura de historial si se exige retiro
+   total del repo público (§3.3).
