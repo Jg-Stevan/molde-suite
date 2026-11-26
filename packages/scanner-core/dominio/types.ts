@@ -219,6 +219,13 @@ export interface Acta {
    * viejos lo ignoran; `undefined` = acta normal.
    */
   guardadaCruda?: boolean;
+  /**
+   * 2026-11-26 (aceptar y guardar automáticamente): la CAPTURA quedó
+   * archivada sola en el historial/libro con su veredicto real (incluye
+   * RECHAZADA/ADVERTENCIA). Evita re-archivar la misma acta; `undefined` =
+   * acta sin archivar.
+   */
+  capturaArchivada?: boolean;
 }
 
 /** Fila del historial de envíos. */

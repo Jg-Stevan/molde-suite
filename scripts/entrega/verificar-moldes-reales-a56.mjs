@@ -40,6 +40,11 @@ const argDe = (n) => {
 const CDP = argDe("--cdp") ?? "http://127.0.0.1:9223";
 const SOLO = argDe("--solo");
 const LIMITE = Number(argDe("--limite") ?? Infinity);
+const FLAGS = argDe("--flags");
+// --archivado: tras cada acta abre HISTORIAL y lee la primera tarjeta — la
+// prueba del archivado automático (2026-11-26: toda captura queda guardada
+// con su veredicto sin que el operador pulse nada).
+const VER_ARCHIVADO = process.argv.includes("--archivado");
 const DIR_FOTOS = join("apps", "tamiz", "public", "dev-fixtures", "reales-variantes");
 const DIR_MOLDES = join("apps", "tamiz", "public", "moldes");
 
@@ -54,7 +59,7 @@ const MOLDES = ["recibo_real", "comprobante_real"].map((k) => ({
 
 const FOTOS = readdirSync(DIR_FOTOS)
   .filter((f) => /\.(jpe?g|png)$/i.test(f))
-  .filter((f) => !SOLO || f.includes(SOLO))
+  .filter((f) => !SOLO || SOLO.split(",").some((s) => s.trim() && f.includes(s.trim())))
   .sort()
   .slice(0, LIMITE);
 if (!FOTOS.length) {
@@ -133,6 +138,13 @@ const ROJO = "rgb(239, 68, 68)";
 const progreso = crearProgreso("moldes-reales-a56-progreso.log");
 const { navegador, pagina, sesion } = await conectarA56(CDP);
 pagina.on("pageerror", (e) => progreso(`[pageerror] ${String(e).slice(0, 300)}`));
+// Consola del pipeline: sin esto un cuelgue no dice si el OCR arrancó.
+pagina.on("console", (m) => {
+  const t = m.text();
+  if (/\[e14|\[pipeline|\[molde|rapidocr|prowarm/i.test(t)) {
+    progreso(`[console.${m.type()}] ${t.slice(0, 300)}`);
+  }
+});
 
 const filas = [];
 let indice = 0;
@@ -221,6 +233,16 @@ try {
   await desarmarAutoCaptura(pagina);
   capturaDispositivo("moldes-reales-a56-00-inicio.png");
 
+  // Overrides de experimentos (JSON parcial de tamiz.flags.v1): se aplican y
+  // la app se RECARGA — el módulo de flags cachea en memoria al arrancar.
+  if (FLAGS) {
+    await pagina.evaluate((f) => localStorage.setItem("tamiz.flags.v1", f), FLAGS);
+    await pagina.reload({ waitUntil: "domcontentloaded", timeout: 90000 });
+    await pagina.locator("input[type=file]").first().waitFor({ state: "attached", timeout: 120000 });
+    await desarmarAutoCaptura(pagina);
+    progreso(`flags override aplicadas: ${FLAGS}`);
+  }
+
   for (const archivo of FOTOS) {
     // Re-forzar el primer plano POR FOTO: si en medio del lote alguien toca
     // el teléfono y cambia de pestaña, Chrome congela los timers y la foto
@@ -286,6 +308,29 @@ try {
           `${fila.scoreMolde ?? "-"}/100 · ${fila.ok ?? "-"}/${fila.total ?? "-"} · verde ${verde} rojo ${rojo} · ${seg}s` +
           (fallos.length ? ` ← ${fallos.join("; ")}` : ""),
       );
+      if (VER_ARCHIVADO) {
+        // HISTORIAL: la captura debe estar YA en la primera tarjeta (fila con
+        // el veredicto real de la acta y nota CAPTURA ARCHIVADA / envío).
+        await pagina.getByRole("button", { name: /HISTORIAL/i }).first().click().catch(() => {});
+        await pagina.waitForTimeout(1600);
+        const tarjetas = await pagina
+          .locator("article")
+          .evaluateAll((els) =>
+            els.slice(0, 3).map((e) => (e.innerText || "").replace(/\s+/g, " ").trim().slice(0, 240)),
+          )
+          .catch(() => []);
+        fila.historial = tarjetas;
+        fila.capturaHistorial = capturaDispositivo(
+          `mra-${String(indice).padStart(2, "0")}-historial.png`,
+        );
+        progreso(`historial[0]: ${tarjetas[0] ?? "(sin tarjetas)"}`);
+        await pagina
+          .getByRole("button", { name: /Escanear documento/i })
+          .first()
+          .click()
+          .catch(() => {});
+        await pagina.waitForTimeout(900);
+      }
     } catch (e) {
       filas.push({ archivo, error: String(e).slice(0, 200) });
       progreso(`FALLA ${archivo.padEnd(42)} ← ${String(e).slice(0, 160)}`);

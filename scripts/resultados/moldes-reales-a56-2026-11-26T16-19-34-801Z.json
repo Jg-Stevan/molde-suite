@@ -1,0 +1,194 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "medidoEn": "2026-11-26T16:19:34.801Z",
+  "filas": [
+    {
+      "archivo": "recibo-impreso-01.jpg",
+      "segundos": 27,
+      "status": "EN_REVISION_HUMANA",
+      "rechazada": false,
+      "molde": "Recibo de pago — real (A/B/C)",
+      "enrutado": false,
+      "scoreMolde": 25,
+      "scoreActa": 8,
+      "ok": 3,
+      "total": 12,
+      "faltan": [
+        "FECHA",
+        "N.º RECIBO",
+        "DNI EMISOR",
+        "PAGADOR (nombre y DNI)",
+        "IMPORTE (€)",
+        "CONCEPTO",
+        "FORMA DE PAGO",
+        "FECHA DE PAGO",
+        "Firma pagador"
+      ],
+      "campos": [
+        {
+          "id": "titulo",
+          "v": "RECIBO DE PAGO",
+          "est": "ok",
+          "htr": false,
+          "tinta": true,
+          "band": "ancla_solo_textual"
+        },
+        {
+          "id": "fecha_emision",
+          "v": "02 de febrero de 2026",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "htr_manual"
+        },
+        {
+          "id": "numero_recibo",
+          "v": "REC-2026-0157",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "htr_manual"
+        },
+        {
+          "id": "datos_emisor",
+          "v": "Medina, con DNI 48.221.907, en calidad d",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "htr_manual"
+        },
+        {
+          "id": "datos_pagador",
+          "v": "Andrés Molina Castaño, con DNI 79.554.31",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,htr_manual"
+        },
+        {
+          "id": "importe",
+          "v": "1.250,00",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "importe_texto",
+          "v": "cincuenta euros)",
+          "est": "ok",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,htr_manual"
+        },
+        {
+          "id": "concepto",
+          "v": "Anticipo del 30 % por suministro de mate",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,htr_manual"
+        },
+        {
+          "id": "forma_pago",
+          "v": "Transferencia bancaria — cuenta ES91 ES9",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "htr_manual"
+        },
+        {
+          "id": "fecha_pago",
+          "v": "_05/02/2026 A",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,rescate_fallido,conf_baja,patron_no_cumple"
+        },
+        {
+          "id": "firma_emisor",
+          "v": null,
+          "est": "ok",
+          "htr": false,
+          "tinta": true,
+          "band": "forma_borrosa,forma_sin_caja"
+        },
+        {
+          "id": "firma_pagador",
+          "v": null,
+          "est": "no_encontrado",
+          "htr": false,
+          "tinta": false,
+          "band": "ancla_rescate_anti_tachon,forma_borrosa,forma_sin_caja"
+        }
+      ],
+      "overlay": {
+        "verde": 10,
+        "rojo": 1,
+        "cajas": [
+          {
+            "tipo": "campo-manuscrito",
+            "borde": "rgb(16, 185, 129)",
+            "rotulo": ""
+          },
+          {
+            "tipo": "campo-manuscrito",
+            "borde": "rgb(16, 185, 129)",
+            "rotulo": ""
+          },
+          {
+            "tipo": "campo-manuscrito",
+            "borde": "rgb(16, 185, 129)",
+            "rotulo": ""
+          },
+          {
+            "tipo": "campo-manuscrito",
+            "borde": "rgb(16, 185, 129)",
+            "rotulo": ""
+          },
+          {
+            "tipo": "campo-manuscrito",
+            "borde": "rgb(16, 185, 129)",
+            "rotulo": ""
+          },
+          {
+            "tipo": "campo-manuscrito",
+            "borde": "rgb(16, 185, 129)",
+            "rotulo": ""
+          },
+          {
+            "tipo": "campo-manuscrito",
+            "borde": "rgb(16, 185, 129)",
+            "rotulo": ""
+          },
+          {
+            "tipo": "campo-manuscrito",
+            "borde": "rgb(16, 185, 129)",
+            "rotulo": ""
+          },
+          {
+            "tipo": "campo-manuscrito",
+            "borde": "rgb(16, 185, 129)",
+            "rotulo": ""
+          },
+          {
+            "tipo": "campo-manuscrito",
+            "borde": "rgb(16, 185, 129)",
+            "rotulo": ""
+          },
+          {
+            "tipo": "campo-manuscrito",
+            "borde": "rgb(239, 68, 68)",
+            "rotulo": "FALTA Firma pagador"
+          }
+        ]
+      },
+      "captura": "mra-01-recibo-impreso-01.png",
+      "fallos": [],
+      "historial": [
+        "DOCUMENTO ● PARCIAL RECIBO DE PAGO — REAL (A/B/C) HORA: 11:19 · CAPTURA ARCHIVADA · EN_REVISION_HUMANA ▲ CAPTURA ARCHIVADA — PENDIENTE DE REVISIÓN 11:19 VER DETALLE REPETIR CAPTURA"
+      ],
+      "capturaHistorial": "mra-01-historial.png"
+    }
+  ]
+}

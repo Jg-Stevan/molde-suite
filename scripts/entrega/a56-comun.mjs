@@ -202,6 +202,9 @@ export async function limpiarPwa(pagina, sesion) {
   await pagina.evaluate(async () => {
     for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
     for (const k of await caches.keys()) await caches.delete(k);
+    // Flags de experimento (lección 2026-11-26: los overrides de una corrida
+    // anterior sobrevivían al limpiar PWA y contaminaban la siguiente).
+    localStorage.removeItem("tamiz.flags.v1");
   });
   await sesion.send("Network.setCacheDisabled", { cacheDisabled: true }).catch(() => {});
   await pagina.reload({ waitUntil: "domcontentloaded", timeout: 90000 });

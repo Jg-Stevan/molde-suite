@@ -12,7 +12,7 @@ import { IMAGENES_SIMULADAS, type ImagenSimuladaId } from '../simulacion-imagene
 import { TEXTO_MOTIVO, esFalloMemoriaMotor, type AvisoOperador, type MotivoOperador } from '../errores';
 import { logger } from '../../logger';
 import { crearNavegacion } from './navegacion';
-import { crearEnvio, registrarEnvio, tituloPaginaActual } from './envio';
+import { archivarCaptura, crearEnvio, registrarEnvio, tituloPaginaActual } from './envio';
 import { refrescarMesasDeArchivo } from './guion';
 import { moldeActivo, paginasEsperadas } from '../molde/registry';
 import { veredictoDeResumen } from '../molde/enrutamiento';
@@ -29,7 +29,7 @@ import { ErrorRescateHeic } from '@molde-suite/scanner-core/core/image-processor
 import { reiniciarMotorOcrSiInactivo } from '@molde-suite/scanner-core/ocr/rapidocr';
 import { reiniciarWorkerTesseractSiInactivo } from '../bridge/ocr-worker';
 import { leerFlags } from '../flags';
-import type { E14Store, Vista } from './tipos';
+import type { E14Get, E14Store, Vista } from './tipos';
 
 export type { Vista, ActaArchivada, PuestoActual, HuecoArchivado, E14Store } from './tipos';
 
@@ -41,6 +41,23 @@ export type { Vista, ActaArchivada, PuestoActual, HuecoArchivado, E14Store } fro
  *  store/edicion.ts:24 — la rotación rápida es async y un doble tap
  *  giraría 180°). */
 let rotandoFotoEnVuelo = false;
+
+/** Título humano del registro de archivo/envío. El `titulo` del acta solo es
+ *  FIABLE cuando hay clasificación electoral AUTO (puesto/mesa reales); sin
+ *  ella el clasificador deja «— · DOC — —» con huecos y el nombre del MOLDE
+ *  enrutado identifica el documento (medido 2026-11-26 en el A56). */
+function tituloDeArchivo(get: E14Get, respaldo?: string | null): string {
+  const acta = get().actaActual;
+  const tituloElectoral =
+    acta?.clasificacion?.nivel === 'AUTO' && acta.titulo ? acta.titulo : '';
+  return (
+    tituloElectoral ||
+    acta?.evaluacionMolde?.moldeNombre ||
+    respaldo ||
+    moldeActivo()?.nombre ||
+    tituloPaginaActual(get)
+  );
+}
 
 /** F4 — reciclado best-effort de workers OCR tras el veredicto. Libera
  *  memoria nativa WASM; jamás bloquea la UI ni lanza. Kill-switch:
@@ -270,6 +287,13 @@ function crearCaptura(
           },
         ];
         if (paginas.length < sesion.esperadas) {
+          // 2026-11-26: cada PÁGINA capturada es evidencia — se archiva sola
+          // con su veredicto antes de pedir la siguiente.
+          try {
+            await archivarCaptura(set, get, tituloDeArchivo(get, sesion.moldeNombre));
+          } catch (e) {
+            logger.warn('[store] archivado de página falló', { mensaje: (e as Error).message });
+          }
           // Documento INCOMPLETO: la UI muestra PROGRESO (N/M) + CTA
           // ESCANEAR PÁGINA N+1; sin veredicto final todavía.
           set({
@@ -318,9 +342,19 @@ function crearCaptura(
         // MOLDE identifica el documento mejor que el genérico «DOC».
         if (actaFinal.status === 'OPTIMA' || actaFinal.status === 'ADVERTENCIA') {
           try {
-            await registrarEnvio(set, get, actaFinal.titulo || sesion.moldeNombre || tituloPaginaActual(get));
+            await registrarEnvio(set, get, tituloDeArchivo(get, sesion.moldeNombre));
           } catch (e) {
             logger.warn('[store] registro del documento multipágina falló', {
+              mensaje: (e as Error).message,
+            });
+          }
+        } else {
+          // 2026-11-26: lote RECHAZADO — la última captura también queda
+          // archivada (las anteriores ya se archivaron página a página).
+          try {
+            await archivarCaptura(set, get, tituloDeArchivo(get, sesion.moldeNombre));
+          } catch (e) {
+            logger.warn('[store] archivado del lote rechazado falló', {
               mensaje: (e as Error).message,
             });
           }
@@ -328,9 +362,55 @@ function crearCaptura(
         reciclarWorkersPostEscaneo();
         return;
       }
+      // D4/G4 — ACEPTACIÓN Y GUARDADO AUTOMÁTICOS (documento de UNA página):
+      // el acta ÓPTIMA (completa, verificada y legible) se archiva SIN
+      // operador por el punto único G.1 — misma ruta que la multipágina.
+      // ADVERTENCIA sigue siendo decisión del operador (D20: su motivo
+      // manda) y RECHAZADA jamás se auto-acepta (negación explicable, sin
+      // ok falso). El status pasa a ENVIADA para que REVISIÓN muestre el
+      // banner «ENVIADO AUTOMÁTICAMENTE» + CTA SEGUIR ESCANEANDO.
+      if (actaActual.status === 'OPTIMA') {
+        try {
+          const { hora } = await registrarEnvio(set, get, tituloDeArchivo(get));
+          const actual = get().actaActual;
+          if (actual) {
+            set({
+              actaActual: { ...actual, status: 'ENVIADA', enviadoAutomaticamente: hora },
+            });
+          }
+        } catch (e) {
+          // registrarEnvio es no-lanzable (hash null honesto, fotoLibro en
+          // try) — si algo fallara, el acta queda ÓPTIMA y REVISIÓN da la
+          // salida (no se pierde en silencio).
+          logger.warn('[store] auto-guardado del acta óptima falló', {
+            mensaje: (e as Error).message,
+          });
+        }
+        set({
+          vista: 'revision',
+          progresoAnalisis: null,
+          analisisResuelto: false,
+          rechazosConsecutivos: 0,
+        });
+        reciclarWorkersPostEscaneo();
+        return;
+      }
       // RECHAZADA también va a REVISIÓN: el veredicto y su motivo (incluido
       // el corte temprano del gate estructural) deben llegar al operador —
       // volver a ESCANEAR en silencio ocultaba la regla que faltó.
+      // 2026-11-26 («aceptar y guardar automáticamente»): ADVERTENCIA y
+      // RECHAZADA se ARCHIVAN solas con su veredicto real antes de mostrar
+      // REVISIÓN — el operador decide repetir/revisar, pero la imagen ya
+      // no se pierde. (La ÓPTIMA se envió arriba por G.1.)
+      if (!actaActual.capturaArchivada && (actaActual.fotoProcesada || actaActual.fotoOriginal)) {
+        try {
+          await archivarCaptura(set, get, tituloDeArchivo(get));
+        } catch (e) {
+          logger.warn('[store] archivado automático de la captura falló', {
+            mensaje: (e as Error).message,
+          });
+        }
+      }
       set({
         vista: 'revision',
         progresoAnalisis: null,

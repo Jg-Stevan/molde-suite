@@ -1327,6 +1327,39 @@ export function patronEfectivo(campo: CampoUniversal, herencia?: HerenciaMolde):
   return campo.patron ?? herencia?.[campo.tipo]?.patron;
 }
 
+/**
+ * Decisión final de un campo ya leído y con patrón cumplido (pura, testeable).
+ * Histórico: `htr && obligatorio` → SIEMPRE revisión (Fase 2.5 opción C).
+ * Con `htrConfDictamen` > 0 y conf de lectura >= umbral, la lectura es
+ * dictaminable como `ok` (bandera `htr_conf_alta`): cumple el patrón anclado
+ * estricto, así que es un valor LEÍDO, no inventado. `relacion_ambigua`
+ * (empate relacional) siempre gana: nunca pick silencioso.
+ */
+export function dictaminarCampo(
+  htr: boolean,
+  obligatorio: boolean,
+  confFinal: number | null,
+  banderas: readonly string[],
+  htrConfDictamen?: number | null,
+): { estado: 'ok' | 'requiere_revision'; bandera?: 'htr_conf_alta' } {
+  if (obligatorio && (confFinal === null || confFinal < 0.5)) {
+    return { estado: 'requiere_revision' };
+  }
+  if (banderas.includes('relacion_ambigua')) {
+    return { estado: 'requiere_revision' };
+  }
+  if (htr && obligatorio) {
+    const confAlta =
+      typeof htrConfDictamen === 'number' &&
+      htrConfDictamen > 0 &&
+      confFinal !== null &&
+      confFinal >= htrConfDictamen;
+    if (!confAlta) return { estado: 'requiere_revision' };
+    return { estado: 'ok', bandera: 'htr_conf_alta' };
+  }
+  return { estado: 'ok' };
+}
+
 async function evaluarCampo(
   campo: CampoUniversal,
   canvas: HTMLCanvasElement,
@@ -1343,6 +1376,13 @@ async function evaluarCampo(
   herencia?: HerenciaMolde,
   /** F3: tope de variantes de realce por campo (default 6 = histórico). */
   rescatePresupuesto?: number,
+  /**
+   * Dictamen HTR por confianza: con umbral >= 0 y conf de lectura >= umbral,
+   * un campo `htr && obligatorio` que ya cumple patrón puede ser `ok`
+   * (bandera `htr_conf_alta`). null/ausente = regla histórica (siempre
+   * revisión). `relacion_ambigua` sigue forzando revisión.
+   */
+  htrConfDictamen?: number | null,
 ): Promise<ResultadoCampoUniversal> {
   const base: ResultadoCampoUniversal = {
     id: campo.id,
@@ -1666,22 +1706,15 @@ async function evaluarCampo(
   }
   // Fase 2.5 (opción C): los manuscritos SIEMPRE pasan por el humano.
   if (campo.htr) base.banderas.push('htr_manual');
-  if (confBaja && campo.obligatorio) {
-    // G-3: confianza baja (o ausente) en obligatorio → revisión, no "ok".
-    base.estado = 'requiere_revision';
-    return base;
-  }
-  if (campo.htr && campo.obligatorio) {
-    // HTR obligatorio: lectura disponible pero jamás definitiva.
-    base.estado = 'requiere_revision';
-    return base;
-  }
-  // FASE 2 (v3.2.0): empate relacional ambiguo — nunca un pick silencioso.
-  if (base.banderas.includes('relacion_ambigua')) {
-    base.estado = 'requiere_revision';
-    return base;
-  }
-  base.estado = 'ok';
+  const dictamen = dictaminarCampo(
+    campo.htr === true,
+    campo.obligatorio === true,
+    confFinal,
+    base.banderas,
+    htrConfDictamen,
+  );
+  if (dictamen.bandera) base.banderas.push(dictamen.bandera);
+  base.estado = dictamen.estado;
   return base;
 }
 
@@ -2765,6 +2798,9 @@ export async function evaluarDocumentoUniversal(
     arnes?: boolean;
     /** F3: tope de variantes de realce por campo (default 6 = histórico). */
     rescatePresupuesto?: number;
+    /** Dictamen HTR por confianza (null = regla histórica: htr obligatorio
+     *  siempre a revisión). Ver `evaluarCampo`. */
+    htrConfDictamen?: number | null;
   },
 ): Promise<ResultadoUniversal> {
   const previews = opts?.previews ?? true;
@@ -2837,7 +2873,7 @@ export async function evaluarDocumentoUniversal(
       onProgreso?.(`Página ${p + 1}: campo ${i + 1}/${camposPagina.length} — ${c.etiqueta}`);
       const r = await evaluarCampo(c, pageCanvas, ocr.lines, previews, {
         obtenerLineas: obtenerMapaRescate,
-      }, molde.herencia, opts?.rescatePresupuesto);
+      }, molde.herencia, opts?.rescatePresupuesto, opts?.htrConfDictamen ?? null);
       // FASE 1b (plan extracción relacional): el fallback silencioso ya no
       // produce 'ok' en obligatorios (fin del falso positivo de firmas).
       endurecerFallbackNoVerificado(c, r);
