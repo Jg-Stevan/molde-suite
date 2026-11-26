@@ -197,3 +197,20 @@ item colapsable. Portal al visor resuelto en effect: mientras el host es `null`
 el acordeón está en `0fr`, así que no hay salto de layout.
 
 **Lecciones:** app_tamiz/2026-11-26-overlay-verificacion-documental.md
+
+## P12 — Entorno fresco ≠ entorno probado: assets fetch() fuera del manifiesto
+
+**Patrón:** `public/models/**` es gitignored a propósito; cualquier binario que
+el motor trae con `fetch()` debe declararse en `apps/tamiz/scripts/assets.lock.json`
+(URL + SHA-256). Si falta, el clon fresco degrada en silencio (cascada Tesseract)
+hasta que una ruta solo-Rapid toca suelo.
+
+**Síntomas:** `ESCANEO_FALLIDO` genérico en ~4 s con motivo real
+`ppocr_keys.txt HTTP 404` en `logger.warn`; los IMPORT «sí» dan veredicto
+(10-15 s vía Tesseract) — nadie se entera hasta el caso solo-Rapid.
+
+**Mitigación (Agente A, 2026-11-26):** `ppocr_keys.txt` añadido al manifiesto
+con SHA-256 fijado; la verificación de navegador §7 ahora incluye un caso SIM
+solo-Rapid (detecta esta familia en 5 s).
+
+**Lecciones:** app_tamiz/2026-11-26-ppocr-keys-404.md

@@ -35,6 +35,8 @@
 // FASE 3 (§3.3): publicBase por entorno inyectado (mismo default que el core).
 import { publicBaseEfectivo } from "../dominio/entorno";
 import { medidasDeCaja } from "./crop-geometria";
+// §A2 plan de cierre: primitiva FIFO pura del turno de reconocimiento (test de carrera en turno-fifo.test.ts).
+import { crearTurnoFifo } from "./turno-fifo";
 // KIT e14-post-det-worker-v1 (R-45, 2026-11-19): el postproceso DB del det
 // corre en el WORKER db-postprocess.worker.js (cliente db-postprocess-client.ts
 // — fallback local al módulo puro). `OpsDet` es el tipo CANÓNICO del módulo
@@ -260,6 +262,28 @@ async function conTurnoOcr<T>(fn: () => Promise<T>, sink?: EsperaOcrSink): Promi
     () => undefined,
   );
   return turno;
+}
+
+// ─── Turno de RECONOCIMIENTO completo (anti-cuelgue) ───────────────────────
+// Dos reconocimientos concurrentes sobre el singleton (el warm-up F4 y el
+// primer escaneo con `ocrPrimeraPasadaRapida`, medido A56 2026-11-26) corren
+// det/cls/rec del MISMO runtime proxy sin regresar jamás. La cola global de la
+// app solo serializa `det` (y the probe): el reconocimiento ENTERO necesita su
+// propio turno FIFO. Serializar no cambia ningún resultado — solo el orden.
+// §A2 del plan de cierre: la semántica FIFO vive en `turno-fifo.ts` (módulo
+// puro con test de carrera — intercalación, ventana de reciclado, rechazo no
+// envenena); aquí queda SOLO la delegación y el log de espera >200 ms.
+const turnoReconocimientoFifo = crearTurnoFifo();
+let turnoMarcado = false;
+
+async function conTurnoReconocimiento<T>(fn: () => Promise<T>): Promise<T> {
+  if (!turnoMarcado) {
+    turnoMarcado = true;
+    logger.info("[rapidocr] turnoReconocimiento activo (serialización ORT)");
+  }
+  return turnoReconocimientoFifo.correr(fn, (espera) => {
+    if (espera > 200) logger.info(`[rapidocr] reconocimiento esperó turno ${Math.round(espera)}ms`);
+  });
 }
 
 /** Cola global inyectada por la app (S: flags.ocrColaGlobal · D: no usa). */
@@ -813,7 +837,11 @@ export async function rapidOcrReconocer(
   // seguro (reiniciarMotorOcrSiInactivo). Cero costo en la ruta.
   reconocimientosEnVuelo++;
   try {
-    return await rapidOcrReconocerInterno(rt, dataUrl, onProgress, opts);
+    // Un reconocimiento COMPLETO a la vez (ver turnoReconocimiento): el
+    // warm-up dummy y un escaneo rapid-first no pueden intercalar session.run.
+    return await conTurnoReconocimiento(() =>
+      rapidOcrReconocerInterno(rt, dataUrl, onProgress, opts),
+    );
   } finally {
     reconocimientosEnVuelo--;
   }
@@ -1132,6 +1160,15 @@ export async function rapidOcrCropsOrientacion(
   k: number,
   esperaSink?: EsperaOcrSink,
 ): Promise<{ crops: HTMLCanvasElement[]; w: number; h: number; msDet: number }> {
+  return conTurnoReconocimiento(() => rapidOcrCropsOrientacionInterno(rt, dataUrl, k, esperaSink));
+}
+
+async function rapidOcrCropsOrientacionInterno(
+  rt: RapidRuntime,
+  dataUrl: string,
+  k: number,
+  esperaSink?: EsperaOcrSink,
+): Promise<{ crops: HTMLCanvasElement[]; w: number; h: number; msDet: number }> {
   // KIT e14-init-por-intencion-v1 (R-47): intención del probe — mismo
   // fire-and-forget que el reconocer (el probe corre ANTES de la 1.ª pasada;
   // si el usuario jamás llegó aquí, nada se descargó).
@@ -1187,11 +1224,13 @@ export async function rapidOcrRecLote(
   canvases: HTMLCanvasElement[],
   esperaSink?: EsperaOcrSink,
 ): Promise<{ texto: string; conf: number }[]> {
-  // Cola FIFO cuando la app la activa (S/pool≥2) — UN client ORT a la vez.
-  if (colaOcrActiva()) {
-    return conTurnoOcr(() => rapidOcrRecLoteInterno(rt, canvases), esperaSink);
-  }
-  return rapidOcrRecLoteInterno(rt, canvases);
+  return conTurnoReconocimiento(() => {
+    // Cola FIFO cuando la app la activa (S/pool≥2) — UN client ORT a la vez.
+    if (colaOcrActiva()) {
+      return conTurnoOcr(() => rapidOcrRecLoteInterno(rt, canvases), esperaSink);
+    }
+    return rapidOcrRecLoteInterno(rt, canvases);
+  });
 }
 
 async function rapidOcrRecLoteInterno(
