@@ -138,8 +138,10 @@ const ESTADO_ESTRUCTURA_TONO: Record<
 /** Tope de rects del overlay (señal visual, no auditoría — memoria/DOM). */
 const MAX_CAJAS_OVERLAY = 20;
 
-/* Overlay por campo (solo VALORES — mantenedor 2026-11-25d): verde=ok,
- * ámbar=revisión, rojo=faltante. Las anclas ya no se pintan. */
+/* Overlay por campo (solo VALORES): verde=ok, ámbar=revisión, rojo=faltante.
+ * Las anclas no se pintan. En MANUSCRITOS (firma, campo `htr` o etiqueta
+ * huella/sello/manuscrito) el color es BINARIO: verde=hay trazo (solo la caja,
+ * sin rótulo), rojo=no hay trazo (caja + etiqueta «FALTA …» en el borde). */
 const TONO_CAMPO: Record<"ok" | "revision" | "faltante", string> = {
   ok: "#10b981",
   revision: "#f59e0b",
@@ -153,29 +155,31 @@ type CajaCampo = {
   h: number;
   clase: "ok" | "revision" | "faltante";
   etiqueta: string;
-  /** Palabra pintada sobre la foto: el texto reconocido (o la etiqueta si no
-   *  hay texto, p. ej. firmas). */
+  /** Palabra pintada sobre la foto: el texto reconocido (los manuscritos no
+   *  pintan palabra — su transcription a mano no es fiable). */
   palabra: string;
-  /** Firma/manuscrito: se RESALTA la zona y el rótulo va DEBAJO (mantenedor
-   *  2026-11-25f). */
-  esFirma: boolean;
+  /** Manuscrito: firma, campo `htr` o etiqueta huella/sello/manuscrito. */
+  esManuscrito: boolean;
+  /** Tinta medida en la zona (ratio del motor ≥ 0.001). */
+  tinta: boolean;
 };
 
-/** Palabras del overlay por campo (%). Lo usan la tarjeta y el visor
- *  ampliado: mismo contrato de coordenadas normalizadas sobre la foto
- *  PROCESADA. Los campos de texto muestran solo la palabra; las firmas
- *  resaltan la rúbrica y rotulan debajo qué manuscrito es. */
+/** Cajas del overlay por campo (%). Las usan la tarjeta y el visor ampliado:
+ *  mismo contrato de coordenadas normalizadas sobre la foto PROCESADA. Los
+ *  campos de texto muestran solo la palabra; los manuscritos resaltan la
+ *  zona — verde si hay tinta, roja con rótulo «FALTA …» si no la hay. */
 function CajasCampos({ cajas }: { cajas: CajaCampo[] }) {
   return cajas.map((c, i) => {
     const tono = TONO_CAMPO[c.clase];
-    if (c.esFirma) {
-      // Rótulo debajo de la banda; si la banda está pegada al pie, arriba.
-      const rotuloArriba = c.y + c.h > 0.93;
+    if (c.esManuscrito) {
+      // Rótulo SOLO cuando falta tinta, montado sobre el borde superior de la
+      // caja (mock rechazada). Si la caja toca el filo superior, va dentro.
+      const etiquetaDentro = c.y < 0.04;
       return (
         <span
           key={`campo-${i}`}
           aria-hidden
-          data-testid="campo-firma"
+          data-testid="campo-manuscrito"
           className="absolute rounded-[4px]"
           style={{
             left: `${c.x * 100}%`,
@@ -187,20 +191,21 @@ function CajasCampos({ cajas }: { cajas: CajaCampo[] }) {
             boxShadow: `0 0 8px ${tono}73`,
           }}
         >
-          <span
-            data-testid="campo-firma-etiqueta"
-            className="absolute left-0 whitespace-nowrap rounded-[3px] px-1 py-[1px] font-mono text-[9px] font-bold leading-tight"
-            style={{
-              [rotuloArriba ? "bottom" : "top"]: "100%",
-              marginTop: rotuloArriba ? undefined : 2,
-              marginBottom: rotuloArriba ? 2 : undefined,
-              color: tono,
-              backgroundColor: "rgba(2,6,12,0.85)",
-              border: `1px solid ${tono}`,
-            }}
-          >
-            {c.palabra}
-          </span>
+          {!c.tinta && (
+            <span
+              data-testid="campo-manuscrito-etiqueta"
+              className="absolute left-0 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap rounded-[3px] px-1 py-[1px] font-mono text-[9px] font-bold leading-tight"
+              style={{
+                top: 0,
+                transform: etiquetaDentro ? undefined : "translateY(-50%)",
+                color: tono,
+                backgroundColor: "rgba(2,6,12,0.85)",
+                border: `1px solid ${tono}`,
+              }}
+            >
+              FALTA {c.etiqueta}
+            </span>
+          )}
         </span>
       );
     }
@@ -349,23 +354,51 @@ export function ReviewView() {
   // Palabras del overlay por campo (sobre la foto PROCESADA, coordenadas 0-1):
   // SOLO los valores reconocidos (mantenedor 2026-11-25d — las anclas no se
   // pintan). `requiere_revision` y `no_encontrado` van en rojo/ámbar (no es un
-  // reconocimiento confiable); `ok` en verde.
+  // reconocimiento confiable); `ok` en verde. Excepción: un manuscrito se pinta
+  // en verde cuando hay trazo y en rojo cuando no (mantenedor 2026-11-25h) —
+  // ahí "leyó mal" no es información, "hay o no hay tinta" sí lo es.
   const cajasCampos = useMemo<CajaCampo[]>(() => {
     const campos = acta?.evaluacionMolde?.campos ?? [];
     const recorte = (s: string) => (s.length > 28 ? `${s.slice(0, 27)}…` : s);
     const out: CajaCampo[] = [];
     for (const c of campos) {
       if (!c.rect) continue;
+      const esFirma = c.tipo === "firma";
+      const esHtr = !esFirma && c.htr === true;
+      // Huella/sello/manuscrito declarados por ETIQUETA también son manuscritos
+      // (el contrato no tiene tipo 'huella' — presencia con rótulo de sello).
+      const esManuscrito =
+        esFirma || esHtr || /huella|sello|manuscrito/i.test(c.etiqueta);
+      // Manuscrito DETECTADO = la zona tiene algo medido. No se exige que el
+      // OCR haya acertado el patrón: un trazo a mano ilegible sigue siendo
+      // trazo. El veredicto del motor no cambia (sigue pidiendo humano).
+      // v1.5.1: manda la TINTA medida (`c.tinta`, ratio del motor ≥ 0.001);
+      // el heurístico por estado queda solo para resúmenes sin ratio.
+      const tinta =
+        typeof c.tinta === "boolean"
+          ? c.tinta
+          : c.estado !== "no_encontrado" &&
+            !(c.banderas ?? []).includes("firma_ausente") &&
+            !(c.banderas ?? []).includes("zona_vacia");
       const texto =
-        typeof c.valor === "string" && c.valor.trim() && c.tipo !== "firma" && c.tipo !== "checkbox"
+        typeof c.valor === "string" && c.valor.trim() && !esManuscrito && c.tipo !== "checkbox"
           ? c.valor.trim()
           : c.etiqueta;
       out.push({
         ...c.rect,
-        clase: c.estado === "ok" ? "ok" : c.estado === "requiere_revision" ? "revision" : "faltante",
+        clase: esManuscrito
+          ? tinta
+            ? "ok"
+            : "faltante"
+          : c.estado === "ok"
+            ? "ok"
+            : c.estado === "requiere_revision"
+              ? "revision"
+              : "faltante",
         etiqueta: c.etiqueta,
         palabra: recorte(texto),
-        esFirma: c.tipo === "firma",
+        esManuscrito,
+        tinta,
       });
     }
     return out.slice(0, MAX_CAJAS_OVERLAY);
@@ -513,10 +546,9 @@ export function ReviewView() {
   const puedeVerZonas = cajasZonas.length > 0 && !mostrandoOriginal;
   const puedeVerCampos = cajasCampos.length > 0 && !mostrandoOriginal;
   const contenidoFoto = fotoVisible ? (
-    // P5 (plan PLAN-AJUSTES-VISUALES — adaptación E-14 del zip): SIN SCROLL,
-    // todo cabe en pantalla. La FOTO DEL DOCUMENTO es el ÚNICO elemento
-    // flexible (FitScale la escala para caber completa) y la VERIFICACIÓN
-    // DOCUMENTAL flota como overlay sobre la imagen (P4).
+    // La FOTO DEL DOCUMENTO es el ÚNICO elemento flexible (FitScale la
+    // escala para caber completa). La VERIFICACIÓN DOCUMENTAL vive ARRIBA
+    // de la tarjeta como elemento propio del layout (no overlay).
     <div className="w-full flex-1 min-h-0 relative flex flex-col mt-2">
       <div className="flex items-center justify-between gap-2 shrink-0">
         <span className="font-mono text-[9px] font-bold tracking-[0.18em] uppercase text-slate-400 truncate">
@@ -577,7 +609,7 @@ export function ReviewView() {
           </button>
         )}
       </div>
-      {/* Área del documento: foto ESCALADA (FitScale) + overlay de verificación */}
+      {/* Área del documento: foto ESCALADA (FitScale) + overlays de cajas */}
       <div className="relative flex-1 min-h-0 w-full mt-1.5" data-purpose="visor-documento">
         <FitScale className="absolute inset-0">
           <div className="relative w-fit max-w-full overflow-hidden rounded-lg border border-slate-800 bg-black/40">
@@ -611,18 +643,6 @@ export function ReviewView() {
             {camposVisibles && puedeVerCampos && <CajasCampos cajas={cajasCampos} />}
           </div>
         </FitScale>
-        {/* P4+P5 — VERIFICACIÓN DOCUMENTAL como OVERLAY sobre la imagen:
-            fila-resumen siempre visible; el panel desplegado flota SOBRE la
-            foto con fondo oscuro semitransparente — sin empujar contenido. */}
-        <div className="absolute inset-0 z-20 flex flex-col pointer-events-none px-1.5 pt-1.5 pb-1.5">
-          <div
-            className="pointer-events-auto flex flex-col min-h-0"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            <VerificacionDocumental acta={acta} overlay />
-          </div>
-        </div>
       </div>
     </div>
   ) : (
@@ -654,15 +674,24 @@ export function ReviewView() {
   // la tarjeta del óptimo tiene el mismo tratamiento que medio/bajo.
   const pillFlotante = (() => {
     if (status === "RECHAZADA") {
+      // Mock rechazada: bandera con el score REAL + motivo accionable.
+      const scoreTxt = `✗ ${acta.score.toFixed(1)}/10`;
       if (acta.rechazo?.tipo === "INCOMPLETA")
-        return { texto: `DOCUMENTO INCOMPLETO${acta.rechazo.detalle ? ` · ${acta.rechazo.detalle}` : ""}`, tono: "crit" as const };
+        return { texto: `${scoreTxt} · DOCUMENTO INCOMPLETO${acta.rechazo.detalle ? ` · ${acta.rechazo.detalle}` : ""}`, tono: "crit" as const };
       if (acta.rechazo?.tipo === "BAJO")
-        return { texto: `SCORE BAJO${acta.rechazo.detalle ? ` · ${acta.rechazo.detalle}` : ""}`, tono: "crit" as const };
+        return { texto: `${scoreTxt} · SCORE BAJO${acta.rechazo.detalle ? ` · ${acta.rechazo.detalle}` : ""}`, tono: "crit" as const };
       // KIT e14-gate-v2 (G2): marcador obligatorio de votos fallido — copy
       // CORTO y descriptivo (decisión del mantenedor: SIN guía de cámara).
       if (acta.rechazo?.tipo === "SIN_VOTOS")
-        return { texto: "DOCUMENTO SIN DATOS", tono: "crit" as const };
-      return { texto: "DOCUMENTO RECHAZADO", tono: "crit" as const };
+        return { texto: `${scoreTxt} · DOCUMENTO SIN DATOS`, tono: "crit" as const };
+      if (acta.rechazo?.tipo === "MOLDE") {
+        const faltan = acta.evaluacionMolde?.obligatoriosFaltantes ?? [];
+        return {
+          texto: `${scoreTxt} RECHAZADA${faltan.length > 0 ? ` · FALTA ${faltan.join(" / ").toUpperCase()}` : ""}`,
+          tono: "crit" as const,
+        };
+      }
+      return { texto: `${scoreTxt} · DOCUMENTO RECHAZADO`, tono: "crit" as const };
     }
     if (status === "ADVERTENCIA") {
       // KIT actas-vivas-paginas-v1 (FASE C): el RECORTE del papel (OCR de
@@ -779,12 +808,12 @@ export function ReviewView() {
     // de acciones FIJA abajo. Shell (page.tsx: h-dvh + main flex-1 min-h-0)
     // INTOCABLE; único overflow-y-auto (sin scroll duplicado).
     <div className="flex-1 min-h-0 flex flex-col">
-      {/* ZONA SCROLL — banner + tarjeta + nota + panel. P5: la foto es el
-          único elemento flexible (FitScale) y la verificación es overlay —
-          el contenido CABE por diseño; el scroll queda solo como válvula de
-          seguridad para casos de contingencia (panel de clasificación RH,
-          pantallas muy bajas). max-w-md centrado aquí y en la zona fija.
-          Task 2-b: lg:max-w-2xl — escritorio 2 columnas de ancho útil. */}
+      {/* ZONA SCROLL — banner + verificación + tarjeta + nota + panel. La
+          foto es el único elemento flexible (FitScale) y la verificación vive
+          ARRIBA de ella con scroll interno — el contenido CABE por diseño; el
+          scroll queda solo como válvula de seguridad para casos de
+          contingencia (panel de clasificación RH, pantallas muy bajas).
+          max-w-md centrado aquí y en la zona fija. */}
       <div className="flex-1 min-h-0 overflow-y-auto thin-scroll max-w-md lg:max-w-2xl xl:max-w-3xl mx-auto w-full px-4 lg:px-6 py-3 space-y-3 lg:space-y-4 flex flex-col">
         {/* Banner de ubicación (mock del mantenedor): borde + glow del estado,
             dot a cada lado del nombre del documento/puesto. */}
@@ -837,11 +866,11 @@ export function ReviewView() {
           </div>
         )}
 
-        {/* VERIFICACIÓN DOCUMENTAL — SOLO como fallback EN FLUJO cuando la
-            foto no está disponible (D4 hace que sea casi imposible: el visor
-            nunca queda vacío). Con foto, la verificación vive como OVERLAY
-            dentro de la tarjeta (P4+P5 del plan PLAN-AJUSTES-VISUALES). */}
-        {!fotoVisible && <VerificacionDocumental acta={acta} overlay={false} />}
+        {/* VERIFICACIÓN DOCUMENTAL — ARRIBA de la foto como elemento propio
+            del layout (mocks 2026-11-25): fila-resumen + panel acordeón con
+            scroll interno. La foto se re-escala (FitScale); la pantalla no
+            scrollea. Se monta siempre (también sin foto disponible). */}
+        <VerificacionDocumental acta={acta} modo="arriba" />
 
         {/* PLAN-AGENTE-LAYOUT F4 (ADITIVO): diagnóstico del gate estructural
             — SOLO se monta con acta.estructura (molde con layout + modelo
@@ -867,7 +896,7 @@ export function ReviewView() {
                   }
                 : undefined
             }
-            className="relative bg-[#10161f] rounded-2xl p-3 border border-slate-800 shadow-2xl w-full text-left flex flex-col flex-1 min-h-[240px] lg:min-h-[320px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]/60"
+            className="relative bg-[#10161f] rounded-2xl p-3 border border-slate-800 shadow-2xl w-full text-left flex flex-col flex-1 min-h-[120px] lg:min-h-[180px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]/60"
           >
             {pillEnTarjeta && (
               <span
@@ -899,7 +928,7 @@ export function ReviewView() {
                   }
                 : undefined
             }
-            className="relative bg-[#10161f] rounded-2xl p-3 border border-slate-800 shadow-2xl w-full text-left flex flex-col flex-1 min-h-[240px] lg:min-h-[320px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]/60"
+            className="relative bg-[#10161f] rounded-2xl p-3 border border-slate-800 shadow-2xl w-full text-left flex flex-col flex-1 min-h-[120px] lg:min-h-[180px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]/60"
           >
             {pillEnTarjeta && (
               <span

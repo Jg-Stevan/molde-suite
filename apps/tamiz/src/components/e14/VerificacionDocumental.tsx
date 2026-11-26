@@ -1,25 +1,23 @@
 'use client';
 
 /**
- * VERIFICACIÓN DOCUMENTAL (mock del mantenedor, 2026-11-16) — P4 del plan
- * PLAN-AJUSTES-VISUALES (adaptación E-14 del parche del zip táctico):
- *
- *  · OVERLAY sobre la foto del documento en REVISIÓN (P5): la fila-resumen
- *    (icono del gate + título + badge % + chevron) siempre visible y clicable;
- *    el panel desplegado flota SOBRE la imagen con fondo oscuro semitransparente
- *    (backdrop-blur) — no empuja el contenido, no crea scroll.
- *  · Comportamiento por estado (P4):
+ * VERIFICACIÓN DOCUMENTAL — elemento propio del layout ARRIBA de la foto
+ * (mocks del mantenedor 2026-11-25): la fila-resumen (icono del gate +
+ * título + badge % + chevron) siempre visible y clicable; el panel se
+ * despliega como ACORDEÓN suave (grid-rows 0fr→1fr) y scrollea por dentro —
+ * la pantalla no scrollea, la foto se re-escala (FitScale).
+ *  · Comportamiento por estado:
  *      - OPTIMA/ENVIADA (todo OK): COLAPSADA por defecto; al abrirla muestra
  *        el detalle completo (todos los items).
- *      - ADVERTENCIA / RECHAZADA / EN_REVISION_HUMANA: DESPLEGADA por defecto
- *        mostrando SOLO los campos faltantes (los OK no se listan). El badge
- *        [pasados/total] conserva el conteo COMPLETO del checklist.
+ *      - ADVERTENCIA / RECHAZADA / EN_REVISION_HUMANA: auto-despliegue al
+ *        segundo de vida del acta mostrando SOLO los campos faltantes (los
+ *        OK no se listan). El badge [pasados/total] conserva el conteo
+ *        COMPLETO del checklist.
  *      - RECHAZADA sin clasificación (sin plantilla conocida): mensaje
- *        «DOCUMENTO NO IDENTIFICADO — SIN PLANTILLA CONOCIDA» (el 5.º estado
- *        del ciclo del zip).
+ *        «DOCUMENTO NO IDENTIFICADO — SIN PLANTILLA CONOCIDA».
  *
  * Los datos siguen siendo los MISMOS data-driven de lib/e14/checklist.ts
- * (cero lógica nueva en el motor, solo la piel del mock + reglas P4).
+ * (cero lógica nueva en el motor, solo la piel del mock).
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -265,17 +263,16 @@ function itemDeFilaMolde(c: ResumenMoldeCampo): ItemChecklist {
   return { id: c.id, etiqueta: c.etiqueta, detalle, estado };
 }
 
-/** Tarjeta VERIFICACIÓN DOCUMENTAL.
- *  · overlay (default true): fila-resumen flotante sobre la foto — colapsada
- *    ocupa solo la barra (la foto queda tocable); desplegada, el panel llena
- *    el área disponible (flex-1) y scrollea por dentro.
- *  · overlay=false: tarjeta EN FLUJO con fondo propio (fallback sin foto). */
+/** Tarjeta VERIFICACIÓN DOCUMENTAL — vive ARRIBA de la foto como elemento
+ *  propio del layout. `modo='arriba'`: panel con tope de altura compacto
+ *  (la foto conserva el protagonismo); `modo='flujo'`: fallback sin foto,
+ *  tope más holgado. En ambos el panel scrollea por dentro y la pantalla no. */
 export function VerificacionDocumental({
   acta,
-  overlay = true,
+  modo = 'flujo',
 }: {
   acta: Acta;
-  overlay?: boolean;
+  modo?: 'arriba' | 'flujo';
 }) {
   const checklist = useMemo(() => construirChecklist(acta), [acta]);
   const tono = tonoDeStatus(acta.status);
@@ -360,12 +357,25 @@ export function VerificacionDocumental({
   );
   const abiertaPorDefecto = sinPlantilla || tono !== 'ok' || hayZonasFaltantes;
   const [overrideAbierta, setOverrideAbierta] = useState<boolean | null>(null);
+  // Auto-despliegue al segundo (mocks 2026-11-25): en no-OK la tarjeta nace
+  // colapsada y se abre sola con el acordeón suave; el toque del operador
+  // siempre gana (override). Reset al cambiar el acta.
+  const [autoAbierta, setAutoAbierta] = useState(false);
   const actaId = acta.id ?? null;
   useEffect(() => {
     setOverrideOpcionales(null);
     setOverrideAbierta(null);
+    setAutoAbierta(false);
   }, [actaId]);
-  const abierta = overrideAbierta ?? abiertaPorDefecto;
+  useEffect(() => {
+    if (!abiertaPorDefecto) {
+      setAutoAbierta(false);
+      return;
+    }
+    const t = window.setTimeout(() => setAutoAbierta(true), 1000);
+    return () => window.clearTimeout(t);
+  }, [actaId, abiertaPorDefecto]);
+  const abierta = overrideAbierta ?? autoAbierta;
   const opcionalesAbiertos = overrideOpcionales ?? tono !== 'ok';
 
   // P4 — contenido: óptima muestra TODO; el resto SOLO lo faltante.
@@ -389,23 +399,17 @@ export function VerificacionDocumental({
     <div
       aria-label="Verificación documental"
       data-testid="verificacion-documental"
-      className={
-        overlay
-          ? abierta
-            ? 'flex flex-col gap-1.5 flex-1 min-h-0'
-            : 'flex flex-col gap-1.5'
-          : 'bg-[#10161f] rounded-2xl border border-slate-800 shadow-sm p-3.5 flex flex-col gap-2.5'
-      }
+      className="flex flex-col gap-1.5 shrink-0"
     >
-      {/* Fila-resumen: SIEMPRE visible y clicable (overlay flotante sobre la
-          foto, estilo táctico del zip: barra oscura semitransparente). */}
+      {/* Fila-resumen: SIEMPRE visible y clicable — barra propia del layout
+          encima de la foto (ya no flota sobre la imagen). */}
       <button
         type="button"
         onClick={() => setOverrideAbierta(!abierta)}
         aria-expanded={abierta}
         aria-controls="verificacion-detalle"
         data-testid="verificacion-toggle"
-        className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#0d131a]/90 backdrop-blur border ${piel.borde} w-full text-left cursor-pointer select-none transition-colors hover:border-slate-600`}
+        className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#0d131a] border ${piel.borde} w-full text-left cursor-pointer select-none transition-colors hover:border-slate-600`}
       >
         <div className="flex items-center gap-2 min-w-0">
           <IconoGate tono={tono} />
@@ -446,20 +450,24 @@ export function VerificacionDocumental({
         </p>
       )}
 
-      {/* Panel desplegado — flota SOBRE la imagen (blur oscuro semitransparente).
-          En overlay llena el área disponible (flex-1) y scrollea por dentro;
-          en flujo usa un tope de altura propio. */}
-      {abierta && (
+      {/* Panel desplegable — ACORDEÓN suave (grid-rows 0fr→1fr, CSS puro):
+          siempre montado para animar apertura Y cierre; el contenido scrollea
+          por dentro con tope de altura. La pantalla nunca scrollea: la foto
+          (FitScale) cede el espacio que el panel ocupa. */}
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+          abierta ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+      >
+        <div className="overflow-hidden min-h-0" inert={!abierta}>
         <div
           id="verificacion-detalle"
           role="region"
           aria-label="Detalle de verificación documental"
           data-testid="verificacion-detalle"
-          className={
-            overlay
-              ? 'rounded-lg bg-[#0d131a]/85 backdrop-blur-md border border-slate-800/80 p-2.5 flex flex-col gap-2.5 flex-1 min-h-0 overflow-y-auto thin-scroll'
-              : 'rounded-lg bg-[#0d131a]/85 border border-slate-800/80 p-2.5 flex flex-col gap-2.5 max-h-[60vh] overflow-y-auto thin-scroll'
-          }
+          className={`rounded-lg bg-[#0d131a] border border-slate-800/80 p-2.5 flex flex-col gap-2.5 overflow-y-auto thin-scroll ${
+            modo === 'arriba' ? 'max-h-[32vh]' : 'max-h-[60vh]'
+          }`}
         >
           {molde ? (
             <>
@@ -548,7 +556,8 @@ export function VerificacionDocumental({
             </>
           )}
         </div>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
