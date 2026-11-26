@@ -289,9 +289,11 @@ async function tessPasadaParaGate(
     return null;
   }
   try {
-    const worker = await getWorker();
+    // Vuelo marcado ANTES de getWorker(): el reciclado F4 no puede terminar
+    // el worker entre la obtención y el recognize (carrera cerrada).
     marcarReconocimientoTesseract(1);
     try {
+      const worker = await getWorker();
       const ret = await worker.recognize(foto);
       const texto = (ret.data.text ?? '').trim();
       if (!texto) throw new Error('tess-best: sin texto');
@@ -333,7 +335,6 @@ export async function reconocerRapidOcrCascada(
   cfg?: CfgOcr,
 ): Promise<{ texto: string; lineasRapid?: RapidOcrLinea[] }> {
   const c = cfgEfectiva(cfg);
-  const rt = await rapidOcrInit();
   const omitirCls = c.orientacionDecidida;
   const rc = { detCap: DET_CAP_RAPIDO, omitirCls, sinRescateBordes: c.corteIncompleta };
   const aPasada = (
@@ -351,8 +352,15 @@ export async function reconocerRapidOcrCascada(
     motor: 'rapidocr',
     lineasRapid: r.lineas,
   });
-  const rapid = (foto: string, cap: number): Promise<PasadaCascada> =>
-    rapidOcrReconocer(rt, foto, onProgress, { ...rc, detCap: cap }).then((r) => aPasada(r, cap));
+  // rt perezoso POR PASADA: la cascada no retiene el runtime mientras corre
+  // Tesseract (segundos). Si el reciclado F4 suelta el motor en ese hueco,
+  // cada pasada pide el singleton vigente y jamás usa sesiones liberadas
+  // (recognize sobre un runtime liberado se cuelga → watchdog condena).
+  const rapid = async (foto: string, cap: number): Promise<PasadaCascada> => {
+    const rt = await rapidOcrInit();
+    const r = await rapidOcrReconocer(rt, foto, onProgress, { ...rc, detCap: cap });
+    return aPasada(r, cap);
+  };
   const rapid1280 = (foto: string): Promise<PasadaCascada> => rapid(foto, DET_CAP_RAPIDO);
   const rapidaPrimero = leerFlags().ocrPrimeraPasadaRapida === true;
   const deps: DepsOcrCascada = {

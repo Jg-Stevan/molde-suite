@@ -55,14 +55,24 @@ export function marcarReconocimientoTesseract(delta: 1 | -1): void {
 }
 
 /** F4 — recicla el worker Tesseract si no hay OCR en vuelo. Libera la
- *  memoria nativa WASM del singleton. Jamás lanza; false = no reiniciado. */
+ *  memoria nativa WASM del singleton. Jamás lanza; false = no reiniciado.
+ *  CARRERA CERRADA (2026-11-26, RECHAZADA de 295 s con reciclado ON): la
+ *  promesa se anula SINCRÓNICAMENTE (antes de cualquier await) y el
+ *  terminate corre en segundo plano. Así un escaneo que llame getWorker()
+ *  durante el reciclado crea un worker fresco en vez de recibir el que está
+ *  siendo terminado (recognize sobre un worker terminado se cuelga y el
+ *  watchdog condena el documento). Los llamadores marcan el vuelo ANTES de
+ *  getWorker() para que el chequeo de inactividad no se adelante a un
+ *  reconocimiento que está por empezar. */
 export async function reiniciarWorkerTesseractSiInactivo(): Promise<boolean> {
   try {
     if (reconocimientosEnVuelo > 0) return false;
-    if (!workerPromise) return true;
-    const w = await workerPromise;
-    await w.terminate?.();
+    const viejo = workerPromise;
+    if (!viejo) return true;
     workerPromise = null;
+    void viejo
+      .then((w) => w.terminate?.())
+      .catch(() => undefined);
     return true;
   } catch {
     workerPromise = null;

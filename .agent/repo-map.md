@@ -763,23 +763,23 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `asegurarRapidOcr` | function | 1244 | `() => Promise<RapidRuntime>` |
+| `asegurarRapidOcr` | function | 1262 | `() => Promise<RapidRuntime>` |
 | `configurarColaGlobalOcr` | function | 267 | `(activa: () => boolean) => void` |
-| `DET_CAP_PROD` | variable | 362 | `1920` |
-| `DET_CAP_RAPIDO` | variable | 363 | `1280` |
+| `DET_CAP_PROD` | variable | 380 | `1920` |
+| `DET_CAP_RAPIDO` | variable | 381 | `1280` |
 | `EsperaOcrSink` | interface | 246 | `any` |
 | `ocrEnVuelo` | function | 231 | `() => boolean` |
-| `rapidOcrCropsOrientacion` | function | 1111 | `(rt: RapidRuntime, dataUrl: string, k: number, esperaSink?: EsperaOcrSink) => Promise<{ crops: {}; w: number; h: number; msDet: number; }>` |
+| `rapidOcrCropsOrientacion` | function | 1129 | `(rt: RapidRuntime, dataUrl: string, k: number, esperaSink?: EsperaOcrSink) => Promise<{ crops: {}; w: number; h: number; msDet: number; }>` |
 | `rapidOcrInit` | function | 112 | `() => Promise<RapidRuntime>` |
 | `RapidOcrLinea` | interface | 73 | `any` |
 | `rapidOcrPrecalentar` | function | 130 | `() => Promise<boolean>` |
-| `rapidOcrRecLote` | function | 1167 | `(rt: RapidRuntime, canvases: {}, esperaSink?: EsperaOcrSink) => Promise<{}>` |
-| `rapidOcrReconocer` | function | 779 | `(rt: RapidRuntime, dataUrl: string, onProgress?: (p: number) => void, opts?: { detCap?: number; omitirCls?: boolean; sinRescateBordes?: boolean; esperaSink?: Es` |
+| `rapidOcrRecLote` | function | 1185 | `(rt: RapidRuntime, canvases: {}, esperaSink?: EsperaOcrSink) => Promise<{}>` |
+| `rapidOcrReconocer` | function | 797 | `(rt: RapidRuntime, dataUrl: string, onProgress?: (p: number) => void, opts?: { detCap?: number; omitirCls?: boolean; sinRescateBordes?: boolean; esperaSink?: Es` |
 | `rapidOcrReiniciar` | function | 297 | `() => Promise<void>` |
 | `RapidOcrResultado` | interface | 79 | `any` |
 | `RapidRuntime` | interface | 100 | `any` |
-| `recKnobs` | function | 401 | `() => { anchoMax: number; alto: number; lote: number; suave: boolean; wFija: boolean; cabecera: number; pie: number; bordesRescate: number; }` |
-| `reiniciarMotorOcrSiInactivo` | function | 310 | `() => Promise<boolean>` |
+| `recKnobs` | function | 419 | `() => { anchoMax: number; alto: number; lote: number; suave: boolean; wFija: boolean; cabecera: number; pie: number; bordesRescate: number; }` |
+| `reiniciarMotorOcrSiInactivo` | function | 316 | `() => Promise<boolean>` |
 
 ### packages/scanner-core/orquestacion/cascada.ts
 
