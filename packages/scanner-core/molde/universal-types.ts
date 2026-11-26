@@ -556,11 +556,16 @@ export interface ResultadoCampoUniversal {
   conf: number | null;
   /** Rectángulo resuelto final (normalizado) — para el overlay. */
   rect: RectNorm | null;
+  /**
+   * Overlay (azul): dónde el OCR encontró el texto del ANCLA (normalizado).
+   * null cuando no hubo hit real (zona_fija, referencia, arnés). Aditivo.
+   */
+  ancla_rect?: RectNorm | null;
   /** Captura JPEG (dataURL) de la zona resuelta. */
   crop?: string | null;
   /** Dimensiones reales en px del crop generado (G-6: nunca hardcodear DPI). */
   crop_dims?: [number, number] | null;
-  fuente?: 'ancla' | 'respaldo' | 'referencia' | 'fija' | null;
+  fuente?: 'ancla' | 'respaldo' | 'referencia' | 'fija' | 'arnes' | null;
   banderas: string[];
   /**
    * Fase A2 (blueprint DLA — port checkbox-extractor): clasificación de la

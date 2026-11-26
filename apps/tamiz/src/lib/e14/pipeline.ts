@@ -8,7 +8,7 @@ import {
   clasificarDesdeOcr,
   type ClasificacionE14,
 } from '@molde-suite/scanner-core/dominio/clasificador';
-import { processImage } from '@molde-suite/scanner-core/core/image-processor';
+import { processImage, processImageDual } from '@molde-suite/scanner-core/core/image-processor';
 import { defaultQuad, type PageFilter } from '@molde-suite/scanner-core/core/types';
 import type { Acta, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/types';
 import type { OpcionesEscaneo } from '@molde-suite/scanner-core/dominio/bridge';
@@ -165,18 +165,29 @@ export async function correrPipelineL2(
   const filtro: PageFilter = opciones.fuente === 'SIMULACION' ? 'original' : 'bw';
   // FASE A3 (blueprint DLA): warp de perspectiva real cuando el quad está
   // sesgado + deskew residual por perfil de proyección (flag del operador).
-  const warp = await processImage(fotoOriginal, quad, filtro, 0, {
-    deskew: pasos.deskewHabilitado,
-  });
-  // D2 (§D8.2 upstream) — VARIANTE OCR ORIGINAL: el OCR JAMÁS lee la
-  // variante binarizada ('bw'/'contrast'); corre sobre un warp SIN filtro.
-  // Con el worker fallback-canvas el segundo warp sale del hilo principal.
-  const warpOcr =
-    filtro === 'original'
-      ? warp
-      : await processImage(fotoOriginal, quad, 'original', 0, {
-          deskew: pasos.deskewHabilitado,
-        });
+  // F1: warp compartido — un solo warp (original) y bw derivado por Bradley.
+  // Kill-switch: warpCompartido=false ⇒ dos processImage (histórico).
+  let warp: Awaited<ReturnType<typeof processImage>>;
+  let warpOcr: Awaited<ReturnType<typeof processImage>>;
+  if (filtro !== 'original' && leerFlags().warpCompartido) {
+    const dual = await processImageDual(fotoOriginal, quad, 0, {
+      deskew: pasos.deskewHabilitado,
+    });
+    warp = dual.bw;
+    warpOcr = dual.original;
+  } else {
+    warp = await processImage(fotoOriginal, quad, filtro, 0, {
+      deskew: pasos.deskewHabilitado,
+    });
+    // D2 (§D8.2 upstream) — VARIANTE OCR ORIGINAL: el OCR JAMÁS lee la
+    // variante binarizada ('bw'/'contrast'); corre sobre un warp SIN filtro.
+    warpOcr =
+      filtro === 'original'
+        ? warp
+        : await processImage(fotoOriginal, quad, 'original', 0, {
+            deskew: pasos.deskewHabilitado,
+          });
+  }
   // Guarda §D4 (contrato del visor): una salida VACÍA de processImage
   // (canvas 0×0, encode fallido) JAMÁS viaja como fotoProcesada:'' — se
   // lanza con causa explícita y el puente resuelve el rechazo (catch
@@ -278,8 +289,13 @@ export async function correrPipelineL2(
   };
   const onProgresoOcr = (p: number): void =>
     emitir(pasos.conRampa('OCR', Math.min(1, 0.15 + 0.85 * Math.max(0, p))));
+  // F2: capturar las líneas Rapid del cascade para reuso en el router/molde.
+  let lineasRapidCascade: Array<{ texto: string; conf: number; box: Array<{ x: number; y: number }> }> | undefined;
   const ocrTexto = cascadaActiva(leerFlags().ocrCascada, cfgOcr.simular)
-    ? await pasos.reconocerRapidOcrCascada(fotoOcr, onProgresoOcr, cfgOcr)
+    ? await pasos.reconocerRapidOcrCascada(fotoOcr, onProgresoOcr, cfgOcr).then((r) => {
+        lineasRapidCascade = r.lineasRapid;
+        return r.texto;
+      })
     : await pasos.reconocerRapidOcrEscalonado(fotoOcr, onProgresoOcr, cfgOcr);
   // FASE B3 (blueprint DLA): banda DINÁMICA desde regiones de layout cuando
   // el paso inyectado la provee (flag + modelo); caída a las bandas fijas
@@ -358,7 +374,8 @@ export async function correrPipelineL2(
       // Fase 4 (plan primera ola): la geometría SIN binarizar ya existe
       // (`fotoOcr`, la que leyó RapidOCR) — el molde la usa como A/B cuando
       // la imagen bw no produce ninguna lectura.
-      { fotoOriginal: fotoOcr },
+      // F2: líneas Rapid del cascade para reuso en el router (flag-gated).
+      { fotoOriginal: fotoOcr, lineasRapid: lineasRapidCascade, anchoOcr: warpOcr.width },
     );
   } catch (e) {
     logger.warn('[pipeline] paso de molde falló (el escaneo sigue sin él)', {

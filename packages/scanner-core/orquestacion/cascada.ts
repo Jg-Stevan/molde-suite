@@ -50,6 +50,9 @@ export interface PasadaCascada extends PasadaOcr {
   /** ms ESPERANDO el run() del rec (wasm + IPC) — la resta con msRec es hilo
    *  principal. Solo RapidOCR lo separa. */
   msRunRec?: number;
+  /** F2 — líneas RapidOCR de esta pasada (para reuso en el router/molde).
+   *  Solo las pasadas RapidOCR las producen; Tesseract → undefined. */
+  lineasRapid?: Array<{ texto: string; conf: number; box: Array<{ x: number; y: number }> }>;
 }
 
 /** Esquema de eventos de lectura: la cascada emite uno por etapa INTENTADA y
@@ -177,6 +180,8 @@ interface SalidaCascada {
   nBoxes?: number;
   nLineas?: number;
   msRunRec?: number;
+  /** F2 — líneas RapidOCR de la pasada elegida (reuso router/molde). */
+  lineasRapid?: Array<{ texto: string; conf: number; box: Array<{ x: number; y: number }> }>;
 }
 
 /** Emisión a prueba de fallos — la telemetría jamás tumba la cascada. */
@@ -257,6 +262,7 @@ export async function correrCascadaOcr(
       nBoxes: r1.nBoxes,
       nLineas: r1.nLineas,
       msRunRec: r1.msRunRec,
+      lineasRapid: r1.lineasRapid,
     };
   }
 
@@ -349,6 +355,7 @@ export async function correrCascadaOcr(
         nBoxes: rm.nBoxes,
         nLineas: rm.nLineas,
         msRunRec: rm.msRunRec,
+        lineasRapid: rm.lineasRapid,
       };
     }
   }
@@ -386,5 +393,6 @@ export async function correrCascadaOcr(
     nBoxes: acumulado.nBoxes,
     nLineas: acumulado.nLineas,
     msRunRec: acumulado.msRunRec,
+    lineasRapid: acumulado.lineasRapid,
   };
 }

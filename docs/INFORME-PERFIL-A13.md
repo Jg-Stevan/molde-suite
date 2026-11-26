@@ -61,7 +61,7 @@ Top funciones (self-time):
 **El encode PNG (libpng) es nativo del navegador y NO aparece en el profiler del worker.**
 Se aisló aparte (§3).
 
-## 3. El codificador PNG es el mayor costo del bw (Fase 3)
+## 3. Encode PNG vs WebP (Fase 3) — conclusión corregida en §7
 
 Salida bw real del worker: **1421×1767 px (~2.5 MP, recorte del documento, no 12 MP)**, blob 105 595 B.
 `enhance` completo: 7177 ms (worker 6596 ms).
@@ -74,8 +74,9 @@ Re-encode del MISMO contenido bw (byte-idéntico, 105 595 B):
 | `convertToBlob('image/png')` | **4642 ms** | 105 595 (idéntico) |
 | `convertToBlob('image/webp', 0.9)` | 1684 ms | 69 844 |
 
-→ **El codificador PNG del navegador consume ~4.6 s de los ~6.6 s del enhance bw (~70 %).**
-El filtro (WASM + JS) es ~1.5–2 s; `getImageData` ~0.8 s; el resto es encode.
+→ **CORREGIDO en §7:** el "PNG 4.6 s" de este experimento estaba dominado por el readback GPU
+del canvas NUEVO creado para medir; dentro del worker (canvas CPU-backed) el encode NO domina.
+El filtro (WASM + JS) + `getImageData` son el costo real del enhance bw.
 
 Sensibilidad a resolución (proxy sobre foto, no bw): 4032→2400 px reduce `getImageData`
 3941→1504 ms y PNG 16209→8428 ms. El encode escala con el número de píxeles.
@@ -113,7 +114,7 @@ bytes idénticos. **Esta ganancia (~3 s) está BLOQUEADA por el requisito de sal
 | 1 | **Warp compartido bw+original** (evitar el 2.º warp que hace la app para OCR) | ~2.3–3.6 s/import | SHA-256 del bitmap warp | medio | viable, plan de implementación separado |
 | 2 | **Warm-up real con tope por tier** (worker caliente antes del 1.er escaneo) | ~13 s primer escaneo | ninguna (solo timing) | bajo-medio | aprobado-en-espera |
 | 3 | **Reciclar worker / GC entre escaneos** (evitar acumulación 831 MB → stall 180 s) | evita stall catastrófico | ninguna | bajo | viable |
-| 4 | **Codificador PNG más rápido** | ~3 s/import | **rompe bytes** | — | **BLOQUEADA** por paridad byte-idéntica |
+| 4 | ~~Codificador PNG más rápido~~ | **~0 s** (A/B intra-worker §7) | rompe bytes | — | **DESCARTADA**: WebP no acelera el enhance; solo −34 % de peso |
 | 5 | Micro-opts filtro JS (`slidingMinMax1D`, `morphClose`, `bradleyRoth`) | ~0.5–1 s | byte-idéntica obligatoria | alto | solo si el perfil muestra redundancia y SHA-256 coincide |
 | 6 | dataURL vs Blob | ~0 (12–28 ms) | — | — | descartada |
 
@@ -123,9 +124,45 @@ a digielect14 → fuera de alcance por la restricción del owner.
 
 ## 6. Conclusión
 
-El cuello de botella del bw es el **codificador PNG nativo del navegador (~4.6 s, 70 % del enhance)**,
-no el filtro ni WASM. Esa ganancia está bloqueada por la paridad byte-idéntica. Las optimizaciones
-accionables sin romper paridad son **warp compartido (~3 s)**, **warm-up (~13 s primer escaneo)** y
+El cuello de botella del bw es el **filtro WASM/JS + `getImageData` dentro del worker** (el encode
+PNG no domina — ver corrección §7). Las optimizaciones accionables sin romper paridad son **warp compartido (~3 s)**, **warm-up (~13 s primer escaneo)** y
 **reciclado de worker para evitar la acumulación de memoria que cuelga el pipeline a los 2 escaneos**.
 El crash observado no es OOM del sistema sino reinstanciación WASM al recargar; la misma pestaña
 con worker reusado es estable hasta que la memoria nativa acumulada (~831 MB) provoca un stall.
+
+## 7. Corrección v2 · A/B WebP intra-worker y flujo completo de la app (2026-11-25, tarde)
+
+Experimento pedido por el owner (paridad SHA eximida solo para medir; el asset md5 NO se tocó —
+parche `OffscreenCanvas.convertToBlob` en runtime vía CDP):
+
+**A/B sobre el enhance bw real del worker (misma foto 201944, canvas CPU-backed):**
+
+| codificador | tiempo worker | tiempo host | bytes |
+|---|---|---|---|
+| PNG (normal) | 4147 ms | 4152 ms | 105 595 |
+| WebP q0.9 | 4522 ms | 4548 ms | **69 844 (−34 %)** |
+
+→ El códec **no es el cuello de botella** dentro del worker: WebP no acelera (+375 ms) y solo
+reduce peso. El "PNG 4.6 s" de §3 era readback GPU del canvas nuevo del experimento. Evidencia:
+`webp-ab-2026-11-25T18-00-05-378Z.json`.
+
+**Flujo completo de importación de la app (bw + original + OCR, Chrome limpio, cámara
+neutralizada, flags `ocrCascada:false` + `ocrSegundaPresupuestoMs:5000` en ambos modos):**
+
+| modo | import → veredicto | veredicto | visor |
+|---|---|---|---|
+| WebP (parche) | 98.7 s / 114.8 s | 7.9/10 REVISIÓN HUMANA | `data:image/webp` 1427×1771 (probado en vivo por CDP) |
+| PNG (control) | 115.5 s | 7.9/10 REVISIÓN HUMANA | idéntico visualmente |
+
+→ Tiempos totales equivalentes dentro del ruido del OCR (±15 s); el render WebP es visualmente
+idéntico en el teléfono (`webp-app-webp-*.png` vs `webp-app-png-*.png`).
+
+**HALLAZGO INDEPENDIENTE DEL CÓDEC (bug de producto A13):** sin las flags anteriores, el flujo
+completo muere de forma **determinista** en la escalada OCR a 1920 — `OrtRun() ERROR_CODE: 6,
+std::bad_alloc` sobre el tensor `det [1,3,1760,1440]`, en modo PNG y WebP por igual (la 1.ª pasada
+det 1280 y el resto del pipeline pasan; el retry del store vuelve a reventar en el mismo tensor →
+banner MEMORIA_AGOTADA). Causa probable: el arena WASM de onnxruntime-web no puede crecer con el
+heap de OpenCV (128 MB) + bitmaps del pipeline ya residentes en 3.8 GB con zram. Candidatas de fix
+(requieren plan propio): cap del tensor de detección por tier, liberar/reciclar el worker de
+OpenCV antes del OCR, o fallback de la escalada a 1280 ante bad_alloc. Evidencia: consolas de
+`webp-app-{webp,png}-2026-11-25T18-2x/18-3x-*.json`.

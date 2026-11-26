@@ -1,28 +1,28 @@
 'use client';
 
 /**
- * VERIFICACIÓN DOCUMENTAL (mock del mantenedor, 2026-11-16) — P4 del plan
- * PLAN-AJUSTES-VISUALES (adaptación E-14 del parche del zip táctico):
- *
- *  · OVERLAY sobre la foto del documento en REVISIÓN (P5): la fila-resumen
- *    (icono del gate + título + badge % + chevron) siempre visible y clicable;
- *    el panel desplegado flota SOBRE la imagen con fondo oscuro semitransparente
- *    (backdrop-blur) — no empuja el contenido, no crea scroll.
- *  · Comportamiento por estado (P4):
+ * VERIFICACIÓN DOCUMENTAL — fila-resumen propia del layout ARRIBA de la foto
+ * (mocks del mantenedor 2026-11-25; overlay del panel 2026-11-26): la
+ * fila-resumen (icono del gate + título + badge % + chevron) siempre visible y
+ * clicable; el panel se despliega como ACORDEÓN suave (grid-rows 0fr→1fr),
+ * scrollea por dentro y FLOTA sobre la foto (portal al visor) — la imagen no
+ * se re-escala al abrir ni al cerrar y la pantalla no scrollea.
+ *  · Comportamiento por estado:
  *      - OPTIMA/ENVIADA (todo OK): COLAPSADA por defecto; al abrirla muestra
  *        el detalle completo (todos los items).
- *      - ADVERTENCIA / RECHAZADA / EN_REVISION_HUMANA: DESPLEGADA por defecto
- *        mostrando SOLO los campos faltantes (los OK no se listan). El badge
- *        [pasados/total] conserva el conteo COMPLETO del checklist.
+ *      - ADVERTENCIA / RECHAZADA / EN_REVISION_HUMANA: auto-despliegue al
+ *        segundo de vida del acta mostrando SOLO los campos faltantes (los
+ *        OK no se listan). El badge [pasados/total] conserva el conteo
+ *        COMPLETO del checklist.
  *      - RECHAZADA sin clasificación (sin plantilla conocida): mensaje
- *        «DOCUMENTO NO IDENTIFICADO — SIN PLANTILLA CONOCIDA» (el 5.º estado
- *        del ciclo del zip).
+ *        «DOCUMENTO NO IDENTIFICADO — SIN PLANTILLA CONOCIDA».
  *
  * Los datos siguen siendo los MISMOS data-driven de lib/e14/checklist.ts
- * (cero lógica nueva en el motor, solo la piel del mock + reglas P4).
+ * (cero lógica nueva en el motor, solo la piel del mock).
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import type { Acta } from '@/lib/e14/fachada';
 import type { ResumenMoldeCampo } from '@molde-suite/scanner-core/dominio/types';
 import {
@@ -265,17 +265,38 @@ function itemDeFilaMolde(c: ResumenMoldeCampo): ItemChecklist {
   return { id: c.id, etiqueta: c.etiqueta, detalle, estado };
 }
 
-/** Tarjeta VERIFICACIÓN DOCUMENTAL.
- *  · overlay (default true): fila-resumen flotante sobre la foto — colapsada
- *    ocupa solo la barra (la foto queda tocable); desplegada, el panel llena
- *    el área disponible (flex-1) y scrollea por dentro.
- *  · overlay=false: tarjeta EN FLUJO con fondo propio (fallback sin foto). */
+/** Mueve su contenido al nodo `host` (el visor de la foto) cuando existe; sin
+ *  host se queda en el flujo. El wrapper intermedio solo existe en el portal:
+ *  así el panel absoluto no hereda el ancho de la columna. */
+function EnVisor({
+  host,
+  className,
+  children,
+}: {
+  host: HTMLElement | null;
+  className: string;
+  children: ReactNode;
+}) {
+  if (!host) return <>{children}</>;
+  return createPortal(<div className={className}>{children}</div>, host);
+}
+
+/** Tarjeta VERIFICACIÓN DOCUMENTAL. `modo='overlay'`: la FILA-RESUMEN sigue
+ *  siendo un elemento del layout (arriba de la foto, le cede su propia fila)
+ *  pero el PANEL desplegado se portaliza DENTRO del visor, así que flota
+ *  sobre la imagen sin re-escalarla nunca — abrir y cerrar no mueve la foto.
+ *  `modo='flujo'`: todo en la columna (fallback sin foto), panel con tope. */
 export function VerificacionDocumental({
   acta,
-  overlay = true,
+  modo = 'flujo',
+  filtroPagina,
 }: {
   acta: Acta;
-  overlay?: boolean;
+  modo?: 'overlay' | 'flujo';
+  /** Fase 3 (multipágina): muestra SOLO los campos de esta página (1-indexada;
+   *  `c.pagina ?? 1`); el % del badge es el de la página. `null/undefined` =
+   *  documento completo / molde de una página (sin filtro). */
+  filtroPagina?: number | null;
 }) {
   const checklist = useMemo(() => construirChecklist(acta), [acta]);
   const tono = tonoDeStatus(acta.status);
@@ -290,8 +311,13 @@ export function VerificacionDocumental({
   // del gate → pista de una línea (el % y las filas del checklist NO cambian).
   const moldeAditivo = acta.evaluacionMolde && !acta.evaluacionMolde.enrutado ? acta.evaluacionMolde : null;
   // Filas del motor universal → items del checklist (derivación barata; el
-  // compilador de React memoiza automáticamente).
-  const filasMolde = useMemo(() => molde?.campos ?? [], [molde]);
+  // compilador de React memoiza automáticamente). Fase 3 (multipágina):
+  // `filtroPagina` restringe la verificación a la página capturada.
+  const filasMolde = useMemo(() => {
+    const filas = molde?.campos ?? [];
+    if (filtroPagina == null) return filas;
+    return filas.filter((c) => (c.pagina ?? 1) === filtroPagina);
+  }, [molde, filtroPagina]);
   const obligatoriosMolde = filasMolde
     .filter((c) => c.obligatorio)
     .map(itemDeFilaMolde);
@@ -360,12 +386,25 @@ export function VerificacionDocumental({
   );
   const abiertaPorDefecto = sinPlantilla || tono !== 'ok' || hayZonasFaltantes;
   const [overrideAbierta, setOverrideAbierta] = useState<boolean | null>(null);
+  // Auto-despliegue al segundo (mocks 2026-11-25): en no-OK la tarjeta nace
+  // colapsada y se abre sola con el acordeón suave; el toque del operador
+  // siempre gana (override). Reset al cambiar el acta.
+  const [autoAbierta, setAutoAbierta] = useState(false);
   const actaId = acta.id ?? null;
   useEffect(() => {
     setOverrideOpcionales(null);
     setOverrideAbierta(null);
+    setAutoAbierta(false);
   }, [actaId]);
-  const abierta = overrideAbierta ?? abiertaPorDefecto;
+  useEffect(() => {
+    if (!abiertaPorDefecto) {
+      setAutoAbierta(false);
+      return;
+    }
+    const t = window.setTimeout(() => setAutoAbierta(true), 1000);
+    return () => window.clearTimeout(t);
+  }, [actaId, abiertaPorDefecto]);
+  const abierta = overrideAbierta ?? autoAbierta;
   const opcionalesAbiertos = overrideOpcionales ?? tono !== 'ok';
 
   // P4 — contenido: óptima muestra TODO; el resto SOLO lo faltante.
@@ -385,27 +424,35 @@ export function VerificacionDocumental({
       opcionales.filter((it) => it.estado === 'ok').length;
   const pct = totalItems > 0 ? Math.round((pasadosItems / totalItems) * 100) : 0;
 
+  const esOverlay = modo === 'overlay';
+  // OVERLAY (dueño 2026-11-26): el panel desplegado se monta dentro del visor
+  // de la foto, no en la columna — abrir/cerrar NO re-escala la imagen. Se
+  // resuelve tras el commit (el visor se renderiza después que esta barra);
+  // mientras está colapsado (0fr) da igual, y el auto-open llega al segundo.
+  const [visor, setVisor] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!esOverlay) {
+      setVisor(null);
+      return;
+    }
+    setVisor(document.querySelector<HTMLElement>('[data-purpose="visor-documento"]'));
+  }, [esOverlay, actaId]);
+
   return (
     <div
       aria-label="Verificación documental"
       data-testid="verificacion-documental"
-      className={
-        overlay
-          ? abierta
-            ? 'flex flex-col gap-1.5 flex-1 min-h-0'
-            : 'flex flex-col gap-1.5'
-          : 'bg-[#10161f] rounded-2xl border border-slate-800 shadow-sm p-3.5 flex flex-col gap-2.5'
-      }
+      className="flex flex-col gap-1.5 shrink-0"
     >
-      {/* Fila-resumen: SIEMPRE visible y clicable (overlay flotante sobre la
-          foto, estilo táctico del zip: barra oscura semitransparente). */}
+      {/* Fila-resumen: SIEMPRE visible y clicable, en su propia fila del
+          layout (fuera de la imagen). */}
       <button
         type="button"
         onClick={() => setOverrideAbierta(!abierta)}
         aria-expanded={abierta}
         aria-controls="verificacion-detalle"
         data-testid="verificacion-toggle"
-        className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#0d131a]/90 backdrop-blur border ${piel.borde} w-full text-left cursor-pointer select-none transition-colors hover:border-slate-600`}
+        className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#0d131a] border ${piel.borde} w-full text-left cursor-pointer select-none transition-colors hover:border-slate-600 shrink-0`}
       >
         <div className="flex items-center gap-2 min-w-0">
           <IconoGate tono={tono} />
@@ -439,27 +486,38 @@ export function VerificacionDocumental({
       {moldeAditivo && (
         <p
           data-testid="molde-pista"
-          className="px-2.5 -mt-0.5 font-mono text-[10px] text-slate-400/90 truncate"
+          className="px-2.5 -mt-0.5 font-mono text-[10px] text-slate-400/90 truncate shrink-0"
         >
           MOLDE: {moldeAditivo.moldeNombre.toUpperCase()} · {Math.round(moldeAditivo.score)}% ·{' '}
           {moldeAditivo.ok}/{moldeAditivo.total}
         </p>
       )}
 
-      {/* Panel desplegado — flota SOBRE la imagen (blur oscuro semitransparente).
-          En overlay llena el área disponible (flex-1) y scrollea por dentro;
-          en flujo usa un tope de altura propio. */}
-      {abierta && (
+      {/* Panel desplegable — ACORDEÓN suave (grid-rows 0fr→1fr, CSS puro):
+          siempre montado para animar apertura Y cierre; el contenido scrollea
+          por dentro. En overlay se portaliza dentro del visor (`flex-1`, sin
+          tope de altura): abierto cubre la foto entera y la pantalla NUNCA
+          scrollea, porque el panel absoluto no le quita un píxel de alto. */}
+      <EnVisor
+        host={esOverlay ? visor : null}
+        className="absolute inset-1.5 z-20 flex flex-col min-h-0 pointer-events-none"
+      >
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+          abierta ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        } ${esOverlay ? 'flex-1 min-h-0' : ''}`}
+      >
+        <div className="overflow-hidden min-h-0" inert={!abierta}>
         <div
           id="verificacion-detalle"
           role="region"
           aria-label="Detalle de verificación documental"
           data-testid="verificacion-detalle"
-          className={
-            overlay
-              ? 'rounded-lg bg-[#0d131a]/85 backdrop-blur-md border border-slate-800/80 p-2.5 flex flex-col gap-2.5 flex-1 min-h-0 overflow-y-auto thin-scroll'
-              : 'rounded-lg bg-[#0d131a]/85 border border-slate-800/80 p-2.5 flex flex-col gap-2.5 max-h-[60vh] overflow-y-auto thin-scroll'
-          }
+          className={`rounded-lg border border-slate-800/80 p-2.5 flex flex-col gap-2.5 overflow-y-auto thin-scroll ${
+            esOverlay
+              ? `h-full bg-[#0d131a]/95 backdrop-blur-[2px] ${abierta ? 'pointer-events-auto' : ''}`
+              : 'bg-[#0d131a] max-h-[60vh]'
+          }`}
         >
           {molde ? (
             <>
@@ -548,7 +606,9 @@ export function VerificacionDocumental({
             </>
           )}
         </div>
-      )}
+        </div>
+      </div>
+      </EnVisor>
     </div>
   );
 }

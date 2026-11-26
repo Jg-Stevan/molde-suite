@@ -146,6 +146,35 @@ recentrado x (documentos completos, dy≈0, `datos_emisor` `ok` sin banderas
 en ambos). Los `v133`/`v133b`/`v133c` intermedios no se versionan: son
 iteraciones superadas.
 
+## Banco 1.4.0 + arnés geométrico (FASE 5-6, 2026-11-25)
+
+Molde v1.4.0 sincronizado en la BD de Studio (PUT `/api/moldes/<id>` con la
+plantilla del repo — la BD traía un v1.3.1 rancio que falseaba las corridas:
+`datos_emisor` caía a `fuente 'fija'` y el tachado marcaba 41.7 en vez del 50
+reproducible). Motor con `proyectarPorArnes` (afín + soporte leave-one-out) y
+votación 2/3 letras↔número. Conductor externo, corrida persistida como fuente
+de verdad, `_meta` en todos los artefactos:
+
+| Imagen | Artefacto | score motor | arnés | genuino | campos `arnes` |
+|---|---|---|---|---|---|
+| `recibo-tachado.png` | `arnes-tachado-loo-…T21-17-00-780Z.json` | **58.3** | 58.3 | 50 | 4 (`importe`, `importe_texto`, ambas firmas) |
+| `pag-01.png` (limpia) | `arnes-limpia-loo-…T21-17-32-277Z.json` | **100** | 100 | 83.3 | 0 (no hay nada que rescatar) |
+| `rotada-12.png` | `arnes-rotada-loo-…T21-18-13-686Z.json` | **91.7** | 91.7 | 83.3 | 0 |
+
+- **No-regresión:** limpia y rotada idénticas a su baseline re-puntuado con las
+  `metricas()` actuales (los 83.3/`firma_*` no genuinos vienen de
+  `ancla_solo_textual`+`forma_sin_caja` en el arnés, presentes también en el
+  baseline; el motor no cambió).
+- **Tachado +8.3 sobre el baseline 50:** `importe_texto` rescatado por el arnés
+  queda `ok` con valor EXACTO (conf 0.77, patrón validado); `importe` sigue en
+  revisión (conf OCR 0.20 bajo el revelado — honesto).
+- **Fin del «dos firmas mismo rect»:** con cajas `seal` del layout,
+  `firma_emisor` y `firma_pagador` reciben rects DISTINTOS (y 0.931 / 0.758) y
+  quedan `no_encontrado` con `forma_sin_caja` en esta imagen (sin tinta
+  legible) — nunca un `ok` compartido.
+- Causa del rediseño (residual → LOO) documentada en
+  `lessons/recibo_pago/2026-11-25-arnes-loo-soporte.md`.
+
 ## Cómo reproducir
 
 ```bash
