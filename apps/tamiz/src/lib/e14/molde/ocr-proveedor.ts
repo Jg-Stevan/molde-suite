@@ -18,9 +18,11 @@ export async function ocrLines(canvas: HTMLCanvasElement): Promise<{
   lines: LineaOcr[];
   conf: number | null;
 }> {
-  const worker = await getWorker();
+  // Vuelo marcado ANTES de getWorker(): el reciclado F4 no puede ver 0 y
+  // terminar el worker entre la obtención y el recognize (carrera cerrada).
   marcarReconocimientoTesseract(1);
   try {
+    const worker = await getWorker();
     const ret = await worker.recognize(canvas, {}, { text: true, blocks: true, hocr: false, tsv: false });
     const data = ret.data as unknown as Parameters<typeof lineasDesdeBlocksTesseract>[0];
     return lineasDesdeBlocksTesseract(data);
@@ -34,9 +36,10 @@ export async function ocrTextoUnico(
   canvas: HTMLCanvasElement,
   opts?: { whitelist?: string; psm?: '6' | '7' | '8' | '13' },
 ): Promise<{ texto: string; conf: number | null }> {
-  const worker = await getWorker();
+  // Vuelo marcado ANTES de getWorker(): mismo cierre de carrera que ocrLines.
   marcarReconocimientoTesseract(1);
   try {
+    const worker = await getWorker();
     // BUG CORREGIDO (worker compartido): el PSM/whitelist fijado para el recorte
     // quedaba vigente para toda la sesión — el OCR de PÁGINA COMPLETA de la
     // PÁGINA SIGUIENTE del motor universal corría en modo "una línea" (psm 7)

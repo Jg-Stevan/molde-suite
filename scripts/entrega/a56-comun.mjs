@@ -256,9 +256,17 @@ export async function enderezarFoto(pagina, sesion, max = 3) {
       })
       .catch(() => null);
   let toques = 0;
+  // Sin dimensiones del visor NO se rota a ciegas: un toque innecesario
+  // reprocesa la foto entera y puede terminar en watchdog (medido
+  // 2026-11-26: RECHAZADA de 295 s en comprobante-a-02). Se espera a que
+  // el img del visor exista y tenga tamaño natural antes de decidir.
+  for (let espera = 0; espera < 15 && !(await dims()); espera++) {
+    await pagina.waitForTimeout(1000);
+  }
   for (let i = 0; i < max; i++) {
     const d = await dims();
-    if (d && d.w >= 400 && d.h >= d.w) return toques;
+    if (!d) return toques;
+    if (d.w >= 400 && d.h >= d.w) return toques;
     const boton = pagina.getByRole("button", { name: /Rotar 90/i });
     if (!(await boton.count())) return toques;
     await tocar(pagina, sesion, boton.first(), "Rotar 90°");
