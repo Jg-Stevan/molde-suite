@@ -35,6 +35,7 @@ docs/investigacion/**/previews/
 # herramientas de agentes locales
 .claude
 .z-ai-config
+.qoder/
 
 # PIDs y archivos de runtime
 *.pid
@@ -74,4 +75,9 @@ _verificacion/
 # Fixtures servidos al teléfono durante el banco E2E (los originales viven en
 # scripts/resultados/fixtures/; se copian aquí solo para que el dev server los
 # sirva a Chrome Android, que no puede leer /sdcard vía CDP).
+# REGLA DE PRIVACIDAD (plan de cierre §3.3 y §9-1): el repo es PÚBLICO —
+# NADA de fotos de documentos reales se versiona, ni aquí ni en
+# scripts/resultados/. Las fotos del banco viven SOLO en local; subirán
+# únicamente si el dueño confirma que son sintéticas/anonimizadas.
 apps/tamiz/public/dev-fixtures/
+scripts/resultados/

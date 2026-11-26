@@ -35,7 +35,8 @@
     {
       "destino": "public/models/rapidocr/ppocr_keys.txt",
       "url": "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/ppocr/utils/ppocr_keys_v1.txt",
-      "sha256": "a1c84d9bdb9ab29043c58896224d32941783eb821629618416dcb08f12886492"
+      "sha256": "a1c84d9bdb9ab29043c58896224d32941783eb821629618416dcb08f12886492",
+      "nota": "Diccionario CTC del rec PP-OCRv4 (charset ppocr_keys_v1). El paquete lo fetch() en ocr/rapidocr.ts; sin este archivo rapidOcrInit() lanza ppocr_keys.txt HTTP 404 y RapidOCR nunca inicializa (hallazgo de la verificación de navegador del Agente A, 2026-11-26)."
     }
   ]
 }
