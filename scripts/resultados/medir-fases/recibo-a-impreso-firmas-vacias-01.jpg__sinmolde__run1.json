@@ -1,0 +1,58 @@
+{
+  "archivo": "recibo-a-impreso-firmas-vacias-01.jpg",
+  "config": "sinmolde",
+  "pase": "run1",
+  "msVeredicto": 25647,
+  "veredicto": "REVISIÓN HUMANA",
+  "etapas": [
+    {
+      "fase": "DETECTANDO",
+      "t": 1118
+    }
+  ],
+  "acta": null,
+  "rotacion": null,
+  "rssAntes": [
+    "TOTAL   322017   188744    46308    65352   374336   164272    77797    81523",
+    "TOTAL PSS:   322017            TOTAL RSS:   374336       TOTAL SWAP PSS:    65352"
+  ],
+  "rssDespues": [
+    "TOTAL   259446   136564    40208    65778   305916   160237    51694   103590",
+    "TOTAL PSS:   259446            TOTAL RSS:   305916       TOTAL SWAP PSS:    65778"
+  ],
+  "consola": [
+    "[e14-rapidocr] det run [1,3,480,640]...",
+    "[e14-rapidocr] det run OK (612ms)",
+    "[e14-rapidocr] celda: det=682ms cls=56.55500000715256ms rec=700ms (run=611.7800000309944 js=88.21999996900558) · 3 cajas · 3 líneas · conf 98.0% · 1384ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-prowarm] listo det=682ms cls=56.55500000715256ms rec=700ms · 3 cajas · 3 líneas",
+    "[e14-rapidocr] det run [1,3,480,640]...",
+    "[e14] qr-capa0 prechequeo sin-candidato ms=453 patrones=0 confianza=0.00",
+    "[e14-rapidocr] det run OK (869ms)",
+    "[e14-rapidocr] celda: det=1433ms cls=81.75ms rec=957ms (run=840.6200000047684 js=116.37999999523163) · 3 cajas · 3 líneas · conf 98.0% · 2393ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-prowarm] listo det=1433ms cls=81.75ms rec=957ms · 3 cajas · 3 líneas",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (2106ms)",
+    "[e14] orientacion crop=1031x1280 rot=0 probe={0:6.83} anclas0=3 conf0=0.54 aplicado=0 ms=3783 cortes=sana orden=0,90,180,270 gan=90 exif=0 escala=1280",
+    "[tamiz:info] [e14] tess-best ok conf=0.85 chars=355",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (1462ms)",
+    "[e14-rapidocr] celda: det=1546ms cls=198.2049999833107ms rec=3002ms (run=2667.385000050068 js=334.6149999499321) · 14 cajas · 8 líneas · conf 92.9% · 4548ms detMemo=miss · leidas=14/14 anclasBordes=-1 pieBordes=-1 rescate=0 crops=4ms",
+    "[e14-rapidocr] det run [1,3,1760,1440]...",
+    "[e14-rapidocr] det run OK (2529ms)",
+    "[e14-rapidocr] celda: det=2615ms cls=137.4200000166893ms rec=3099ms (run=2882.2699999809265 js=216.7300000190735) · 15 cajas · 10 líneas · conf 91.4% · 5715ms detMemo=miss · leidas=15/15 anclasBordes=-1 pieBordes=-1 rescate=0 crops=3ms",
+    "[e14-rapidocr] det run [1,3,448,1440]...",
+    "[e14-rapidocr] det run OK (868ms)",
+    "[e14-rapidocr] celda: det=947ms cls=57.0349999666214ms rec=1004ms (run=903.6999999880791 js=100.30000001192093) · 4 cajas · 3 líneas · conf 94.2% · 1958ms detMemo=miss · leidas=4/4 anclasBordes=-1 pieBordes=-1 rescate=0 crops=3ms",
+    "[e14-rapidocr] det run [1,3,448,1440]...",
+    "[e14-rapidocr] det run OK (862ms)",
+    "[e14-rapidocr] celda: det=917ms cls=44.6599999666214ms rec=1101ms (run=1012.9549999833107 js=88.0450000166893) · 6 cajas · 5 líneas · conf 97.7% · 2033ms detMemo=miss · leidas=6/6 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[tamiz:info] [e14] ocr-cascada intento1=tess-best gate1=NO elegido=roi rescate=1 ms1=5930 ms2=5724 msRoi=4001 msMotor=-",
+    "[e14-rapidocr] det run [1,3,256,1280]...",
+    "[e14-rapidocr] det run OK (579ms)",
+    "[e14-rapidocr] celda: det=655ms cls=0ms rec=134ms (run=120.69999998807907 js=13.300000011920929) · 1 cajas · 1 líneas · conf 95.0% · 800ms detMemo=miss · leidas=1/1 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-rapidocr] det run [1,3,352,1440]...",
+    "[e14-rapidocr] det run OK (596ms)",
+    "[e14-rapidocr] celda: det=633ms cls=27.099999964237213ms rec=355ms (run=304.835000038147 js=50.16499996185303) · 2 cajas · 2 líneas · conf 98.6% · 991ms detMemo=miss · leidas=2/2 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms"
+  ],
+  "medidoEn": "2026-11-26T04:11:45.074Z"
+}

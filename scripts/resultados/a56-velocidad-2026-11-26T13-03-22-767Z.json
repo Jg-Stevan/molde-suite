@@ -1,0 +1,9 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "flags": "{\"ocrRouterReusado\":true,\"warpCompartido\":true}",
+  "fixture": "recibo-datos-nuevos.png",
+  "segundos": 11,
+  "veredicto": "RECHAZADA",
+  "captura": "a56-velocidad-veredicto.png",
+  "medidoEn": "2026-11-26T13:03:22.767Z"
+}

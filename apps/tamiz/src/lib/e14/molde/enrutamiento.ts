@@ -171,19 +171,29 @@ export async function sembrarMoldeDemo(): Promise<void> {
  *  v3.2.0: incluye el modo relacional — esto es IDENTIFICACIÓN del documento
  *  (¿qué molde aplica?), no resolución de zonas: la doctrina del faro gobierna
  *  la resolución de campos (universal-engine), aquí solo reconocemos el papel. */
-function anclasDeMolde(molde: MoldeUniversal): string[] {
-  const set = new Set<string>();
+function anclasDeMolde(molde: MoldeUniversal): { texto: string; rect?: { x: number; y: number; w: number; h: number } }[] {
+  const mapa = new Map<string, { texto: string; rect?: { x: number; y: number; w: number; h: number } }>();
   for (const c of molde.campos) {
     if (c.pagina !== 1) continue;
     if ((c.estrategia === 'ancla_relativa' || c.estrategia === 'ancla_relacional') && c.ancla?.texto) {
-      set.add(c.ancla.texto);
+      const previo = mapa.get(c.ancla.texto);
+      if (!previo || (!previo.rect && c.ancla.rect)) {
+        mapa.set(c.ancla.texto, { texto: c.ancla.texto, rect: c.ancla.rect });
+      }
     }
   }
-  return [...set];
+  return [...mapa.values()];
 }
 
 /** Ratio de anclas del molde presentes en las líneas OCR (0-1). Un molde sin
- *  anclas no es enrutable por prefilter (null) — honesto: sin señal, sin ruta. */
+ *  anclas no es enrutable por prefilter (null) — honesto: sin señal, sin ruta.
+ *
+ *  v1.5.0 (fotos reales 2026-11-25): el rect DECLARADO viaja como referencia
+ *  posicional a `buscarAncla` (penalización suave 1/(1+3d) del motor). Es lo
+ *  que separa variantes del MISMO papel que comparten rótulos pero no
+ *  geometría (p. ej. la línea Fecha del recibo B vive a x≈0.37 y la de A/C a
+ *  x≈0.67): sin referencia, las tres variantes empatan y el router elige a
+ *  ciegas la primera de la biblioteca. */
 export function ratioAnclasDe(
   molde: MoldeUniversal,
   lineas: LineaOcr[],
@@ -193,8 +203,8 @@ export function ratioAnclasDe(
   const anclas = anclasDeMolde(molde);
   if (anclas.length === 0) return null;
   let hits = 0;
-  for (const texto of anclas) {
-    const hit = buscarAncla(texto, lineas, canvasW, canvasH);
+  for (const a of anclas) {
+    const hit = buscarAncla(a.texto, lineas, canvasW, canvasH, a.rect);
     if (hit && hit.score >= UMBRAL_HIT_ANCLA) hits += 1;
   }
   return hits / anclas.length;

@@ -1052,3 +1052,30 @@ export async function processImage(
     height: rotado.height,
   };
 }
+
+/** F1 — warp compartido: un solo warp (original) y bw derivado por Bradley
+ *  sobre el canvas ya warp+deskew+rotado. PNG es lossless → el bw es
+ *  pixel-idéntico al del flujo actual (dos processImage independientes).
+ *  Ahorra el 2.º warp completo (decode + perspectiva + deskew + rotación). */
+export async function processImageDual(
+  foto: string,
+  quad: Quad,
+  rotation: number,
+  opts?: ProcessOptions,
+): Promise<{ bw: ProcessResult; original: ProcessResult }> {
+  const original = await processImage(foto, quad, 'original', rotation, opts);
+  if (!original.processed) {
+    return { bw: original, original };
+  }
+  const img = await decodificar(original.processed);
+  const canvas = imgACanvas(img);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  data.data.set(aplicarFiltroBw(data.data, canvas.width, canvas.height));
+  ctx.putImageData(data, 0, 0);
+  const bwProcessed = canvas.toDataURL('image/png');
+  return {
+    bw: { processed: bwProcessed, width: canvas.width, height: canvas.height },
+    original,
+  };
+}

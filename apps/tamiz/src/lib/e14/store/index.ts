@@ -26,6 +26,9 @@ import {
   TOPE_HISTORIAL,
 } from '../jornada';
 import { ErrorRescateHeic } from '@molde-suite/scanner-core/core/image-processor';
+import { reiniciarMotorOcrSiInactivo } from '@molde-suite/scanner-core/ocr/rapidocr';
+import { reiniciarWorkerTesseractSiInactivo } from '../bridge/ocr-worker';
+import { leerFlags } from '../flags';
 import type { E14Store, Vista } from './tipos';
 
 export type { Vista, ActaArchivada, PuestoActual, HuecoArchivado, E14Store } from './tipos';
@@ -38,6 +41,15 @@ export type { Vista, ActaArchivada, PuestoActual, HuecoArchivado, E14Store } fro
  *  store/edicion.ts:24 — la rotación rápida es async y un doble tap
  *  giraría 180°). */
 let rotandoFotoEnVuelo = false;
+
+/** F4 — reciclado best-effort de workers OCR tras el veredicto. Libera
+ *  memoria nativa WASM; jamás bloquea la UI ni lanza. Kill-switch:
+ *  ocrReciclarPostEscaneo=false ⇒ no-op (comportamiento histórico). */
+function reciclarWorkersPostEscaneo(): void {
+  if (!leerFlags().ocrReciclarPostEscaneo) return;
+  void reiniciarMotorOcrSiInactivo().catch(() => {});
+  void reiniciarWorkerTesseractSiInactivo().catch(() => {});
+}
 
 function crearCaptura(
   set: (partial: Partial<E14Store> | ((s: E14Store) => Partial<E14Store>)) => void,
@@ -313,6 +325,7 @@ function crearCaptura(
             });
           }
         }
+        reciclarWorkersPostEscaneo();
         return;
       }
       // RECHAZADA también va a REVISIÓN: el veredicto y su motivo (incluido
@@ -328,6 +341,7 @@ function crearCaptura(
         rechazosConsecutivos:
           actaActual.status === 'RECHAZADA' ? rechazosConsecutivos + 1 : 0,
       });
+      reciclarWorkersPostEscaneo();
     },
 
     rescatarActaPostTimeout: (vencida, real, tiempoRealMs) => {

@@ -17,6 +17,7 @@ import {
   DET_CAP_RAPIDO,
   rapidOcrInit,
   rapidOcrReconocer,
+  type RapidOcrLinea,
 } from '@molde-suite/scanner-core/ocr/rapidocr';
 import {
   anclasDe,
@@ -38,7 +39,8 @@ import { leerFlags } from '../flags';
 import { planOcrAdaptativo, presupuestoEscaneoEfectivo } from '../adaptacion/plan';
 // Tesseract best (intento 1 / rescate de la cascada): el singleton spa del
 // producto — el texto de ESTE motor vale SOLO por el GATE (§1 del kit).
-import { getWorker } from './ocr-worker';
+import { getWorker, marcarReconocimientoTesseract } from './ocr-worker';
+import { esFalloMemoriaMotor } from '../errores';
 
 /** Calidad JPEG de los crops de OCR (misma que digielect: revisión 0.92). */
 const CALIDAD_JPEG_OCR = 0.92;
@@ -195,17 +197,41 @@ export async function reconocerRapidOcrEscalonado(
     } else {
       // 2.ª pasada — det cap PROD (1920); MISMO emit de progreso. Elegir el
       // MEJOR — NUNCA automáticamente la 2.ª.
+      // F4: fallback det1920→1280 ante bad_alloc/presión de memoria.
       const t2 = performance.now();
-      const r2 = await rapidOcrReconocer(rt, fotoOcr, onProgress, {
-        detCap: DET_CAP_PROD,
-        omitirCls,
-      });
-      ms2 = Math.round(performance.now() - t2);
-      anclas2 = anclasDe(r2.texto);
-      elegido = elegirMejor(
-        { texto: r1.texto, conf: r1.confMedia, detMs: r1.msDet, recMs: r1.msRec, cap: DET_CAP_RAPIDO },
-        { texto: r2.texto, conf: r2.confMedia, detMs: r2.msDet, recMs: r2.msRec, cap: DET_CAP_PROD },
-      );
+      try {
+        const r2 = await rapidOcrReconocer(rt, fotoOcr, onProgress, {
+          detCap: DET_CAP_PROD,
+          omitirCls,
+        });
+        ms2 = Math.round(performance.now() - t2);
+        anclas2 = anclasDe(r2.texto);
+        elegido = elegirMejor(
+          { texto: r1.texto, conf: r1.confMedia, detMs: r1.msDet, recMs: r1.msRec, cap: DET_CAP_RAPIDO },
+          { texto: r2.texto, conf: r2.confMedia, detMs: r2.msDet, recMs: r2.msRec, cap: DET_CAP_PROD },
+        );
+      } catch (e2) {
+        if (leerFlags().ocrFallbackBadAlloc && esFalloMemoriaMotor(e2)) {
+          logger.warn('[e14] escalada fallback 1280 por presión de memoria', {
+            motivo: e2 instanceof Error ? e2.message : String(e2),
+          });
+          try {
+            const r2b = await rapidOcrReconocer(rt, fotoOcr, onProgress, {
+              detCap: DET_CAP_RAPIDO,
+              omitirCls,
+            });
+            ms2 = Math.round(performance.now() - t2);
+            anclas2 = anclasDe(r2b.texto);
+            elegido = elegirMejor(
+              { texto: r1.texto, conf: r1.confMedia, detMs: r1.msDet, recMs: r1.msRec, cap: DET_CAP_RAPIDO },
+              { texto: r2b.texto, conf: r2b.confMedia, detMs: r2b.msDet, recMs: r2b.msRec, cap: DET_CAP_RAPIDO },
+            );
+          } catch {
+            /* fallback también cae → r1 queda (jamás tumba) */
+          }
+        }
+        /* otro error → r1 queda como está (mismo patrón que ROI-cabecera) */
+      }
     }
   }
   logger.info(
@@ -264,13 +290,18 @@ async function tessPasadaParaGate(
   }
   try {
     const worker = await getWorker();
-    const ret = await worker.recognize(foto);
-    const texto = (ret.data.text ?? '').trim();
-    if (!texto) throw new Error('tess-best: sin texto');
-    const confRaw = ret.data.confidence;
-    const conf = typeof confRaw === 'number' && confRaw >= 0 ? confRaw / 100 : 0;
-    logger.info(`[e14] tess-best ok conf=${conf.toFixed(2)} chars=${texto.length}`);
-    return { texto, conf, cap: 'tess', motor: 'tesseract' };
+    marcarReconocimientoTesseract(1);
+    try {
+      const ret = await worker.recognize(foto);
+      const texto = (ret.data.text ?? '').trim();
+      if (!texto) throw new Error('tess-best: sin texto');
+      const confRaw = ret.data.confidence;
+      const conf = typeof confRaw === 'number' && confRaw >= 0 ? confRaw / 100 : 0;
+      logger.info(`[e14] tess-best ok conf=${conf.toFixed(2)} chars=${texto.length}`);
+      return { texto, conf, cap: 'tess', motor: 'tesseract' };
+    } finally {
+      marcarReconocimientoTesseract(-1);
+    }
   } catch (e) {
     logger.warn('[e14] tess-best no disponible', {
       motivo: e instanceof Error ? e.message : String(e),
@@ -300,7 +331,7 @@ export async function reconocerRapidOcrCascada(
   fotoOcr: string,
   onProgress?: (p: number) => void,
   cfg?: CfgOcr,
-): Promise<string> {
+): Promise<{ texto: string; lineasRapid?: RapidOcrLinea[] }> {
   const c = cfgEfectiva(cfg);
   const rt = await rapidOcrInit();
   const omitirCls = c.orientacionDecidida;
@@ -318,6 +349,7 @@ export async function reconocerRapidOcrCascada(
     nLineas: r.lineas.length,
     msRunRec: r.msRunRec,
     motor: 'rapidocr',
+    lineasRapid: r.lineas,
   });
   const rapid = (foto: string, cap: number): Promise<PasadaCascada> =>
     rapidOcrReconocer(rt, foto, onProgress, { ...rc, detCap: cap }).then((r) => aPasada(r, cap));
@@ -354,7 +386,7 @@ export async function reconocerRapidOcrCascada(
       (s.msMotor != null ? ` msMotor=${s.msMotor}` : ' msMotor=-') +
       (c.corteIncompleta ? ' corte=1' : ''),
   );
-  return s.texto;
+  return { texto: s.texto, lineasRapid: s.lineasRapid as RapidOcrLinea[] | undefined };
 }
 
 /** OCR de la banda superior (cabecera/título) — franja 16% universal ya

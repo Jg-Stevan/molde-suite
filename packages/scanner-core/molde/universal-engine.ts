@@ -1142,6 +1142,7 @@ function binACanvas(bin: BinImage, w: number, h: number): HTMLCanvasElement {
 async function rescateAntiTachon(
   crop: HTMLCanvasElement,
   whitelist?: string,
+  soloPsm7?: boolean,
 ): Promise<{ texto: string; conf: number | null } | null> {
   try {
     const gray = canvasGrayscale(crop);
@@ -1151,10 +1152,9 @@ async function rescateAntiTachon(
     for (let i = 0, p = 0; i < g.length; i++, p += 4) g[i] = gimg.data[p];
     const sinLineas = binarizeNoLines(g, gray.width, gray.height, FRACCION_KERNEL_RESCATE_TACHON);
     const limpio = binACanvas(sinLineas, gray.width, gray.height);
-    // Psm 7 (línea única): las zonas de texto del molde son de una línea.
-    // Si no produce nada, psm 6 (bloque) para zonas de dos líneas.
     const p7 = await proveedorOcr().ocrTextoUnico(limpio, { whitelist, psm: '7' });
     if (p7.texto.trim()) return p7;
+    if (soloPsm7) return p7;
     const p6 = await proveedorOcr().ocrTextoUnico(limpio, { whitelist, psm: '6' });
     return p6;
   } catch {
@@ -1341,6 +1341,8 @@ async function evaluarCampo(
   rescateMapa?: { obtenerLineas: () => Promise<LineaOcr[]> },
   /** FASE 9 (herencia): umbral/patrón por tipo cuando el campo no los declara. */
   herencia?: HerenciaMolde,
+  /** F3: tope de variantes de realce por campo (default 6 = histórico). */
+  rescatePresupuesto?: number,
 ): Promise<ResultadoCampoUniversal> {
   const base: ResultadoCampoUniversal = {
     id: campo.id,
@@ -1559,9 +1561,14 @@ async function evaluarCampo(
   // utilizable (vacío, sin confianza, conf < 0.5 o patrón incumplido) y el
   // molde declara `realce` → recorte dedicado con realce/Otsu y psm 7/8/13,
   // exactamente como antes. Preserva el camino donde un recorte ampliado lee
-  // lo que el OCR global perdió.
+  // lo que el OCR global perdió. EXCEPCIÓN (real-fotos 2026-11-25): si la zona
+  // se midió VACÍA (`zona_vacia` = casi sin tinta), el rescate se omite — en
+  // un formulario en blanco amplificar y binarizar solo inventa glifos
+  // legibles ('de', '2024') y un vacío medido es más honesto que un 74% de
+  // confianza fantasma. Con tinta escasa (sin la bandera) el rescate corre.
   if (
     campo.realce &&
+    !base.banderas.includes('zona_vacia') &&
     (!valorFinal || !cumplePatron(valorFinal) || confFinal === null || confFinal < 0.5)
   ) {
     // Reintento con realce (grises + contraste percentil + ampliación 4x) y,
@@ -1580,7 +1587,7 @@ async function evaluarCampo(
     g4ctx.imageSmoothingQuality = 'high';
     g4ctx.drawImage(grayBase, 0, 0, gray4.width, gray4.height);
     const realzado = canvasRealce(rec.crop, 4);
-    const variantes: Array<{ c: HTMLCanvasElement; psm: '6' | '7' | '8' | '13' }> = [
+    const variantesTodas: Array<{ c: HTMLCanvasElement; psm: '6' | '7' | '8' | '13' }> = [
       { c: gray4, psm: '7' },
       { c: realzado, psm: '7' },
       { c: canvasOtsu(realzado), psm: '7' },
@@ -1588,6 +1595,8 @@ async function evaluarCampo(
       { c: realzado, psm: '13' },
       { c: canvasOtsu(realzado), psm: '13' },
     ];
+    // F3: presupuesto acota las variantes (default 6 = histórico completo).
+    const variantes = variantesTodas.slice(0, rescatePresupuesto ?? variantesTodas.length);
     for (const v of variantes) {
       const re = await proveedorOcr().ocrTextoUnico(v.c, { whitelist: campo.whitelist, psm: v.psm });
       const limpioRe = re.texto.replace(/\s+/g, ' ').trim();
@@ -1619,7 +1628,7 @@ async function evaluarCampo(
     ratio > 0 &&
     (!valorFinal || confFinal === null || confFinal < 0.5 || !cumplePatron(valorFinal))
   ) {
-    const rescate = await rescateAntiTachon(rec.crop, campo.whitelist);
+    const rescate = await rescateAntiTachon(rec.crop, campo.whitelist, (rescatePresupuesto ?? 6) <= 3);
     if (rescate) {
       const limpioRescate = rescate.texto.replace(/\s+/g, ' ').trim();
       const confRescate = rescate.conf;
@@ -2754,6 +2763,8 @@ export async function evaluarDocumentoUniversal(
     cajasLayout?: CajaLayout[];
     /** FASE 5: desactiva el arnés (comportamiento idéntico a FASE 1b). */
     arnes?: boolean;
+    /** F3: tope de variantes de realce por campo (default 6 = histórico). */
+    rescatePresupuesto?: number;
   },
 ): Promise<ResultadoUniversal> {
   const previews = opts?.previews ?? true;
@@ -2826,7 +2837,7 @@ export async function evaluarDocumentoUniversal(
       onProgreso?.(`Página ${p + 1}: campo ${i + 1}/${camposPagina.length} — ${c.etiqueta}`);
       const r = await evaluarCampo(c, pageCanvas, ocr.lines, previews, {
         obtenerLineas: obtenerMapaRescate,
-      }, molde.herencia);
+      }, molde.herencia, opts?.rescatePresupuesto);
       // FASE 1b (plan extracción relacional): el fallback silencioso ya no
       // produce 'ok' en obligatorios (fin del falso positivo de firmas).
       endurecerFallbackNoVerificado(c, r);

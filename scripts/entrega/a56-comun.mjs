@@ -69,9 +69,32 @@ export function capturaDispositivo(nombre) {
   }
 }
 
+/** Despierta el teléfono y trae Chrome al frente ANTES de conectar por CDP:
+ *  medido 2026-11-26 — con la pantalla bloqueada o Chrome en segundo plano el
+ *  socket @chrome_devtools_remote existe pero el endpoint HTTP no responde
+ *  (connectOverCDP muere a los 30 s). */
+export function despertarA56() {
+  const serial = serialAdb();
+  const args = serial ? ["-s", serial] : [];
+  try {
+    execFileSync(ADB, [...args, "shell", "input", "keyevent", "KEYCODE_WAKEUP"]);
+    execFileSync(ADB, [...args, "shell", "input", "keyevent", "82"]);
+    // SIN -d: con URL, Chrome abre una PESTAÑA NUEVA en cada conexión y el
+    // banco acaba midiendo una pestaña vieja mientras importa en otra
+    // (medido 2026-11-26: 3 pestañas de localhost acumuladas).
+    execFileSync(ADB, [
+      ...args, "shell", "am", "start",
+      "-n", "com.android.chrome/com.google.android.apps.chrome.Main",
+    ]);
+  } catch {
+    /* best-effort: sin adb no hay banco */
+  }
+}
+
 /** Conecta por CDP al Chrome del teléfono y devuelve la página del dev
  *  server + una sesión CDP para inyectar input táctil. */
 export async function conectarA56(cdp = "http://127.0.0.1:9223") {
+  despertarA56();
   const { chromium } = await import("playwright");
   const navegador = await chromium.connectOverCDP(cdp);
   const contexto = navegador.contexts()[0];
@@ -80,11 +103,22 @@ export async function conectarA56(cdp = "http://127.0.0.1:9223") {
   // estrangulada por Chrome y el pipeline parece colgado.
   const candidatas = contexto.pages().filter((p) => p.url().includes("localhost:3100"));
   let pagina = null;
+  // Con varias pestañas de la app (recargas/duplicados) se prefiere la que
+  // tiene el FOCO real; si ninguna, la visible; una pestaña en segundo plano
+  // queda estrangulada por Chrome y el pipeline parece colgado.
   for (const p of candidatas) {
-    const vis = await p.evaluate(() => document.visibilityState).catch(() => "hidden");
-    if (vis === "visible") {
+    if (await p.evaluate(() => document.hasFocus()).catch(() => false)) {
       pagina = p;
       break;
+    }
+  }
+  if (!pagina) {
+    for (const p of candidatas) {
+      const vis = await p.evaluate(() => document.visibilityState).catch(() => "hidden");
+      if (vis === "visible") {
+        pagina = p;
+        break;
+      }
     }
   }
   pagina ??= candidatas[0] ?? null;
@@ -96,6 +130,11 @@ export async function conectarA56(cdp = "http://127.0.0.1:9223") {
       .goto("http://localhost:3100/", { waitUntil: "domcontentloaded", timeout: 90000 })
       .catch(() => undefined);
   }
+  // Medido 2026-11-26: si el operador abre otra pestaña, Chrome Android
+  // estrangula la de la app y el pipeline se CONGELA a mitad del análisis
+  // (2452 ms al 18 % durante minutos). El banco necesita la pestaña al
+  // frente para que el teléfono use su CPU.
+  await pagina.bringToFront().catch(() => undefined);
   const sesion = await contexto.newCDPSession(pagina);
   return { navegador, contexto, pagina, sesion };
 }
@@ -200,6 +239,44 @@ export async function prepararImporte(pagina) {
     if (await guia.count()) await guia.first().click().catch(() => {});
   }
   await desarmarAutoCaptura(pagina);
+}
+
+/** Endereza la foto con el botón «Rotar 90°» del visor (el mismo gesto del
+ *  operador) cuando el recorte salió mal: fotos giradas 90° sobre mesa oscura
+ *  hacen que el quad se cierre sobre un fragmento y la «foto procesada» queda
+ *  como un sello diminuto (medido 2026-11-26 con los recibos reales). Cada
+ *  toque reprocesa; se espera a que el img del visor cambie y sea vertical
+ *  grande. Devuelve los toques dados. */
+export async function enderezarFoto(pagina, sesion, max = 3) {
+  const dims = () =>
+    pagina
+      .evaluate(() => {
+        const img = document.querySelector('[data-purpose="visor-documento"] img');
+        return img ? { w: img.naturalWidth, h: img.naturalHeight } : null;
+      })
+      .catch(() => null);
+  let toques = 0;
+  for (let i = 0; i < max; i++) {
+    const d = await dims();
+    if (d && d.w >= 400 && d.h >= d.w) return toques;
+    const boton = pagina.getByRole("button", { name: /Rotar 90/i });
+    if (!(await boton.count())) return toques;
+    await tocar(pagina, sesion, boton.first(), "Rotar 90°");
+    toques++;
+    const t0 = Date.now();
+    let prev = d;
+    while (Date.now() - t0 < 240000) {
+      await pagina.waitForTimeout(3000);
+      await pagina.bringToFront().catch(() => {});
+      const ahora = await dims();
+      if (ahora && (!prev || ahora.w !== prev.w || ahora.h !== prev.h)) {
+        prev = ahora;
+        if (ahora.w >= 400 && ahora.h >= ahora.w) return toques;
+        break;
+      }
+    }
+  }
+  return toques;
 }
 
 /** Entrega el fixture al input como File REAL in-page: fetch del dev server

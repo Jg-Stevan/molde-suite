@@ -25,6 +25,7 @@ import type {
   ResultadoUniversal,
 } from '@molde-suite/scanner-core/molde/universal-types';
 import { configurarProveedorOcr } from '@molde-suite/scanner-core/molde/ocr-tipos';
+import { lineasDesdeRapid } from '@molde-suite/scanner-core/molde/ocr-mapeo';
 import { canvasDesdeDataUrl } from '@molde-suite/scanner-core/core/canvas-imagen';
 import type { MoldeUniversal } from '@molde-suite/scanner-core/molde/universal-types';
 import type { ResumenMoldeActa, ResumenMoldeCampo } from '@molde-suite/scanner-core/dominio/types';
@@ -79,6 +80,14 @@ function filasDeCampos(molde: MoldeUniversal, resultado: ResultadoUniversal): Re
       banderas: c.banderas ?? [],
       ...(def?.destacado ? { destacado: true } : {}),
       ...(def?.obligatorio ? { obligatorio: true } : {}),
+      // v1.4.2: la declaración de manuscrito viaja desde la definición — el
+      // overlay la necesita para pintar «hay trazo / no hay trazo».
+      ...(def?.htr ? { htr: true } : {}),
+      // v1.5.1: TINTA medida, no lectura. El motor ya mide el ratio por zona
+      // (el mismo con el que decide `firma_ausente`/`zona_vacia`); el piso
+      // 0.001 es el que el propio motor documenta como «tinta real» (≈20 px
+      // en la canónica). Sin ratio (zona sin resolver) no se inventa.
+      ...(typeof c.ratio === "number" ? { tinta: c.ratio >= 0.001 } : {}),
       // FASE 4 (v3.2.0 — interfaz táctica): grupo/orden para la presentación
       // agrupada del checklist (Encabezado → Identificación → Cuerpo → Cierre).
       ...(def?.grupo ? { grupo: def.grupo } : {}),
@@ -178,7 +187,11 @@ export async function evaluarMoldeEnActa(
    * lectura, se reintenta el molde sobre el original y se registra la
    * comparación. Costo acotado: el reintento SOLO ocurre con 0 lecturas.
    */
-  opciones?: { fotoOriginal?: string },
+  opciones?: {
+    fotoOriginal?: string;
+    lineasRapid?: Array<{ texto: string; conf: number; box: Array<{ x: number; y: number }> }>;
+    anchoOcr?: number;
+  },
 ): Promise<ResumenMoldeActa | null> {
   if (!leerFlags().evaluacionMolde) return null;
   asegurarProveedor();
@@ -193,8 +206,22 @@ export async function evaluarMoldeEnActa(
   // UNA pasada de OCR de página (la del router): alimenta el prefilo por
   // anclas, la telemetría de ratios y —vía opts.lineas— al motor, que ya NO
   // lanza un segundo Tesseract de página completa (Fase 4: menos latencia).
+  // F2: si ocrRouterReusado y hay líneas Rapid del cascade, se mapean y se
+  // usan en vez de lanzar ocrLines (elimina el 2.º Tesseract de página).
   const tOcr = performance.now();
-  const ocr = await ocrLines(canvas);
+  let ocr: { lines: import('@molde-suite/scanner-core/molde/ocr-tipos').LineaOcr[]; conf: number | null };
+  let lineasReusadas = false;
+  if (leerFlags().ocrRouterReusado && opciones?.lineasRapid && opciones.lineasRapid.length > 0 && opciones.anchoOcr) {
+    const factor = canvas.width / opciones.anchoOcr;
+    ocr = lineasDesdeRapid(opciones.lineasRapid, factor);
+    lineasReusadas = true;
+    logger.info('[molde] router reusado: líneas Rapid del cascade', {
+      lineas: ocr.lines.length,
+      factor: factor.toFixed(3),
+    });
+  } else {
+    ocr = await ocrLines(canvas);
+  }
   const ocrRouterMs = Math.round(performance.now() - tOcr);
 
   // Elección del molde: activo explícito o mejor candidato del router.
@@ -230,7 +257,7 @@ export async function evaluarMoldeEnActa(
     molde.nombre,
     undefined,
     renderMs,
-    { previews: false, lineas: ocr.lines, ocrConf: ocr.conf ?? undefined },
+    { previews: false, lineas: ocr.lines, ocrConf: ocr.conf ?? undefined, rescatePresupuesto: leerFlags().ocrRescatePresupuesto },
   );
   // Tiempos honestos del resumen: el OCR del router corre una sola vez; sus
   // ms suman al ocr_ms que el motor ya no mide (usó las líneas reutilizadas).
@@ -239,8 +266,11 @@ export async function evaluarMoldeEnActa(
   // A/B MEDIDO (Fase 4): binarizada sin NINGUNA lectura → reintento sobre la
   // geometría original (`fotoOcr`). Solo se adopta si mejora; la comparación
   // queda en consola. Sin tocar umbrales de enrutado.
+  // F3: si las líneas Rapid ya se reusaron (leyeron el original) y ok_count=0,
+  // el documento realmente no tiene campos → el A/B es redundante.
   let canvasFuente = canvas;
-  if (opciones?.fotoOriginal && resultado.ok_count === 0) {
+  const skipAB = leerFlags().ocrSkipABSiCascadeLee && lineasReusadas;
+  if (opciones?.fotoOriginal && resultado.ok_count === 0 && !skipAB) {
     try {
       const canvasAlt = await canvasDesdeDataUrl(opciones.fotoOriginal, { ancho: 1000 });
       const alt = await evaluarDocumentoUniversal(
@@ -249,7 +279,7 @@ export async function evaluarMoldeEnActa(
         molde.nombre,
         undefined,
         renderMs,
-        { previews: false },
+        { previews: false, rescatePresupuesto: leerFlags().ocrRescatePresupuesto },
       );
       const elegido = alt.ok_count > resultado.ok_count || alt.score > resultado.score ? 'original' : 'binarizada';
       logger.info('[molde] A/B binarizada vs original', {
