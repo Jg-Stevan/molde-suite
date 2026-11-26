@@ -72,12 +72,32 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
   ámbar (`requiere_revision`) o rojo (`no_encontrado`/firma faltante). Los
   campos `tipo: "firma"` (manuscritos) se RESALTAN como banda translúcida con
   el rótulo de qué firma es DEBAJO de la banda (mantenedor 2026-11-25f; si la
-  banda toca el pie, el rótulo va arriba). Las anclas NO se dibujan (queda
+  banda toca el pie, el rótulo va arriba).
+  **Semáforo de manuscritos por TINTA medida (v1.5.1, mantenedor 2026-11-26):**
+  un manuscrito (`tipo: "firma"` o `htr: true` en la definición, v1.4.2) NUNCA
+  se pinta por lectura — una rúbrica ilegible con trazo es «hay trazo». La
+  banda va VERDE si `tinta === true` y ROJO si `tinta === false` (zona en
+  blanco); sin ámbar. `tinta` es aditivo en `ResumenMoldeCampo` y lo deriva el
+  puente de Tamiz de `ResultadoCampoUniversal.ratio` (el mismo ratio de
+  píxeles oscuros que alimenta `firma_ausente`/`zona_vacia`; piso 0.001 =
+  «tinta real», ≈20 px en la canónica). `tinta` ausente = zona sin resolver:
+  la UI cae al heurístico por estado/banderas de siempre. Esto hace correcto
+  el semáforo en formularios en blanco (todo rojo) y en relleno manuscrito
+  ilegible (verde donde hay trazo), sin tocar el motor.
+  Las anclas NO se dibujan (queda
   `ancla_rect` como dato del contrato). También en
   el visor a pantalla completa: la capa vive dentro del wrapper de zoom y
   escala/panea con la foto (se oculta al comparar el original). Los rects son
   normalizados (0-1) sobre el canvas de la foto PROCESADA — el overlay solo
   se ofrece con esa foto (jamás sobre la original).
+- **Referencia posicional del ancla en identificación (v1.5.0, real-fotos
+  2026-11-25)**: `buscarAncla(texto, lineas, w, h, rect?)` acepta el rect
+  DECLARADO por el molde como referencia posicional con penalización suave
+  (`1/(1+3d)`); el router de Tamiz (`ratioAnclasDe`) lo pasa para desempatar
+  moldes que comparten rótulos pero no geometría. Aditivo: sin `rect` se
+  comporta como siempre. Ojo: variantes del MISMO papel impreso comparten
+  también geometría — ahí el desempate no existe y la respuesta correcta es
+  un molde por familia con `htr` + semáforo por tinta (ver `lessons/`).
 - Banderas relevantes al diseñar: `ancla_no_encontrada`, `ancla_colision`,
   `desambiguacion_fallida`, `umbral_al_borde`, `pagina_faltante`,
   `posible_pagina_equivocada`, `rotacion_180_corregida`.
@@ -96,6 +116,11 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
   `rescate_fallido` (se intentó el rescate y no mejoró — el resultado original
   se conserva). Solo campos obligatorios con tinta y lectura inválida; nunca
   global.
+- **Rescate honesto en zona vacía (real-fotos 2026-11-25)**: el rescate con
+  `realce` se OMITE si la zona se midió vacía (`zona_vacia`). En un formulario
+  en blanco, ampliar y binarizar solo inventa glifos legibles («de», «2024»)
+  con confianza fantasma; un vacío medido es más honesto. Con tinta escasa
+  (sin la bandera) el rescate corre como siempre.
 - **Plan extracción relacional (FASE 3 — validaciones)**: `regla: 'rango'`
   compara FECHAS entre dos campos (`"fecha_pago >= fecha_emision"`). Formatos
   parseados: ISO, dd/mm/aaaa, dd-mm-aaaa, «24 de noviembre de 2026». Un

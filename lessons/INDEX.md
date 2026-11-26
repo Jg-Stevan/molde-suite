@@ -131,6 +131,32 @@ en campos de tinta sigue demolido a `requiere_revision`
 
 **Lecciones:** recibo_pago/2026-11-25-firma-ancla-columna.md
 
+## P9 — Variantes del mismo papel impreso: empate de anclas y verde falso
+
+**Patrón:** varias «variantes» (A impreso / B en blanco / C mixto) del MISMO
+formulario impreso. Empatan en ratio de anclas y geometría → el router elige a
+ciegas la primera fila de la biblioteca. Y las zonas `htr` calibradas solo
+sobre la variante llena empiezan encima de la etiqueta impresa (`zona.x = 0`)
+→ miden tinta de la impresión → VERDE falso en el formulario en blanco.
+
+**Síntomas:** todas las fotos de una familia enrutan al mismo molde «vecino»;
+formulario en blanco con bandas verdes; scores repetidos entre fotos
+distintas (sonda leyendo el historial); overlay 0/0 en fotos giradas 90°
+(recorte sello).
+
+**Mitigaciones (2026-11-26):**
+- Un molde por familia con unión de `htr`/`obligatorio`; semáforo de
+  manuscritos por `tinta` medida (v1.5.1), nunca por lectura.
+- Calibración de zonas con NEGATIVO en blanco del mismo papel (ratio ≈ 0
+  requisito duro) + positivo con relleno; desplazamiento mínimo que cumple
+  ambos (`scripts/entrega/validar-moldes.ts` + probe de calibración).
+- Rescate con `realce` omitido en `zona_vacia` (motor): un vacío medido no
+  inventa glifos.
+- Banco CDP: despertar + Chrome al frente, `bringToFront` por poll, sonda
+  atada al acta renderizada, enderezado con «Rotar 90°».
+
+**Lecciones:** recibo_pago/2026-11-26-variantes-mismo-papel-tinta.md
+
 ## P10 — Multipágina: veredicto del documento como criterio de página
 
 **Patrón:** con un molde de >1 páginas, la evaluación POR PÁGINA del bridge

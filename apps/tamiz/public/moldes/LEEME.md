@@ -14,6 +14,18 @@ biblioteca importada. Estos archivos son la fuente oficial para poblarla.
 | `e24_cuadro.molde.json` | 1.2.0 | — | Pendiente recalibración con variantes propias |
 | `e26_acta_parcial.molde.json` | 1.2.0 | 6 páginas | Pendiente recalibración con variantes propias |
 | `e14_acta.molde.json` | 3.0.0 | 21, 2 páginas | Acta E-14 Exterior (Cónsul/Embajador · Transmisión) |
+| `recibo_real.molde.json` | 1.0.0 | 12 (11 obligatorios) | Recibo de pago REAL (fotos 2026-11-25). UN molde para las variantes A/B/C: comparten la misma plantilla impresa y solo cambia el relleno, así que no son discriminables por anclas. Los campos de relleno variable van `htr: true`; el overlay pinta verde/rojo por tinta medida (`tinta`, v1.5.1) |
+| `comprobante_real.molde.json` | 1.0.0 | 10 (7 obligatorios) | Comprobante de entrega REAL (fotos 2026-11-25). Misma regla que `recibo_real`: unión de `htr`/`obligatorio` de las tres variantes y color por tinta, no por lectura |
+
+> **`variantes/` (NO publicar ni importar por defecto):** los 6 moldes
+> `*_a_real / *_b_real / *_c_real` quedaron ahí como respaldo de la calibración
+> por variante. Medido en el A56 (2026-11-26): las variantes A/B/C de cada
+> familia empatan en ratio de anclas (mismo papel impreso) y el router elegía
+> a ciegas la primera de la biblioteca; además las zonas `htr` calibradas sobre
+> C capturaban etiquetas impresas y producían lecturas basura en B (formulario
+> en blanco). Por eso se consolidó a un molde por familia con `htr` en la unión
+> de campos manuscritos y el semáforo por tinta. Importarlos juntos reintroduce
+> el empate: si se usan, que sea uno solo y como molde ACTIVO explícito.
 
 Las mismas plantillas están sembradas en **Molde Studio** (biblioteca, v1.3.1
 con `paginasRef`); si se calibra desde el Studio, el JSON exportado entra en

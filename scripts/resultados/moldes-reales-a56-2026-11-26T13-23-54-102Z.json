@@ -1,0 +1,341 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "medidoEn": "2026-11-26T13:23:54.102Z",
+  "filas": [
+    {
+      "archivo": "comprobante-a-impreso-firmas-vacias-01.jpg",
+      "segundos": 27,
+      "status": "EN_REVISION_HUMANA",
+      "rechazada": false,
+      "molde": "Comprobante de entrega — real (A/B/C)",
+      "enrutado": false,
+      "scoreMolde": 40,
+      "scoreActa": 8.5,
+      "ok": 4,
+      "total": 10,
+      "faltan": [
+        "COMPRADOR (nombre)",
+        "DOCUMENTO",
+        "ARTÍCULO",
+        "DESCRIPCIÓN",
+        "Firma comprador",
+        "FECHA DE ENTREGA"
+      ],
+      "campos": [
+        {
+          "id": "titulo",
+          "v": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+          "est": "ok",
+          "htr": false,
+          "tinta": true,
+          "band": "ancla_solo_textual"
+        },
+        {
+          "id": "nombre_comprador",
+          "v": "Maris Femanda López Gómez",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "documento_comprador",
+          "v": "CC 1.023.456.789",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,rescate_fallido,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "telefono",
+          "v": "310 655 0198",
+          "est": "ok",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "direccion",
+          "v": "CALLE Calle 45 4 12-34 NRO. 12-34",
+          "est": "ok",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,htr_manual"
+        },
+        {
+          "id": "articulo",
+          "v": "NN.” Operación: Nevera no frost 320 L, m",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "numero_operacion",
+          "v": "OP-2026-004512",
+          "est": "ok",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "descripcion",
+          "v": "Descripción: Electrodoméstico nuevo en c",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,htr_manual"
+        },
+        {
+          "id": "firma_comprador",
+          "v": null,
+          "est": "no_encontrado",
+          "htr": false,
+          "tinta": false,
+          "band": "ancla_solo_textual,forma_borrosa,forma_sin_caja,firma_ausente"
+        },
+        {
+          "id": "fecha_entrega",
+          "v": "—",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "rescate_fallido,patron_no_cumple"
+        }
+      ],
+      "overlay": {
+        "verde": 0,
+        "rojo": 0,
+        "cajas": []
+      },
+      "captura": "mra-01-comprobante-a-impreso-firmas-vacias-01.png",
+      "fallos": [
+        "overlay sin cajas de manuscrito",
+        "firmas vacías sin rojo"
+      ]
+    },
+    {
+      "archivo": "comprobante-a-impreso-firmas-vacias-02.jpg",
+      "segundos": 28,
+      "status": "EN_REVISION_HUMANA",
+      "rechazada": false,
+      "molde": "Comprobante de entrega — real (A/B/C)",
+      "enrutado": false,
+      "scoreMolde": 40,
+      "scoreActa": 8.5,
+      "ok": 4,
+      "total": 10,
+      "faltan": [
+        "COMPRADOR (nombre)",
+        "DOCUMENTO",
+        "ARTÍCULO",
+        "DESCRIPCIÓN",
+        "Firma comprador",
+        "FECHA DE ENTREGA"
+      ],
+      "campos": [
+        {
+          "id": "titulo",
+          "v": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+          "est": "ok",
+          "htr": false,
+          "tinta": true,
+          "band": "ancla_solo_textual"
+        },
+        {
+          "id": "nombre_comprador",
+          "v": "López Gómez",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "documento_comprador",
+          "v": "CC 1.023.456.789",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "rescate_fallido,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "telefono",
+          "v": "310555 0198",
+          "est": "ok",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "direccion",
+          "v": "CALLE NRO. Calle 45 4 12-34 12-34",
+          "est": "ok",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,htr_manual"
+        },
+        {
+          "id": "articulo",
+          "v": "N* Operación:",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "numero_operacion",
+          "v": "OP-2026-004512",
+          "est": "ok",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "descripcion",
+          "v": "Descripción: Electrodoméstico nuevo en c",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,htr_manual"
+        },
+        {
+          "id": "firma_comprador",
+          "v": null,
+          "est": "no_encontrado",
+          "htr": false,
+          "tinta": false,
+          "band": "ancla_solo_textual,forma_borrosa,forma_sin_caja"
+        },
+        {
+          "id": "fecha_entrega",
+          "v": null,
+          "est": "no_encontrado",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,ocr_vacio,zona_vacia,rescate_fallido"
+        }
+      ],
+      "overlay": {
+        "verde": 0,
+        "rojo": 0,
+        "cajas": []
+      },
+      "captura": "mra-02-comprobante-a-impreso-firmas-vacias-02.png",
+      "fallos": [
+        "overlay sin cajas de manuscrito",
+        "firmas vacías sin rojo"
+      ]
+    },
+    {
+      "archivo": "comprobante-a-impreso-firmas-vacias-03.jpg",
+      "segundos": 27,
+      "status": "EN_REVISION_HUMANA",
+      "rechazada": false,
+      "molde": "Comprobante de entrega — real (A/B/C)",
+      "enrutado": false,
+      "scoreMolde": 50,
+      "scoreActa": 8.5,
+      "ok": 5,
+      "total": 10,
+      "faltan": [
+        "COMPRADOR (nombre)",
+        "DOCUMENTO",
+        "ARTÍCULO",
+        "DESCRIPCIÓN",
+        "FECHA DE ENTREGA"
+      ],
+      "campos": [
+        {
+          "id": "titulo",
+          "v": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+          "est": "ok",
+          "htr": false,
+          "tinta": true,
+          "band": "ancla_solo_textual"
+        },
+        {
+          "id": "nombre_comprador",
+          "v": "María Femanda López Gómez",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "documento_comprador",
+          "v": "CC 1.023.456.789",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,rescate_fallido,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "telefono",
+          "v": "310 555 0198",
+          "est": "ok",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "direccion",
+          "v": "CALLE Calle 45 e 12-34 NRO. 12-34",
+          "est": "ok",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,htr_manual"
+        },
+        {
+          "id": "articulo",
+          "v": "N Operación:",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "numero_operacion",
+          "v": "OP-2026-004512",
+          "est": "ok",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,valor_limpiado,htr_manual"
+        },
+        {
+          "id": "descripcion",
+          "v": "Descripción: Electrodoméstico nuevo en.c",
+          "est": "requiere_revision",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,htr_manual"
+        },
+        {
+          "id": "firma_comprador",
+          "v": null,
+          "est": "ok",
+          "htr": false,
+          "tinta": true,
+          "band": "ancla_no_encontrada,forma_borrosa,forma_sin_caja,ancla_inferida"
+        },
+        {
+          "id": "fecha_entrega",
+          "v": null,
+          "est": "no_encontrado",
+          "htr": true,
+          "tinta": true,
+          "band": "ancla_solo_textual,ocr_vacio,zona_vacia,rescate_fallido"
+        }
+      ],
+      "overlay": {
+        "verde": 0,
+        "rojo": 0,
+        "cajas": []
+      },
+      "captura": "mra-03-comprobante-a-impreso-firmas-vacias-03.png",
+      "fallos": [
+        "overlay sin cajas de manuscrito",
+        "firmas vacías sin rojo"
+      ]
+    }
+  ]
+}
