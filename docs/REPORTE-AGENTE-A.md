@@ -5,9 +5,9 @@
 - Rama: `agent-a/infra-motor-perf`
 - SHA base de partida: `ccb85b1c3024026da986a8c95be98624cb62aa00` (main, merge
   `feat/arnes-geometrico`)
-- Commits de la rama: `782b928` (rescate §A2), `ee3416f` (scripts de
-  verificación §7), `5fadb93` (ADR + lessons + CAMBIOS), `1e29b56` (corrección
-  de registro — ver Limitaciones)
+- La rama aterriza como UN commit vía API de GitHub (el trabajo local fueron 5
+  commits equivalentes: rescate §A2 → scripts §7 → docs → corrección de registro
+  → este reporte; los SHAs locales no se conservan al empujar por API)
 
 ## 1. Estado por tarea
 
