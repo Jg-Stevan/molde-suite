@@ -38,6 +38,25 @@ Fecha: 2026-11-22 · Rama: `feat/layout-gate` · Base: `086a76a`
 | `cd packages/scanner-core && bun test` | ✓ contrato golden en verde (moldes existentes byte-idénticos) |
 | `BUILD_STATIC=1 bun run build` (tamiz) | ✓ export estático (PWA) |
 
+### Re-verificación de continuidad (2026-11-26, sesión posterior al merge — main `30f725a`)
+
+Smoke §8.2 repetido desde checkout fresco del estado fusionado (dev Tamiz :3000, Chrome CDP/agent-browser). Todas las capturas en `scripts/resultados/verificacion-agente-b/smoke-*.png` (SIM sintéticas, §3.3):
+
+| # | Ítem §7 | Resultado | Evidencia |
+|---|---|---|---|
+| 1 | Carga sin errores de consola ni hidratación | ✓ 0 errores (PC y móvil) | smoke-01, smoke-07 |
+| 2 | Fixture óptimo → OPTIMA → AUTO-GUARDADO sin toque | ✓ 8.9/10 OPTIMA → «✓ ENVIADO AUTOMÁTICAMENTE» + fila única en HISTORIAL | smoke-02, smoke-03 |
+| 3 | Legible con UN obligatorio faltante → NO auto-guarda | ✓ «✗ 8.0/10 RECHAZADA · FALTA SALDO PENDIENTE», sin banner de envío | smoke-04 |
+| 4 | Edición → re-veredicto; completa obligatorios → auto-guardado inmediato | ✓ lápiz §5 → «SALDO PENDIENTE=8500» → 10.0/10 OPTIMA · BRUTO 7.8/10 → ENVIADO AUTOMÁTICAMENTE | smoke-05 |
+| 5 | Historial sin regresiones (una fila EDITADO · AUTO-GUARDADO) | ✓ 2 filas: «RECIBO DE LUZ CONTROL · DATOS CORREGIDOS · AUTO-GUARDADO» + «DOC 001 — PRINCIPAL» | smoke-06 |
+| 6 | Móvil 390×844 | ✓ layout adaptado, targets táctiles correctos, 0 errores | smoke-07 |
+
+| Batería (re-verificación) | Resultado |
+|---|---|
+| `packages/scanner-core · bun test` | ✓ 77/77 |
+| `apps/tamiz · bun run test` | ✓ 132/132 |
+| `apps/tamiz · typecheck` + `lint` | ✓ 0 / 0 errores |
+
 ---
 
 ## Verificación previa (2026-11-22 — feat/layout-gate)
