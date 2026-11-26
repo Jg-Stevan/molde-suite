@@ -30,6 +30,12 @@
       "destino": "public/models/rapidocr/ch_ppocr_mobile_v2.0_cls_infer.onnx",
       "url": "https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173/PP-OCRv1/ch_ppocr_mobile_v2.0_cls_infer.onnx",
       "sha256": "e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c"
+    },
+    {
+      "destino": "public/models/rapidocr/ppocr_keys.txt",
+      "url": "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/ppocr/utils/ppocr_keys_v1.txt",
+      "sha256": "a1c84d9bdb9ab29043c58896224d32941783eb821629618416dcb08f12886492",
+      "nota": "Diccionario CTC del rec PP-OCRv4 (charset ppocr_keys_v1). El paquete lo fetch() en ocr/rapidocr.ts; sin este archivo rapidOcrInit() lanza ppocr_keys.txt HTTP 404 y RapidOCR nunca inicializa (hallazgo de la verificación de navegador del Agente A, 2026-11-26)."
     }
   ]
 }

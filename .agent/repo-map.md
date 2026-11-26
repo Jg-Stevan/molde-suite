@@ -764,23 +764,30 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `asegurarRapidOcr` | function | 1306 | `() => Promise<RapidRuntime>` |
-| `configurarColaGlobalOcr` | function | 296 | `(activa: () => boolean) => void` |
-| `DET_CAP_PROD` | variable | 409 | `1920` |
-| `DET_CAP_RAPIDO` | variable | 410 | `1280` |
-| `EsperaOcrSink` | interface | 246 | `any` |
-| `ocrEnVuelo` | function | 231 | `() => boolean` |
-| `rapidOcrCropsOrientacion` | function | 1162 | `(rt: RapidRuntime, dataUrl: string, k: number, esperaSink?: EsperaOcrSink) => Promise<{ crops: {}; w: number; h: number; msDet: number; }>` |
-| `rapidOcrInit` | function | 112 | `() => Promise<RapidRuntime>` |
-| `RapidOcrLinea` | interface | 73 | `any` |
-| `rapidOcrPrecalentar` | function | 130 | `() => Promise<boolean>` |
-| `rapidOcrRecLote` | function | 1227 | `(rt: RapidRuntime, canvases: {}, esperaSink?: EsperaOcrSink) => Promise<{}>` |
-| `rapidOcrReconocer` | function | 826 | `(rt: RapidRuntime, dataUrl: string, onProgress?: (p: number) => void, opts?: { detCap?: number; omitirCls?: boolean; sinRescateBordes?: boolean; esperaSink?: Es` |
-| `rapidOcrReiniciar` | function | 326 | `() => Promise<void>` |
-| `RapidOcrResultado` | interface | 79 | `any` |
-| `RapidRuntime` | interface | 100 | `any` |
-| `recKnobs` | function | 448 | `() => { anchoMax: number; alto: number; lote: number; suave: boolean; wFija: boolean; cabecera: number; pie: number; bordesRescate: number; }` |
-| `reiniciarMotorOcrSiInactivo` | function | 345 | `() => Promise<boolean>` |
+| `asegurarRapidOcr` | function | 1301 | `() => Promise<RapidRuntime>` |
+| `configurarColaGlobalOcr` | function | 291 | `(activa: () => boolean) => void` |
+| `DET_CAP_PROD` | variable | 404 | `1920` |
+| `DET_CAP_RAPIDO` | variable | 405 | `1280` |
+| `EsperaOcrSink` | interface | 248 | `any` |
+| `ocrEnVuelo` | function | 233 | `() => boolean` |
+| `rapidOcrCropsOrientacion` | function | 1157 | `(rt: RapidRuntime, dataUrl: string, k: number, esperaSink?: EsperaOcrSink) => Promise<{ crops: {}; w: number; h: number; msDet: number; }>` |
+| `rapidOcrInit` | function | 114 | `() => Promise<RapidRuntime>` |
+| `RapidOcrLinea` | interface | 75 | `any` |
+| `rapidOcrPrecalentar` | function | 132 | `() => Promise<boolean>` |
+| `rapidOcrRecLote` | function | 1222 | `(rt: RapidRuntime, canvases: {}, esperaSink?: EsperaOcrSink) => Promise<{}>` |
+| `rapidOcrReconocer` | function | 821 | `(rt: RapidRuntime, dataUrl: string, onProgress?: (p: number) => void, opts?: { detCap?: number; omitirCls?: boolean; sinRescateBordes?: boolean; esperaSink?: Es` |
+| `rapidOcrReiniciar` | function | 321 | `() => Promise<void>` |
+| `RapidOcrResultado` | interface | 81 | `any` |
+| `RapidRuntime` | interface | 102 | `any` |
+| `recKnobs` | function | 443 | `() => { anchoMax: number; alto: number; lote: number; suave: boolean; wFija: boolean; cabecera: number; pie: number; bordesRescate: number; }` |
+| `reiniciarMotorOcrSiInactivo` | function | 340 | `() => Promise<boolean>` |
+
+### packages/scanner-core/ocr/turno-fifo.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `crearTurnoFifo` | function | 27 | `() => TurnoFifo` |
+| `TurnoFifo` | interface | 22 | `any` |
 
 ### packages/scanner-core/orquestacion/cascada.ts
 
@@ -821,7 +828,7 @@
 | `decodificarQrDeCapture` | function | 489 | `(dataUrl: string, opciones?: { tiers?: "completos" \| "base"; ladoLargo?: number; rescate4096?: boolean; presupuestoMs?: number; }) => Promise<{ payload: string;` |
 | `intentoSobrePixeles` | exportspecifier | 116 | `(cv: PixelesQr, esp: EspecieBanda) => string` |
 | `ladderBaseDePixeles` | exportspecifier | 117 | `(pix: PixelesQr) => string` |
-| `moduloZxingDe` | function | 197 | `() => Promise<typeof import("C:/Users/JG/Documents/PROYECTOS/molde-suite/node_modules/.bun/zxing-wasm@3.1.8/node_modules/zxing-wasm/dist/es/reader/index")>` |
+| `moduloZxingDe` | function | 197 | `() => Promise<typeof import("/home/z/molde-suite/node_modules/.bun/zxing-wasm@3.1.8/node_modules/zxing-wasm/dist/es/reader/index")>` |
 | `nitidezQrDePixeles` | exportspecifier | 118 | `(pix: PixelesQr) => PixelesQr` |
 | `PixelesQr` | exportspecifier | 122 | `any` |
 | `QR_RECORTE_LADO` | exportspecifier | 119 | `600` |
@@ -953,4 +960,4 @@
 
 ---
 
-Total: 610 símbolos en 65 archivos de 3 paquetes.
+Total: 612 símbolos en 66 archivos de 3 paquetes.
