@@ -214,3 +214,26 @@ con SHA-256 fijado; la verificación de navegador §7 ahora incluye un caso SIM
 solo-Rapid (detecta esta familia en 5 s).
 
 **Lecciones:** app_tamiz/2026-11-26-ppocr-keys-404.md
+
+## P13 — gitignore no des-rastrea: privacidad se verifica con git ls-files (V6)
+
+**Patrón:** el repo es PÚBLICO y NADA de material de documentos reales se
+versiona. La regla `scripts/resultados/` llegó al `.gitignore` un día
+DESPUÉS de que ~200 archivos reales (recortes `20261123_*`, banco A56 con el
+recibo visible, lecturas con nombres/DNI, un informe de calibración con datos
+personales) ya estuvieran en el índice con `git add` explícito.
+
+**Síntomas:** el equipo leía el `.gitignore` («ya está ignorado») mientras
+`git ls-files` seguía sirviendo el banco real completo en un repo público.
+Ningún test de CI lo detectaba: gitignore no cambia archivos trackeados.
+
+**Mitigación (Agente C, 2026-11-27):** `git rm -r --cached` de los 200
+(c1502ce; en disco el banco A56 sigue usable), `.gitignore` ampliado con
+patrones ANCLADOS para lo que faltaba fuera de `scripts/resultados/`
+(`/dev-fixtures/`, `/herramientas/informe-calibracion.json`, 12 arneses de
+`scripts/entrega/`), saneo de datos personales en
+`apps/molde-studio/scripts/test-faro-relacional.ts`, y la verificación de
+privacidad (grep de patrones sobre `git ls-files`) incorporada al checklist
+§1.3 del plan V6 — verificar el ÍNDICE, no la intención.
+
+**Lecciones:** recibo_pago/2026-11-27-gitignore-no-desrastrea.md
