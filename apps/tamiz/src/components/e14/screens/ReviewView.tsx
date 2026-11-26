@@ -608,8 +608,9 @@ export function ReviewView() {
   const puedeVerCampos = cajasCampos.length > 0 && !mostrandoOriginal;
   const contenidoFoto = fotoVisible ? (
     // La FOTO DEL DOCUMENTO es el ÚNICO elemento flexible (FitScale la
-    // escala para caber completa). La VERIFICACIÓN DOCUMENTAL vive ARRIBA
-    // de la tarjeta como elemento propio del layout (no overlay).
+    // escala para caber completa). La VERIFICACIÓN DOCUMENTAL vive FUERA de
+    // la imagen (su fila arriba) y SOLO el panel desplegado se superpone
+    // sobre la foto (portal al visor): abrir/cerrar no la re-escala.
     <div className="w-full flex-1 min-h-0 relative flex flex-col mt-2">
       <div className="flex items-center justify-between gap-2 shrink-0">
         <span className="font-mono text-[9px] font-bold tracking-[0.18em] uppercase text-slate-400 truncate">
@@ -870,10 +871,12 @@ export function ReviewView() {
     // INTOCABLE; único overflow-y-auto (sin scroll duplicado).
     <div className="flex-1 min-h-0 flex flex-col">
       {/* ZONA SCROLL — banner + verificación + tarjeta + nota + panel. La
-          foto es el único elemento flexible (FitScale) y la verificación vive
-          ARRIBA de ella con scroll interno — el contenido CABE por diseño; el
-          scroll queda solo como válvula de seguridad para casos de
-          contingencia (panel de clasificación RH, pantallas muy bajas).
+          foto es el único elemento flexible (FitScale) y la VERIFICACIÓN
+          DOCUMENTAL ocupa su propia fila ARRIBA de la foto; solo su panel
+          desplegado se superpone sobre la imagen (portal al visor), de modo
+          que abrir/cerrar no la re-escala. El contenido CABE por diseño; el
+          scroll queda como válvula de seguridad para casos de contingencia
+          (panel de clasificación RH, pantallas muy bajas).
           max-w-md centrado aquí y en la zona fija. */}
       <div className="flex-1 min-h-0 overflow-y-auto thin-scroll max-w-md lg:max-w-2xl xl:max-w-3xl mx-auto w-full px-4 lg:px-6 py-3 space-y-3 lg:space-y-4 flex flex-col">
         {/* Banner de ubicación (mock del mantenedor): borde + glow del estado,
@@ -931,15 +934,17 @@ export function ReviewView() {
             bloque de progreso (mock «paginas faltantes») ARRIBA de todo. */}
         {documentoEnCurso && docIncompleto && <ProgresoDocumento doc={documentoEnCurso} />}
 
-        {/* VERIFICACIÓN DOCUMENTAL — ARRIBA de la foto como elemento propio
-            del layout (mocks 2026-11-25): fila-resumen + panel acordeón con
-            scroll interno. La foto se re-escala (FitScale); la pantalla no
-            scrollea. Se monta siempre (también sin foto disponible).
+        {/* VERIFICACIÓN DOCUMENTAL — FUERA de la imagen, como elemento propio
+            del layout (a pedido del dueño 2026-11-26): la barra ocupa su fila
+            arriba de la tarjeta y SOLO el panel desplegado se superpone sobre
+            la foto (portal al visor, `modo='overlay'`), así que la imagen no
+            cambia de tamaño al abrir/cerrar. Sin foto no hay visor donde
+            montarlo → vuelve a la columna (`modo='flujo'`).
             Fase 3: en documento multipágina incompleto se filtra a la página
             capturada (la verificación del LOTE llega al completar). */}
         <VerificacionDocumental
           acta={acta}
-          modo="arriba"
+          modo={fotoVisible ? 'overlay' : 'flujo'}
           filtroPagina={documentoEnCurso && docIncompleto ? documentoEnCurso.paginas.length : null}
         />
 

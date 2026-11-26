@@ -1,11 +1,12 @@
 'use client';
 
 /**
- * VERIFICACIÓN DOCUMENTAL — elemento propio del layout ARRIBA de la foto
- * (mocks del mantenedor 2026-11-25): la fila-resumen (icono del gate +
- * título + badge % + chevron) siempre visible y clicable; el panel se
- * despliega como ACORDEÓN suave (grid-rows 0fr→1fr) y scrollea por dentro —
- * la pantalla no scrollea, la foto se re-escala (FitScale).
+ * VERIFICACIÓN DOCUMENTAL — fila-resumen propia del layout ARRIBA de la foto
+ * (mocks del mantenedor 2026-11-25; overlay del panel 2026-11-26): la
+ * fila-resumen (icono del gate + título + badge % + chevron) siempre visible y
+ * clicable; el panel se despliega como ACORDEÓN suave (grid-rows 0fr→1fr),
+ * scrollea por dentro y FLOTA sobre la foto (portal al visor) — la imagen no
+ * se re-escala al abrir ni al cerrar y la pantalla no scrollea.
  *  · Comportamiento por estado:
  *      - OPTIMA/ENVIADA (todo OK): COLAPSADA por defecto; al abrirla muestra
  *        el detalle completo (todos los items).
@@ -20,7 +21,8 @@
  * (cero lógica nueva en el motor, solo la piel del mock).
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import type { Acta } from '@/lib/e14/fachada';
 import type { ResumenMoldeCampo } from '@molde-suite/scanner-core/dominio/types';
 import {
@@ -263,17 +265,34 @@ function itemDeFilaMolde(c: ResumenMoldeCampo): ItemChecklist {
   return { id: c.id, etiqueta: c.etiqueta, detalle, estado };
 }
 
-/** Tarjeta VERIFICACIÓN DOCUMENTAL — vive ARRIBA de la foto como elemento
- *  propio del layout. `modo='arriba'`: panel con tope de altura compacto
- *  (la foto conserva el protagonismo); `modo='flujo'`: fallback sin foto,
- *  tope más holgado. En ambos el panel scrollea por dentro y la pantalla no. */
+/** Mueve su contenido al nodo `host` (el visor de la foto) cuando existe; sin
+ *  host se queda en el flujo. El wrapper intermedio solo existe en el portal:
+ *  así el panel absoluto no hereda el ancho de la columna. */
+function EnVisor({
+  host,
+  className,
+  children,
+}: {
+  host: HTMLElement | null;
+  className: string;
+  children: ReactNode;
+}) {
+  if (!host) return <>{children}</>;
+  return createPortal(<div className={className}>{children}</div>, host);
+}
+
+/** Tarjeta VERIFICACIÓN DOCUMENTAL. `modo='overlay'`: la FILA-RESUMEN sigue
+ *  siendo un elemento del layout (arriba de la foto, le cede su propia fila)
+ *  pero el PANEL desplegado se portaliza DENTRO del visor, así que flota
+ *  sobre la imagen sin re-escalarla nunca — abrir y cerrar no mueve la foto.
+ *  `modo='flujo'`: todo en la columna (fallback sin foto), panel con tope. */
 export function VerificacionDocumental({
   acta,
   modo = 'flujo',
   filtroPagina,
 }: {
   acta: Acta;
-  modo?: 'arriba' | 'flujo';
+  modo?: 'overlay' | 'flujo';
   /** Fase 3 (multipágina): muestra SOLO los campos de esta página (1-indexada;
    *  `c.pagina ?? 1`); el % del badge es el de la página. `null/undefined` =
    *  documento completo / molde de una página (sin filtro). */
@@ -405,21 +424,35 @@ export function VerificacionDocumental({
       opcionales.filter((it) => it.estado === 'ok').length;
   const pct = totalItems > 0 ? Math.round((pasadosItems / totalItems) * 100) : 0;
 
+  const esOverlay = modo === 'overlay';
+  // OVERLAY (dueño 2026-11-26): el panel desplegado se monta dentro del visor
+  // de la foto, no en la columna — abrir/cerrar NO re-escala la imagen. Se
+  // resuelve tras el commit (el visor se renderiza después que esta barra);
+  // mientras está colapsado (0fr) da igual, y el auto-open llega al segundo.
+  const [visor, setVisor] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!esOverlay) {
+      setVisor(null);
+      return;
+    }
+    setVisor(document.querySelector<HTMLElement>('[data-purpose="visor-documento"]'));
+  }, [esOverlay, actaId]);
+
   return (
     <div
       aria-label="Verificación documental"
       data-testid="verificacion-documental"
       className="flex flex-col gap-1.5 shrink-0"
     >
-      {/* Fila-resumen: SIEMPRE visible y clicable — barra propia del layout
-          encima de la foto (ya no flota sobre la imagen). */}
+      {/* Fila-resumen: SIEMPRE visible y clicable, en su propia fila del
+          layout (fuera de la imagen). */}
       <button
         type="button"
         onClick={() => setOverrideAbierta(!abierta)}
         aria-expanded={abierta}
         aria-controls="verificacion-detalle"
         data-testid="verificacion-toggle"
-        className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#0d131a] border ${piel.borde} w-full text-left cursor-pointer select-none transition-colors hover:border-slate-600`}
+        className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#0d131a] border ${piel.borde} w-full text-left cursor-pointer select-none transition-colors hover:border-slate-600 shrink-0`}
       >
         <div className="flex items-center gap-2 min-w-0">
           <IconoGate tono={tono} />
@@ -453,7 +486,7 @@ export function VerificacionDocumental({
       {moldeAditivo && (
         <p
           data-testid="molde-pista"
-          className="px-2.5 -mt-0.5 font-mono text-[10px] text-slate-400/90 truncate"
+          className="px-2.5 -mt-0.5 font-mono text-[10px] text-slate-400/90 truncate shrink-0"
         >
           MOLDE: {moldeAditivo.moldeNombre.toUpperCase()} · {Math.round(moldeAditivo.score)}% ·{' '}
           {moldeAditivo.ok}/{moldeAditivo.total}
@@ -462,12 +495,17 @@ export function VerificacionDocumental({
 
       {/* Panel desplegable — ACORDEÓN suave (grid-rows 0fr→1fr, CSS puro):
           siempre montado para animar apertura Y cierre; el contenido scrollea
-          por dentro con tope de altura. La pantalla nunca scrollea: la foto
-          (FitScale) cede el espacio que el panel ocupa. */}
+          por dentro. En overlay se portaliza dentro del visor (`flex-1`, sin
+          tope de altura): abierto cubre la foto entera y la pantalla NUNCA
+          scrollea, porque el panel absoluto no le quita un píxel de alto. */}
+      <EnVisor
+        host={esOverlay ? visor : null}
+        className="absolute inset-1.5 z-20 flex flex-col min-h-0 pointer-events-none"
+      >
       <div
         className={`grid transition-[grid-template-rows] duration-200 ease-out ${
           abierta ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
-        }`}
+        } ${esOverlay ? 'flex-1 min-h-0' : ''}`}
       >
         <div className="overflow-hidden min-h-0" inert={!abierta}>
         <div
@@ -475,8 +513,10 @@ export function VerificacionDocumental({
           role="region"
           aria-label="Detalle de verificación documental"
           data-testid="verificacion-detalle"
-          className={`rounded-lg bg-[#0d131a] border border-slate-800/80 p-2.5 flex flex-col gap-2.5 overflow-y-auto thin-scroll ${
-            modo === 'arriba' ? 'max-h-[32vh]' : 'max-h-[60vh]'
+          className={`rounded-lg border border-slate-800/80 p-2.5 flex flex-col gap-2.5 overflow-y-auto thin-scroll ${
+            esOverlay
+              ? `h-full bg-[#0d131a]/95 backdrop-blur-[2px] ${abierta ? 'pointer-events-auto' : ''}`
+              : 'bg-[#0d131a] max-h-[60vh]'
           }`}
         >
           {molde ? (
@@ -568,6 +608,7 @@ export function VerificacionDocumental({
         </div>
         </div>
       </div>
+      </EnVisor>
     </div>
   );
 }

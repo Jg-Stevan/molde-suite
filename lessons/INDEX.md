@@ -150,3 +150,24 @@ molde. Verificar historial en la MISMA sesión (es memoria de sesión; HMR lo
 vacía).
 
 **Lecciones:** app_tamiz/2026-11-25-multipagina-tamiz.md
+
+## P11 — Layout re-escalado: medir sin cambiar el viewport
+
+**Patrón:** cuando un componente escala su contenido para caber
+(FitScale/`transform: scale`), cualquier `setDeviceMetricsOverride` entre dos
+mediciones de `getBoundingClientRect()` invalida la comparación: el delta que
+sale es del viewport, no del cambio de UI. Además, en un acordeón
+`grid-rows-[0fr]→[1fr]` el padding del item que colapsa NO desaparece con el
+`0fr` — deja una franja visible (12 px con `p-1.5`).
+
+**Síntomas:** «no empuja la imagen» parece fallar en el e2e (`dH 29 / dW 31`)
+con el bloque ya absoluto; raya del borde del panel asomando sobre la foto con
+la tarjeta cerrada.
+
+**Mitigación (FASE 4, plan rosy-meadow-swan):** fijar las métricas ANTES de
+medir cerrado y abierto y mover las capturas al final; poner el inset en el
+contenedor ABSOLUTO portalizado (`absolute inset-1.5`), nunca como padding del
+item colapsable. Portal al visor resuelto en effect: mientras el host es `null`
+el acordeón está en `0fr`, así que no hay salto de layout.
+
+**Lecciones:** app_tamiz/2026-11-26-overlay-verificacion-documental.md
