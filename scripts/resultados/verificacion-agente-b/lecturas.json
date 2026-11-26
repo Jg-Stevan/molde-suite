@@ -1,0 +1,66 @@
+{
+  "descripcion": "JSON de lecturas de las corridas de verificación §7 (Agente B, 2026-11-26). Fuentes: resúmenes del motor universal (logs [molde] resumen del motor universal / evaluación multipágina) y desenlaces del store capturados por CDP durante la sesión. Todos los fixtures son SINTÉTICOS (SIM de apps/tamiz/src/lib/e14/simulacion-imagenes.ts + molde de control) — regla §3.3: ninguna foto de documento real.",
+  "base": "main ccb85b1",
+  "rama": "agent-b/mvp-captura-pwa",
+  "corridas": [
+    {
+      "id": "07-1",
+      "item_seccion7": "2 — auto-guardado sin toque",
+      "fixture": "SIM 'optima' (E-14 sintética nítida)",
+      "veredicto": { "status": "OPTIMA", "score_acta": 8.9, "score_visual": 8.9 },
+      "desenlace": { "auto_guardado": true, "status_final": "ENVIADA", "banner": "ENVIADO AUTOMÁTICAMENTE", "fila_historial": "DOCUMENTO PROCESADO Y GUARDADO", "cta": "SEGUIR ESCANEANDO" },
+      "captura": "capturas/02-pc-optima-auto-guardado.png"
+    },
+    {
+      "id": "07-3",
+      "item_seccion7": "3 — obligatorio faltante NO auto-guarda",
+      "fixture": "SIM 'recibo' + molde activo 'RECIBO DE LUZ CONTROL' (saldo no impreso en el papel)",
+      "resumen_motor": {
+        "molde": "RECIBO DE LUZ CONTROL",
+        "score": 80,
+        "ok": 4,
+        "total": 5,
+        "obligatoriosFaltantes": ["SALDO PENDIENTE"],
+        "campos": [
+          "NÚMERO DE SUSCRIPTOR=ok(448221)[ancla_solo_textual] conf=0.96",
+          "PERIODO FACTURADO=ok(2026-10)[ancla_solo_textual] conf=0.96",
+          "CONSUMO (kWh)=ok(245)[ancla_solo_textual] conf=0.94",
+          "VALOR A PAGAR=ok(187450)[ancla_solo_textual] conf=0.96",
+          "SALDO PENDIENTE=no_encontrado[ancla_no_encontrada|ocr_vacio|zona_vacia] fuente=referencia conf=null"
+        ]
+      },
+      "veredicto": { "status": "RECHAZADA", "score_acta": 8.0, "motivo_pill": "RECHAZADA · FALTA SALDO PENDIENTE" },
+      "desenlace": { "auto_guardado": false, "motivo": "RECHAZADA", "evidencia": "fila CAPTURA ARCHIVADA · RECHAZADA" },
+      "captura": "capturas/04-pc-rechazada-obligatorio-faltante.png"
+    },
+    {
+      "id": "07-4",
+      "item_seccion7": "4 — edición recalcula + auto-guardado inmediato",
+      "edicion": { "campo": "saldo (SALDO PENDIENTE)", "valor_anterior": null, "valor_nuevo": "8500", "conf": 1, "bandera": "valor_editado_operador" },
+      "reevaluacion": { "obligatoriosFaltantes_antes": ["SALDO PENDIENTE"], "obligatoriosFaltantes_despues": [], "score_resumen_antes": 80, "score_resumen_despues": 100 },
+      "veredicto": { "status_antes": "RECHAZADA", "score_antes": 8.0, "status_despues": "OPTIMA", "score_despues": 10.0 },
+      "desenlace": { "auto_guardado_inmediato": true, "status_final": "ENVIADA", "banner": "ENVIADO AUTOMÁTICAMENTE", "fila_historial": "EDITADO · DATOS CORREGIDOS · AUTO-GUARDADO (una sola fila — RECHAZADAS 0)", "persistencia": "IndexedDB slot en-revision (valoresEditados + corregidoPorOperador)" },
+      "captura": "capturas/05-pc-edicion-auto-guardado.png"
+    },
+    {
+      "id": "07-6",
+      "item_seccion7": "6 — multipágina lote 2/2 → una sola fila",
+      "fixture": "SIM 'Completa' (pág 1) + SIM 'Color' (pág 2) con molde activo 'Prueba dos páginas'",
+      "progreso": { "p1": "PROGRESO DE DIGITALIZACIÓN (1/2) · PÁG 1 ✓ · evidencia archivada por página (ADVERTENCIA)", "p2": "lote 2/2" },
+      "evaluacion_multipagina": { "molde": "Prueba dos páginas", "paginas": 2, "score": 100, "ok": 2, "total": 2, "obligatoriosFaltantes": [] },
+      "veredicto": { "status": "OPTIMA", "score_acta": 10.0 },
+      "desenlace": { "auto_guardado": true, "filas_envio_documento": 1, "nota": "el título del lote para actas con clasificación electoral AUTO es el electoral (doctrina main); para documentos no-electorales el título es el del molde (ver corrida 07-3/07-4)" },
+      "captura": "capturas/18-movil-multipagina-lote-optima.png"
+    },
+    {
+      "id": "extra-B-offline",
+      "item_seccion7": "Extra B — modo avión tras primera carga",
+      "entorno": "build estático BUILD_STATIC=1 servido en :8790 (assets hasheados inmutables)",
+      "secuencia": ["primera carga con red (SW instalado, scope /)", "set offline on", "reload → shell servido desde el SW (navigator.onLine=false, app completa)", "SIM 'optima' offline"],
+      "veredicto": { "status": "OPTIMA", "score_acta": 8.9 },
+      "desenlace": { "auto_guardado": true, "status_final": "ENVIADA" },
+      "captura": "capturas/21-static-offline-escaneo.png"
+    }
+  ],
+  "entorno": { "navegador": "Chrome 158 (CDP/agent-browser)", "viewports": ["desktop", "390x844"], "celular_real": false, "fase_pendiente": "A56" }
+}
