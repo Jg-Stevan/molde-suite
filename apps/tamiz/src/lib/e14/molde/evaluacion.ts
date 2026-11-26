@@ -257,7 +257,7 @@ export async function evaluarMoldeEnActa(
     molde.nombre,
     undefined,
     renderMs,
-    { previews: false, lineas: ocr.lines, ocrConf: ocr.conf ?? undefined, rescatePresupuesto: leerFlags().ocrRescatePresupuesto },
+    { previews: false, lineas: ocr.lines, ocrConf: ocr.conf ?? undefined, rescatePresupuesto: leerFlags().ocrRescatePresupuesto, htrConfDictamen: leerFlags().htrConfDictamen },
   );
   // Tiempos honestos del resumen: el OCR del router corre una sola vez; sus
   // ms suman al ocr_ms que el motor ya no mide (usó las líneas reutilizadas).
@@ -279,7 +279,7 @@ export async function evaluarMoldeEnActa(
         molde.nombre,
         undefined,
         renderMs,
-        { previews: false, rescatePresupuesto: leerFlags().ocrRescatePresupuesto },
+        { previews: false, rescatePresupuesto: leerFlags().ocrRescatePresupuesto, htrConfDictamen: leerFlags().htrConfDictamen },
       );
       const elegido = alt.ok_count > resultado.ok_count || alt.score > resultado.score ? 'original' : 'binarizada';
       logger.info('[molde] A/B binarizada vs original', {
@@ -364,7 +364,7 @@ export async function evaluarMoldeMultipagina(
     molde.nombre,
     undefined,
     renderMs,
-    { previews: false },
+    { previews: false, htrConfDictamen: leerFlags().htrConfDictamen },
   );
   const resumen = resumir(molde, resultado);
   resumen.enrutado = true;

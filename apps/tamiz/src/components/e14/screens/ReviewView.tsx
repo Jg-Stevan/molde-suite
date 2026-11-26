@@ -1283,6 +1283,23 @@ export function ReviewCtas() {
   const status = acta.status;
   const puedeEscalar = acta.intento >= UMBRAL_REVISION_HUMANA;
 
+  if (status === "OPTIMA") {
+    // Guard (D4/G4): la ÓPTIMA se auto-guarda en analisisCompletado y llega
+    // aquí como ENVIADA; este botón solo cubre el fallo excepcional del
+    // registro (sin él la pantalla quedaría sin salida).
+    return (
+      <button
+        type="button"
+        onClick={() => navegar("escanear")}
+        className="w-full bg-brand-green hover:bg-emerald-400 text-black font-extrabold text-[13px] py-3.5 px-6 rounded-2xl shadow-[0_2px_12px_rgba(0,230,118,0.25)] flex items-center justify-center gap-2 tap-action transition-all select-none"
+      >
+        <span className="tracking-wide uppercase font-mono font-bold">
+          SEGUIR ESCANEANDO
+        </span>
+      </button>
+    );
+  }
+
   if (status === "ENVIADA") {
     // Mock 6 §3.2.7: CTA verde «SEGUIR ESCANEANDO» (bg-brand-green,
     // texto NEGRO, glow verde, mono bold uppercase). El flujo es el

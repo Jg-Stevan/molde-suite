@@ -83,6 +83,10 @@ export interface Flags {
   /** F3 — tope de variantes de realce por campo en el motor universal
    *  (histórico: 6). Menos variantes = menos latencia en fotos difíciles. */
   ocrRescatePresupuesto: number;
+  /** Dictamen HTR por confianza: umbral mínimo (0-1) para que un campo
+   *  `htr && obligatorio` con patrón cumplido pueda ser ok. null = regla
+   *  histórica (manuscritos siempre a revisión). */
+  htrConfDictamen: number | null;
 }
 
 const CLAVE = 'tamiz.flags.v1';
@@ -143,6 +147,8 @@ const DEFAULTS: Flags = {
   // F3: skip A/B si el cascade ya leyó + presupuesto de rescates acotado.
   ocrSkipABSiCascadeLee: true,
   ocrRescatePresupuesto: 3,
+  // Dictamen HTR por confianza: OFF (null) hasta validarlo con el banco.
+  htrConfDictamen: null,
 };
 
 let cache: Flags | null = null;
@@ -162,6 +168,11 @@ function sanearFlags(f: Flags): Flags {
   f.ocrRecBordesRescate = num(f.ocrRecBordesRescate, DEFAULTS.ocrRecBordesRescate, 0, 10);
   f.ocrSegundaTopeMs = num(f.ocrSegundaTopeMs, DEFAULTS.ocrSegundaTopeMs, 0, 120_000);
   f.ocrRescatePresupuesto = num(f.ocrRescatePresupuesto, DEFAULTS.ocrRescatePresupuesto, 1, 6);
+  // Dictamen HTR: null = OFF. Un override corrupto apaga (nunca enciende solo).
+  f.htrConfDictamen =
+    typeof f.htrConfDictamen === 'number' && Number.isFinite(f.htrConfDictamen)
+      ? num(f.htrConfDictamen, 0.8, 0.5, 1, 0.01)
+      : null;
   if (f.ocrSegundaPresupuestoMs !== null) {
     f.ocrSegundaPresupuestoMs = num(
       f.ocrSegundaPresupuestoMs,
