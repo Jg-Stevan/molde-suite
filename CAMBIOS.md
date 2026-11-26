@@ -1,3 +1,66 @@
+# Cambios — V6 aplicada (inventario retirado) + prueba REC-A C1-C5 (plan PLAN-AGENTE-V6-PRIVACIDAD-Y-PRUEBA-REC-A-2026-11-26)
+
+- Fecha: 2026-11-27
+- Base: `main` `b4f44c5` · Rama: `agent-c/v6-privacidad-prueba-rec-a`
+- Ejecutado por: Agente C (sandbox, sin credenciales de push — PR pendiente del dueño)
+- Verificación: scanner-core 82/82 · tamiz 135/135 (132 + 3 nuevos T3) ·
+  typecheck tamiz limpio · lint limpio · `BUILD_STATIC=1` build exit 0 ·
+  verificación en navegador PC + móvil 390x844 (matriz C1-C5) ·
+  reporte completo en `docs/REPORTE-AGENTE-C.md`.
+
+## T1 — privacidad V6 (decisión §9-1, Opción A)
+
+- **200 archivos fuera del índice** (`git rm --cached`, intactos en disco):
+  reales-recorte/ 14 · reales-procesado/ 4 · reales-*.png 2 · mra-*.png 21 ·
+  a56-*.png 73 · moldes-reales-a56-*.png 1 · JSON sesiones reales 21 ·
+  webp-* 23 · recorte-app/final-* 12 · pantalla-* 2 · JSON con refs a
+  `20261123` 14 · herramientas/informe-calibracion.json 1 · arneses
+  scripts/entrega 12.
+- **Saneo** de `apps/molde-studio/scripts/test-faro-relacional.ts`: nombres,
+  DNIs, CIF y empresas del recibo real → sintéticos (hallazgo V6 fuera del
+  inventario de imágenes/JSON del diagnóstico).
+- **`.gitignore`**: `/dev-fixtures/`, `/herramientas/informe-calibracion.json`
+  y los 12 arneses, con patrones anclados/explícitos (lección FIX F2).
+- Lección P13 en `lessons/`: **gitignore no des-rastrea** — el material entró
+  trackeado un día ANTES de la regla `scripts/resultados/` (timeline verificado
+  con git log -S: f681da6/6be1bce/8cc997f 2026-11-25 → eee1e9c 2026-11-26); la
+  privacidad se verifica con `git ls-files`, nunca leyendo el .gitignore.
+- Sin reescritura de historial (Opción B requiere orden explícita del dueño).
+
+## T2 — prueba de aceptación REC-A con las 2 fotos reales del dueño (LOCAL)
+
+- Banco en `dev-fixtures/rec-a/` (gitignored, verificado con `git check-ignore`).
+- **C1** (buena): molde REC-A del banco (`variantes/recibo_a_real`) ENRUTA con
+  10/12 OK y score 83% tras ajuste local del molde (`limpiar_valor` anti
+  subrayado en fechas + zonas de firma completas, `dev-fixtures/rec-a/molde-rec-a-local.json`,
+  sin versionar). RECHAZADA honesta «FALTA FIRMA EMISOR / FIRMA PAGADOR»:
+  tinta medida (0.060/0.043) pero geometría de caja no verificable en esta
+  toma (foto blanda, etiqueta «Firma» derecha fuera del OCR) → **contingencia
+  C6** documentada por campo; remedio = toma real mejorada. NO es bug del app.
+- **C1+** camino positivo demostrado en navegador: SIM E-14 nítida → ÓPTIMA
+  8.9/10 → «ENVIADO AUTOMÁTICAMENTE» + «SEGUIR ESCANEANDO» sin toque; HISTORIAL
+  1 fila ENVIADA. Recibo sintético sin firmas → RECHAZADA «FALTA FIRMA…».
+- **C2** (sin firma): 11/12 OK → «Firma pagador: SIN LECTURA» → RECHAZADA
+  «FALTA FIRMA PAGADOR» sin banner; HISTORIAL «CAPTURA ARCHIVADA · RECHAZADA —
+  … FIRMA PAGADOR» + «REQUIERE NUEVA TOMA».
+- **C3** kill-switch: `{"autoGuardado": false}` → ÓPTIMA sin banner, flujo manual.
+- **C4**: «GUARDAR CRUDA (SIN VERIFICAR)» al 2° rechazo; deshabilitado solo
+  SIN TINTA (diseño; aquí hay tinta → habilitado). Lápiz §5 NO aparece en firmas.
+- **C5** móvil 390x844: mismo comportamiento en C1+/C2; sin scroll horizontal.
+
+## T3 — matiz V5: paridad multipágina↔una página
+
+- Predicado puro `procedeArchivadoAutomatico(status)` en
+  `politica/auto-guardado.ts` (EN_REVISION_HUMANA jamás archiva; RECHAZADA/
+  ADVERTENCIA sí, doctrina 2026-11-26), cableado en el lote fallido Y en una
+  página (paridad estructural), +3 tests. Aditivo; sin cambios de tipos.
+
+## T4 — docs
+
+- `docs/REPORTE-AGENTE-C.md` (formato §10) · lección P13 + INDEX · esta entrada.
+
+---
+
 # Cambios — Cierre Agente A: rescate del mutex OCR, majors validados, cierre de ramas, fixes de CI (plan PLAN-CIERRE-2-AGENTES-2026-11-26)
 
 - Fecha: 2026-11-26
