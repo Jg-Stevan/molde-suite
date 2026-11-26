@@ -130,3 +130,23 @@ en campos de tinta sigue demolido a `requiere_revision`
 (`ancla_sin_geometria`) — jamás un `ok` falso.
 
 **Lecciones:** recibo_pago/2026-11-25-firma-ancla-columna.md
+
+## P10 — Multipágina: veredicto del documento como criterio de página
+
+**Patrón:** con un molde de >1 páginas, la evaluación POR PÁGINA del bridge
+corre el molde COMPLETO sobre esa foto y devuelve RECHAZADA tipo MOLDE
+(faltan campos de otras páginas). Si esa señal decide si la captura se
+acumula, ningún documento multipágina avanza (0/N para siempre).
+
+**Síntomas:** progreso congelado en 0/N; «REPETIR» eterno; el lote nunca se
+evalúa; una página casi vacía (rechazo físico 0.0) o un fixture válido dan
+el mismo resultado.
+
+**Mitigación (Fase 3, e4ef18b):** acumular por validez FÍSICA (foto presente,
+con tinta, sin rechazo INCOMPLETA/ILEGIBLE/SIN_VOTOS/BAJO/TIMEOUT) y emitir
+el veredicto UNA vez sobre el lote (`evaluarMoldeMultipagina` +
+`veredictoDeResumen`). Historial: UNA fila por documento, título = nombre del
+molde. Verificar historial en la MISMA sesión (es memoria de sesión; HMR lo
+vacía).
+
+**Lecciones:** app_tamiz/2026-11-25-multipagina-tamiz.md
