@@ -87,6 +87,15 @@ export interface Flags {
    *  `htr && obligatorio` con patrón cumplido pueda ser ok. null = regla
    *  histórica (manuscritos siempre a revisión). */
   htrConfDictamen: number | null;
+  /** §4 (REGLA DE ORO, plan cierre 2 agentes 2026-11-26): documento LEGIBLE
+   *  (ÓPTIMA, o ADVERTENCIA con TODOS los obligatorios presentes/válidos y
+   *  sin `relacion_ambigua`) SE GUARDA SOLO — registrarEnvio + banner ENVIADA
+   *  + «SEGUIR ESCANEANDO», sin toque del operador. Excepciones (jamás
+   *  auto-envían): RECHAZADA, EN_REVISION_HUMANA, `relacion_ambigua`, actas
+   *  sin tinta. Kill-switch: {"autoGuardado": false} → ADVERTENCIA vuelve a
+   *  decidirse a mano (la ÓPTIMA conserva su auto-envío histórico… apagada
+   *  también: el flag gobierna TODA la regla — comportamiento pre-kit). */
+  autoGuardado: boolean;
 }
 
 const CLAVE = 'tamiz.flags.v1';
@@ -149,6 +158,11 @@ const DEFAULTS: Flags = {
   ocrRescatePresupuesto: 3,
   // Dictamen HTR por confianza: OFF (null) hasta validarlo con el banco.
   htrConfDictamen: null,
+  // §4 REGLA DE ORO (recalzada por el dueño 2026-11-26): default ON — el
+  // plan exige que un documento legible con obligatorios completos SE
+  // GUARDE SOLO y lo demuestre en navegador (§7). Kill-switch del operador
+  // disponible sin redeploy: localStorage tamiz.flags.v1 = {"autoGuardado": false}.
+  autoGuardado: true,
 };
 
 let cache: Flags | null = null;
@@ -173,6 +187,9 @@ function sanearFlags(f: Flags): Flags {
     typeof f.htrConfDictamen === 'number' && Number.isFinite(f.htrConfDictamen)
       ? num(f.htrConfDictamen, 0.8, 0.5, 1, 0.01)
       : null;
+  // §4 REGLA DE ORO: un override corrupto APAGA (conservador — jamás
+  // auto-guarda por accidente de parseo).
+  f.autoGuardado = f.autoGuardado === true;
   if (f.ocrSegundaPresupuestoMs !== null) {
     f.ocrSegundaPresupuestoMs = num(
       f.ocrSegundaPresupuestoMs,
