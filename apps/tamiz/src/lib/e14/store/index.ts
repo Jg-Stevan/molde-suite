@@ -29,7 +29,7 @@ import { ErrorRescateHeic } from '@molde-suite/scanner-core/core/image-processor
 import { reiniciarMotorOcrSiInactivo } from '@molde-suite/scanner-core/ocr/rapidocr';
 import { reiniciarWorkerTesseractSiInactivo } from '../bridge/ocr-worker';
 import { leerFlags } from '../flags';
-import { decidirAutoGuardado } from '../politica/auto-guardado';
+import { decidirAutoGuardado, procedeArchivadoAutomatico } from '../politica/auto-guardado';
 import { editarCampoActa } from './edicion';
 import type { E14Get, E14Store, Vista } from './tipos';
 
@@ -359,12 +359,19 @@ function crearCaptura(
             motivo: decisionLote.motivo,
             status: actaFinal.status,
           });
-          try {
-            await archivarCaptura(set, get, tituloDeArchivo(get, sesion.moldeNombre));
-          } catch (e) {
-            logger.warn('[store] archivado del lote rechazado falló', {
-              mensaje: (e as Error).message,
-            });
+          // T3 (matiz V5, 2026-11-26): alineación con el flujo de UNA página —
+          // EN_REVISION_HUMANA queda fuera de TODO archivado automático
+          // (requiere humano). Ocurre cuando la evaluación del lote falló y
+          // el veredicto vigente es el de la última página en revisión.
+          // RECHAZADA/ADVERTENCIA sí archivan su evidencia (regla 2026-11-26).
+          if (procedeArchivadoAutomatico(actaFinal.status) && !actaFinal.capturaArchivada) {
+            try {
+              await archivarCaptura(set, get, tituloDeArchivo(get, sesion.moldeNombre));
+            } catch (e) {
+              logger.warn('[store] archivado del lote rechazado falló', {
+                mensaje: (e as Error).message,
+              });
+            }
           }
         }
         reciclarWorkersPostEscaneo();
@@ -417,9 +424,10 @@ function crearCaptura(
       // de mostrar REVISIÓN — el operador decide repetir/revisar, pero la
       // imagen ya no se pierde. (La legible se envió arriba por §4.)
       // §4 test obligatorio (3): EN_REVISION_HUMANA NO guarda solo — queda
-      // fuera de TODO archivado automático (requiere humano).
+      // fuera de TODO archivado automático (requiere humano). T3: el MISMO
+      // predicado puro gobierna el lote multipágina (paridad garantizada).
       if (
-        actaActual.status !== 'EN_REVISION_HUMANA' &&
+        procedeArchivadoAutomatico(actaActual.status) &&
         !actaActual.capturaArchivada &&
         (actaActual.fotoProcesada || actaActual.fotoOriginal)
       ) {

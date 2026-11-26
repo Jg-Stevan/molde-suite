@@ -11,6 +11,7 @@ import {
   decidirAutoGuardado,
   esLegible,
   obligatorioValido,
+  procedeArchivadoAutomatico,
 } from '../src/lib/e14/politica/auto-guardado';
 
 function campo(parciales: Partial<ResumenMoldeCampo> & { id: string; etiqueta: string }): ResumenMoldeCampo {
@@ -200,5 +201,39 @@ describe('§4 REGLA DE ORO — tests obligatorios del plan', () => {
 
   test('esLegible: ÓPTIMA sin resumen (gate E-14) → legible (regla existente D4)', () => {
     expect(esLegible({ status: 'OPTIMA', evaluacionMolde: null })).toBe(true);
+  });
+});
+
+// T3 (matiz V5, plan PLAN-AGENTE-V6-PRIVACIDAD-Y-PRUEBA-REC-A-2026-11-26):
+// alineación multipágina ↔ una página del ARCHIVADO automático tras un lote
+// sin auto-guardado. El mismo predicado puro gobierna ambos flujos del store.
+describe('T3 — archivado automático tras lote/acta sin auto-guardado', () => {
+  test('(T3-a) lote fallido con última página EN_REVISION_HUMANA → NO procede archivado', () => {
+    // Escenario del diagnóstico §7: evaluarMoldeMultipagina falló (resumen
+    // null) y el veredicto vigente es el de la última página EN_REVISION_HUMANA.
+    // En una página ya quedaba fuera de TODO archivado automático; el lote
+    // ahora respeta la MISMA regla.
+    expect(procedeArchivadoAutomatico('EN_REVISION_HUMANA')).toBe(false);
+  });
+
+  test('(T3-b) lote RECHAZADO / ADVERTENCIA → SÍ archiva la evidencia (doctrina 2026-11-26)', () => {
+    expect(procedeArchivadoAutomatico('RECHAZADA')).toBe(true);
+    expect(procedeArchivadoAutomatico('ADVERTENCIA')).toBe(true);
+  });
+
+  test('(T3-c) paridad: el predicado no distingue flujos (una sola regla para los dos)', () => {
+    // La regla depende EXCLUSIVAMENTE del status — ni de la cantidad de
+    // páginas ni de la ruta del store: paridad estructural por construcción.
+    const casos: Array<Parameters<typeof procedeArchivadoAutomatico>[0]> = [
+      'OPTIMA',
+      'ADVERTENCIA',
+      'RECHAZADA',
+      'EN_REVISION_HUMANA',
+      'ENVIADA',
+      'DUPLICADA',
+    ];
+    for (const s of casos) {
+      expect(procedeArchivadoAutomatico(s)).toBe(s !== 'EN_REVISION_HUMANA');
+    }
   });
 });

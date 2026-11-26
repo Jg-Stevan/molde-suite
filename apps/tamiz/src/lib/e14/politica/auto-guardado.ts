@@ -83,6 +83,21 @@ export function esLegible(entrada: EntradaAutoGuardado): boolean {
 }
 
 /**
+ * T3 (matiz V5, plan PLAN-AGENTE-V6 2026-11-26) — ¿procede el ARCHIVADO
+ * automático de la captura cuando el auto-guardado NO se ejecuta?
+ *  · EN_REVISION_HUMANA → NO (§4 test obligatorio 3: requiere humano — queda
+ *    fuera de TODO archivado automático). Regla idéntica en el flujo de UNA
+ *    página y en el lote MULTIPÁGINA fallido: alineación V5.
+ *  · RECHAZADA / ADVERTENCIA → SÍ («aceptar y guardar automáticamente las
+ *    imágenes», doctrina del dueño 2026-11-26: la evidencia no se pierde).
+ * Función PURA: el store (analisisCompletado) la consulta en ambos flujos y
+ * bun test la cubre sin navegador.
+ */
+export function procedeArchivadoAutomatico(status: ActaStatus): boolean {
+  return status !== 'EN_REVISION_HUMANA';
+}
+
+/**
  * DECISIÓN §4 — ¿esta acta SE GUARDA SOLA (registrarEnvio → ENVIADA)?
  * · Excepciones del plan (jamás): RECHAZADA, EN_REVISION_HUMANA,
  *   `relacion_ambigua`, actas sin tinta, flag apagado.
