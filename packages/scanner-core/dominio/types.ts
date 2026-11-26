@@ -141,6 +141,13 @@ export interface ResumenMoldeCampo {
    */
   grupo?: string;
   orden?: number;
+  /**
+   * Página del documento a la que pertenece el campo (1-indexada; viene de
+   * `campo.pagina` de la definición). Aditivo (fase 3 multipágina): la UI
+   * filtra la verificación a la página capturada. `undefined` = molde de
+   * una sola página / campo sin declaración.
+   */
+  pagina?: number;
 }
 
 /**

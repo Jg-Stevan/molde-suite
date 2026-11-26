@@ -25,6 +25,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Acta } from "@/lib/e14/fachada";
 import { useE14Store } from "@/lib/e14/store";
+import type { DocumentoEnCurso } from "@/lib/e14/store/tipos";
 import { defaultQuad } from "@/lib/e14/fachada";
 // G4 (KIT camara-visor-v1): descarga de la foto PROCESADA. downloadBlob y
 // sanitizeFileName YA están publicados en el core (pdf-export 0.1.0) —
@@ -288,8 +289,68 @@ function TarjetaEstructura({ estructura }: { estructura: EstructuraActaVista }) 
   );
 }
 
+/** Fase 3 (multipágina REAL): bloque ámbar de PROGRESO DE DIGITALIZACIÓN
+ *  (N/M) con chips PÁG 1..M (mock «paginas faltantes») — solo mientras el
+ *  documento está INCOMPLETO. Las páginas capturadas van en verde ✓. */
+function ProgresoDocumento({ doc }: { doc: DocumentoEnCurso }) {
+  const capturadas = doc.paginas.length;
+  return (
+    <section
+      aria-label="Progreso de digitalización"
+      data-testid="progreso-documento"
+      className="shrink-0 rounded-lg border border-amber-500/60 bg-amber-500/10 px-2.5 py-2 flex flex-col gap-1.5"
+    >
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span
+            aria-hidden
+            className="shrink-0 w-5 h-5 rounded-full border border-amber-500/40 bg-amber-500/15 text-amber-400 flex items-center justify-center font-mono text-[10px] font-black"
+          >
+            !
+          </span>
+          <span
+            className="font-mono text-[10px] font-bold tracking-widest text-amber-400 uppercase truncate"
+          >
+            Progreso de digitalización ({capturadas}/{doc.esperadas})
+          </span>
+        </span>
+        <span className="shrink-0 font-mono text-[9px] font-bold text-slate-400">
+          MOLDE: {doc.moldeNombre.toUpperCase()}
+        </span>
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {Array.from({ length: doc.esperadas }, (_, i) => {
+          const n = i + 1;
+          const ok = n <= capturadas;
+          return (
+            <span
+              key={n}
+              data-testid={`progreso-pagina-${n}`}
+              className={`px-2 py-0.5 rounded-md border font-mono text-[9.5px] font-bold ${
+                ok
+                  ? "border-[#10b981]/50 bg-[#10b981]/10 text-[#10b981]"
+                  : "border-slate-700 bg-[#090d12] text-slate-500"
+              }`}
+            >
+              PÁG {n}
+              {ok ? " ✓" : ""}
+            </span>
+          );
+        })}
+      </div>
+      <p className="font-mono text-[9.5px] text-slate-400 truncate">
+        Falta la página {capturadas + 1} de {doc.esperadas} — el veredicto llega al completar el documento
+      </p>
+    </section>
+  );
+}
+
 export function ReviewView() {
   const acta = useE14Store((s) => s.actaActual);
+  // Fase 3 (multipágina): sesión del documento en curso (null = una página).
+  const documentoEnCurso = useE14Store((s) => s.documentoEnCurso);
+  const docIncompleto =
+    documentoEnCurso != null && documentoEnCurso.paginas.length < documentoEnCurso.esperadas;
   // KIT consenso-frankfurt-v1 (FASE 5, §6.1): el selector paginaObjetivo fue
   // RETIRADO de esta pantalla — PROHIBIDO paginaObjetivo?.tipo (era el tipo
   // del HUECO donde cayó archivada la acta, no el del acta: el «DELEGADOS»
@@ -866,11 +927,21 @@ export function ReviewView() {
           </div>
         )}
 
+        {/* Fase 3 (multipágina): documento en curso con páginas PENDIENTES —
+            bloque de progreso (mock «paginas faltantes») ARRIBA de todo. */}
+        {documentoEnCurso && docIncompleto && <ProgresoDocumento doc={documentoEnCurso} />}
+
         {/* VERIFICACIÓN DOCUMENTAL — ARRIBA de la foto como elemento propio
             del layout (mocks 2026-11-25): fila-resumen + panel acordeón con
             scroll interno. La foto se re-escala (FitScale); la pantalla no
-            scrollea. Se monta siempre (también sin foto disponible). */}
-        <VerificacionDocumental acta={acta} modo="arriba" />
+            scrollea. Se monta siempre (también sin foto disponible).
+            Fase 3: en documento multipágina incompleto se filtra a la página
+            capturada (la verificación del LOTE llega al completar). */}
+        <VerificacionDocumental
+          acta={acta}
+          modo="arriba"
+          filtroPagina={documentoEnCurso && docIncompleto ? documentoEnCurso.paginas.length : null}
+        />
 
         {/* PLAN-AGENTE-LAYOUT F4 (ADITIVO): diagnóstico del gate estructural
             — SOLO se monta con acta.estructura (molde con layout + modelo
@@ -1155,12 +1226,55 @@ export function ReviewCtas() {
   // no llega a REVISIÓN (se auto-envía al capturar y tras el recorte), y
   // el envío MANUAL solo existe para ADVERTENCIA vía REVISIÓN HUMANA.
   const repetirFoto = useE14Store((s) => s.repetirFoto);
+  // Fase 3 (multipágina): CTAs del documento EN CURSO tienen prioridad —
+  // ESCANEAR PÁGINA N+1 / REPETIR PÁGINA N / DESCARTAR documento.
+  const documentoEnCurso = useE14Store((s) => s.documentoEnCurso);
+  const siguientePagina = useE14Store((s) => s.siguientePagina);
+  const cancelarDocumento = useE14Store((s) => s.cancelarDocumento);
   // Selector extra + candado (una sola fuente de verdad):
   const escalarRevisionHumana = useE14Store((s) => s.escalarRevisionHumana);
   // Fase 2 (guardar cruda): el botón aparece tras 2 rechazos CONSECUTIVOS.
   const rechazosConsecutivos = useE14Store((s) => s.rechazosConsecutivos);
 
   if (!acta) return null;
+
+  // Fase 3 (multipágina): mientras falten páginas, la acción es CAPTURAR LA
+  // SIGUIENTE (verde, mock «paginas faltantes»); el veredicto no es final.
+  if (documentoEnCurso && documentoEnCurso.paginas.length < documentoEnCurso.esperadas) {
+    const capturadas = documentoEnCurso.paginas.length;
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        <button
+          type="button"
+          data-testid="btn-escanear-siguiente-pagina"
+          onClick={siguientePagina}
+          className="w-full bg-brand-green hover:bg-emerald-400 text-black font-extrabold text-[13px] py-3.5 px-6 rounded-2xl shadow-[0_2px_12px_rgba(0,230,118,0.25)] flex items-center justify-center gap-2 tap-action transition-all select-none"
+        >
+          <span className="tracking-wide uppercase font-mono font-bold">
+            ESCANEAR PÁGINA {capturadas + 1} (DE {documentoEnCurso.esperadas})
+          </span>
+        </button>
+        <div className="flex gap-2.5 w-full">
+          <button
+            type="button"
+            onClick={repetirFoto}
+            className="flex-1 min-w-0 py-2.5 px-2 rounded-xl bg-brand-surface border border-amber-500/80 hover:bg-brand-surfacelight text-amber-400 font-mono font-bold text-[10px] leading-tight uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm tap-action transition-all text-center"
+          >
+            <StitchRotateIcon className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">REPETIR PÁGINA {capturadas}</span>
+          </button>
+          <button
+            type="button"
+            onClick={cancelarDocumento}
+            className="flex-1 min-w-0 py-2.5 px-2 rounded-xl border border-slate-700 bg-[#090d12] font-mono font-bold text-[10px] leading-tight text-slate-300 hover:border-red-500/50 hover:text-[#E52222] uppercase tracking-wider flex items-center justify-center shadow-sm tap-action transition-colors text-center"
+          >
+            <span className="truncate">DESCARTAR DOCUMENTO</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const status = acta.status;
   const puedeEscalar = acta.intento >= UMBRAL_REVISION_HUMANA;
 

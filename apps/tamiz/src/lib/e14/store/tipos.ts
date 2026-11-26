@@ -105,6 +105,12 @@ export interface E14Store {
    *  repetirFoto NO lo resetea; cualquier desenlace no-RECHAZADA lo pone a 0).
    *  ≥ 2 → REVISIÓN muestra el botón GUARDAR CRUDA (mock rechazada). */
   rechazosConsecutivos: number;
+  /** Fase 3 (multipágina real): sesión del documento en curso cuando el molde
+   *  activo declara > 1 páginas. Cada página VÁLIDA (OPTIMA/ADVERTENCIA) se
+   *  acumula; al completar las esperadas se evalúa el lote con
+   *  `evaluarMoldeMultipagina` y el veredicto resultante manda en el acta.
+   *  `null` = flujo de una página de siempre. */
+  documentoEnCurso: DocumentoEnCurso | null;
   /** KIT e14-optimizacion-v1 (T5): contador en memoria de sesión «por qué
    *  no se envió» — espejo PASIVO de desenlaces YA ocurridos. Sin
    *  persistencia (igual que historial): se resetea al recargar. Claves:
@@ -174,6 +180,18 @@ export interface E14Store {
    */
   guardarCruda: () => Promise<boolean>;
   repetirFoto: () => void;
+  /**
+   * Fase 3 (multipágina): «ESCANEAR PÁGINA N+1» — vuelve al escáner SIN
+   * tocar `documentoEnCurso` (las páginas ya capturadas se conservan; a
+   * diferencia de repetirFoto, que descarta la última página acumulada).
+   */
+  siguientePagina: () => void;
+  /**
+   * Fase 3 (multipágina): descarta la sesión del documento en curso (páginas
+   * acumuladas) y vuelve al escáner — el operador empieza el documento de
+   * cero. No toca el historial ni los contadores.
+   */
+  cancelarDocumento: () => void;
   /** D6-bis (SPEC-rediseno-chrome-3-estados Rev. 3): escalación MANUAL a
    *  revisión humana — el botón «REVISIÓN HUMANA» (solo ADVERTENCIA/RECHAZADA,
    *  habilitado tras rechazos repetidos) entrega el acta al sabor contingencia
@@ -315,6 +333,25 @@ export interface PdfLibroEntry {
 export interface ActaArchivada {
   clasificacion: ClasificacionE14;
   huecos: HuecoArchivado[];
+}
+
+/** Fase 3 (multipágina): página capturada y acumulada de un documento. */
+export interface PaginaDocumento {
+  /** Número de página (1-indexado) que el documento esperaba. */
+  pagina: number;
+  fotoProcesada: string;
+  fotoOriginal?: string;
+  quad?: Quad;
+  rotation?: number | null;
+}
+
+/** Fase 3 (multipágina): sesión en curso mientras el molde espera N páginas. */
+export interface DocumentoEnCurso {
+  moldeNombre: string;
+  /** Páginas totales que declara el molde (huella.paginas o max campo.pagina). */
+  esperadas: number;
+  /** Páginas VÁLIDAS ya capturadas (en orden). */
+  paginas: PaginaDocumento[];
 }
 
 /** PUESTO ACTUAL (regla del mantenedor: «solo un puesto debe de aparecer»): el
