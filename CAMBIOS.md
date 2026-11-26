@@ -1,3 +1,28 @@
+# Cambios — Cierre Agente A: rescate del mutex OCR, majors validados, cierre de ramas, fixes de CI (plan PLAN-CIERRE-2-AGENTES-2026-11-26)
+
+- Fecha: 2026-11-26
+- Base: `main` `ccb85b1c` (merge `feat/arnes-geometrico`)
+- Rama: `agent-a/infra-motor-perf` (commits `782b928`, `ee3416f`) — §7 en verde
+  (9/9 ítems, evidencia local en `scripts/resultados/verificacion-agente-a-*.json`
+  + capturas a01-a09), reporte completo en `docs/REPORTE-AGENTE-A.md`.
+- Verificación: 82/82 tests scanner-core (77 + 5 nuevos de carrera del mutex) ·
+  typecheck/lint tamiz y molde-studio limpios · builds tamiz+studio en verde
+  con TS 7.0.2 · verificación de navegador (SIM óptima → auto-guardado ENVIADA;
+  rechazadas sin envío con evidencia archivada; aislamiento F1/F2 de la tarea
+  #14; móvil 390x844 sin scroll horizontal).
+
+## Agente A — infra, motor y dependencias
+
+| Tarea | Qué se hizo | Evidencia |
+|---|---|---|
+| **A1** — PRs de Actions | Mergeados a main los 4 seguros (#1 checkout@7, #2 configure-pages@6, #4 deploy-pages@5, #5 upload-pages-artifact@5) tras simular los merges con `git merge-tree` (0 conflictos). Además: **fix de los triggers corruptos** en ambos workflows («branches: ain]» → «branches: [main]») — el gate y el deploy NO se disparaban en push a main | `od -c` de las líneas + lesson app_tamiz/2026-11-26-workflow-trigger-corrupto.md |
+| **A2** — rescate `wip/perf-ocr-serializacion` | Mutex FIFO de RECONOCIMIENTO completo (`conTurnoReconocimiento`) portado a `packages/scanner-core/ocr/rapidocr.ts`; la semántica FIFO extraída a `ocr/turno-fifo.ts` (módulo puro) CON TEST DE CARRERA (intercalación prewarm↔escaneo, getWorker en ventana de reciclado, rechazo que no envenena la cola, cero-solape N concurrentes) — 5 casos. Arnés F1 dual + conductor CDP + handoff como scripts/docs. **Privacidad §3.3:** las 23 fotos reales del banco y los JSON de lecturas NO suben al repo público (default §9-1: el dueño no confirmó que sean sintéticas); `.gitignore` ignora TODO dev-fixtures y `scripts/resultados/` | `turno-fifo.test.ts` (5 casos, 82/82 en verde) · `docs/HANDOFF-PERF-OCR.md` · commit `782b928` |
+| **A3** — reconciliación de ramas | `feature/dla-integracion`, `feat/motor-v330-portado`, `feat/scanner-core-absorption` son **ancestros de main** (diff vacío, verificado con `git merge-base --is-ancestor`): absorbidas, sin trabajo rescatable pendiente. Cerradas con esta nota; `wip/perf-ocr-serializacion` cerrada por el rescate de A2 (su resto — fotos reales — no versiona) | `git diff --stat main...rama` vacío ×3 |
+| **A4** — majors | Validados LOCALMENTE sobre main actual (los branches de dependabot parten de main viejo): @types/node ^26 (typecheck/lint/tests en verde) → eslint ^10 (lint limpio, eslint-config-next 16.4.6 compatible) → **typescript ^7.0.2 (typechecks de tamiz y studio limpios + builds tamiz/studio en verde)**. PRs #7, #3, #6 mergeados tras la validación (0 PRs abiertos) | `/tmp/tc-ts7*.log`, `/tmp/build-*-ts7.log` (resumen en REPORTE-AGENTE-A) |
+| **A5** — tarea #14 | El cuelgue A56 (comprobante-a-02 295 s) NO se reproduce de forma estable en escritorio: corrida controlada SIM/IMPORT default y F1 solo → veredictos 12-18 s; F2 solo → 17-32 s (4 corridas consecutivas OK con el mutex). UNA falla temprana aislada (ESCANEO_FALLIDO) observada con F2 en corrida no controlada — no reproducible. **Decisión con evidencia: F2/F1 quedan default OFF** (conservador §3.4); fase A56 con banco instrumentado (capturar logger.warn del fallo temprano) | `scripts/entrega/sesion-multiscan.mjs` · `debug-t14.mjs` · JSONs en `scripts/resultados/` (LOCALES) |
+| **A6** — clasificador de títulos | **Opción B: NO se implementa** — ADR corto `docs/ADR-001-clasificador-titulos-tarjeta.md` (molde-enrutado como comportamiento final desde `29db1c2`; re-apertura solo con evidencia de A56) | ADR-001 |
+| **A7** — verificación §7 | 9/9 ítems en verde (protocolo completo en `scripts/entrega/verificacion-agente-a.mjs`): SIM Óptima → ÓPTIMA 12.2 s + AUTO-GUARDADO (ENVIADA + SEGUIR ESCANEANDO) + fila en HISTORIAL; SIM Rechazada y IMPORT legible-sin-firmas → sin envío, evidencia archivada; #14 sin watchdog; móvil OK. **Hallazgo de infra:** `ppocr_keys.txt` faltaba del manifiesto → RapidOCR muerto en entorno fresco (404); añadido a `assets.lock.json` con SHA-256 | `verificacion-agente-a-*.json` + capturas a01-a09 (LOCAL) · lesson app_tamiz/2026-11-26-ppocr-keys-404.md |
+
 # Cambios — v3.3.0: Fases 3/4/5/6/9 del PLAN-DESARROLLO + backlog Tamiz A/B/D
 
 - Fecha: 2026-11-25
