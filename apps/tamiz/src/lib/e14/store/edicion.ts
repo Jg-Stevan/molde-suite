@@ -125,20 +125,31 @@ export async function editarCampoActa(
       const { hora } = await registrarEnvio(set, get, tituloDeEdicion(get, actaEditada));
       const actual = get().actaActual;
       const nuevaFilaId = actual?.historialFilaId;
+      // §5 (una sola fila): si la captura ya estaba ARCHIVADA como evidencia
+      // (archivarCaptura al escanear), esa fila quedó SUSTITUIDA por el
+      // envío del documento corregido — se retira junto con su entrada del
+      // libro de PDF. El historial queda con UNA fila por documento (misma
+      // doctrina P10 del lote multipágina).
+      const filaPrevia = filaId && filaId !== nuevaFilaId ? filaId : null;
       set({
         actaActual: actual ? { ...actual, status: 'ENVIADA', enviadoAutomaticamente: hora } : actual,
-        // La fila del auto-guardado también refleja la edición (una sola).
-        historial: nuevaFilaId
-          ? get().historial.map((h) =>
-              h.id === nuevaFilaId
-                ? { ...h, estado: 'EDITADO', nota: `DATOS CORREGIDOS · AUTO-GUARDADO ${hora}` }
-                : h,
-            )
-          : get().historial,
+        historial: get()
+          .historial.filter((h) => h.id !== filaPrevia)
+          .map((h) =>
+            h.id === nuevaFilaId
+              ? { ...h, estado: 'EDITADO', nota: `DATOS CORREGIDOS · AUTO-GUARDADO ${hora}` }
+              : h,
+          ),
+        pdfLibro: filaPrevia
+          ? get()
+              .pdfLibro.filter((p) => p.id !== filaPrevia)
+              .map((p) => (p.id === nuevaFilaId ? { ...p, estado: 'EDITADO' } : p))
+          : get().pdfLibro.map((p) => (p.id === nuevaFilaId ? { ...p, estado: 'EDITADO' } : p)),
       });
       logger.info('[store] edición completó obligatorios — auto-guardado inmediato', {
         campo: campoId,
         status: get().actaActual?.status,
+        filaPreviaRetirada: filaPrevia,
       });
     } catch (e) {
       logger.warn('[store] auto-guardado tras edición falló', { mensaje: (e as Error).message });

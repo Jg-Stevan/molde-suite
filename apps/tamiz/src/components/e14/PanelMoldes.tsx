@@ -308,6 +308,13 @@ export function PanelMoldes({ onCambio }: Props) {
           ? 'nota: el QR lleva el JSON crudo si cabe (~2,5 KB) o una URL de la red local de Studio.'
           : 'nota: requiere Chrome Android (BarcodeDetector nativo).'}
       </p>
+      <p className="mt-1 font-mono text-[8.5px] leading-relaxed text-white/30">
+        LÍMITE DOCUMENTADO (F6): el lector de Tamiz acepta JSON crudo, payload
+        comprimido «MOLDE1:» y URL LAN de Studio — pero Studio aún NO genera
+        QR (solo exporta el archivo .molde.json con checksum). Mientras el
+        generador de QR no exista en Studio, el camino verificado es IMPORTAR
+        ARCHIVO; el QR queda disponible para quien sirva el payload por LAN.
+      </p>
 
       {/* Vista de cámara para el QR: SIEMPRE montada (el ref debe existir al
           pulsar ESCANEAR QR); invisible (sr-only) cuando no se escanea. */}

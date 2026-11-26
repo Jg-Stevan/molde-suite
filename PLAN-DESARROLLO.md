@@ -131,6 +131,21 @@ Correcciones sobre el informe de verificación del zip de mejoras (detalles y ev
 - [ ] Sin falsos positivos en campos críticos
 - [ ] Umbral con separación clara de clases
 
+## Criterios verificables — cierre 2 agentes (Agente B, 2026-11-26)
+
+Marcados como verificables (estado medido + evidencia — plan
+`PLAN-CIERRE-2-AGENTES-2026-11-26.md` §6-B/§7; reporte completo en
+`docs/REPORTE-AGENTE-B.md`):
+
+- [x] **REGLA DE ORO §4** — documento legible con obligatorios completos SE GUARDA SOLO. MEDIDO: SIM óptima → OPTIMA 8.9 → «ENVIADO AUTOMÁTICAMENTE» sin toque (PC y móvil; capturas 02/11).
+- [x] **§4 excepciones** — legible con UN obligatorio faltante NO se guarda solo (RECHAZADA · «FALTA SALDO PENDIENTE», captura 04); EN_REVISION_HUMANA fuera de todo archivado automático (test 3 del plan); `relacion_ambigua`/sin tinta/flag apagado (tests `auto-guardado.test.ts`).
+- [x] **§5 verificación/actualización** — cada campo muestra valor + conf + estado; el operador corrige desde el panel; el veredicto recalcula; persiste EDITADO en IndexedDB; UNA fila de historial (capturas 05-07, 12-13; tests `edicion-campos.test.ts`).
+- [x] **§5↔§4** — la corrección que completa los obligatorios dispara auto-guardado INMEDIATO (8.0 RECHAZADA → 10.0 OPTIMA → ENVIADA, captura 05).
+- [x] **F5 PWA** — manifest/standalone + SW offline-first + COOP/COEP (aislamiento top-level verificado) + cuota visible + plus-L opcional con checksum; modo avión tras primera carga → escaneo OK **en build estático** (capturas 19-21); fotos de documentos jamás cacheadas (diseño del SW).
+- [x] **F6 import** — archivo con validación + vista previa + activación (captura 03); QR lector listo (JSON crudo/MOLDE1:/LAN); límite documentado: Studio aún no genera QR.
+- [x] **Multipágina §7.6** — lote 2/2 válido → UNA fila de envío (capturas 16-18); decisión del lote por la MISMA regla §4.
+- [ ] **Fase A56 (dispositivo real)** — mutex OCR en el teléfono, reproducción del lote, piso ≤10 s, demo de auto-envío en campo: PENDIENTE (fuera de alcance del Agente B; sin celular real en esta entrega).
+
 ## Reglas de gobierno
 
 - Cada cambio se registra como lección en `lessons/` tras probar.
