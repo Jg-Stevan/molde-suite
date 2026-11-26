@@ -207,6 +207,9 @@ export async function registrarEnvio(
         ? {
             ...actaActual,
             hashSha256: hash,
+            // §5 (plan cierre 2 agentes): la fila que registró este envío — la
+            // edición del operador ACTUALIZA esta fila (una sola, EDITADO).
+            historialFilaId: fila.id,
             // §G.1 — envioMs SOLO flujo INDIVIDUAL (el envío SIEMPRE es
             // del actaActual). Regla de contrato: envioMs != null ⇔ había
             // red al enviar
@@ -288,7 +291,15 @@ export async function archivarCaptura(
     historial: [fila, ...get().historial],
     pdfLibro,
     ...(actual && actual.id === acta.id
-      ? { actaActual: { ...actual, hashSha256: hash, capturaArchivada: true } }
+      ? {
+          actaActual: {
+            ...actual,
+            hashSha256: hash,
+            capturaArchivada: true,
+            // §5: la fila que archivó esta captura — la edición la actualiza.
+            historialFilaId: fila.id,
+          },
+        }
       : {}),
   });
   return true;

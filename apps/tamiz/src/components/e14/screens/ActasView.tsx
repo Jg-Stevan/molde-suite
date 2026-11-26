@@ -218,28 +218,32 @@ function docDeFila(fila: HistorialRow, indice: number): DocHistorial {
   const tono: Tono =
     fila.estado === "ENVIADO" || fila.estado === "GUARDADO_LOCAL"
       ? "ok"
-      : fila.estado === "REVISION_HUMANA" ||
-          fila.estado === "GUARDADO_CRUDO" ||
-          fila.estado === "ADVERTENCIA" ||
-          fila.estado === "EN_REVISION_HUMANA" ||
-          fila.estado === "OPTIMA" ||
-          fila.estado === "CAPTURA_ARCHIVADA"
-        ? "warn"
-        : "crit";
+      : fila.estado === "EDITADO"
+        ? "ok" // §5: los datos fueron corregidos por el operador y guardados
+        : fila.estado === "REVISION_HUMANA" ||
+            fila.estado === "GUARDADO_CRUDO" ||
+            fila.estado === "ADVERTENCIA" ||
+            fila.estado === "EN_REVISION_HUMANA" ||
+            fila.estado === "OPTIMA" ||
+            fila.estado === "CAPTURA_ARCHIVADA"
+          ? "warn"
+          : "crit";
   const aviso =
     fila.estado === "ENVIADO"
       ? { texto: "Documento procesado y guardado", tono: "ok" as const }
       : fila.estado === "GUARDADO_LOCAL"
         ? { texto: "Documento procesado y guardado", tono: "ok" as const }
-        : fila.estado === "GUARDADO_CRUDO"
-          ? { texto: "CRUDA · NO VERIFICADA (FOTO ORIGINAL)", tono: "warn" as const }
-          : fila.estado === "REVISION_HUMANA"
-            ? { texto: "Enviado a revisión humana", tono: "warn" as const }
-            : fila.estado === "ADVERTENCIA" || fila.estado === "EN_REVISION_HUMANA"
-              ? { texto: "Captura archivada — pendiente de revisión", tono: "warn" as const }
-              : fila.estado === "OPTIMA" || fila.estado === "CAPTURA_ARCHIVADA"
-                ? { texto: "Captura archivada automáticamente", tono: "warn" as const }
-                : { texto: "Requiere nueva toma", tono: "crit" as const };
+        : fila.estado === "EDITADO"
+          ? { texto: "Datos corregidos por el operador · guardado", tono: "ok" as const }
+          : fila.estado === "GUARDADO_CRUDO"
+            ? { texto: "CRUDA · NO VERIFICADA (FOTO ORIGINAL)", tono: "warn" as const }
+            : fila.estado === "REVISION_HUMANA"
+              ? { texto: "Enviado a revisión humana", tono: "warn" as const }
+              : fila.estado === "ADVERTENCIA" || fila.estado === "EN_REVISION_HUMANA"
+                ? { texto: "Captura archivada — pendiente de revisión", tono: "warn" as const }
+                : fila.estado === "OPTIMA" || fila.estado === "CAPTURA_ARCHIVADA"
+                  ? { texto: "Captura archivada automáticamente", tono: "warn" as const }
+                  : { texto: "Requiere nueva toma", tono: "crit" as const };
   return {
     id: fila.id,
     tipoChip: "DOCUMENTO",

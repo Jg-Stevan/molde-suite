@@ -1,3 +1,57 @@
+# Cambios — Agente B: REGLA DE ORO (§4), verificación/actualización de datos (§5), PWA F5 e import F6
+
+- Fecha: 2026-11-26
+- Rama: `agent-b/mvp-captura-pwa` (desde `main` `ccb85b1`) — plan `PLAN-CIERRE-2-AGENTES-2026-11-26.md`
+- Ejecutado por: Agente B (producto, MVP y captura)
+- Verificación: typecheck ✓ · lint ✓ · bun test **132/132** (26 nuevos) · verificación en navegador §7 completa (PC 1280×800 + móvil 390×844 + build estático offline) — evidencia en `scripts/resultados/verificacion-agente-b/` (LOCAL)
+
+## B4 — REGLA DE ORO (§4, recalzada por el dueño) — P0
+
+| Cambio | Qué hace | Prueba |
+|---|---|---|
+| `politica/auto-guardado.ts` NUEVO | Decisión PURA: `decidirAutoGuardado`/`esLegible`/`obligatorioValido`. Legible = OPTIMA o ADVERTENCIA con TODOS los obligatorios presentes/válidos (estado ok, o manuscrito con `tinta === true` — semáforo v1.5.1), sin `relacion_ambigua`, sin obligatorios vacíos, sin `procesadaVacia`. Excepciones que jamás auto-guardan: RECHAZADA, EN_REVISION_HUMANA, `relacion_ambigua`, sin tinta, flag apagado. Con resumen ADITIVO (gate E-14) el gate manda: OPTIMA → auto-envío de siempre (sin regresión D4), ADVERTENCIA → conservador (sin evidencia de campos) | `tests/auto-guardado.test.ts` — los 4 tests obligatorios del plan + excepciones + kill-switch + guard anti-regresión aditivo |
+| Hueco cerrado (auditoría B4) | **ADVERTENCIA legible de UNA página SE GUARDA SOLA** (antes era decisión manual D20 — un documento legible podía quedar sin guardar). Multipágina: la decisión del lote pasa por la MISMA función (lote legible → UN registrarEnvio; lote no legible → evidencia archivada). EN_REVISION_HUMANA queda fuera de TODO archivado automático (test 3 del plan) | `store/index.ts` `analisisCompletado` cableado con la decisión; log honesto del motivo cuando no auto-guarda |
+| Flag `autoGuardado` | `tamiz.flags.v1` → `autoGuardado: true` (default ON — el plan §4 lo exige y §7 lo demuestra en navegador). Un override corrupto APAGA (conservador). Kill-switch del operador sin redeploy: `{"autoGuardado": false}` | `flags.ts` + test con flag apagado |
+
+## B3 — Verificación y actualización de datos capturados (§5) — P0
+
+| Cambio | Qué hace | Prueba |
+|---|---|---|
+| Contrato ADITIVO (`scanner-core/dominio/types.ts`) | `Acta` += `valoresEditados?` (campoId → valor nuevo), `corregidoPorOperador?`, `editadoEn?`, `historialFilaId?`. El hash de la foto cruda NO cambia; el JSON del acta sí. `registrarEnvio`/`archivarCaptura` estampan la fila propia (`historialFilaId`) para que la edición ACTUALICE en vez de duplicar | Compilación + moldes sin los campos siguen byte-idénticos (test de contrato) |
+| `molde/edicion.ts` NUEVO | Re-evaluación con override de campo: la palabra del operador SUSTITUYE la del OCR y el estado se re-deriva con la MISMA semántica del motor (patrón anclado G-8, score=ok/total, obligatoriosFaltantes, requiereRevision) + validaciones cruzadas re-evaluadas con el `evaluarValidaciones` EXPORTADO del motor (una corrección puede reparar o romper una igualdad — democión `validacion_fallida` intacta). conf=1 honesto (entrada del operador), bandera `valor_editado_operador` (trazabilidad). Las filas NO editadas se COPIAN (sin fuga de estado al resumen previo — bug detectado y corregido en el propio desarrollo) | `tests/edicion-campos.test.ts` (9 casos: recálculo de veredicto RECHAZADA→OPTIMA, patrón, vacío, checkbox, firma no editable, validación cruzada repara/rompe, fila intacta, aditivo no toca el veredicto) |
+| `store/edicion.ts` NUEVO — `editarCampoActa(campoId, valor)` | (1) re-evalúa con override; (2) persiste en IndexedDB (slot «en-revision» — misma acta + EDITADO); (3) el veredicto recalcula (solo acta enrutada — el gate electoral manda en la aditiva); (4) historial: UNA fila (estado EDITADO + nota con el veredicto); si la corrección dispara el auto-guardado, la fila de evidencia previa se RETIRA (una sola fila por documento — doctrina P10); (5) REGLA DE ORO inmediata: obligatorios completos + legible → `registrarEnvio` + banner ENVIADA | Verificado en navegador (§7 ítems 3-4): RECHAZADA 8.0 → corrección SALDO PENDIENTE → OPTIMA 10.0 → ENVIADO AUTOMÁTICAMENTE → UNA fila «DATOS CORREGIDOS · AUTO-GUARDADO» |
+| UI §5 (`VerificacionDocumental.tsx`) | Cada fila del motor muestra valor + **confianza de lectura** (`conf 87%`) + estado (semáforo) + chip **EDITADO**; lápiz de corrección en campos texto/checkbox (los manuscritos NO se editan — su evidencia es la tinta medida); editor inline (input + GUARDAR/CANCELAR, checkbox MARCADO/SIN MARCA); toggle «CORREGIR DATOS — MOSTRAR TODOS LOS CAMPOS» para editar también lo que el motor leyó ok (el P4 solo-faltantes queda intacto por defecto) | capturas 04-07, 12-13; `data-testid`: `editar-campo-*`, `input-valor-campo`, `guardar-valor-campo`, `campo-editado`, `toggle-mostrar-todos` |
+
+## B1 — F5 PWA offline-first (auditoría + fixes)
+
+- **FIX `PwaRegister`**: el cleanup del effect DES-REGISTRABA el Service Worker al desmontar (cualquier remonte del shell lo mataba). Registro ahora idempotente y persistente.
+- Auditado y VERDE sin cambios: `manifest.webmanifest` (standalone + iconos SVG), `sw.js` (runtime caching del shell hasheado + vendor/scanner; modelos `/models/` cache-first por versión; **privacidad: jamás cachea fotos — no-GET y `/api/` pasan a red sin cache; las fotos viven en memoria/dataURLs sin URL cacheable**), COOP/COEP en `src/proxy.ts` (solo navegación top-level; embebida cae a 1 hilo de forma controlada — verificado `crossOriginIsolated === true` en top-level), plus-L opcional con progreso/SHA-256/borrar (`PanelModelos`), cuota con `navigator.storage.estimate()` + persistencia («63,2 MB de 10303,2 MB» medido).
+- **Offline demostrado en build estático** (`BUILD_STATIC=1`): primera carga con red → modo avión → recarga sirve el shell desde el SW → escaneo SIM completo offline → OPTIMA 8.9 auto-guardada. NOTA honesta: en **dev** el combo SW cache-first + chunks efímeros de Next rompe la hidratación tras recargar offline — el modo avión se verifica contra el build estático (el destino real del PWA).
+
+## B2 — F6 import de molde por archivo/QR (auditoría + límite documentado)
+
+- VERDE sin cambios de código: import por archivo y pegado con validación estructural (`esMoldeUniversal/erroresMolde`), sobre con checksum SHA-256 (`contract/sobre`), cap 2 MB, rechazo de URLs remotas en `paginasRef`, sin `eval`, vista previa + ACTIVAR/GUARDAR EN EL DISPOSITIVO (IndexedDB `tamiz-moldes-v1` con versión y fecha), QR lector (BarcodeDetector: JSON crudo, `MOLDE1:` deflate-raw, URL LAN con confirmación). Verificado en navegador: archivo → validado → activado → usado en escaneos.
+- **LÍMITE DOCUMENTADO** (ahora también en el propio PanelMoldes): el GENERADOR de QR no existe aún en Studio (solo exporta `.molde.json` con checksum); el lector de Tamiz ya acepta JSON crudo/MOLDE1:/URL LAN. Mientras tanto el camino verificado es IMPORTAR ARCHIVO.
+
+## Bloqueante encontrado y cerrado (transversal, bloqueaba B6)
+
+- **`ppocr_keys.txt` NO estaba en `assets.lock.json`**: el rec de RapidOCR lo exige (`rapidocr.ts` §dict) y TODO escaneo caía con `ppocr_keys.txt HTTP 404` — ningún documento era escaneable desde un checkout fresco de main. Agregado al lock con URL (PaddleOCR `ppocr/utils/ppocr_keys_v1.txt`, 6623 claves) + SHA-256 fijado y verificado por `preparar-assets.mjs` (mismo protocolo URL+hash del resto de assets). Sin este fix la verificación §7 entera era imposible.
+
+## Decisiones y supuestos (§9 del plan sin respuesta del dueño)
+
+1. `autoGuardado` default **ON** para TODA la regla (existente + caso nuevo ADVERTENCIA legible): el plan §4 lo exige («SE GUARDA AUTOMÁTICAMENTE») y los criterios de aceptación B lo piden verificado en navegador. Kill-switch disponible (§3.4).
+2. ADVERTENCIA **sin** resumen enrutado (acta E-14 del gate) NO auto-envía (conservador — sin evidencia de campos que probar; D20 se conserva ahí).
+3. Manuscrito obligatorio con `tinta === true` cuenta como PRESENTE (semáforo de tinta v1.5.1) — «sin obligatorios vacíos».
+4. La re-evaluación §5 es post-lectura (re-corre el OCR produciría la misma lectura pagando un OCR entero): misma semántica de agregación del motor + sus validaciones exportadas. Documentado en `molde/edicion.ts`.
+5. Merge a main (§8): ejecutado con la checklist §7 en verde y el reporte §10 completo (`docs/REPORTE-AGENTE-B.md`). El orden del §8.2 (Agente A primero) NO pudo cumplirse porque el Agente A no ha entregado — main queda lista para rebasar A sin deuda de B; la verificación integrada §8.3 completa queda agendada al merge de A.
+
+## Lecciones
+
+- `lessons/app_tamiz/2026-11-26-regla-de-oro-auto-guardado.md`
+- `lessons/app_tamiz/2026-11-26-ppocr-keys-faltante-y-offline-dev-sw.md`
+
+---
+
 # Cambios — v3.3.0: Fases 3/4/5/6/9 del PLAN-DESARROLLO + backlog Tamiz A/B/D
 
 - Fecha: 2026-11-25
