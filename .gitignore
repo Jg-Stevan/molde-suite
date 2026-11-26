@@ -81,3 +81,30 @@ _verificacion/
 # únicamente si el dueño confirma que son sintéticas/anonimizadas.
 apps/tamiz/public/dev-fixtures/
 scripts/resultados/
+
+# V6 (plan PLAN-AGENTE-V6-PRIVACIDAD-Y-PRUEBA-REC-A-2026-11-26, decisión §9-1):
+# el repo es PÚBLICO — ningún material derivado de documentos reales se
+# versiona. scripts/resultados/ ya estaba ignorado como directorio; lo que
+# sigue son los patrones que FALTABAN para material fuera de él. Todos van
+# anclados o con nombre explícito (lección FIX F2: un patrón suelto silencia
+# código futuro en silencio).
+# Banco local de la prueba REC-A y de arneses de fotos reales (raíz del repo):
+/dev-fixtures/
+# Informe de calibración GENERADO por herramientas/verificar_calibracion.py a
+# partir de documentos reales (contiene lecturas con datos personales):
+/herramientas/informe-calibracion.json
+# Arnoses de entrega que solo existen para servir/procesar FOTOS REALES del
+# operador (las fotos viven en /dev-fixtures/ o /upload/, nunca en el repo).
+# Se retiran del índice y quedan SOLO en disco local:
+/scripts/entrega/experimento-encode.mjs
+/scripts/entrega/experimento-encode-bw.mjs
+/scripts/entrega/experimento-webp.mjs
+/scripts/entrega/mostrar-app-a56.mjs
+/scripts/entrega/mostrar-bw-a56.mjs
+/scripts/entrega/mostrar-webp-app.mjs
+/scripts/entrega/perfilar-cpu-worker.mjs
+/scripts/entrega/verificar-moldes-reales-a56.mjs
+/scripts/entrega/verificar-perfil-reales.mjs
+/scripts/entrega/verificar-procesado-reales.mjs
+/scripts/entrega/verificar-reales.mjs
+/scripts/entrega/verificar-recorte-reales.mjs
