@@ -20,6 +20,7 @@ import {
 import { etiquetaFormulario } from "../checklist";
 import type { HistorialRow } from "@molde-suite/scanner-core/dominio/types";
 import { marcarPaginaOK, refrescarMesasDeArchivo } from "./guion";
+import { guardarCrudaEnIdb } from "../jornada";
 import type { ActaArchivada, E14Get, E14Set, E14Store, HuecoArchivado, PuestoActual } from "./tipos";
 
 /** FIX (auditoría 2-a #10): contador de ids de historial — dos filas creadas
@@ -268,6 +269,7 @@ export function crearEnvio(
   | "archivadas"
   | "puestoActual"
   | "enviarActa"
+  | "guardarCruda"
   | "escalarRevisionHumana"
   | "guardarUbicacion"
 > {
@@ -300,6 +302,36 @@ export function crearEnvio(
       set({
         vista: "revision",
       });
+    },
+
+    guardarCruda: async () => {
+      const acta = get().actaActual;
+      // Solo RECHAZADA con foto ORIGINAL (la cruda ES el papel completo —
+      // recortes automáticos malos conservan firmas; la procesada no sirve).
+      if (!acta || acta.status !== "RECHAZADA" || !acta.fotoOriginal) return false;
+      if (acta.guardadaCruda) return true; // idempotente: ya archivada
+      const hash = (await sha256HexDeDataUrl(acta.fotoOriginal)) ?? undefined;
+      const guardada = await guardarCrudaEnIdb({
+        fotoOriginalDataUrl: acta.fotoOriginal,
+        titulo: acta.titulo || tituloPaginaActual(get),
+        hora: bridge.horaHistorial(),
+        hashSha256: hash,
+        score: acta.score,
+      });
+      if (!guardada) return false; // cuota/IDB — el aviso del visor ya salió (§6.10)
+      const fila: HistorialRow = {
+        id: idHistorial(),
+        titulo: acta.titulo || tituloPaginaActual(get),
+        // Fase 2: NO es envío ni escalación — evidencia SIN verificar (ámbar).
+        estado: "GUARDADO_CRUDO",
+        hora: guardada.hora,
+        nota: `CRUDA · NO VERIFICADA (score ${acta.score.toFixed(1)})`,
+      };
+      set({
+        actaActual: { ...acta, guardadaCruda: true, hashSha256: hash },
+        historial: [fila, ...get().historial],
+      });
+      return true;
     },
 
     escalarRevisionHumana: () => {

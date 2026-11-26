@@ -52,6 +52,7 @@ function crearCaptura(
   | 'recortando'
   | 'errorRecorte'
   | 'revelando'
+  | 'rechazosConsecutivos'
   | 'modoSimulacion'
   | 'simCompleta'
   | 'simUltima'
@@ -93,6 +94,7 @@ function crearCaptura(
     recortando: false,
     errorRecorte: null,
     revelando: false,
+    rechazosConsecutivos: 0,
     modoSimulacion: false,
     simCompleta: false,
     simUltima: null,
@@ -206,7 +208,7 @@ function crearCaptura(
     },
 
     analisisCompletado: async () => {
-      const { actaActual, analisisEnVuelo } = get();
+      const { actaActual, analisisEnVuelo, rechazosConsecutivos } = get();
       if (analisisEnVuelo) return;
       if (!actaActual) {
         set({ vista: 'escanear', progresoAnalisis: null, analisisResuelto: false });
@@ -215,7 +217,16 @@ function crearCaptura(
       // RECHAZADA también va a REVISIÓN: el veredicto y su motivo (incluido
       // el corte temprano del gate estructural) deben llegar al operador —
       // volver a ESCANEAR en silencio ocultaba la regla que faltó.
-      set({ vista: 'revision', progresoAnalisis: null, analisisResuelto: false });
+      set({
+        vista: 'revision',
+        progresoAnalisis: null,
+        analisisResuelto: false,
+        // Fase 2 (guardar cruda): contador de rechazos CONSECUTIVOS — cruza
+        // capturas (repetirFoto NO lo toca); cualquier desenlace distinto lo
+        // pone a cero. ≥ 2 → REVISIÓN ofrece GUARDAR CRUDA.
+        rechazosConsecutivos:
+          actaActual.status === 'RECHAZADA' ? rechazosConsecutivos + 1 : 0,
+      });
     },
 
     rescatarActaPostTimeout: (vencida, real, tiempoRealMs) => {
@@ -413,6 +424,7 @@ function crearJornada(
         colaOffline: 0,
         solicitudesRescaneo: 0,
         motivosNoEnvio: {},
+        rechazosConsecutivos: 0,
         actaActual: null,
         vista: 'escanear',
       });

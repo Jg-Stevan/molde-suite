@@ -210,14 +210,24 @@ function TarjetaDoc({
 
 /** Tarjeta REAL derivada de una fila de envíos (sin datos inventados). */
 function docDeFila(fila: HistorialRow, indice: number): DocHistorial {
+  // Fase 2: GUARDADO_LOCAL también es desenlace bueno (verde — bug: caía en
+  // «crit» por el else); GUARDADO_CRUDO es evidencia SIN verificar (ámbar).
   const tono: Tono =
-    fila.estado === "ENVIADO" ? "ok" : fila.estado === "REVISION_HUMANA" ? "warn" : "crit";
+    fila.estado === "ENVIADO" || fila.estado === "GUARDADO_LOCAL"
+      ? "ok"
+      : fila.estado === "REVISION_HUMANA" || fila.estado === "GUARDADO_CRUDO"
+        ? "warn"
+        : "crit";
   const aviso =
     fila.estado === "ENVIADO"
       ? { texto: "Documento procesado y guardado", tono: "ok" as const }
-      : fila.estado === "REVISION_HUMANA"
-        ? { texto: "Enviado a revisión humana", tono: "warn" as const }
-        : { texto: "Requiere nueva toma", tono: "crit" as const };
+      : fila.estado === "GUARDADO_LOCAL"
+        ? { texto: "Documento procesado y guardado", tono: "ok" as const }
+        : fila.estado === "GUARDADO_CRUDO"
+          ? { texto: "CRUDA · NO VERIFICADA (FOTO ORIGINAL)", tono: "warn" as const }
+          : fila.estado === "REVISION_HUMANA"
+            ? { texto: "Enviado a revisión humana", tono: "warn" as const }
+            : { texto: "Requiere nueva toma", tono: "crit" as const };
   return {
     id: fila.id,
     tipoChip: "DOCUMENTO",

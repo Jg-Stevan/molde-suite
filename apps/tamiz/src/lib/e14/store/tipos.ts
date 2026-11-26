@@ -101,6 +101,10 @@ export interface E14Store {
   colaOffline: number;
   solicitudesRescaneo: number;
   historial: HistorialRow[];
+  /** Fase 2 (guardar cruda): rechazos CONSECUTIVOS del turno (crucen capturas —
+   *  repetirFoto NO lo resetea; cualquier desenlace no-RECHAZADA lo pone a 0).
+   *  ≥ 2 → REVISIÓN muestra el botón GUARDAR CRUDA (mock rechazada). */
+  rechazosConsecutivos: number;
   /** KIT e14-optimizacion-v1 (T5): contador en memoria de sesión «por qué
    *  no se envió» — espejo PASIVO de desenlaces YA ocurridos. Sin
    *  persistencia (igual que historial): se resetea al recargar. Claves:
@@ -156,6 +160,19 @@ export interface E14Store {
    *  inválidos/tardíos quedan RECHAZADA (correcto — kit §criterios C). */
   rescatarActaPostTimeout: (vencida: Acta, real: Acta, tiempoRealMs: number) => void;
   enviarActa: () => Promise<void>;
+  /**
+   * Fase 2 (guardar cruda, decisión del dueño): archiva la foto ORIGINAL del
+   * acta RECHAZADA SIN verificación (auto-recorte mal — el papel completo con
+   * sus firmas merece conservarse). Persiste en IDB «crudas» como Blob +
+   * fila de historial GUARDADO_CRUDO + marca `acta.guardadaCruda`. El botón
+   * solo aparece con rechazosConsecutivos ≥ 2 y queda DESHABILITADO sin
+   * tinta (manuscrito/firma/huella sin trazo) — doctrina: todo documento
+   * VÁLIDO se guarda; una hoja en blanco no es evidencia. NO archiva hueco
+   * ni cuenta como envío (estado «CRUDA · NO VERIFICADA» en ACTAS).
+   * `true` = archivada; `false` = fallo (cuota/IDB — aviso del visor ya
+   * notificado) o sin foto original.
+   */
+  guardarCruda: () => Promise<boolean>;
   repetirFoto: () => void;
   /** D6-bis (SPEC-rediseno-chrome-3-estados Rev. 3): escalación MANUAL a
    *  revisión humana — el botón «REVISIÓN HUMANA» (solo ADVERTENCIA/RECHAZADA,

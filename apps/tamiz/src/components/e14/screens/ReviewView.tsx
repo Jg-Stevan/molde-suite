@@ -1095,6 +1095,59 @@ function BadgeRefresco({ size = 6 }: { size?: 5 | 6 }) {
   );
 }
 
+/** Fase 2 (guardar cruda, decisión del dueño): archiva la foto ORIGINAL sin
+ *  verificación cuando el auto-recorte salió mal (≥ 2 rechazos consecutivos).
+ *  DESHABILITADO sin tinta: con molde, algún manuscrito/firma/huella debe
+ *  tener trazo (`tinta === true`); sin molde, el acta no puede ser «vacía» —
+ *  una hoja en blanco NO es evidencia (fiabilidad: todo documento VÁLIDO se
+ *  guarda). Tras archivar queda «CRUDA GUARDADA ✓» (idempotente). */
+function BtnGuardarCruda({ acta }: { acta: Acta }) {
+  const guardarCruda = useE14Store((s) => s.guardarCruda);
+  const [enVuelo, setEnVuelo] = useState(false);
+  const campos = acta.evaluacionMolde?.campos;
+  const hasTinta = campos
+    ? campos.some(
+        (c) =>
+          (c.htr === true || c.tipo === "firma" || /huella|sello|firma|manuscrito/i.test(c.etiqueta)) &&
+          c.tinta === true,
+      )
+    : !acta.procesadaVacia;
+  const guardada = acta.guardadaCruda === true;
+  const disabled = guardada || enVuelo || !hasTinta;
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={async () => {
+        setEnVuelo(true);
+        try {
+          await guardarCruda();
+        } finally {
+          setEnVuelo(false);
+        }
+      }}
+      aria-label="Guardar la foto original sin verificación"
+      className={`w-full py-2.5 px-2 rounded-xl border font-mono font-bold text-[10px] leading-tight uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm tap-action transition-all text-center min-h-[36px] ${
+        guardada
+          ? "border-emerald-500/80 text-emerald-400 bg-emerald-500/10"
+          : disabled
+            ? "border-slate-700 bg-brand-surface text-slate-500 cursor-not-allowed"
+            : "border-amber-500/80 bg-brand-surface text-amber-400 hover:bg-brand-surfacelight"
+      }`}
+    >
+      <span>
+        {guardada
+          ? "CRUDA GUARDADA ✓"
+          : enVuelo
+            ? "GUARDANDO…"
+            : disabled
+              ? "GUARDAR CRUDA — SIN TINTA DETECTADA"
+              : "GUARDAR CRUDA (SIN VERIFICAR)"}
+      </span>
+    </button>
+  );
+}
+
 export function ReviewCtas() {
   const acta = useE14Store((s) => s.actaActual);
   const navegar = useE14Store((s) => s.navegar);
@@ -1104,6 +1157,8 @@ export function ReviewCtas() {
   const repetirFoto = useE14Store((s) => s.repetirFoto);
   // Selector extra + candado (una sola fuente de verdad):
   const escalarRevisionHumana = useE14Store((s) => s.escalarRevisionHumana);
+  // Fase 2 (guardar cruda): el botón aparece tras 2 rechazos CONSECUTIVOS.
+  const rechazosConsecutivos = useE14Store((s) => s.rechazosConsecutivos);
 
   if (!acta) return null;
   const status = acta.status;
@@ -1162,31 +1217,39 @@ export function ReviewCtas() {
     // Mock 2/3 (§2): CTA único rojo «OBLIGATORIO REPETIR FOTO (INTENTO X DE
     // 4)» con badge azul giratorio; con candado → par [REPETIR] +
     // [REVISIÓN HUMANA surface]. «DE 4» = política real (mock dice 3 — §6.2).
-    return puedeEscalar ? (
-      <div className="flex gap-2.5 w-full">
-        <button
-          type="button"
-          onClick={repetirFoto}
-          className="flex-1 min-w-0 bg-[#E52222] hover:bg-red-600 text-white font-black text-xs py-3.5 px-3 rounded-2xl shadow-[0_4px_20px_rgba(229,34,34,0.4)] flex items-center justify-center gap-2 tap-action transition-all uppercase tracking-wider leading-tight text-center"
-        >
-          <BadgeRefresco size={5} />
-          <span>REPETIR</span>
-        </button>
-        <BtnRevisionHumana onClick={escalarRevisionHumana} />
-      </div>
-    ) : (
-      <div className="flex w-full">
-        <button
-          type="button"
-          id="btn-repeat-scan"
-          onClick={repetirFoto}
-          className="w-full bg-[#E52222] hover:bg-red-600 text-white font-black text-xs sm:text-sm py-4 px-4 rounded-2xl shadow-[0_4px_20px_rgba(229,34,34,0.4)] flex items-center justify-center gap-2.5 tap-action transition-all uppercase tracking-wider leading-tight text-center"
-        >
-          <BadgeRefresco size={6} />
-          <span>
-            OBLIGATORIO REPETIR FOTO (INTENTO {acta.intento} DE {acta.maxIntentos})
-          </span>
-        </button>
+    // Fase 2: con ≥ 2 rechazos consecutivos, GUARDAR CRUDA encima (foto
+    // ORIGINAL sin verificar — el auto-recorte mal no pierde el papel).
+    const mostrarCruda = rechazosConsecutivos >= 2;
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        {mostrarCruda ? <BtnGuardarCruda acta={acta} /> : null}
+        {puedeEscalar ? (
+          <div className="flex gap-2.5 w-full">
+            <button
+              type="button"
+              onClick={repetirFoto}
+              className="flex-1 min-w-0 bg-[#E52222] hover:bg-red-600 text-white font-black text-xs py-3.5 px-3 rounded-2xl shadow-[0_4px_20px_rgba(229,34,34,0.4)] flex items-center justify-center gap-2 tap-action transition-all uppercase tracking-wider leading-tight text-center"
+            >
+              <BadgeRefresco size={5} />
+              <span>REPETIR</span>
+            </button>
+            <BtnRevisionHumana onClick={escalarRevisionHumana} />
+          </div>
+        ) : (
+          <div className="flex w-full">
+            <button
+              type="button"
+              id="btn-repeat-scan"
+              onClick={repetirFoto}
+              className="w-full bg-[#E52222] hover:bg-red-600 text-white font-black text-xs sm:text-sm py-4 px-4 rounded-2xl shadow-[0_4px_20px_rgba(229,34,34,0.4)] flex items-center justify-center gap-2.5 tap-action transition-all uppercase tracking-wider leading-tight text-center"
+            >
+              <BadgeRefresco size={6} />
+              <span>
+                OBLIGATORIO REPETIR FOTO (INTENTO {acta.intento} DE {acta.maxIntentos})
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     );
   }

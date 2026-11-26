@@ -114,6 +114,21 @@ export interface ResumenMoldeCampo {
   ancla_rect?: { x: number; y: number; w: number; h: number } | null;
   /** Procedencia del rect resuelto — el overlay la usa para el color del ancla. */
   fuente?: "ancla" | "respaldo" | "referencia" | "fija" | "arnes" | null;
+  /**
+   * El molde declara el campo como MANUSCRITO (`htr: true` en la definición).
+   * Aditivo (v1.4.2): la UI lo necesita porque un manuscrito jamás puede
+   * quedar `ok` — el color del overlay decide «hay trazo / no hay trazo»,
+   * no «leyó bien / leyó mal».
+   */
+  htr?: boolean;
+  /**
+   * TINTA medida en la zona (ratio de píxeles oscuros del motor sobre la
+   * canónica; el mismo que alimenta `firma_ausente`/`zona_vacia`). Aditivo
+   * (v1.5.1): el overlay de manuscritos pinta por ESTO, no por la lectura —
+   * una rúbrica con trazo y sin texto legible es «hay trazo» (verde), y un
+   * campo en blanco es «no hay trazo» (rojo). `undefined` = zona sin resolver.
+   */
+  tinta?: boolean;
   /** Banderas del motor para este campo (forense / tooltip del overlay). */
   banderas?: string[];
   /** Presentación (G-7): el valor se resalta en la lista. */
@@ -191,13 +206,24 @@ export interface Acta {
   qrPayload?: string | null;
   qrEstado?: "leido" | "sin-payload";
   enviadoAutomaticamente?: string | null;
+  /**
+   * GUARDADO_CRUDO (fase 2): la foto ORIGINAL del acta quedó archivada cruda
+   * (IDB «crudas», sin OCR/verificación — «NO VERIFICADA»). Aditivo: hosts
+   * viejos lo ignoran; `undefined` = acta normal.
+   */
+  guardadaCruda?: boolean;
 }
 
 /** Fila del historial de envíos. */
 export interface HistorialRow {
   id: string;
   titulo: string;
-  estado: "ENVIADO" | "REVISION_HUMANA" | "RESCANEO_REQUERIDO" | (string & {});
+  /**
+   * GUARDADO_CRUDO (fase 2 — guardar cruda): la foto ORIGINAL quedó archivada
+   * SIN verificación (auto-recorte mal / rechazo persistente) — NO cuenta como
+   * envío verificado; la UI la marca «CRUDA · NO VERIFICADA».
+   */
+  estado: "ENVIADO" | "REVISION_HUMANA" | "RESCANEO_REQUERIDO" | "GUARDADO_CRUDO" | (string & {});
   hora: string | null;
   nota?: string | null;
 }
