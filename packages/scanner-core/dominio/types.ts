@@ -226,6 +226,30 @@ export interface Acta {
    * acta sin archivar.
    */
   capturaArchivada?: boolean;
+  /**
+   * §5 (plan cierre 2 agentes, 2026-11-26) — VERIFICACIÓN Y ACTUALIZACIÓN
+   * DE DATOS: valores CORREGIDOS por el operador desde el panel de
+   * verificación (`campoId → valor nuevo`). Aditivo: hosts viejos lo
+   * ignoran; el hash de la foto cruda NO cambia (la edición es de DATOS,
+   * nunca de imagen); el JSON del acta sí.
+   */
+  valoresEditados?: Record<string, string | boolean>;
+  /**
+   * §5 — true cuando al menos un valor fue corregido por el operador
+   * (marca EDITADO en historial/fila). `undefined` = acta sin editar.
+   */
+  corregidoPorOperador?: boolean;
+  /**
+   * §5 — hora ISO de la ÚLTIMA corrección del operador (display EDITADO).
+   */
+  editadoEn?: string | null;
+  /**
+   * §5 — id de la FILA de historial que archivó/envió esta acta
+   * (registrarEnvio / archivarCaptura la estampan). La edición del
+   * operador ACTUALIZA esa fila en lugar de crear otra (una sola fila,
+   * estado EDITADO). `undefined` = acta sin fila propia.
+   */
+  historialFilaId?: string;
 }
 
 /** Fila del historial de envíos. */

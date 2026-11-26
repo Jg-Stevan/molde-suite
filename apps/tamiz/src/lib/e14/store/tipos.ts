@@ -237,6 +237,20 @@ export interface E14Store {
    *  reanudación de cámara fallida (3.3). Los de tipo "error" NO se
    *  autodestruyen (bloque 4.3.1): salen por Reintentar o descartar. */
   avisoVisor: AvisoOperador | null;
+  /**
+   * §5 (plan cierre 2 agentes, 2026-11-26) — VERIFICACIÓN Y ACTUALIZACIÓN
+   * DE DATOS: corrige el valor de un campo capturado desde el panel de
+   * verificación. Re-evalúa el documento con el override (misma semántica
+   * de agregación del motor + validaciones cruzadas), recalcula el
+   * veredicto (acta enrutada), persiste en IndexedDB con
+   * valoresEditados/corregidoPorOperador (marca EDITADO — el hash de la
+   * foto cruda NO cambia), actualiza la ÚNICA fila de historial (EDITADO)
+   * y aplica la REGLA DE ORO: si la corrección completa los obligatorios
+   * y el documento queda legible → auto-guardado INMEDIATO (banner
+   * ENVIADA + «SEGUIR ESCANEANDO»). `true` = la edición aplicó; `false` =
+   * guard honesto (sin acta/campo/molde — el panel conserva el valor).
+   */
+  editarCampoActa: (campoId: string, valor: string | boolean) => Promise<boolean>;
   /** Monta el aviso del visor (ts lo estampa el store). */
   mostrarAvisoVisor: (aviso: {
     tipo: AvisoOperador["tipo"];
