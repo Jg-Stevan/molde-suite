@@ -541,15 +541,16 @@ export function ActasView() {
               {grupo.etiqueta}
             </h2>
             {grupo.docs.map((doc) => (
-              <TarjetaDoc
-                key={doc.id}
-                doc={doc}
-                detalleAbierto={detalleAbierto === doc.id}
-                onToggleDetalle={() =>
-                  setDetalleAbierto(detalleAbierto === doc.id ? null : doc.id)
-                }
-                onRepetir={() => navegar("escanear")}
-              />
+              <div key={doc.id} data-testid="historial-fila">
+                <TarjetaDoc
+                  doc={doc}
+                  detalleAbierto={detalleAbierto === doc.id}
+                  onToggleDetalle={() =>
+                    setDetalleAbierto(detalleAbierto === doc.id ? null : doc.id)
+                  }
+                  onRepetir={() => navegar("escanear")}
+                />
+              </div>
             ))}
           </section>
         ))}

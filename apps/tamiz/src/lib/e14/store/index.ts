@@ -12,8 +12,12 @@ import { IMAGENES_SIMULADAS, type ImagenSimuladaId } from '../simulacion-imagene
 import { TEXTO_MOTIVO, esFalloMemoriaMotor, type AvisoOperador, type MotivoOperador } from '../errores';
 import { logger } from '../../logger';
 import { crearNavegacion } from './navegacion';
-import { crearEnvio } from './envio';
+import { crearEnvio, registrarEnvio, tituloPaginaActual } from './envio';
 import { refrescarMesasDeArchivo } from './guion';
+import { moldeActivo, paginasEsperadas } from '../molde/registry';
+import { veredictoDeResumen } from '../molde/enrutamiento';
+import type { ResumenMoldeActa } from '@molde-suite/scanner-core/dominio/types';
+import type { DocumentoEnCurso } from './tipos';
 import {
   cargarJornada,
   enFalloEscrituraJornada,
@@ -53,6 +57,9 @@ function crearCaptura(
   | 'errorRecorte'
   | 'revelando'
   | 'rechazosConsecutivos'
+  | 'documentoEnCurso'
+  | 'siguientePagina'
+  | 'cancelarDocumento'
   | 'modoSimulacion'
   | 'simCompleta'
   | 'simUltima'
@@ -95,6 +102,7 @@ function crearCaptura(
     errorRecorte: null,
     revelando: false,
     rechazosConsecutivos: 0,
+    documentoEnCurso: null,
     modoSimulacion: false,
     simCompleta: false,
     simUltima: null,
@@ -208,10 +216,103 @@ function crearCaptura(
     },
 
     analisisCompletado: async () => {
-      const { actaActual, analisisEnVuelo, rechazosConsecutivos } = get();
+      const { actaActual, analisisEnVuelo, rechazosConsecutivos, documentoEnCurso } = get();
       if (analisisEnVuelo) return;
       if (!actaActual) {
         set({ vista: 'escanear', progresoAnalisis: null, analisisResuelto: false });
+        return;
+      }
+      // Fase 3 (multipágina REAL): con molde de >1 páginas, cada captura con
+      // fotografía FÍSICAMENTE válida es una página del documento — se
+      // acumula y, al completar las esperadas, `evaluarMoldeMultipagina`
+      // evalúa el lote y su veredicto manda (misma ruta del pipeline:
+      // veredictoDeResumen sobre el resumen enrutado). OJO: la evaluación
+      // POR PÁGINA del bridge corre el molde COMPLETO sobre esa foto, así
+      // que un `RECHAZADA` tipo MOLDE (faltan campos de OTRAS páginas) NO
+      // descalifica la captura: solo los rechazos FÍSICOS (vacía, recorte
+      // incompleto, ilegible, baja calidad, timeout) piden repetir.
+      const esperadas = paginasEsperadas();
+      const rechazo = actaActual.rechazo;
+      const rechazoFisico =
+        rechazo != null &&
+        (rechazo.tipo === 'INCOMPLETA' ||
+          rechazo.tipo === 'ILEGIBLE' ||
+          rechazo.tipo === 'SIN_VOTOS' ||
+          rechazo.tipo === 'BAJO' ||
+          rechazo.tipo === 'TIMEOUT');
+      const fotoPagina = actaActual.fotoProcesada;
+      if (esperadas > 1 && fotoPagina && !actaActual.procesadaVacia && !rechazoFisico) {
+        const sesion: DocumentoEnCurso = documentoEnCurso ?? {
+          moldeNombre: moldeActivo()?.nombre ?? '',
+          esperadas,
+          paginas: [],
+        };
+        const paginas = [
+          ...sesion.paginas,
+          {
+            pagina: sesion.paginas.length + 1,
+            fotoProcesada: fotoPagina,
+            fotoOriginal: actaActual.fotoOriginal,
+            quad: actaActual.quadDetectado,
+            rotation: actaActual.rotation,
+          },
+        ];
+        if (paginas.length < sesion.esperadas) {
+          // Documento INCOMPLETO: la UI muestra PROGRESO (N/M) + CTA
+          // ESCANEAR PÁGINA N+1; sin veredicto final todavía.
+          set({
+            documentoEnCurso: { ...sesion, paginas },
+            vista: 'revision',
+            progresoAnalisis: null,
+            analisisResuelto: false,
+            rechazosConsecutivos: 0,
+          });
+          return;
+        }
+        let resumen: ResumenMoldeActa | null = null;
+        try {
+          const { evaluarMoldeMultipagina } = await import('../molde/evaluacion');
+          resumen = await evaluarMoldeMultipagina(paginas.map((p) => p.fotoProcesada));
+        } catch (e) {
+          // El lote es el veredicto del documento, pero su fallo no debe
+          // tumbar la sesión: queda el veredicto de la última página.
+          logger.warn('[store] evaluación multipágina falló — queda el veredicto de la página', {
+            mensaje: (e as Error).message,
+          });
+        }
+        let actaFinal = actaActual;
+        if (resumen) {
+          const veredicto = veredictoDeResumen(resumen);
+          actaFinal = {
+            ...actaActual,
+            score: veredicto.score,
+            status: veredicto.status,
+            rechazo: veredicto.rechazo,
+            evaluacionMolde: resumen,
+          };
+        }
+        set({
+          actaActual: actaFinal,
+          documentoEnCurso: { ...sesion, paginas },
+          vista: 'revision',
+          progresoAnalisis: null,
+          analisisResuelto: false,
+          rechazosConsecutivos:
+            actaFinal.status === 'RECHAZADA' ? rechazosConsecutivos + 1 : 0,
+        });
+        // Documento multipágina COMPLETO y VÁLIDO: UNA sola fila de historial
+        // (el documento, no cada página) — misma ruta G.1 de guardado local.
+        // Título: el del acta; sin clasificación electoral, el NOMBRE DEL
+        // MOLDE identifica el documento mejor que el genérico «DOC».
+        if (actaFinal.status === 'OPTIMA' || actaFinal.status === 'ADVERTENCIA') {
+          try {
+            await registrarEnvio(set, get, actaFinal.titulo || sesion.moldeNombre || tituloPaginaActual(get));
+          } catch (e) {
+            logger.warn('[store] registro del documento multipágina falló', {
+              mensaje: (e as Error).message,
+            });
+          }
+        }
         return;
       }
       // RECHAZADA también va a REVISIÓN: el veredicto y su motivo (incluido
@@ -238,13 +339,49 @@ function crearCaptura(
     },
 
     repetirFoto: () =>
-      set((s) => ({
+      set((s) => {
+        // Fase 3 (multipágina): repetir DESCARTAR la última página capturada
+        // del documento — solo si el acta actual ES esa página (una captura
+        // RECHAZADA nunca se acumuló y conserva las anteriores). Documento
+        // completo (veredicto final) → repetir empieza un documento nuevo.
+        let docNuevo = s.documentoEnCurso;
+        if (docNuevo) {
+          if (docNuevo.paginas.length < docNuevo.esperadas) {
+            const ultima = docNuevo.paginas[docNuevo.paginas.length - 1];
+            if (s.actaActual && ultima && ultima.fotoProcesada === s.actaActual.fotoProcesada) {
+              const paginas = docNuevo.paginas.slice(0, -1);
+              docNuevo = paginas.length > 0 ? { ...docNuevo, paginas } : null;
+            }
+          } else {
+            docNuevo = null;
+          }
+        }
+        return {
+          vista: 'escanear',
+          vistaPrevia: s.vista,
+          actaActual: null,
+          progresoAnalisis: null,
+          analisisResuelto: false,
+          documentoEnCurso: docNuevo,
+        };
+      }),
+
+    siguientePagina: () =>
+      set({
         vista: 'escanear',
-        vistaPrevia: s.vista,
         actaActual: null,
         progresoAnalisis: null,
         analisisResuelto: false,
-      })),
+      }),
+
+    cancelarDocumento: () =>
+      set({
+        documentoEnCurso: null,
+        vista: 'escanear',
+        actaActual: null,
+        progresoAnalisis: null,
+        analisisResuelto: false,
+      }),
 
     aplicarRecorte: async (quad, rotacionNueva) => {
       const acta = get().actaActual;
@@ -425,6 +562,7 @@ function crearJornada(
         solicitudesRescaneo: 0,
         motivosNoEnvio: {},
         rechazosConsecutivos: 0,
+        documentoEnCurso: null,
         actaActual: null,
         vista: 'escanear',
       });

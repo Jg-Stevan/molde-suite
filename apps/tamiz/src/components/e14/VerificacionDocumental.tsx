@@ -270,9 +270,14 @@ function itemDeFilaMolde(c: ResumenMoldeCampo): ItemChecklist {
 export function VerificacionDocumental({
   acta,
   modo = 'flujo',
+  filtroPagina,
 }: {
   acta: Acta;
   modo?: 'arriba' | 'flujo';
+  /** Fase 3 (multipágina): muestra SOLO los campos de esta página (1-indexada;
+   *  `c.pagina ?? 1`); el % del badge es el de la página. `null/undefined` =
+   *  documento completo / molde de una página (sin filtro). */
+  filtroPagina?: number | null;
 }) {
   const checklist = useMemo(() => construirChecklist(acta), [acta]);
   const tono = tonoDeStatus(acta.status);
@@ -287,8 +292,13 @@ export function VerificacionDocumental({
   // del gate → pista de una línea (el % y las filas del checklist NO cambian).
   const moldeAditivo = acta.evaluacionMolde && !acta.evaluacionMolde.enrutado ? acta.evaluacionMolde : null;
   // Filas del motor universal → items del checklist (derivación barata; el
-  // compilador de React memoiza automáticamente).
-  const filasMolde = useMemo(() => molde?.campos ?? [], [molde]);
+  // compilador de React memoiza automáticamente). Fase 3 (multipágina):
+  // `filtroPagina` restringe la verificación a la página capturada.
+  const filasMolde = useMemo(() => {
+    const filas = molde?.campos ?? [];
+    if (filtroPagina == null) return filas;
+    return filas.filter((c) => (c.pagina ?? 1) === filtroPagina);
+  }, [molde, filtroPagina]);
   const obligatoriosMolde = filasMolde
     .filter((c) => c.obligatorio)
     .map(itemDeFilaMolde);

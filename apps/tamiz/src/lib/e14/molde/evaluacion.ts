@@ -83,6 +83,9 @@ function filasDeCampos(molde: MoldeUniversal, resultado: ResultadoUniversal): Re
       // agrupada del checklist (Encabezado → Identificación → Cuerpo → Cierre).
       ...(def?.grupo ? { grupo: def.grupo } : {}),
       ...(def?.orden !== undefined ? { orden: def.orden } : {}),
+      // Fase 3 (multipágina): página del campo — la UI filtra la verificación
+      // a la página capturada (aditivo; sin declaración = una sola página).
+      ...(def?.pagina !== undefined ? { pagina: def.pagina } : {}),
     };
   });
 }
@@ -303,6 +306,46 @@ export async function evaluarMoldeEnActa(
       total: resultado.total,
     });
   }
+  return resumen;
+}
+
+/**
+ * Fase 3 (multipágina real): evalúa el molde ACTIVO contra TODAS las fotos
+ * del documento en UNA pasada — el motor universal ya itera páginas
+ * (`evaluarDocumentoUniversal(canvases[])`). Devuelve el resumen con
+ * `enrutado: true` (el lote ES el veredicto del documento) o null sin molde /
+ * con el flag apagado — el llamador conserva el veredicto de la página.
+ */
+export async function evaluarMoldeMultipagina(
+  fotosProcesadas: string[],
+): Promise<ResumenMoldeActa | null> {
+  if (!leerFlags().evaluacionMolde) return null;
+  asegurarProveedor();
+  const molde = moldeActivo();
+  if (!molde || fotosProcesadas.length === 0) return null;
+  const t0 = performance.now();
+  const canvases = await Promise.all(
+    fotosProcesadas.map((foto) => canvasDesdeDataUrl(foto, { ancho: 1000 })),
+  );
+  const renderMs = Math.round(performance.now() - t0);
+  const resultado = await evaluarDocumentoUniversal(
+    canvases,
+    molde,
+    molde.nombre,
+    undefined,
+    renderMs,
+    { previews: false },
+  );
+  const resumen = resumir(molde, resultado);
+  resumen.enrutado = true;
+  logger.info('[molde] evaluación multipágina', {
+    molde: molde.nombre,
+    paginas: fotosProcesadas.length,
+    score: resultado.score,
+    ok: resultado.ok_count,
+    total: resultado.total,
+    obligatoriosFaltantes: resultado.obligatorios_faltantes,
+  });
   return resumen;
 }
 
