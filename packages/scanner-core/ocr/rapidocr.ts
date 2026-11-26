@@ -306,16 +306,34 @@ export async function rapidOcrReiniciar(): Promise<void> {
 }
 
 /** Reinicio del motor para la UI: rechaza si hay OCR corriendo (false — la
- *  corrida manda); true = reiniciado o sin motor iniciado. Jamás lanza. */
+ *  corrida manda); true = reiniciado o sin motor iniciado. Jamás lanza.
+ *  CARRERA CERRADA (2026-11-26, RECHAZADA de 295 s con reciclado ON): el
+ *  singleton se anula SINCRÓNICAMENTE antes de liberar — un rapidOcrInit()
+ *  que llegue durante la liberación crea un runtime fresco en vez de recibir
+ *  las sesiones que están siendo soltadas (recognize sobre un runtime
+ *  liberado se cuelga y el watchdog condena el documento). La liberación
+ *  corre en segundo plano: nadie espera por ella. */
 export async function reiniciarMotorOcrSiInactivo(): Promise<boolean> {
   try {
     if (reconocimientosEnVuelo > 0) return false;
-    if (!rtSingleton) return true;
-    await rapidOcrReiniciar();
+    const viejo = rtSingleton;
+    if (!viejo) return true;
+    rtSingleton = null;
+    prewarmHecho = null;
+    void soltarRuntimeDe(viejo);
     return true;
   } catch {
     // Reinicio best-effort: cualquier fallo ⇒ false (no reiniciado) — la corrida en curso manda, jamás lanza a la UI (docblock).
     return false;
+  }
+}
+
+/** Libera un runtime ya desligado del singleton — best-effort, nunca lanza. */
+async function soltarRuntimeDe(rtPromise: Promise<RapidRuntime>): Promise<void> {
+  try {
+    await soltarRuntime(await rtPromise);
+  } catch {
+    /* best-effort */
   }
 }
 

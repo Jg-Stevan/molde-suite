@@ -1,0 +1,64 @@
+{
+  "archivo": "comprobante-a-impreso-firmas-vacias-01.jpg",
+  "config": "baseline",
+  "pase": "run1",
+  "msVeredicto": 45123,
+  "veredicto": "REVISIÓN HUMANA",
+  "etapas": [
+    {
+      "fase": "DETECTANDO",
+      "t": 642
+    }
+  ],
+  "acta": null,
+  "rotacion": {
+    "toques": 2,
+    "msVeredicto": 726,
+    "veredicto": "REVISIÓN HUMANA",
+    "acta": null,
+    "etapas": []
+  },
+  "rssAntes": [
+    "sin meminfo: Error: Command failed: C:\\platform-tools\\adb.exe shell dumpsys meminfo com.andro"
+  ],
+  "rssDespues": [
+    "sin meminfo: Error: Command failed: C:\\platform-tools\\adb.exe shell dumpsys meminfo com.andro"
+  ],
+  "consola": [
+    "[e14-rapidocr] det run OK (853ms)",
+    "[e14-rapidocr] celda: det=1002ms cls=73.31499999761581ms rec=759ms (run=643.9950000047684 js=115.00499999523163) · 3 cajas · 3 líneas · conf 98.0% · 1767ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-prowarm] listo det=1002ms cls=73.31499999761581ms rec=759ms · 3 cajas · 3 líneas",
+    "[e14-rapidocr] det run [1,3,480,640]...",
+    "[e14] qr-capa0 prechequeo sin-candidato ms=392 patrones=0 confianza=0.00",
+    "[e14-rapidocr] det run OK (854ms)",
+    "[e14-rapidocr] celda: det=1034ms cls=74.43000000715256ms rec=702ms (run=585.785000026226 js=116.21499997377396) · 3 cajas · 3 líneas · conf 98.0% · 1743ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[e14-prowarm] listo det=1034ms cls=74.43000000715256ms rec=702ms · 3 cajas · 3 líneas",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (1565ms)",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (1623ms)",
+    "[e14] orientacion crop=1350x1701 rot=0 probe={0:1.62,90:0.00,180:0.01} anclas0=0 conf0=0.72 aplicado=0 ms=13543 cortes=presupuesto orden=0,90,180,270 gan=90 exif=0 escala=1701",
+    "[tamiz:info] [e14] tess-best ok conf=0.82 chars=591",
+    "[e14-rapidocr] celda: det=1701ms cls=505.44999998807907ms rec=5600ms (run=4897.954999983311 js=702.0450000166893) · 31 cajas · 29 líneas · conf 94.0% · 5601ms detMemo=hit msAhorrado=1701 · leidas=28/31 anclasBordes=5 pieBordes=1 rescate=3 crops=12ms",
+    "[e14-rapidocr] det run [1,3,1696,1344]...",
+    "[e14-rapidocr] det run OK (2785ms)",
+    "[e14-rapidocr] celda: det=2911ms cls=430.43000000715256ms rec=6640ms (run=5940.705000042915 js=699.2949999570847) · 32 cajas · 31 líneas · conf 92.6% · 9552ms detMemo=miss · leidas=28/32 anclasBordes=5 pieBordes=1 rescate=4 crops=10ms",
+    "[e14-rapidocr] det run [1,3,416,1344]...",
+    "[e14-rapidocr] det run OK (832ms)",
+    "[e14-rapidocr] celda: det=890ms cls=160.0349999666214ms rec=1975ms (run=1716.7250000238419 js=258.27499997615814) · 9 cajas · 9 líneas · conf 92.6% · 2874ms detMemo=miss · leidas=9/9 anclasBordes=-1 pieBordes=-1 rescate=0 crops=6ms",
+    "[e14-rapidocr] det run [1,3,416,1344]...",
+    "[e14-rapidocr] det run OK (741ms)",
+    "[e14-rapidocr] celda: det=790ms cls=22.2399999499321ms rec=616ms (run=557.8249999880791 js=58.17500001192093) · 2 cajas · 2 líneas · conf 89.2% · 1417ms detMemo=miss · leidas=2/2 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[tamiz:info] [e14] ocr-cascada intento1=tess-best gate1=NO elegido=1280 rescate=1 ms1=7900 ms2=9556 msRoi=4306 msMotor=-",
+    "[e14-rapidocr] det run [1,3,256,1280]...",
+    "[e14-rapidocr] det run OK (652ms)",
+    "[e14-rapidocr] celda: det=718ms cls=0ms rec=549ms (run=521.2400000095367 js=27.759999990463257) · 2 cajas · 2 líneas · conf 77.8% · 1276ms detMemo=miss · leidas=2/2 anclasBordes=-1 pieBordes=-1 rescate=0 crops=2ms",
+    "[e14-rapidocr] det run [1,3,352,1344]...",
+    "[e14-rapidocr] det run OK (703ms)",
+    "[e14-rapidocr] celda: det=739ms cls=24.464999973773956ms rec=388ms (run=347.98499995470047 js=40.01500004529953) · 2 cajas · 2 líneas · conf 85.3% · 1137ms detMemo=miss · leidas=2/2 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[tamiz:info] [molde] ratio de anclas por molde {\"ocrMs\":2391,\"lineas\":21,\"activo\":null,\"ratios\":[{\"nombre\":\"Comprobante de entrega — real (A/B/C)\",\"ratio\":1},{\"nombre\":\"Recibo de pago — real (A/B/C)\",\"ratio\":0}]}",
+    "[tamiz:info] [molde] candidato del router {\"nombre\":\"Comprobante de entrega — real (A/B/C)\",\"ratioAnclas\":1}",
+    "[tamiz:info] [molde] resumen del motor universal {\"molde\":\"Comprobante de entrega — real (A/B/C)\",\"score\":40,\"ok\":4,\"total\":10,\"obligatoriosFaltantes\":[\"COMPRADOR (nombre)\",\"DOCUMENTO\",\"ARTÍCULO\",\"DESCRIPCIÓN\",\"Firma comprador\",\"FECHA DE ENTREGA\"],\"campos\":[\"COMPROBANTE DE ENTREGA=ok(COMPROBANTE DE ENTREGA DEL PRODUCTO)[ancla_solo_textual] rect=0.096,0.093,0.520,0.028 fuente=ancla ratio=0.157 conf"
+  ],
+  "medidoEn": "2026-11-26T04:32:08.447Z"
+}

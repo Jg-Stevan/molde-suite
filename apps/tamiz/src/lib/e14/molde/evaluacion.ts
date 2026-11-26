@@ -10,10 +10,11 @@
 //   3. Si NO hay activo, el ROUTER (molde/enrutamiento.ts) corre UNA pasada
 //      de OCR compartida, prefiltra la biblioteca por anclas y evalúa
 //      COMPLETO solo al mejor candidato (motor universal, modo ligero).
-//   4. Cuando el documento NO fue reconocido como E-14 y el candidato
-//      responde (score ≥ umbral), el resultado se marca `enrutado: true`:
-//      el veredicto del acta (score/estado/banner) deriva del MOLDE. Con
-//      E-14 reconocido el resultado queda ADITIVO (doctrina del gate intacta).
+//   4. Cuando el molde ganador NO es el del acta E-14 (o el operador lo eligió
+//      y el documento no es electoral) y el candidato responde (score ≥
+//      umbral), el resultado se marca `enrutado: true`: el veredicto del acta
+//      (score/estado/banner) deriva del MOLDE. Solo un acta E-14 reconocida
+//      evaluada contra su propio molde deja el resultado ADITIVO.
 //
 // FASE B2/B4 del blueprint DLA intactas: segunda opinión ONNX para casillas
 // dudosas y bandera de presencia manuscrita (señales, nunca veredictos).
@@ -24,6 +25,7 @@ import type {
   ResultadoUniversal,
 } from '@molde-suite/scanner-core/molde/universal-types';
 import { configurarProveedorOcr } from '@molde-suite/scanner-core/molde/ocr-tipos';
+import { lineasDesdeRapid } from '@molde-suite/scanner-core/molde/ocr-mapeo';
 import { canvasDesdeDataUrl } from '@molde-suite/scanner-core/core/canvas-imagen';
 import type { MoldeUniversal } from '@molde-suite/scanner-core/molde/universal-types';
 import type { ResumenMoldeActa, ResumenMoldeCampo } from '@molde-suite/scanner-core/dominio/types';
@@ -31,9 +33,10 @@ import { proveedorOcrTamiz, ocrLines } from './ocr-proveedor';
 import { moldeActivo } from './registry';
 import {
   candidatosDeSesion,
+  debeEnrutar,
   elegirCandidato,
+  ratioAnclasDe,
   sembrarMoldeDemo,
-  UMBRAL_RUTA_SCORE,
   type ContextoE14Acta,
 } from './enrutamiento';
 import '../dla/config';
@@ -72,12 +75,26 @@ function filasDeCampos(molde: MoldeUniversal, resultado: ResultadoUniversal): Re
       valor: c.valor,
       conf: c.conf,
       rect: c.rect,
+      ancla_rect: c.ancla_rect ?? null,
+      fuente: c.fuente ?? null,
+      banderas: c.banderas ?? [],
       ...(def?.destacado ? { destacado: true } : {}),
       ...(def?.obligatorio ? { obligatorio: true } : {}),
+      // v1.4.2: la declaración de manuscrito viaja desde la definición — el
+      // overlay la necesita para pintar «hay trazo / no hay trazo».
+      ...(def?.htr ? { htr: true } : {}),
+      // v1.5.1: TINTA medida, no lectura. El motor ya mide el ratio por zona
+      // (el mismo con el que decide `firma_ausente`/`zona_vacia`); el piso
+      // 0.001 es el que el propio motor documenta como «tinta real» (≈20 px
+      // en la canónica). Sin ratio (zona sin resolver) no se inventa.
+      ...(typeof c.ratio === "number" ? { tinta: c.ratio >= 0.001 } : {}),
       // FASE 4 (v3.2.0 — interfaz táctica): grupo/orden para la presentación
       // agrupada del checklist (Encabezado → Identificación → Cuerpo → Cierre).
       ...(def?.grupo ? { grupo: def.grupo } : {}),
       ...(def?.orden !== undefined ? { orden: def.orden } : {}),
+      // Fase 3 (multipágina): página del campo — la UI filtra la verificación
+      // a la página capturada (aditivo; sin declaración = una sola página).
+      ...(def?.pagina !== undefined ? { pagina: def.pagina } : {}),
     };
   });
 }
@@ -152,15 +169,29 @@ async function segundaOpinionCasillas(
 
 /**
  * ETAPA B — evalúa el mejor molde sobre la foto procesada del acta.
- *  · Molde ACTIVO → evaluación directa (comportamiento de siempre).
+ *  · Molde ACTIVO → evaluación directa (la elección del operador manda; el
+ *    OCR de página se comparte igualmente para la telemetría de anclas).
  *  · Sin activo → ROUTER sobre la biblioteca (prefiltro por anclas con UNA
  *    pasada de OCR compartida; evaluación completa solo al mejor candidato).
+ *  · Fase 4: esa pasada de OCR alimenta también al motor (`opts.lineas`) y,
+ *    si la binarizada no lee nada, se mide un A/B contra `fotoOcr` (original).
  *  · Devuelve null cuando no hay moldes o ningún ancla matchea — el pipeline
  *    no cambia nada (honesto).
  */
 export async function evaluarMoldeEnActa(
   fotoProcesada: string,
   contexto?: ContextoE14Acta,
+  /**
+   * Plan primera ola (Fase 4): la MISMA geometría sin binarizar (`fotoOcr` del
+   * pipeline) para el A/B medido — si la binarizada no produce NINGUNA
+   * lectura, se reintenta el molde sobre el original y se registra la
+   * comparación. Costo acotado: el reintento SOLO ocurre con 0 lecturas.
+   */
+  opciones?: {
+    fotoOriginal?: string;
+    lineasRapid?: Array<{ texto: string; conf: number; box: Array<{ x: number; y: number }> }>;
+    anchoOcr?: number;
+  },
 ): Promise<ResumenMoldeActa | null> {
   if (!leerFlags().evaluacionMolde) return null;
   asegurarProveedor();
@@ -172,12 +203,45 @@ export async function evaluarMoldeEnActa(
   const canvas = await canvasDesdeDataUrl(fotoProcesada, { ancho: 1000 });
   const renderMs = Math.round(performance.now() - t0);
 
+  // UNA pasada de OCR de página (la del router): alimenta el prefilo por
+  // anclas, la telemetría de ratios y —vía opts.lineas— al motor, que ya NO
+  // lanza un segundo Tesseract de página completa (Fase 4: menos latencia).
+  // F2: si ocrRouterReusado y hay líneas Rapid del cascade, se mapean y se
+  // usan en vez de lanzar ocrLines (elimina el 2.º Tesseract de página).
+  const tOcr = performance.now();
+  let ocr: { lines: import('@molde-suite/scanner-core/molde/ocr-tipos').LineaOcr[]; conf: number | null };
+  let lineasReusadas = false;
+  if (leerFlags().ocrRouterReusado && opciones?.lineasRapid && opciones.lineasRapid.length > 0 && opciones.anchoOcr) {
+    const factor = canvas.width / opciones.anchoOcr;
+    ocr = lineasDesdeRapid(opciones.lineasRapid, factor);
+    lineasReusadas = true;
+    logger.info('[molde] router reusado: líneas Rapid del cascade', {
+      lineas: ocr.lines.length,
+      factor: factor.toFixed(3),
+    });
+  } else {
+    ocr = await ocrLines(canvas);
+  }
+  const ocrRouterMs = Math.round(performance.now() - tOcr);
+
   // Elección del molde: activo explícito o mejor candidato del router.
   let molde: MoldeUniversal;
-  if (moldeActivo()) {
-    molde = moldes[0];
+  const activo = moldeActivo();
+  const ratios = moldes.map((m) => ({
+    nombre: m.nombre,
+    ratio: ratioAnclasDe(m, ocr.lines, canvas.width, canvas.height),
+  }));
+  // Telemetría SIEMPRE (también con molde activo): así se ve por qué la
+  // identificación da 0 % — el ratio de anclas de cada molde sobre el OCR real.
+  logger.info('[molde] ratio de anclas por molde', {
+    ocrMs: ocrRouterMs,
+    lineas: ocr.lines.length,
+    activo: activo?.nombre ?? null,
+    ratios,
+  });
+  if (activo) {
+    molde = moldes[0]!;
   } else {
-    const ocr = await ocrLines(canvas);
     const candidato = elegirCandidato(moldes, ocr.lines, canvas.width, canvas.height);
     if (!candidato) return null; // ninguna ancla matchea → comportamiento de siempre
     molde = candidato.molde;
@@ -187,15 +251,56 @@ export async function evaluarMoldeEnActa(
     });
   }
 
-  const resultado = await evaluarDocumentoUniversal(
+  let resultado = await evaluarDocumentoUniversal(
     [canvas],
     molde,
     molde.nombre,
     undefined,
     renderMs,
-    { previews: false },
+    { previews: false, lineas: ocr.lines, ocrConf: ocr.conf ?? undefined, rescatePresupuesto: leerFlags().ocrRescatePresupuesto, htrConfDictamen: leerFlags().htrConfDictamen },
   );
-  await segundaOpinionCasillas(canvas, resultado);
+  // Tiempos honestos del resumen: el OCR del router corre una sola vez; sus
+  // ms suman al ocr_ms que el motor ya no mide (usó las líneas reutilizadas).
+  resultado.tiempos.ocr_ms = Math.round(resultado.tiempos.ocr_ms + ocrRouterMs);
+
+  // A/B MEDIDO (Fase 4): binarizada sin NINGUNA lectura → reintento sobre la
+  // geometría original (`fotoOcr`). Solo se adopta si mejora; la comparación
+  // queda en consola. Sin tocar umbrales de enrutado.
+  // F3: si las líneas Rapid ya se reusaron (leyeron el original) y ok_count=0,
+  // el documento realmente no tiene campos → el A/B es redundante.
+  let canvasFuente = canvas;
+  const skipAB = leerFlags().ocrSkipABSiCascadeLee && lineasReusadas;
+  if (opciones?.fotoOriginal && resultado.ok_count === 0 && !skipAB) {
+    try {
+      const canvasAlt = await canvasDesdeDataUrl(opciones.fotoOriginal, { ancho: 1000 });
+      const alt = await evaluarDocumentoUniversal(
+        [canvasAlt],
+        molde,
+        molde.nombre,
+        undefined,
+        renderMs,
+        { previews: false, rescatePresupuesto: leerFlags().ocrRescatePresupuesto, htrConfDictamen: leerFlags().htrConfDictamen },
+      );
+      const elegido = alt.ok_count > resultado.ok_count || alt.score > resultado.score ? 'original' : 'binarizada';
+      logger.info('[molde] A/B binarizada vs original', {
+        molde: molde.nombre,
+        binarizada: { score: resultado.score, ok: resultado.ok_count, total: resultado.total },
+        original: { score: alt.score, ok: alt.ok_count, total: alt.total },
+        elegido,
+      });
+      if (elegido === 'original') {
+        resultado = alt;
+        canvasFuente = canvasAlt;
+      }
+    } catch (e) {
+      // El A/B es aditivo: su fallo jamás cambia el resultado de la binarizada.
+      logger.warn('[molde] A/B con la foto original falló (se conserva la binarizada)', {
+        mensaje: (e as Error).message,
+      });
+    }
+  }
+
+  await segundaOpinionCasillas(canvasFuente, resultado);
   const resumen = resumir(molde, resultado);
   // Telemetría honesta del puente (visible en consola DEV): qué leyó el
   // motor universal y por qué estado va cada campo.
@@ -216,14 +321,13 @@ export async function evaluarMoldeEnActa(
   // FASE B4 (blueprint DLA): PRESENCIA de manuscrito (D-FINE) — señal
   // agregada en el resumen, JAMÁS lectura de texto (el HTR sigue siendo
   // revisión humana). null detector = bandera ausente (Nivel 1).
-  const banderaManuscrito = await banderaManuscritoSiDisponible(canvas);
+  const banderaManuscrito = await banderaManuscritoSiDisponible(canvasFuente);
   if (banderaManuscrito) resumen.banderas.push(banderaManuscrito);
 
-  // ETAPA B — ¿el molde se convierte en el VEREDICTO del acta? Solo cuando
-  // el documento NO fue reconocido como E-14 y el motor universal responde
-  // con confianza (score ≥ umbral y al menos un campo leído). En caso
-  // contrario el resultado queda ADITIVO (enrutado: false).
-  if (!contexto?.esE14 && resultado.score >= UMBRAL_RUTA_SCORE && resultado.ok_count > 0) {
+  // ETAPA B — ¿el molde se convierte en el VEREDICTO del acta? Lo decide
+  // `debeEnrutar` (qué molde ganó + confianza del motor), no el flag `esE14`
+  // del clasificador electoral, que se enciende con cualquier «MESA» del OCR.
+  if (debeEnrutar(molde, contexto, resultado.score, resultado.ok_count)) {
     resumen.enrutado = true;
     logger.info('[molde] acta ENRUTADA al molde', {
       nombre: molde.nombre,
@@ -232,6 +336,46 @@ export async function evaluarMoldeEnActa(
       total: resultado.total,
     });
   }
+  return resumen;
+}
+
+/**
+ * Fase 3 (multipágina real): evalúa el molde ACTIVO contra TODAS las fotos
+ * del documento en UNA pasada — el motor universal ya itera páginas
+ * (`evaluarDocumentoUniversal(canvases[])`). Devuelve el resumen con
+ * `enrutado: true` (el lote ES el veredicto del documento) o null sin molde /
+ * con el flag apagado — el llamador conserva el veredicto de la página.
+ */
+export async function evaluarMoldeMultipagina(
+  fotosProcesadas: string[],
+): Promise<ResumenMoldeActa | null> {
+  if (!leerFlags().evaluacionMolde) return null;
+  asegurarProveedor();
+  const molde = moldeActivo();
+  if (!molde || fotosProcesadas.length === 0) return null;
+  const t0 = performance.now();
+  const canvases = await Promise.all(
+    fotosProcesadas.map((foto) => canvasDesdeDataUrl(foto, { ancho: 1000 })),
+  );
+  const renderMs = Math.round(performance.now() - t0);
+  const resultado = await evaluarDocumentoUniversal(
+    canvases,
+    molde,
+    molde.nombre,
+    undefined,
+    renderMs,
+    { previews: false, htrConfDictamen: leerFlags().htrConfDictamen },
+  );
+  const resumen = resumir(molde, resultado);
+  resumen.enrutado = true;
+  logger.info('[molde] evaluación multipágina', {
+    molde: molde.nombre,
+    paginas: fotosProcesadas.length,
+    score: resultado.score,
+    ok: resultado.ok_count,
+    total: resultado.total,
+    obligatoriosFaltantes: resultado.obligatorios_faltantes,
+  });
   return resumen;
 }
 

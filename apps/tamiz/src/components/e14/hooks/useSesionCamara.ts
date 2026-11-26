@@ -14,6 +14,13 @@ import {
   profileActiveSensor,
 } from '@/lib/e14/core/sensor-profiler';
 import { TEXTO_MOTIVO } from '@/lib/e14/errores';
+import { leerFlags } from '@/lib/e14/flags';
+import { abrirCamaraTrasera } from '@/lib/e14/core/camara-principal';
+// P2-D (tarea D): TIPO del bucle del core — la clase se importa DINÁMICAMENTE
+// solo con el flag ON (import type no viaja al bundle; con el flag OFF ni
+// siquiera se carga el módulo: mismo grafo que hoy).
+import type { CameraFrameLoop } from '@/lib/e14/core/frame-loop';
+import { logger } from '@/lib/logger';
 
 export type CamEstado = 'iniciando' | 'viva' | 'denegada' | 'sin-camara' | 'cerrada';
 
@@ -153,12 +160,27 @@ export function useSesionCamara(config: Config): {
     const abrir = async () => {
       setCamEstado('iniciando');
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false,
-        });
+        // F-LENS v5 (digielect14): sondas secuenciales + elección de la
+        // trasera PRINCIPAL (caché + facing/AF/resolución). El
+        // `facingMode:'environment'` blando negociaba la gran angular del A56
+        // (foco fijo, sin linterna). La cascada interna del port ya incluye el
+        // constraint legacy como respaldo, así que aquí no hay segundo camino.
+        const eleccion = await abrirCamaraTrasera(navigator.mediaDevices, () => cancelado);
         if (cancelado) {
-          stream.getTracks().forEach((t) => t.stop());
+          eleccion.stream?.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        if (eleccion.permisoDenegado) {
+          setCamEstado('denegada');
+          setAvisoCamara('denied');
+          mostrarAviso(TEXTO_MOTIVO.PERMISO_DENEGADO, 'crit');
+          return;
+        }
+        const stream = eleccion.stream;
+        if (!stream) {
+          setCamEstado('sin-camara');
+          setAvisoCamara('sin-senal');
+          mostrarAviso(TEXTO_MOTIVO.CAMARA_NO_DISPONIBLE, 'crit');
           return;
         }
         streamRef.current = stream;
@@ -210,31 +232,179 @@ export function useSesionCamara(config: Config): {
   ]);
 
   // ---- loop de frames (anillo + calidad viva) ----
+  // P2-D (tarea D — plan agente externo): con el flag `frameLoop`
+  // (tamiz.flags.v1, DEFAULT OFF) el bucle lo lleva CameraFrameLoop del core
+  // (rVFC + detección OpenCV en worker + disparo k-de-n + compuerta de
+  // quietud MotionStabilizer) y live.corners queda cableado al overlay del
+  // quad. Con el flag OFF el camino es el rAF propio de 250 ms, EXACTO al
+  // anterior. Defensa: cualquier fallo del bucle nuevo (worker de OpenCV sin
+  // ready, callback roto, bucle estancado sin frames) CAE al rAF propio —
+  // jamás rompe la captura. En SIMULACIÓN no hay <video>: el guard de
+  // videoRef del onTrigger deja la auto-captura sim intacta (simularImagen →
+  // dispararEscaneo, su propio camino).
+  // El flag `frameLoop` está ON por defecto (funcionamiento de digielect14:
+  // marcas en vivo + disparo k-de-n). Kill-switch del operador sin redeploy:
+  // localStorage `tamiz.flags.v1` = {"frameLoop":false} → este rAF propio.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    const loop = () => {
+    let detenido = false;
+    let cayoARaf = false;
+    let vigia: number | null = null;
+    let core: CameraFrameLoop | null = null;
+    let framesRecibidos = 0;
+    let ultimoFrameCoreMs = 0;
+    const arranqueCoreMs = performance.now();
+
+    // Camino legacy (flag OFF y red de seguridad del flag ON).
+    const iniciarRafPropio = () => {
+      if (detenido) return;
+      const loop = () => {
+        rafRef.current = requestAnimationFrame(loop);
+        if (video.readyState < 2 || !video.videoWidth) return;
+        alimentarAnillo();
+        const ahora = performance.now();
+        if (ahora - ultimoFrameRef.current < 250) return;
+        ultimoFrameRef.current = ahora;
+        const score = scoreDeFrame(video);
+        setLive((previa) => ({ ...previa, score }));
+        // Auto-disparo: score alto, sin proceso en curso, fuera del cooldown.
+        if (
+          config.autoRef.current &&
+          !procesandoRef.current &&
+          score > 0.55 &&
+          cooldownRef.current <= Date.now()
+        ) {
+          setAutoArmado(false);
+          void capturarRef.current?.();
+        }
+      };
       rafRef.current = requestAnimationFrame(loop);
-      if (video.readyState < 2 || !video.videoWidth) return;
-      alimentarAnillo();
-      const ahora = performance.now();
-      if (ahora - ultimoFrameRef.current < 250) return;
-      ultimoFrameRef.current = ahora;
-      const score = scoreDeFrame(video);
-      setLive((previa) => ({ ...previa, score }));
-      // Auto-disparo: score alto, sin proceso en curso, fuera del cooldown.
-      if (
-        config.autoRef.current &&
-        !procesandoRef.current &&
-        score > 0.55 &&
-        cooldownRef.current <= Date.now()
-      ) {
-        setAutoArmado(false);
-        void capturarRef.current?.();
-      }
     };
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
+
+    const caerARafPropio = (motivo: string) => {
+      if (cayoARaf || detenido) return;
+      cayoARaf = true;
+      if (vigia !== null) {
+        window.clearInterval(vigia);
+        vigia = null;
+      }
+      core?.stop();
+      core = null;
+      loopRef.current = null;
+      delete (window as unknown as { __frameLoop?: unknown }).__frameLoop;
+      logger.warn('frame-loop del core caído → rAF propio de 250 ms', { motivo });
+      iniciarRafPropio();
+    };
+
+    if (leerFlags().frameLoop) {
+      void (async () => {
+        try {
+          const { CameraFrameLoop: CamaraFrameLoop } = await import(
+            '@/lib/e14/core/frame-loop'
+          );
+          if (detenido) return; // el desmonte ganó la carrera del import
+          const bucle = new CamaraFrameLoop();
+          core = bucle;
+          bucle.start(video, {
+            onFrame: (t) => {
+              try {
+                framesRecibidos += 1;
+                ultimoFrameCoreMs = performance.now();
+                // El anillo tiene su propio throttle (200 ms) — mismo
+                // contrato de cadencia que con el rAF propio.
+                alimentarAnillo();
+                // live.corners cableado: el quad del overlay y el chip
+                // DOCUMENTO DETECTADO ya lo consumen en ScanView (mapearPunto).
+                setLive({ corners: t.corners, score: t.score ? t.score.total : null });
+                // HUD de QA (paridad con el upstream): cadencia del bucle,
+                // precisión del worker y quad vivo sin cable.
+                (window as unknown as { __frameLoop?: unknown }).__frameLoop = {
+                  fps: t.fps,
+                  dropped: t.dropped,
+                  processed: t.processed,
+                  precision: t.precision,
+                  corners: t.corners,
+                  score: t.score ? t.score.total : null,
+                };
+              } catch (e) {
+                caerARafPropio(`onFrame: ${(e as Error).message}`);
+              }
+            },
+            onTrigger: () => {
+              try {
+                // Mismos candados del auto-disparo legacy (el k-de-n del core
+                // ya garantiza el score alto y su propio cooldown; el
+                // cooldownRef externo lo puso capturarInteligente).
+                if (!config.autoRef.current || procesandoRef.current) return;
+                // Fuente en SIMULACIÓN/ARCHIVO → el <video> está desmontado:
+                // sin visor vivo no hay disparo automático.
+                if (!videoRef.current) return;
+                if (cooldownRef.current > Date.now()) return;
+                setAutoArmado(false);
+                void capturarRef.current?.();
+              } catch (e) {
+                caerARafPropio(`onTrigger: ${(e as Error).message}`);
+              }
+            },
+            onNoDetectTimeout: () => {
+              try {
+                // Escape a manual del core (tope MAX_NO_DETECT_NOTICES=2 del
+                // propio bucle) — franja del visor, mismo canal de avisos.
+                mostrarAviso('NO DETECTO EL ACTA — ACÉRCALA AL ENCUADRE.', 'warn', 4000);
+              } catch (e) {
+                caerARafPropio(`onNoDetectTimeout: ${(e as Error).message}`);
+              }
+            },
+          });
+          // Paridad con capturarInteligente (ScanView llama notifyCaptured
+          // tras cada captura → rearme del k-de-n).
+          loopRef.current = bucle;
+          // Watchdog defensivo: el bucle nuevo se detiene SOLO si el worker
+          // de OpenCV no queda ready (waitReady=false → stop) y puede quedar
+          // estancado si el worker se cuelga. En ambos casos el rAF propio
+          // retoma el anillo + score + auto-disparo sin perder un golpe.
+          vigia = window.setInterval(() => {
+            if (detenido) return;
+            if (!core || !core.isRunning) {
+              caerARafPropio('bucle del core detenido (worker de OpenCV sin ready)');
+              return;
+            }
+            // La cámara aún no produce frames: el rAF propio tampoco podría
+            // alimentar nada — no castiga al bucle nuevo por eso.
+            if (video.readyState < 2 || !video.videoWidth) return;
+            if (framesRecibidos === 0) {
+              // Arranque en frío: margen mayor al timeout de arranque del
+              // worker (25 s, READY_TIMEOUT_MS) — pasado ese límite el bucle
+              // se detiene solo y el caso de arriba hace la caída.
+              if (performance.now() - arranqueCoreMs > 26_000) {
+                caerARafPropio('sin frames del core tras 26 s con cámara viva');
+              }
+              return;
+            }
+            // Bucle caliente estancado (worker colgado, frames que dejan de
+            // fluir): el peor caso del throttle del core es ~300 ms entre
+            // frames — 3 s es red para sobra.
+            if (performance.now() - ultimoFrameCoreMs > 3_000) {
+              caerARafPropio('bucle del core estancado sin frames (>3 s)');
+            }
+          }, 1000);
+        } catch (e) {
+          caerARafPropio(`arranque: ${(e as Error).message}`);
+        }
+      })();
+    } else {
+      iniciarRafPropio();
+    }
+
+    return () => {
+      detenido = true;
+      if (vigia !== null) window.clearInterval(vigia);
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+      core?.stop();
+      loopRef.current = null;
+    };
   }, [alimentarAnillo, capturarRef, cooldownRef, config.autoRef, procesandoRef, setAutoArmado, setLive, videoRef]);
 
   // ---- toma de foto (D7 — DUAL PIPELINE upstream: escalera FOTO_LADDER +

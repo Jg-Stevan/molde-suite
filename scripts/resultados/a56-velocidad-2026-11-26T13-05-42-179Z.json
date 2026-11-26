@@ -1,0 +1,9 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "flags": "{\"ocrRouterReusado\":true,\"warpCompartido\":true}",
+  "fixture": "reales-variantes/comprobante-a-impreso-firmas-vacias-01.jpg",
+  "segundos": 39,
+  "veredicto": "REVISIÓN HUMANA",
+  "captura": "a56-velocidad-veredicto.png",
+  "medidoEn": "2026-11-26T13:05:42.179Z"
+}

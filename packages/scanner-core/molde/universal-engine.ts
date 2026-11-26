@@ -33,9 +33,17 @@ import {
 import { canvasJpeg, proveedorOcr, type LineaOcr } from './ocr-tipos';
 import { ocrTextIsValid } from '../core/ocr';
 import { clasificarMarcaSobreCrop, diferencialSiNo, detectarCajasHuecas, metricasFirma } from './marca';
+import { ajustarAfin, aplicarAfin, type Afin6 } from './homografia';
+import { letrasANumero, repararNumeroAmbiguo } from './letras-numero';
 import {
   hexTipo,
+  VOTO_CONSENSO_DIST,
+  TOLERANCIA_GRUPO_DEFAULT,
   type CampoUniversal,
+  type FixtureMolde,
+  type GrupoMolde,
+  type HerenciaMolde,
+  type HuellaMolde,
   type MoldeUniversal,
   type RectNorm,
   type RelacionAncla,
@@ -190,6 +198,10 @@ export function buscarAncla(
     scoreTextual: number;
     score: number;
     desplazamiento: number;
+    /** Distancia horizontal al centro esperado (0 sin rectEsperado). */
+    dx: number;
+    /** Distancia vertical al centro esperado (0 sin rectEsperado). */
+    dy: number;
   }
   const candidatos: Candidato[] = [];
   for (const l of lineas) {
@@ -217,11 +229,15 @@ export function buscarAncla(
         if (scoreTextual < 0) continue;
         let score = scoreTextual;
         let desplazamiento = 0;
+        let dxCand = 0;
+        let dyCand = 0;
         if (rectEsperado) {
           const cx = (palabras[i].bbox[0] + palabras[j].bbox[2]) / 2 / canvasW;
           const cy = (palabras[i].bbox[1] + palabras[j].bbox[3]) / 2 / canvasH;
           const dx = Math.abs(cx - (rectEsperado.x + rectEsperado.w / 2));
           const dy = Math.abs(cy - (rectEsperado.y + rectEsperado.h / 2));
+          dxCand = dx;
+          dyCand = dy;
           // Matiz 1 (Fase 2.6): penalización de posición SUAVIZADA. Antes
           // `score *= max(0.1, 1 - (dx+dy)*4)` hacía caer un match textual
           // PERFECTO (1.000) a 0.692 con un desplazamiento de solo 0.077
@@ -240,7 +256,7 @@ export function buscarAncla(
           },
           score,
         };
-        candidatos.push({ hit, scoreTextual, score, desplazamiento });
+        candidatos.push({ hit, scoreTextual, score, desplazamiento, dx: dxCand, dy: dyCand });
       }
     }
   }
@@ -261,6 +277,25 @@ export function buscarAncla(
     if (perfectos.length === 1 && perfectos[0].desplazamiento <= ANCLA_TEXUAL_DESPLAZAMIENTO_MAX) {
       return { ...perfectos[0].hit, score: perfectos[0].scoreTextual, solo_textual: true };
     }
+    // Ambigüedad textual resuelta por COLUMNA (2026-11-25e, recorte-66 medido):
+    // dos «Firma» perfectas —una por columna de firma— y el recorte vertical
+    // (dy ≈ 0.27) hunde el score posicional por debajo del corte aunque cada
+    // campo espere SU columna. Si la posición sola no alcanza el corte y
+    // EXACTAMENTE UN perfecto cae en la columna esperada (dx ≤ 0.1), ese es el
+    // hit: la x desambigua lo que el texto no puede. La unicidad se juzga por
+    // dx sobre TODOS los perfectos — dos copias en la MISMA columna (p. ej.
+    // «Firma» arriba y al pie) siguen siendo ambiguas y jamás ganan el bypass.
+    // Queda `solo_textual` (un campo de tinta nunca pasa a 'ok' por aquí —
+    // ver endurecerFallbackNoVerificado).
+    if (perfectos.length >= 2) {
+      const mejorPos = candidatos.reduce((a, b) => (b.score > a.score ? b : a));
+      if (mejorPos.score < ANCLA_SCORE_MIN) {
+        const enColumna = perfectos.filter((c) => c.dx <= ANCLA_COLUMNA_DX_MAX);
+        if (enColumna.length === 1 && enColumna[0].dy <= ANCLA_TEXUAL_DESPLAZAMIENTO_MAX) {
+          return { ...enColumna[0].hit, score: enColumna[0].scoreTextual, solo_textual: true };
+        }
+      }
+    }
   }
   let mejor = candidatos[0];
   for (const c of candidatos) {
@@ -271,6 +306,12 @@ export function buscarAncla(
 
 export interface RectResuelto {
   rect: RectNorm;
+  /**
+   * Overlay (azul): rect normalizado DONDE el OCR encontró el texto del ancla
+   * (no la referencia del molde). Solo presente cuando `ancla_encontrada` es
+   * true; ausente en fija/referencia/arnés (no hubo hit real que señalar).
+   */
+  ancla_rect?: RectNorm;
   fuente: 'ancla' | 'respaldo' | 'referencia' | 'fija';
   ancla_encontrada: boolean;
   score?: number;
@@ -300,6 +341,17 @@ export interface RectResuelto {
    * coincidía (documento recortado o escala distinta de la referencia).
    */
   ancla_solo_textual?: boolean;
+  /**
+   * FASE 3 (v3.3.0 — voto): la caja salió del CONSENSO de ≥2 anclas que
+   * coincidieron en posición (bandera forense `ancla_consensuada`).
+   */
+  ancla_consensuada?: boolean;
+  /**
+   * FASE 3 (v3.3.0 — voto): TODOS los votos presentes discrepan entre sí —
+   * el campo cayó a referencia y el endurecedor lo baja a requiere_revision
+   * (bandera forense `anclas_discrepantes`).
+   */
+  anclas_discrepantes?: boolean;
 }
 
 /**
@@ -325,6 +377,16 @@ export const ANCLA_SCORE_MIN = 0.72;
  */
 export const ANCLA_TEXUAL_DESPLAZAMIENTO_MAX = 0.3;
 
+/**
+ * Ventana horizontal (normalizada) para desambiguar POR COLUMNA cuando el
+ * ancla es textualmente perfecta pero repetida (p. ej. las dos etiquetas
+ * «Firma» del recibo). Con ≥2 perfectos, un candidato cuenta como «en su
+ * columna» si |dx| ≤ 0.1 respecto del centro esperado; solo se concede el
+ * bypass si es el ÚNICO en columna (el par de firmas queda a ≥ 0.3 de
+ * separación). Medido: recorte-66pct dx 0.02/0.07, etiquetas a 0.38.
+ */
+export const ANCLA_COLUMNA_DX_MAX = 0.1;
+
 /** Radio normalizado (0-1) en el que debe aparecer cada texto de un
  * `desambiguador` respecto al centro del ancla encontrada (opción 1.2).
  * Exportado para que las pruebas de geometría del molde usen el MISMO valor. */
@@ -345,7 +407,23 @@ function desambiguado(
   canvasW: number,
   canvasH: number,
 ): boolean {
-  const textos = campo.desambiguadores ?? [];
+  return contextoPresente(campo.desambiguadores ?? [], hit, lineas, canvasW, canvasH);
+}
+
+/**
+ * FASE 3 (v3.3.0 — voto): verificación de CONTEXTO para una lista de textos
+ * desambiguadores (propios de una ancla o compartidos del campo). Todo texto
+ * exigido debe aparecer por OCR a ≤ RADIO_DESAMBIGUACION del centro del hit.
+ * Extraída de `desambiguado` para reutilizarla en la resolución POR ANCLA del
+ * voto (cada ancla puede declarar su propio contexto).
+ */
+function contextoPresente(
+  textos: string[],
+  hit: HitAncla,
+  lineas: LineaOcr[],
+  canvasW: number,
+  canvasH: number,
+): boolean {
   if (!textos.length) return true;
   const cx = hit.rect.x + hit.rect.w / 2;
   const cy = hit.rect.y + hit.rect.h / 2;
@@ -357,6 +435,168 @@ function desambiguado(
     if (Math.hypot(dx, dy) > RADIO_DESAMBIGUACION) return false;
   }
   return true;
+}
+
+// ---- FASE 3 del plan (v3.3.0) — múltiples anclas con VOTO -----------------
+// Opción 1.1 de la conversación de mejora: el campo declara `anclas[]` y el
+// motor resuelve POR CONSENSO (2 anclas coinciden → acepta; discrepan →
+// requiere_revision). Un documento con varias etiquetas estables en bandas
+// distintas (cabecera + cuerpo + pie) deja de depender de UNA sola: si una
+// se pierde por el tachón/luz, la otra sostiene el anclaje; si las dos
+// aparecen pero NO coinciden, el documento cambió de forma y el motor se
+// niega a escoger un lado en silencio.
+
+/** Un voto: una ancla del campo encontró su etiqueta (y pasó su contexto). */
+interface VotoAncla {
+  /** Rect FINAL del campo (zona offseteada desde el hit de esta ancla). */
+  rect: RectNorm;
+  /** Rect del HIT del ancla (overlay azul). */
+  anclaRect: RectNorm;
+  /** Score textual del hit (el mismo que se reporta en resolución simple). */
+  score: number;
+  /** Texto de la ancla que votó (forense). */
+  texto: string;
+  /** El hit fue por bypass solo-textual (sin confirmación geométrica). */
+  solo_textual: boolean;
+}
+
+function centroDe(r: RectNorm): { cx: number; cy: number } {
+  return { cx: r.x + r.w / 2, cy: r.y + r.h / 2 };
+}
+
+/** ¿Dos rects resueltos representan la MISMA etiqueta? Centros a ≤
+ *  VOTO_CONSENSO_DIST (jitter del OCR) o solape fuerte (IoU ≥ 0.5). */
+function votosCoinciden(a: RectNorm, b: RectNorm): boolean {
+  const ca = centroDe(a);
+  const cb = centroDe(b);
+  const dist = Math.hypot(ca.cx - cb.cx, ca.cy - cb.cy);
+  if (dist <= VOTO_CONSENSO_DIST) return true;
+  return iou(a, b) >= 0.5;
+}
+
+/** Media de rects de un clúster de votos (consenso geométrico estable). */
+function rectConsensuado(votos: VotoAncla[]): RectNorm {
+  const n = votos.length;
+  const media = votos.reduce(
+    (acc, v) => ({
+      x: acc.x + v.rect.x / n,
+      y: acc.y + v.rect.y / n,
+      w: acc.w + v.rect.w / n,
+      h: acc.h + v.rect.h / n,
+    }),
+    { x: 0, y: 0, w: 0, h: 0 },
+  );
+  return media;
+}
+
+/**
+ * Resolución del campo por VOTO sobre `campo.anclas[]`. Devuelve:
+ *  - consenso (clúster con ≥2 votos): rect medio, bandera `ancla_consensuada`.
+ *  - un solo voto: EXACTAMENTE el comportamiento de la ancla única.
+ *  - votos TODOS discrepantes: referencia + bandera `anclas_discrepantes`
+ *    (el endurecedor lo baja a requiere_revision — jamás un lado elegido).
+ *  - cero votos: null (el caller cae a respaldo global / referencia).
+ */
+function resolverPorVoto(
+  campo: CampoUniversal,
+  lineas: LineaOcr[],
+  canvasW: number,
+  canvasH: number,
+): RectResuelto | null {
+  // FASE 3 (voto): el offset puede ser PROPIO de cada ancla (las anclas de
+  // bandas distintas necesitan su propia geometría para llegar al MISMO rect
+  // final) — sin zona propia, la ancla usa la del campo (comportamiento de la
+  // principal).
+  const aplicarOffset = (base: RectNorm, zona: RectNorm): RectNorm => ({
+    x: campo.x_absoluto ? zona.x : base.x + zona.x,
+    y: base.y + zona.y,
+    w: zona.w,
+    h: zona.h,
+  });
+  const votos: VotoAncla[] = [];
+  let desambiguacionFallida = false;
+  for (const a of campo.anclas ?? []) {
+    const hit = buscarAncla(a.texto, lineas, canvasW, canvasH, a.rect);
+    if (!hit || hit.score < ANCLA_SCORE_MIN) continue;
+    // Contexto: el PROPIO de la ancla; sin él, el compartido del campo.
+    const ctx = a.desambiguadores ?? campo.desambiguadores ?? [];
+    if (!contextoPresente(ctx, hit, lineas, canvasW, canvasH)) {
+      desambiguacionFallida = true;
+      continue;
+    }
+    votos.push({
+      rect: aplicarOffset(hit.rect, a.zona ?? campo.zona),
+      anclaRect: hit.rect,
+      score: hit.score,
+      texto: a.texto,
+      solo_textual: hit.solo_textual === true,
+    });
+  }
+  if (votos.length >= 2) {
+    // Clústering voraz por score descendente: el clúster del mejor voto arrastra
+    // a todos los que coinciden con él (transitivamente vía el centroide NO —
+    // solo pares, para que un tercer voto alejado no ensanche el consenso).
+    const orden = [...votos].sort((a, b) => b.score - a.score);
+    const usados = new Set<number>();
+    let mejorCluster: VotoAncla[] = [];
+    for (let i = 0; i < orden.length; i++) {
+      if (usados.has(i)) continue;
+      const cluster = [orden[i]];
+      usados.add(i);
+      for (let j = i + 1; j < orden.length; j++) {
+        if (usados.has(j)) continue;
+        if (votosCoinciden(orden[i].rect, orden[j].rect)) {
+          cluster.push(orden[j]);
+          usados.add(j);
+        }
+      }
+      if (cluster.length > mejorCluster.length) mejorCluster = cluster;
+    }
+    if (mejorCluster.length >= 2) {
+      return {
+        rect: rectConsensuado(mejorCluster),
+        ancla_rect: mejorCluster[0].anclaRect,
+        fuente: 'ancla',
+        ancla_encontrada: true,
+        ancla_consensuada: true,
+        // El score reportado es el del MEJOR voto del clúster (conservador:
+        // la calidad del anclaje es la de su eslabón más débil NO, la del
+        // mejor NO — se reporta la mejor evidencia disponible).
+        score: Math.max(...mejorCluster.map((v) => v.score)),
+        // Solo si TODO el clúster llegó por bypass (ninguna confirmación
+        // geométrica) la caja sigue sin estar probada por posición.
+        ancla_solo_textual: mejorCluster.every((v) => v.solo_textual) || undefined,
+      };
+    }
+    // Todos los votos discrepantes (cada clúster es un singleton): el campo
+    // cae a la referencia con la bandera explicable — el endurecedor baja un
+    // 'ok' así a requiere_revision (jamás se escoge un lado en silencio).
+    const rectRef = campo.ancla?.rect ?? campo.anclas?.[0]?.rect;
+    if (rectRef) {
+      return {
+        rect: aplicarOffset(rectRef, campo.zona),
+        fuente: 'referencia',
+        ancla_encontrada: false,
+        anclas_discrepantes: true,
+        desambiguacion_fallida: desambiguacionFallida || undefined,
+      };
+    }
+    return null;
+  }
+  if (votos.length === 1) {
+    // Un único voto = ancla única de siempre (retrocompatibilidad total).
+    return {
+      rect: votos[0].rect,
+      ancla_rect: votos[0].anclaRect,
+      fuente: 'ancla',
+      ancla_encontrada: true,
+      score: votos[0].score,
+      ancla_solo_textual: votos[0].solo_textual || undefined,
+      desambiguacion_fallida: desambiguacionFallida || undefined,
+    };
+  }
+  // Cero votos: sin decisión propia — el caller sigue con respaldo/referencia.
+  return null;
 }
 
 // ---- FASE 2 (v3.2.0 — corrección del dueño #2, «EL MOLDE ES EL MAPA») ----
@@ -600,6 +840,7 @@ export function resolverRectRelacional(
     const banda = bandaAdyacente(rectAncla, faro, relacion.direccion);
     return {
       rect: clampRect(aplicarFinura(banda, campo.zona)),
+      ancla_rect: rectAncla,
       fuente: fuenteAncla,
       ancla_encontrada: true,
       score,
@@ -628,6 +869,7 @@ export function resolverRectRelacional(
     }
     return {
       rect: clampRect(aplicarFinura(sel.elegido, campo.zona)),
+      ancla_rect: rectAncla,
       fuente: fuenteAncla,
       ancla_encontrada: true,
       score,
@@ -658,6 +900,7 @@ export function resolverRectRelacional(
   }
   return {
     rect: clampRect(aplicarFinura(selCaja.elegido, campo.zona)),
+    ancla_rect: rectAncla,
     fuente: fuenteAncla,
     ancla_encontrada: true,
     score,
@@ -695,12 +938,24 @@ export function resolverRectCampo(
     h: campo.zona.h,
   });
 
+  // FASE 3 (v3.3.0 — voto): con `anclas[]` declaradas la resolución es POR
+  // CONSENSO (nunca global). El path solo entra con ≥2 anclas válidas (el
+  // validador rechaza listas de 1 — para eso está `ancla`). Un único voto
+  // dentro de resolverPorVoto replica EXACTAMENTE la semántica de la ancla
+  // única; cero votos cae al respaldo global / referencia de abajo.
+  if (campo.anclas && campo.anclas.length >= 2) {
+    const voto = resolverPorVoto(campo, lineas, canvasW, canvasH);
+    if (voto) return voto;
+    // Voto sin decisión (0 votos): seguir con respaldo/referencia.
+  }
+
   let desambiguacionFallida = false;
   const hit = buscarAncla(ancla.texto, lineas, canvasW, canvasH, ancla.rect);
   if (hit && hit.score >= ANCLA_SCORE_MIN) {
     if (desambiguado(campo, hit, lineas, canvasW, canvasH)) {
       return {
         rect: aplicarOffset(hit.rect),
+        ancla_rect: hit.rect,
         fuente: 'ancla',
         ancla_encontrada: true,
         score: hit.score,
@@ -715,6 +970,7 @@ export function resolverRectCampo(
       if (desambiguado(campo, hit2, lineas, canvasW, canvasH)) {
         return {
           rect: aplicarOffset(hit2.rect),
+          ancla_rect: hit2.rect,
           fuente: 'respaldo',
           ancla_encontrada: true,
           score: hit2.score,
@@ -739,22 +995,25 @@ export function resolverRectCampo(
 /** Rect resuelto SIN OCR (para dibujar en el editor): usa la referencia guardada. */
 export function rectEditor(campo: CampoUniversal): RectNorm | null {
   if (campo.estrategia === 'zona_fija') return { ...campo.zona };
+  // FASE 3 (voto): el editor dibuja la ancla PRINCIPAL; si el campo solo
+  // declara `anclas[]`, la primera de la lista es la principal de dibujo.
+  const anclaDibujo = campo.ancla ?? (campo.anclas?.length ? campo.anclas[0] : undefined);
   // FASE 2 (v3.2.0): el relacional dibuja la resolución DE REFERENCIA — con
   // que='zona' la banda es geometría del mapa (ancla.rect → borde del faro);
   // con linea/caja sin OCR, semántica de offset sobre ancla.rect (igual que
   // ancla_relativa). Sin ancla.rect → null (el lienzo lo marca NO EVALUABLE).
   if (campo.estrategia === 'ancla_relacional') {
-    if (!campo.ancla?.rect || !campo.zona_busqueda) return null;
+    if (!anclaDibujo?.rect || !campo.zona_busqueda) return null;
     const relacion = campo.relacion ?? { direccion: 'arriba' as const, que: 'zona' as const, orden: 'mas_cercano' as const };
     const base = relacion.que === 'zona'
-      ? bandaAdyacente(campo.ancla.rect, campo.zona_busqueda, relacion.direccion)
-      : campo.ancla.rect;
+      ? bandaAdyacente(anclaDibujo.rect, campo.zona_busqueda, relacion.direccion)
+      : anclaDibujo.rect;
     return aplicarFinura(base, campo.zona);
   }
-  if (!campo.ancla?.rect) return campo.ancla?.texto ? null : { ...campo.zona };
+  if (!anclaDibujo?.rect) return anclaDibujo?.texto ? null : { ...campo.zona };
   return {
-    x: campo.x_absoluto ? campo.zona.x : campo.ancla.rect.x + campo.zona.x,
-    y: campo.ancla.rect.y + campo.zona.y,
+    x: campo.x_absoluto ? campo.zona.x : anclaDibujo.rect.x + campo.zona.x,
+    y: anclaDibujo.rect.y + campo.zona.y,
     w: campo.zona.w,
     h: campo.zona.h,
   };
@@ -883,6 +1142,7 @@ function binACanvas(bin: BinImage, w: number, h: number): HTMLCanvasElement {
 async function rescateAntiTachon(
   crop: HTMLCanvasElement,
   whitelist?: string,
+  soloPsm7?: boolean,
 ): Promise<{ texto: string; conf: number | null } | null> {
   try {
     const gray = canvasGrayscale(crop);
@@ -892,10 +1152,9 @@ async function rescateAntiTachon(
     for (let i = 0, p = 0; i < g.length; i++, p += 4) g[i] = gimg.data[p];
     const sinLineas = binarizeNoLines(g, gray.width, gray.height, FRACCION_KERNEL_RESCATE_TACHON);
     const limpio = binACanvas(sinLineas, gray.width, gray.height);
-    // Psm 7 (línea única): las zonas de texto del molde son de una línea.
-    // Si no produce nada, psm 6 (bloque) para zonas de dos líneas.
     const p7 = await proveedorOcr().ocrTextoUnico(limpio, { whitelist, psm: '7' });
     if (p7.texto.trim()) return p7;
+    if (soloPsm7) return p7;
     const p6 = await proveedorOcr().ocrTextoUnico(limpio, { whitelist, psm: '6' });
     return p6;
   } catch {
@@ -1015,11 +1274,13 @@ export function textoEnRect(
   return { texto, conf, palabras: piezas.length };
 }
 
-/** Compila el patrón del campo ANCLADO a la cadena completa (G-8). */
-function compilarPatron(campo: CampoUniversal, banderas: string[]): RegExp | null {
-  if (!campo.patron) return null;
-  const yaAnclado = campo.patron.startsWith('^') && campo.patron.endsWith('$');
-  const fuente = yaAnclado ? campo.patron : `^(?:${campo.patron})$`;
+/** Compila el patrón del campo ANCLADO a la cadena completa (G-8).
+ *  FASE 9 (herencia): el patrón puede venir heredado del tipo
+ *  (`molde.herencia[tipo].patron`) cuando el campo no lo declara. */
+function compilarPatron(patron: string | undefined, banderas: string[]): RegExp | null {
+  if (!patron) return null;
+  const yaAnclado = patron.startsWith('^') && patron.endsWith('$');
+  const fuente = yaAnclado ? patron : `^(?:${patron})$`;
   try {
     return new RegExp(fuente, 'i');
   } catch {
@@ -1048,6 +1309,57 @@ function limpiarValor(valor: string, campo: CampoUniversal, banderas: string[]):
 
 // ---- evaluación de un campo ----
 
+/**
+ * FASE 9 (v3.3.0, §7 — herencia por TIPO): umbral EFECTIVO del campo.
+ * Prioridad: campo.umbral → herencia[tipo].umbral → 0.02 (defensivo: el
+ * validador ya rechaza un molde sin ninguna de las dos fuentes — jamás un
+ * default silencioso en tinta; el 0.02 es el valor histórico del contrato).
+ */
+export function umbralEfectivo(campo: CampoUniversal, herencia?: HerenciaMolde): number {
+  if (typeof campo.umbral === 'number') return campo.umbral;
+  const h = herencia?.[campo.tipo]?.umbral;
+  if (typeof h === 'number' && Number.isFinite(h)) return h;
+  return 0.02;
+}
+
+/** FASE 9: patrón EFECTIVO del campo (campo.patron → herencia[tipo].patron). */
+export function patronEfectivo(campo: CampoUniversal, herencia?: HerenciaMolde): string | undefined {
+  return campo.patron ?? herencia?.[campo.tipo]?.patron;
+}
+
+/**
+ * Decisión final de un campo ya leído y con patrón cumplido (pura, testeable).
+ * Histórico: `htr && obligatorio` → SIEMPRE revisión (Fase 2.5 opción C).
+ * Con `htrConfDictamen` > 0 y conf de lectura >= umbral, la lectura es
+ * dictaminable como `ok` (bandera `htr_conf_alta`): cumple el patrón anclado
+ * estricto, así que es un valor LEÍDO, no inventado. `relacion_ambigua`
+ * (empate relacional) siempre gana: nunca pick silencioso.
+ */
+export function dictaminarCampo(
+  htr: boolean,
+  obligatorio: boolean,
+  confFinal: number | null,
+  banderas: readonly string[],
+  htrConfDictamen?: number | null,
+): { estado: 'ok' | 'requiere_revision'; bandera?: 'htr_conf_alta' } {
+  if (obligatorio && (confFinal === null || confFinal < 0.5)) {
+    return { estado: 'requiere_revision' };
+  }
+  if (banderas.includes('relacion_ambigua')) {
+    return { estado: 'requiere_revision' };
+  }
+  if (htr && obligatorio) {
+    const confAlta =
+      typeof htrConfDictamen === 'number' &&
+      htrConfDictamen > 0 &&
+      confFinal !== null &&
+      confFinal >= htrConfDictamen;
+    if (!confAlta) return { estado: 'requiere_revision' };
+    return { estado: 'ok', bandera: 'htr_conf_alta' };
+  }
+  return { estado: 'ok' };
+}
+
 async function evaluarCampo(
   campo: CampoUniversal,
   canvas: HTMLCanvasElement,
@@ -1060,6 +1372,17 @@ async function evaluarCampo(
    * nunca la paga. Ver `mapaOcrRescate`.
    */
   rescateMapa?: { obtenerLineas: () => Promise<LineaOcr[]> },
+  /** FASE 9 (herencia): umbral/patrón por tipo cuando el campo no los declara. */
+  herencia?: HerenciaMolde,
+  /** F3: tope de variantes de realce por campo (default 6 = histórico). */
+  rescatePresupuesto?: number,
+  /**
+   * Dictamen HTR por confianza: con umbral >= 0 y conf de lectura >= umbral,
+   * un campo `htr && obligatorio` que ya cumple patrón puede ser `ok`
+   * (bandera `htr_conf_alta`). null/ausente = regla histórica (siempre
+   * revisión). `relacion_ambigua` sigue forzando revisión.
+   */
+  htrConfDictamen?: number | null,
 ): Promise<ResultadoCampoUniversal> {
   const base: ResultadoCampoUniversal = {
     id: campo.id,
@@ -1070,11 +1393,15 @@ async function evaluarCampo(
     valor: null,
     conf: null,
     rect: null,
+    ancla_rect: null,
     crop: null,
     crop_dims: null,
     fuente: null,
     banderas: [],
   };
+  // FASE 9 (herencia): umbral y patrón EFECTIVOS (campo → herencia del tipo).
+  const umbralCampo = umbralEfectivo(campo, herencia);
+  const patronRe = compilarPatron(patronEfectivo(campo, herencia), base.banderas);
   let resuelto = resolverRectCampo(campo, lineas, canvas.width, canvas.height, canvas);
   let lineasRescate: LineaOcr[] | null = null;
   // CORRECCIÓN post-verificación: rescate de ANCLA sobre el mapa limpio. La
@@ -1098,6 +1425,7 @@ async function evaluarCampo(
     return base;
   }
   base.rect = resuelto.rect;
+  base.ancla_rect = resuelto.ancla_rect ?? null;
   base.fuente = resuelto.fuente;
   if (!resuelto.ancla_encontrada) base.banderas.push('ancla_no_encontrada');
   if (resuelto.fuente === 'respaldo') base.banderas.push('ancla_respaldo');
@@ -1106,6 +1434,9 @@ async function evaluarCampo(
   // CORRECCIÓN: ancla aceptada por match textual perfecto y único (bypass de
   // posición — documento recortado/escala distinta de la referencia).
   if (resuelto.ancla_solo_textual) base.banderas.push('ancla_solo_textual');
+  // FASE 3 (v3.3.0 — voto): consenso alcanzado o discrepancia total.
+  if (resuelto.ancla_consensuada) base.banderas.push('ancla_consensuada');
+  if (resuelto.anclas_discrepantes) base.banderas.push('anclas_discrepantes');
   // FASE 2 (v3.2.0 — faro): banderas del modo relacional + empate ambiguo.
   if (resuelto.banderasRelacionales?.length) base.banderas.push(...resuelto.banderasRelacionales);
   if (resuelto.ambiguo) base.banderas.push('relacion_ambigua');
@@ -1155,14 +1486,14 @@ async function evaluarCampo(
         base.banderas.push(`si_no_diferencial_${lado}`);
       }
     }
-    const diligenciado = valorSiNo !== null ? valorSiNo : ratio >= campo.umbral;
+    const diligenciado = valorSiNo !== null ? valorSiNo : ratio >= umbralCampo;
     base.valor = diligenciado;
-    base.conf = confPresencia(ratio, campo.umbral);
+    base.conf = confPresencia(ratio, umbralCampo);
     const captura = previews ? cropDataUrl(canvas, resuelto.rect) : null;
     base.crop = captura?.crop ?? null;
     base.crop_dims = captura?.dims ?? null;
-    const enBandaAlta = diligenciado && ratio <= campo.umbral * 1.4;
-    const enBandaBaja = !diligenciado && ratio >= campo.umbral * 0.6;
+    const enBandaAlta = diligenciado && ratio <= umbralCampo * 1.4;
+    const enBandaBaja = !diligenciado && ratio >= umbralCampo * 0.6;
     // Discordancia tinta ↔ forma: la señal más barata contra el falso
     // positivo (umbral mal calibrado, flash, etiqueta impresa contada).
     const formaDiscrepa =
@@ -1204,7 +1535,7 @@ async function evaluarCampo(
         base.banderas.push('trazos_insuficientes');
         trazosInsuficientes = true;
       }
-      if (mf.trazos > 0 && !diligenciado && ratio >= 0.001 && ratio < campo.umbral * 0.6) {
+      if (mf.trazos > 0 && !diligenciado && ratio >= 0.001 && ratio < umbralCampo * 0.6) {
         base.banderas.push('firma_dudosa');
         firmaDudosa = true;
       }
@@ -1236,7 +1567,7 @@ async function evaluarCampo(
   const captura = previews ? cropDataUrl(canvas, resuelto.rect) : null;
   base.crop = captura?.crop ?? null;
   base.crop_dims = captura?.dims ?? null;
-  const patronRe = compilarPatron(campo, base.banderas);
+  // FASE 9: patronRe ya compilado al inicio de evaluarCampo (con herencia).
   const cumplePatron = (v: string): boolean => {
     if (!patronRe) return true;
     return patronRe.test(v);
@@ -1264,15 +1595,20 @@ async function evaluarCampo(
   if (valorFinal && confFinal === null) base.banderas.push('sin_confianza_ocr');
   if (!valorFinal) {
     base.banderas.push('ocr_vacio');
-    if (ratio < campo.umbral * 0.6) base.banderas.push('zona_vacia');
+    if (ratio < umbralCampo * 0.6) base.banderas.push('zona_vacia');
   }
   // Rescate 1 (ruta histórica, plan FASE 1): el mapa global no produjo texto
   // utilizable (vacío, sin confianza, conf < 0.5 o patrón incumplido) y el
   // molde declara `realce` → recorte dedicado con realce/Otsu y psm 7/8/13,
   // exactamente como antes. Preserva el camino donde un recorte ampliado lee
-  // lo que el OCR global perdió.
+  // lo que el OCR global perdió. EXCEPCIÓN (real-fotos 2026-11-25): si la zona
+  // se midió VACÍA (`zona_vacia` = casi sin tinta), el rescate se omite — en
+  // un formulario en blanco amplificar y binarizar solo inventa glifos
+  // legibles ('de', '2024') y un vacío medido es más honesto que un 74% de
+  // confianza fantasma. Con tinta escasa (sin la bandera) el rescate corre.
   if (
     campo.realce &&
+    !base.banderas.includes('zona_vacia') &&
     (!valorFinal || !cumplePatron(valorFinal) || confFinal === null || confFinal < 0.5)
   ) {
     // Reintento con realce (grises + contraste percentil + ampliación 4x) y,
@@ -1291,7 +1627,7 @@ async function evaluarCampo(
     g4ctx.imageSmoothingQuality = 'high';
     g4ctx.drawImage(grayBase, 0, 0, gray4.width, gray4.height);
     const realzado = canvasRealce(rec.crop, 4);
-    const variantes: Array<{ c: HTMLCanvasElement; psm: '6' | '7' | '8' | '13' }> = [
+    const variantesTodas: Array<{ c: HTMLCanvasElement; psm: '6' | '7' | '8' | '13' }> = [
       { c: gray4, psm: '7' },
       { c: realzado, psm: '7' },
       { c: canvasOtsu(realzado), psm: '7' },
@@ -1299,6 +1635,8 @@ async function evaluarCampo(
       { c: realzado, psm: '13' },
       { c: canvasOtsu(realzado), psm: '13' },
     ];
+    // F3: presupuesto acota las variantes (default 6 = histórico completo).
+    const variantes = variantesTodas.slice(0, rescatePresupuesto ?? variantesTodas.length);
     for (const v of variantes) {
       const re = await proveedorOcr().ocrTextoUnico(v.c, { whitelist: campo.whitelist, psm: v.psm });
       const limpioRe = re.texto.replace(/\s+/g, ' ').trim();
@@ -1330,7 +1668,7 @@ async function evaluarCampo(
     ratio > 0 &&
     (!valorFinal || confFinal === null || confFinal < 0.5 || !cumplePatron(valorFinal))
   ) {
-    const rescate = await rescateAntiTachon(rec.crop, campo.whitelist);
+    const rescate = await rescateAntiTachon(rec.crop, campo.whitelist, (rescatePresupuesto ?? 6) <= 3);
     if (rescate) {
       const limpioRescate = rescate.texto.replace(/\s+/g, ' ').trim();
       const confRescate = rescate.conf;
@@ -1368,22 +1706,15 @@ async function evaluarCampo(
   }
   // Fase 2.5 (opción C): los manuscritos SIEMPRE pasan por el humano.
   if (campo.htr) base.banderas.push('htr_manual');
-  if (confBaja && campo.obligatorio) {
-    // G-3: confianza baja (o ausente) en obligatorio → revisión, no "ok".
-    base.estado = 'requiere_revision';
-    return base;
-  }
-  if (campo.htr && campo.obligatorio) {
-    // HTR obligatorio: lectura disponible pero jamás definitiva.
-    base.estado = 'requiere_revision';
-    return base;
-  }
-  // FASE 2 (v3.2.0): empate relacional ambiguo — nunca un pick silencioso.
-  if (base.banderas.includes('relacion_ambigua')) {
-    base.estado = 'requiere_revision';
-    return base;
-  }
-  base.estado = 'ok';
+  const dictamen = dictaminarCampo(
+    campo.htr === true,
+    campo.obligatorio === true,
+    confFinal,
+    base.banderas,
+    htrConfDictamen,
+  );
+  if (dictamen.bandera) base.banderas.push(dictamen.bandera);
+  base.estado = dictamen.estado;
   return base;
 }
 
@@ -1409,6 +1740,72 @@ export function valorNumerico(r: ResultadoCampoUniversal): number | null {
     return Number.isFinite(n) ? n : null;
   }
   return null;
+}
+
+/**
+ * FASE 6b: número de un operando de validación con FALLBACK a letras
+ * («ciento cincuenta mil» → 150000). Solo se usa dentro de
+ * `evaluarValidaciones` — `valorNumerico` (exportado, fixtures golden) no
+ * cambia. Un texto que no parsea como letras devuelve null como siempre.
+ */
+function numeroConLetras(r: ResultadoCampoUniversal): number | null {
+  const n = valorNumerico(r);
+  if (n !== null) return n;
+  if (typeof r.valor !== 'string') return null;
+  return letrasANumero(r.valor);
+}
+
+/**
+ * FASE 6b: repara dígitos ambiguos por OCR («15O.000») SOLO cuando otro
+ * operando de la misma validación dice el mismo valor EN LETRAS. La
+ * reparación es unívoca (cada carácter ambiguo tiene un único dígito) y
+ * queda verificada por una fuente independiente: auto-reparación con
+ * evidencia, bandera `auto_reparado_numero`. Sin cruce en letras no se toca
+ * nada. Devuelve true si reparó algún operando.
+ */
+function repararCruceNumeroLetras(
+  ids: string[],
+  porId: Map<string, ResultadoCampoUniversal>,
+  campos: CampoUniversal[],
+  tolerancia: number,
+): boolean {
+  const letras: number[] = [];
+  for (const id of ids) {
+    const r = porId.get(id);
+    if (!r || typeof r.valor !== 'string') continue;
+    if (valorNumerico(r) !== null) continue;
+    const L = letrasANumero(r.valor);
+    if (L !== null) letras.push(L);
+  }
+  if (!letras.length) return false;
+  const camposPorId = new Map(campos.map((c) => [c.id, c]));
+  let reparo = false;
+  for (const id of ids) {
+    const r = porId.get(id);
+    if (!r || typeof r.valor !== 'string') continue;
+    if (numeroConLetras(r) !== null) continue; // ya parseaba (cifras o letras)
+    const rep = repararNumeroAmbiguo(r.valor);
+    if (!rep) continue;
+    if (!letras.some((L) => Math.abs(L - rep.valor) <= tolerancia)) continue;
+    r.valor = rep.texto;
+    r.banderas.push('auto_reparado_numero');
+    const campo = camposPorId.get(id);
+    if (campo && r.conf !== null && r.conf >= 0.5) {
+      const re = compilarPatron(patronEfectivo(campo), r.banderas);
+      if ((!re || re.test(rep.texto)) && r.estado !== 'ok') {
+        r.estado = 'ok';
+        // El cruce con letras verificó la lectura: las banderas que anulan
+        // la lectura por el valor viejo dejan de aplicar (se retiran las del
+        // patrón/confianza, nunca `ancla_*` — la POSITION sigue sin ancla).
+        for (const b of ['patron_no_cumple', 'conf_baja']) {
+          const i = r.banderas.indexOf(b);
+          if (i >= 0) r.banderas.splice(i, 1);
+        }
+      }
+    }
+    reparo = true;
+  }
+  return reparo;
 }
 
 /**
@@ -1501,7 +1898,8 @@ function fechaUtc(anio: number, mes: number, dia: number): number | null {
   return d.getTime();
 }
 
-function evaluarValidaciones(
+/** Exportado para las pruebas de reparación número↔letras (FASE 6b). */
+export function evaluarValidaciones(
   molde: MoldeUniversal,
   porId: Map<string, ResultadoCampoUniversal>,
 ): ResultadoValidacion[] {
@@ -1524,6 +1922,15 @@ function evaluarValidaciones(
       continue;
     }
     implicados.add(parseado.izq);
+    for (const t of parseado.der) if (t.tipo === 'id') implicados.add(t.valor);
+    const tolerancia = typeof v.tolerancia === 'number' && Number.isFinite(v.tolerancia) ? v.tolerancia : 0;
+    // FASE 6b (plan extracción relacional): cruce número↔letras ANTES de
+    // parsear. Si un operando numérico tiene dígitos ambiguos por OCR
+    // («15O.000») y otro operando es su versión en letras («ciento cincuenta
+    // mil»), la lectura en letras VALIDA la reparación: el valor se corrige
+    // de forma unívoca con bandera auditable. Sin cruce verificable no se
+    // toca nada (prohibido inventar).
+    repararCruceNumeroLetras([...implicados], porId, molde.campos, tolerancia);
     const operandos: Array<{ id?: string; num?: number }> = [];
     let faltantes: string[] = [];
     for (const t of parseado.der) {
@@ -1533,14 +1940,13 @@ function evaluarValidaciones(
       }
       implicados.add(t.valor);
       const r = porId.get(t.valor);
-      const n = r ? valorNumerico(r) : null;
+      const n = r ? numeroConLetras(r) : null;
       if (n === null) faltantes.push(t.valor);
       operandos.push({ id: t.valor, num: n ?? undefined });
     }
     const rIzq = porId.get(parseado.izq);
-    const nIzq = rIzq ? valorNumerico(rIzq) : null;
+    const nIzq = rIzq ? numeroConLetras(rIzq) : null;
     if (nIzq === null) faltantes = [parseado.izq, ...faltantes];
-    const tolerancia = typeof v.tolerancia === 'number' && Number.isFinite(v.tolerancia) ? v.tolerancia : 0;
     if (faltantes.length) {
       salidas.push({
         id: v.id,
@@ -1703,6 +2109,225 @@ export function endurecerFallbackNoVerificado(
   r.estado = campo.obligatorio ? 'requiere_revision' : 'no_encontrado';
 }
 
+// ---- FASE 5 (plan extracción relacional): ARNÉS GEOMÉTRICO ----------------
+// El ancla textual falló (el tachón/recorte/barra rompió esa línea del OCR)
+// pero el resto del documento SÍ ancló. Con ≥3 anclas encontradas se ajusta
+// un afín (rotación+escala+traslación) entre la posición de REFERENCIA del
+// molde y la posición REAL, y se PROYECTA la zona de los campos huérfanos.
+// El valor se busca en el mapa OCR global en la posición proyectada: si hay
+// lectura, la posición queda verificada por GEOMETRÍA (no por coordenadas
+// estáticas) — fuente 'arnes', bandera 'ancla_inferida'. Si no hay lectura,
+// el campo queda exactamente igual que antes (referencia + revisión): el
+// arnés jamás inventa. Las cajas de layout (PP-DocLayout, cuando la app las
+// provee) se usan solo para SEPARAR firmas: la caja `seal` más cercana a la
+// posición proyectada da a cada firma su propio rect (fin del falso positivo
+// de dos firmas midiendo la misma banda).
+
+/** Caja de layout neutral (la app la produce desde ONNX; el motor NO importa
+ *  dla-onnx — invariante de arquitectura). Coordenadas normales 0-1. */
+export interface CajaLayout {
+  clase: string;
+  rect: RectNorm;
+  conf?: number | null;
+}
+
+export const ARNES_ANCLAS_MIN = 3;
+/** Señal «geometría» de la votación 2/3 (FASE 6a): residuo LOO por voto que
+ *  sigue contando como evidencia (unidades de página normalizadas). */
+export const ARNES_VOTO_TOL = 0.02;
+/** Fracción mínima de votos soportados para proyectar (≥3 anclas + 0.8). */
+export const ARNES_CONF_PROY_MIN = 0.8;
+/** Señal «patrón+confianza»: lectura que cumple el patrón con conf ≥ este piso. */
+export const ARNES_TEXTO_CONF_MIN = 0.7;
+
+/** Distancia normalizada (unidades de página) de un centro a otro. */
+function distCentros(a: RectNorm, b: RectNorm): number {
+  return Math.hypot(a.x + a.w / 2 - (b.x + b.w / 2), a.y + a.h / 2 - (b.y + b.h / 2));
+}
+
+export interface ResultadoArn {
+  anclas: number;
+  confProyeccion: number;
+  rescatados: number;
+}
+
+/**
+ * Corre el arnés geométrico sobre los resultados de UNA página ya evaluada.
+ * Muta in-place los campos en fallback (`referencia` + `ancla_no_encontrada`)
+ * que logran reubicarse. Devuelve null si no hay suficientes anclas (<3) —
+ * en ese caso NO toca nada (comportamiento idéntico a FASE 1b).
+ */
+export function proyectarPorArnes(
+  campos: CampoUniversal[],
+  resultados: ResultadoCampoUniversal[],
+  lineas: LineaOcr[],
+  canvasW: number,
+  canvasH: number,
+  opts?: {
+    canvas?: HTMLCanvasElement;
+    cajasLayout?: CajaLayout[];
+    herencia?: HerenciaMolde;
+    previews?: boolean;
+  },
+): ResultadoArn | null {
+  const porId = new Map(campos.map((c) => [c.id, c]));
+  // 1. Votos: campos anclados textualmente Y en estado 'ok' (el consenso ya
+  //    filtró discrepancias; un 'requiere_revision' no es evidencia de
+  //    posición). Par referencia → encontrado sobre los CENTROS del rect del
+  //    valor (el offset ancla→valor es el mismo en ambos lados).
+  const src: { x: number; y: number }[] = [];
+  const dst: { x: number; y: number }[] = [];
+  for (const r of resultados) {
+    if (r.fuente !== 'ancla' && r.fuente !== 'respaldo') continue;
+    if (r.estado !== 'ok' || !r.rect) continue;
+    const campo = porId.get(r.id);
+    if (!campo) continue;
+    const ref = rectEditor(campo);
+    if (!ref) continue;
+    src.push({ x: ref.x + ref.w / 2, y: ref.y + ref.h / 2 });
+    dst.push({ x: r.rect.x + r.rect.w / 2, y: r.rect.y + r.rect.h / 2 });
+  }
+  if (src.length < ARNES_ANCLAS_MIN) return null;
+  // Confianza de la geometría por CONSENSO LOO (leave-one-out): cada voto se
+  // predice con un modelo ajustado SIN él y cuenta como soportado si el
+  // residual es ≤ ARNES_VOTO_TOL. Con 3 votos solo hay 2 puntos para ajustar
+  // (la mediana de las traslaciones) — suficiente para detectar el voto
+  // errático; con ≥4 el ajuste completo ya es sobre-determinado. La mediana
+  // de desplazamientos sobre el conjunto completo NO sirve: un recorte con
+  // escala (dy creciendo con y, medido: 0.02→0.22) es un modelo afín
+  // perfectamente coherente que la mediana reportaría como incoherencia.
+  const mediana = (v: number[]): number => {
+    const a = [...v].sort((x, y) => x - y);
+    const m = Math.floor(a.length / 2);
+    return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+  };
+  const predecirSin = (i: number): { x: number; y: number } => {
+    const s2 = src.filter((_, j) => j !== i);
+    const d2 = dst.filter((_, j) => j !== i);
+    if (s2.length >= 3) {
+      const A2 = ajustarAfin(s2, d2);
+      if (A2) return aplicarAfin(A2, src[i].x, src[i].y);
+    }
+    const mdx = mediana(s2.map((s, j) => d2[j].x - s.x));
+    const mdy = mediana(s2.map((s, j) => d2[j].y - s.y));
+    return { x: src[i].x + mdx, y: src[i].y + mdy };
+  };
+  const soportado: boolean[] = [];
+  let nSoporte = 0;
+  for (let i = 0; i < src.length; i++) {
+    const p = predecirSin(i);
+    const ok = Math.hypot(p.x - dst[i].x, p.y - dst[i].y) <= ARNES_VOTO_TOL;
+    soportado.push(ok);
+    if (ok) nSoporte++;
+  }
+  const confProy = nSoporte / src.length;
+  const geometriaSolida = confProy >= ARNES_CONF_PROY_MIN;
+  // Modelo de proyección: se re-ajusta SOLO con los votos soportados (un
+  // voto errático no puede deformar la proyección de los huérfanos).
+  const sOk = src.filter((_, i) => soportado[i]);
+  const dOk = dst.filter((_, i) => soportado[i]);
+  const afin: Afin6 | null = sOk.length >= 3 ? ajustarAfin(sOk, dOk) : null;
+  const mdx = mediana(sOk.map((s, i) => dOk[i].x - s.x));
+  const mdy = mediana(sOk.map((s, i) => dOk[i].y - s.y));
+
+  // 2. Huérfanos: cayeron a referencia PORQUE el ancla no apareció.
+  let rescatados = 0;
+  const previews = opts?.previews ?? false;
+  const usedSeal = new Set<CajaLayout>();
+  for (const r of resultados) {
+    if (r.fuente !== 'referencia') continue;
+    if (!r.banderas.includes('ancla_no_encontrada')) continue;
+    const campo = porId.get(r.id);
+    if (!campo || !geometriaSolida) continue;
+    const ref = rectEditor(campo);
+    if (!ref) continue;
+    const centroRef = { x: ref.x + ref.w / 2, y: ref.y + ref.h / 2 };
+    const p = afin
+      ? aplicarAfin(afin, centroRef.x, centroRef.y)
+      : { x: centroRef.x + mdx, y: centroRef.y + mdy };
+    let proyectado = clampRect({ x: p.x - ref.w / 2, y: p.y - ref.h / 2, w: ref.w, h: ref.h });
+    r.rect = proyectado;
+    r.fuente = 'arnes';
+    // La posición ya no es la banda estática: el flag de fallback sin
+    // verificar deja de aplicar (la geometría la sustituyó). Se conserva
+    // `ancla_no_encontrada` (honesto: el texto del ancla nunca apareció) y
+    // se añade la señal de inferencia.
+    const i = r.banderas.indexOf('fallback_no_verificado');
+    if (i >= 0) r.banderas.splice(i, 1);
+    r.banderas.push('ancla_inferida');
+    rescatados++;
+
+    if (campo.tipo === 'texto') {
+      const t = textoEnRect(lineas, proyectado, canvasW, canvasH);
+      if (!t.texto || t.conf === null || !ocrTextIsValid(t.texto)) continue; // sin lectura: revisión honesta
+      const limpio = limpiarValor(t.texto, campo, r.banderas);
+      r.valor = limpio;
+      r.conf = t.conf;
+      const patronRe = compilarPatron(patronEfectivo(campo, opts?.herencia), r.banderas);
+      const cumple = !patronRe || patronRe.test(limpio);
+      const senalPatron = cumple && t.conf >= ARNES_TEXTO_CONF_MIN;
+      // Votación 2/3 de FASE 6a sobre un campo inferido: geometría (siempre
+      // true aquí — se exige arriba) + patrón/confianza. Con una sola señal
+      // jamás 'ok'.
+      if (!cumple) {
+        r.banderas.push('patron_no_cumple');
+        r.estado = 'requiere_revision';
+      } else if (senalPatron) {
+        r.estado = 'ok';
+      } else {
+        if (!r.banderas.includes('conf_baja')) r.banderas.push('conf_baja');
+        r.estado = 'requiere_revision';
+      }
+      if (previews && opts?.canvas) {
+        const cap = cropDataUrl(opts.canvas, proyectado);
+        r.crop = cap?.crop ?? null;
+        r.crop_dims = cap?.dims ?? null;
+      }
+      continue;
+    }
+
+    // Tinta (firma/presencia/checkbox): re-medir sobre la zona proyectada.
+    // Cajas `seal` del layout (si la app las pasó) dan a cada firma su rect
+    // propio — fin del «dos firmas, mismo rect».
+    if (campo.tipo === 'firma' && opts?.cajasLayout?.length) {
+      const sellos = opts.cajasLayout
+        .filter((c) => c.clase === 'seal' && !usedSeal.has(c))
+        .filter((c) => distCentros(c.rect, proyectado) <= 0.35)
+        .sort((a, b) => distCentros(a.rect, proyectado) - distCentros(b.rect, proyectado));
+      if (sellos.length) {
+        proyectado = clampRect(sellos[0].rect);
+        usedSeal.add(sellos[0]);
+        r.rect = proyectado;
+      }
+    }
+    if (!opts?.canvas) continue;
+    const rec = recortar(opts.canvas, proyectado);
+    if (!rec) {
+      r.banderas.push('zona_invalida');
+      continue;
+    }
+    const ratio = medirTinta(rec.crop);
+    r.ratio = ratio;
+    const umbral = umbralEfectivo(campo, opts?.herencia);
+    const diligenciado = ratio >= umbral;
+    r.valor = diligenciado;
+    r.conf = confPresencia(ratio, umbral);
+    if (previews) {
+      const cap = cropDataUrl(opts.canvas, proyectado);
+      r.crop = cap?.crop ?? null;
+      r.crop_dims = cap?.dims ?? null;
+    }
+    const enBanda = (diligenciado && ratio <= umbral * 1.4) || (!diligenciado && ratio >= umbral * 0.6);
+    if (enBanda) {
+      r.banderas.push('umbral_al_borde');
+      r.estado = 'requiere_revision';
+    } else {
+      r.estado = diligenciado ? 'ok' : 'no_encontrado';
+    }
+  }
+  return { anclas: src.length, confProyeccion: confProy, rescatados };
+}
+
 /**
  * F1 (variante 1.1 — la más barata de la conversación de mejora): dedupe de
  * rects EN RUNTIME. Tras resolver todos los campos de una página, dos campos
@@ -1726,6 +2351,419 @@ function marcarColisiones(resultados: ResultadoCampoUniversal[]): void {
   }
 }
 
+// ---- FASE 4 del plan (v3.3.0) — grupos de campos con restricciones espaciales ----
+
+/**
+ * Restricciones EFECTIVAS de un grupo: el default por TIPO sobreescrito por
+ * lo que el molde declara explícitamente (restricciones ganan siempre).
+ *  - fila:        alineación 'y' (misma altura), espaciado libre.
+ *  - columna:     alineación 'x' (misma vertical), espaciado libre.
+ *  - repetidor:   alineación 'x' + espaciado 'uniforme' (§7 FASE 9: la celda
+ *                 se repite N veces; un hueco irregular delata fila perdida).
+ *  - seccion:     sin restricciones espaciales (agrupación declarativa).
+ */
+function restriccionesEfectivas(g: GrupoMolde): {
+  alineacion?: 'x' | 'y';
+  orden?: 'asc' | 'desc';
+  espaciado?: 'uniforme' | 'libre';
+  tolerancia: number;
+} {
+  let d: { alineacion?: 'x' | 'y'; orden?: 'asc' | 'desc'; espaciado?: 'uniforme' | 'libre' };
+  switch (g.tipo) {
+    case 'fila':
+      d = { alineacion: 'y' };
+      break;
+    case 'columna':
+      d = { alineacion: 'x' };
+      break;
+    case 'repetidor':
+      d = { alineacion: 'x', espaciado: 'uniforme' };
+      break;
+    case 'seccion':
+      d = {};
+      break;
+  }
+  const r = g.restricciones ?? {};
+  return {
+    alineacion: r.alineacion ?? d.alineacion,
+    orden: r.orden ?? d.orden,
+    espaciado: r.espaciado ?? d.espaciado,
+    tolerancia: r.tolerancia ?? TOLERANCIA_GRUPO_DEFAULT,
+  };
+}
+
+/** Democión honesta de un 'ok' por restricción de grupo violada: bandera +
+ *  requiere_revision. Los estados ya negativos NO se tocan (no se agrava). */
+function demotarPorGrupo(r: ResultadoCampoUniversal, bandera: string): void {
+  if (!r.banderas.includes(bandera)) r.banderas.push(bandera);
+  if (r.estado === 'ok') r.estado = 'requiere_revision';
+}
+
+/**
+ * FASE 4 (v3.3.0 — la más potente del plan §7): evalúa las restricciones
+ * espaciales de los grupos SOBRE los resultados ya resueltos de UNA página.
+ * Hace imposible por construcción que J1 y J3 "resuelvan el mismo rect" de la
+ * columna: dos centros en la misma vertical con orden violado o espaciado
+ * irregular quedan señalados y los 'ok' caen a `requiere_revision`.
+ * Solo opina con ≥2 miembros RESUELTOS y con rect (con menos evidencia el
+ * grupo es declarativo y el motor no inventa violaciones que no vio).
+ * Exportado para pruebas unitarias y para el editor (previsualización).
+ */
+export function evaluarGrupos(
+  grupos: GrupoMolde[],
+  campos: CampoUniversal[],
+  resultados: ResultadoCampoUniversal[],
+): void {
+  const porId = new Map(resultados.map((r) => [r.id, r]));
+  for (const g of grupos) {
+    if (g.tipo === 'seccion') continue; // sin restricciones espaciales
+    const res = restriccionesEfectivas(g);
+    // Miembros RESUELTOS con rect, en el ORDEN declarado (para orden/espaciado).
+    const miembros = g.miembros
+      .map((id) => ({ id, campo: campos.find((c) => c.id === id), r: porId.get(id) }))
+      .filter((m) => m.r && m.r.rect) as Array<{ id: string; campo?: CampoUniversal; r: ResultadoCampoUniversal }>;
+    if (miembros.length < 2) continue; // evidencia insuficiente: no se opina
+    const centros = miembros.map((m) => ({
+      id: m.id,
+      r: m.r,
+      cx: m.r.rect!.x + m.r.rect!.w / 2,
+      cy: m.r.rect!.y + m.r.rect!.h / 2,
+    }));
+    // Alineación: el eje declarado debe ser COMPARTIDO por los centros.
+    if (res.alineacion) {
+      const valores = centros.map((c) => (res.alineacion === 'y' ? c.cy : c.cx));
+      const media = valores.reduce((s, v) => s + v, 0) / valores.length;
+      const maxDesvio = Math.max(...valores.map((v) => Math.abs(v - media)));
+      if (maxDesvio > res.tolerancia) {
+        for (const c of centros) demotarPorGrupo(c.r, 'grupo_desalineado');
+      }
+    }
+    // Orden: los centros EN EL ORDEN DECLARADO deben ser monótonos por el eje
+    // del grupo (columna/repetidor → y; fila → x — el eje de la alineación es
+    // el COMPARTIDO, así que el eje del ORDEN es el perpendicular).
+    if (res.orden) {
+      const ejeOrden = res.alineacion === 'y' ? 'x' : res.alineacion === 'x' ? 'y' : 'y';
+      const serie = centros.map((c) => (ejeOrden === 'y' ? c.cy : c.cx));
+      const violado = res.orden === 'asc'
+        ? serie.some((v, i) => i > 0 && v < serie[i - 1] - 1e-9)
+        : serie.some((v, i) => i > 0 && v > serie[i - 1] + 1e-9);
+      if (violado) {
+        for (const c of centros) demotarPorGrupo(c.r, 'grupo_orden_violado');
+      }
+    }
+    // Espaciado uniforme: los huecos consecutivos a lo largo del eje del orden
+    // difieren a lo sumo `tolerancia`. Con 2 miembros hay UN hueco: trivial.
+    if (res.espaciado === 'uniforme' && centros.length >= 3) {
+      const ejeOrden = res.alineacion === 'y' ? 'x' : res.alineacion === 'x' ? 'y' : 'y';
+      const serie = centros.map((c) => (ejeOrden === 'y' ? c.cy : c.cx));
+      const huecos: number[] = [];
+      for (let i = 1; i < serie.length; i++) huecos.push(Math.abs(serie[i] - serie[i - 1]));
+      const maxHueco = Math.max(...huecos);
+      const minHueco = Math.min(...huecos);
+      if (maxHueco - minHueco > res.tolerancia) {
+        for (const c of centros) demotarPorGrupo(c.r, 'grupo_espaciado_irregular');
+      }
+    }
+  }
+}
+
+// ---- FASE 6 del plan (v3.3.0) — "Cartero en cascada": identificación ----
+
+/** Candidato para la identificación en cascada (el caller arma la lista). */
+export interface CandidatoHuella {
+  moldeId: string;
+  nombre?: string;
+  huella?: HuellaMolde | null;
+  /**
+   * CAPA 0 de la cascada — el QR YA resolvió este molde (payload del QR
+   * corresponde a su identidad): decisivo, score 1, sin gastar OCR de frases.
+   * El EMPAREJAMIENTO payload→molde lo hace la app (formato del payload es
+   * contrato de la capa QR, no del motor).
+   */
+  identificadoPorQr?: boolean;
+}
+
+export interface IdentificacionCascada {
+  moldeId: string;
+  nombre?: string;
+  /** 'qr' (capa 0, decisiva) o 'frases' (capa 1, huella de cabecera). */
+  metodo: 'qr' | 'frases';
+  /** 0..1 — frases encontradas / frases declaradas (QR = 1). */
+  score: number;
+  /** Frases de la huella que aparecieron en la franja de cabecera. */
+  frasesEncontradas: string[];
+  /** ¿El nº de páginas coincide con la huella? null si no declaró. */
+  paginasCoinciden: boolean | null;
+}
+
+const FRANJA_CABECERA_DEFAULT: RectNorm = { x: 0, y: 0, w: 1, h: 0.2 };
+const MIN_FRASES_DEFAULT = 2;
+
+/**
+ * FASE 6 (v3.3.0 — "Cartero en cascada"): identifica el documento contra las
+ * huellas de los moldes ANTES de pagar el análisis completo (1-2 s vs 10-40 s).
+ * Cascada por candidato:
+ *  1. QR (capa 0): `identificadoPorQr` → decisivo (la app empareja payload).
+ *  2. FRASES clave de la cabecera (capa 1): cada frase se busca con el MISMO
+ *     matcher fuzzy de anclas (score ≥ ANCLA_SCORE_MIN) dentro de la franja.
+ *  3. ESQUELETO (capa 2): nº de páginas — discrepancia PENALIZA el score
+ *     (×0.8) pero NO rechaza sola (una foto de la pág. 1 de un documento de 2
+ *     sigue siendo ese documento).
+ * Aceptación: matches ≥ minFrases (default 2). Gana el mayor score (empate →
+ * más matches → primer declarado). Sin candidato aceptado → null (duda: la
+ * app pregunta al usuario con miniaturas — jamás se adivina).
+ */
+export function identificarDocumento(
+  lineas: LineaOcr[],
+  canvasW: number,
+  canvasH: number,
+  totalPaginas: number,
+  candidatos: CandidatoHuella[],
+): IdentificacionCascada | null {
+  // Capa 0: el QR manda (decisivo por diseño — el payload es identidad).
+  const porQr = candidatos.find((c) => c.identificadoPorQr === true);
+  if (porQr) {
+    return {
+      moldeId: porQr.moldeId,
+      nombre: porQr.nombre,
+      metodo: 'qr',
+      score: 1,
+      frasesEncontradas: [],
+      paginasCoinciden: null,
+    };
+  }
+  let mejor: (IdentificacionCascada & { matches: number }) | null = null;
+  for (const c of candidatos) {
+    const h = c.huella;
+    if (!h?.frasesClave?.length) continue;
+    const franja = h.franja ?? FRANJA_CABECERA_DEFAULT;
+    // Líneas cuyo CENTRO vive en la franja de cabecera (+ margen del faro).
+    const enFranja = lineasEnFaro(lineas, canvasW, canvasH, franja);
+    const encontradas: string[] = [];
+    for (const frase of h.frasesClave) {
+      const hit = buscarAncla(frase, enFranja, canvasW, canvasH);
+      if (hit && hit.score >= ANCLA_SCORE_MIN) encontradas.push(frase);
+    }
+    const minFrases = h.minFrases ?? MIN_FRASES_DEFAULT;
+    if (encontradas.length < minFrases) continue;
+    let score = encontradas.length / Math.max(1, h.frasesClave.length);
+    const paginasCoinciden =
+      typeof h.paginas === 'number' ? h.paginas === totalPaginas : null;
+    if (paginasCoinciden === false) score *= 0.8; // penalización del esqueleto
+    const candidata = {
+      moldeId: c.moldeId,
+      nombre: c.nombre,
+      metodo: 'frases' as const,
+      score,
+      frasesEncontradas: encontradas,
+      paginasCoinciden,
+      matches: encontradas.length,
+    };
+    if (
+      !mejor ||
+      candidata.score > mejor.score ||
+      (candidata.score === mejor.score && candidata.matches > mejor.matches)
+    ) {
+      mejor = candidata;
+    }
+  }
+  if (!mejor) return null;
+  const { matches: _matches, ...out } = mejor;
+  return out;
+}
+
+// ---- FASE 5 del plan (v3.3.0) — UX-1: auto-propuesta de anclas al dibujar ----
+
+export interface PropuestaAncla {
+  texto: string;
+  rect: RectNorm;
+  /** 0..1 = 0.5·cercanía + 0.3·unicidad + 0.2·confianza del OCR. */
+  score: number;
+  /** Apariciones EXACTAS del texto normalizado en la página (1 = único). */
+  ocurrencias: number;
+  /** OTRA propuesta difiere solo en dígitos (el editor la marca en rojo y
+   *  pide desambiguador — el molde no debe nacer ambiguo). */
+  conflictoDigito?: boolean;
+}
+
+/** Confianza de una línea OCR = media de sus palabras (la línea no la trae). */
+function confLinea(l: LineaOcr): number | null {
+  const con = l.palabras.filter((p) => typeof p.conf === 'number');
+  if (!con.length) return null;
+  return con.reduce((s, p) => s + (p.conf as number), 0) / con.length;
+}
+
+/** Distancia normalizada de un rect a la zona (0 si toca, crece al alejarse). */
+function distanciaRectAZona(r: RectNorm, z: RectNorm): number {
+  const dx = Math.max(z.x - (r.x + r.w), r.x - (z.x + z.w), 0);
+  const dy = Math.max(z.y - (r.y + r.h), r.y - (z.y + z.h), 0);
+  return Math.hypot(dx, dy);
+}
+
+/** ¿Dos textos difieren SOLO en dígitos? (el caso JURADO 4 / JURADO 2). */
+function difierenSoloEnDigitos(a: string, b: string): boolean {
+  if (a === b) return false;
+  const sinDigitosA = a.replace(/\d/g, '');
+  const sinDigitosB = b.replace(/\d/g, '');
+  if (sinDigitosA !== sinDigitosB) return false;
+  // Misma estructura de no-dígitos y misma longitud: las diferencias son dígitos.
+  return editDistancePonderada(a, b) > 0;
+}
+
+/**
+ * FASE 5 (v3.3.0 — UX-1): propone las MEJORES anclas candidatas para una zona
+ * recién dibujada, sobre las líneas OCR de la página de referencia. Las anclas
+ * viven FUERA de la zona (etiqueta vs valor), cerca (justo arriba/izquierda
+ * puntúa más) y ÚNICAS en la página (una etiqueta que aparece 3 veces obliga a
+ * desambiguador — se puntúa bajo, no se descarta, porque a veces es lo que hay).
+ * Determinista: mismas líneas → mismas propuestas.
+ */
+export function proponerAnclas(
+  lineas: LineaOcr[],
+  canvasW: number,
+  canvasH: number,
+  zona: RectNorm,
+  maximo = 3,
+): PropuestaAncla[] {
+  interface LineaClave { texto: string; norm: string; rect: RectNorm; conf: number | null }
+  const candidatas: LineaClave[] = [];
+  const conteo = new Map<string, number>();
+  for (const l of lineas) {
+    const texto = (l.texto ?? '').trim();
+    if (!texto) continue;
+    const norm = normTxt(texto);
+    if (!norm) continue;
+    const rect: RectNorm = {
+      x: l.bbox[0] / canvasW,
+      y: l.bbox[1] / canvasH,
+      w: (l.bbox[2] - l.bbox[0]) / canvasW,
+      h: (l.bbox[3] - l.bbox[1]) / canvasH,
+    };
+    // Las anclas viven FUERA de la zona de valor (la etiqueta nunca ES el dato).
+    const cx = rect.x + rect.w / 2;
+    const cy = rect.y + rect.h / 2;
+    if (cx >= zona.x && cx <= zona.x + zona.w && cy >= zona.y && cy <= zona.y + zona.h) continue;
+    candidatas.push({ texto, norm, rect, conf: confLinea(l) });
+    conteo.set(norm, (conteo.get(norm) ?? 0) + 1);
+  }
+  const propuestas: PropuestaAncla[] = candidatas.map((c) => {
+    const dist = distanciaRectAZona(c.rect, zona);
+    const cercania = Math.max(0, 1 - dist / 0.25);
+    const ocurrencias = conteo.get(c.norm) ?? 1;
+    const unicidad = ocurrencias === 1 ? 1 : ocurrencias === 2 ? 0.5 : 0.15;
+    const conf = c.conf === null ? 0.5 : c.conf;
+    return {
+      texto: c.texto,
+      rect: c.rect,
+      score: 0.5 * cercania + 0.3 * unicidad + 0.2 * conf,
+      ocurrencias,
+    };
+  });
+  propuestas.sort((a, b) => b.score - a.score);
+  const top = propuestas.slice(0, Math.max(1, maximo));
+  // Conflicto de dígitos: dos propuestas cuya estructura no-dígito es IGUAL —
+  // el molde no debe nacer ambiguo (el editor marca rojo y pide desambiguador).
+  for (const p of top) {
+    for (const q of top) {
+      if (p !== q && difierenSoloEnDigitos(normTxt(p.texto), normTxt(q.texto))) {
+        p.conflictoDigito = true;
+        break;
+      }
+    }
+  }
+  return top;
+}
+
+// ---- FASE 9 del plan (v3.3.0) — fixtures de verdad de terreno ----
+
+export interface ResultadoFixture {
+  fixtureId: string;
+  nombre: string;
+  ok: boolean;
+  fallos: Array<{
+    campoId: string;
+    /** 'valor' (esperado de verdad de terreno) o 'estado' (estadosEsperados). */
+    tipo: 'valor' | 'estado';
+    esperado: string | boolean | number;
+    obtenido: string | boolean | number | null;
+  }>;
+}
+
+/**
+ * FASE 9 (§7 — "Probar Plantilla" con verdad de terreno): confronta el
+ * resultado de UNA corrida contra lo que el molde DECLARA que debe salir para
+ * el caso. Un campo ausente de `esperado` no se verifica (solo lo declarado).
+ * Comparación:
+ *  - string → igualdad exacta tras trim (sin normalización agresiva: la verdad
+ *    de terreno se escribe como se espera leer).
+ *  - boolean → igualdad estricta del booleano de tinta.
+ *  - number → igualdad con `valorNumerico` (el parseo del motor: separadores
+ *    de miles/decimales); null si el valor no es numérico → fallo.
+ *  - estadosEsperados → igualdad del estado del campo (p. ej. exigir
+ *    'no_encontrado' en un caso negativo).
+ */
+export function verificarFixture(
+  resultado: ResultadoUniversal,
+  fixture: FixtureMolde,
+): ResultadoFixture {
+  const fallos: ResultadoFixture['fallos'] = [];
+  const porId = new Map(resultado.paginas.flatMap((p) => p.campos).map((r) => [r.id, r]));
+  for (const [campoId, esperado] of Object.entries(fixture.esperado)) {
+    const r = porId.get(campoId);
+    if (!r) {
+      fallos.push({ campoId, tipo: 'valor', esperado, obtenido: null });
+      continue;
+    }
+    if (typeof esperado === 'boolean') {
+      if (r.valor !== esperado) {
+        fallos.push({ campoId, tipo: 'valor', esperado, obtenido: r.valor });
+      }
+    } else if (typeof esperado === 'number') {
+      // El parseo del motor sobre el valor leído; si el OCR trae símbolos
+      // ("3.150,00 €"), se reintenta sin el ruido no numérico (mismo parseo,
+      // solo quitando moneda/espacios exteriores — jamás inventa dígitos).
+      // El formato español mixto (miles con punto + decimales con coma:
+      // "3.150,00") no lo cubre `valorNumerico` por diseño (usado en
+      // igualdades aritméticas, donde la ambigüedad es peligrosa); aquí, con
+      // la verdad de terreno declarada por el dueño del molde, se resuelve
+      // con la regla española UNA vez el string quedó limpio de símbolos.
+      let num = valorNumerico(r);
+      if (num === null && typeof r.valor === 'string') {
+        const limpio = r.valor.replace(/[^0-9.,\- ]/g, '').trim();
+        if (/^\d{1,3}(\.\d{3})+,\d+$/.test(limpio)) {
+          const español = limpio.replace(/\./g, '').replace(',', '.');
+          num = valorNumerico({ ...r, valor: español });
+        } else if (limpio) {
+          num = valorNumerico({ ...r, valor: limpio });
+        }
+      }
+      if (num === null || Math.abs(num - esperado) > 1e-9) {
+        fallos.push({ campoId, tipo: 'valor', esperado, obtenido: num });
+      }
+    } else {
+      const valor = typeof r.valor === 'string' ? r.valor.trim() : r.valor === null ? '' : String(r.valor);
+      if (valor !== esperado.trim()) {
+        fallos.push({ campoId, tipo: 'valor', esperado, obtenido: valor });
+      }
+    }
+  }
+  if (fixture.estadosEsperados) {
+    for (const [campoId, estadoEsperado] of Object.entries(fixture.estadosEsperados)) {
+      const r = porId.get(campoId);
+      const estado = r?.estado ?? 'sin_resultado';
+      if (estado !== estadoEsperado) {
+        fallos.push({ campoId, tipo: 'estado', esperado: estadoEsperado, obtenido: estado });
+      }
+    }
+  }
+  return {
+    fixtureId: fixture.id,
+    nombre: fixture.nombre,
+    ok: fallos.length === 0,
+    fallos,
+  };
+}
+
 export async function evaluarDocumentoUniversal(
   canvases: HTMLCanvasElement[],
   molde: MoldeUniversal,
@@ -1743,7 +2781,27 @@ export async function evaluarDocumentoUniversal(
    * consume y la memoria del dispositivo manda). Default true: el Studio
    * sigue recibiendo TODO (verificación visual con overlay).
    */
-  opts?: { previews?: boolean },
+  opts?: {
+    previews?: boolean;
+    /** Plan primera ola (Fase 4): líneas OCR YA calculadas por el router
+     *  sobre la MISMA imagen de la página 1 — se reutilizan en vez de lanzar
+     *  un segundo Tesseract de página completa (una sola pasada, menos
+     *  latencia). Páginas N>1 y el flip 180° siguen haciendo su propio OCR. */
+    lineas?: LineaOcr[];
+    /** Confianza media del OCR reutilizado (la del proveedor del router). */
+    ocrConf?: number;
+    /** FASE 5 (arnés geométrico): cajas de layout detectadas por la app
+     *  (ONNX opcional). Con señal apagada se omite: el arnés funciona solo
+     *  con anclas textuales; `seal` se usa únicamente para separar firmas. */
+    cajasLayout?: CajaLayout[];
+    /** FASE 5: desactiva el arnés (comportamiento idéntico a FASE 1b). */
+    arnes?: boolean;
+    /** F3: tope de variantes de realce por campo (default 6 = histórico). */
+    rescatePresupuesto?: number;
+    /** Dictamen HTR por confianza (null = regla histórica: htr obligatorio
+     *  siempre a revisión). Ver `evaluarCampo`. */
+    htrConfDictamen?: number | null;
+  },
 ): Promise<ResultadoUniversal> {
   const previews = opts?.previews ?? true;
   const t0 = performance.now();
@@ -1758,9 +2816,16 @@ export async function evaluarDocumentoUniversal(
   for (let p = 0; p < canvases.length; p++) {
     const canvas = canvases[p];
     onProgreso?.(`OCR página ${p + 1}/${canvases.length}...`);
-    const tOcr = performance.now();
-    let ocr = await proveedorOcr().ocrLines(canvas);
-    ocrMs += performance.now() - tOcr;
+    // Fase 4 (plan primera ola): la página 1 reutiliza las líneas del router
+    // (misma imagen, mismo PSM de página completa) — un solo OCR de página.
+    let ocr: { lines: LineaOcr[]; conf: number | null };
+    if (p === 0 && opts?.lineas && opts.lineas.length > 0) {
+      ocr = { lines: opts.lineas, conf: opts.ocrConf ?? null };
+    } else {
+      const tOcr = performance.now();
+      ocr = await proveedorOcr().ocrLines(canvas);
+      ocrMs += performance.now() - tOcr;
+    }
 
     const camposPagina = molde.campos.filter((c) => c.pagina === p + 1);
     let pageCanvas = canvas;
@@ -1808,15 +2873,36 @@ export async function evaluarDocumentoUniversal(
       onProgreso?.(`Página ${p + 1}: campo ${i + 1}/${camposPagina.length} — ${c.etiqueta}`);
       const r = await evaluarCampo(c, pageCanvas, ocr.lines, previews, {
         obtenerLineas: obtenerMapaRescate,
-      });
+      }, molde.herencia, opts?.rescatePresupuesto, opts?.htrConfDictamen ?? null);
       // FASE 1b (plan extracción relacional): el fallback silencioso ya no
       // produce 'ok' en obligatorios (fin del falso positivo de firmas).
       endurecerFallbackNoVerificado(c, r);
       resultados.push(r);
     }
+    // FASE 5 (arnés geométrico): con ≥3 anclas textuales resueltas, los
+    // campos que cayeron a referencia se re-ubican por PROYECCIÓN (afín desde
+    // las anclas fiables) y se releen del mapa OCR global. Revierte
+    // parcialmente FASE 1b: un campo 'ok' inferido por arnés ya tiene posición
+    // verificada (por geometría, no coordenadas estáticas). Sin anclas
+    // suficientes no toca nada (se mantiene el endurecido de 1b).
+    if ((opts?.arnes ?? true) && camposPagina.length) {
+      proyectarPorArnes(camposPagina, resultados, ocr.lines, pageCanvas.width, pageCanvas.height, {
+        canvas: pageCanvas,
+        cajasLayout: opts?.cajasLayout,
+        herencia: molde.herencia,
+        previews,
+      });
+    }
     // F1 (variante 1.1): detección de colisión de rects — DOS campos que miran
     // el mismo pedazo de papel es la firma del falso positivo de la auditoría.
     marcarColisiones(resultados);
+    // FASE 4 (v3.3.0): grupos con restricciones espaciales — los checks
+    // geométricos corren DESPUÉS de resolver (y del dedupe de colisiones);
+    // una restricción violada demueve los 'ok' implicados con bandera
+    // `grupo_*` (explicable, evidencia geométrica).
+    if (molde.grupos?.length) {
+      evaluarGrupos(molde.grupos, molde.campos, resultados);
+    }
     anclasPorPagina.push(resultados.some((r) => r.fuente === 'ancla' || r.fuente === 'respaldo'));
     paginas.push({
       pagina: p + 1,

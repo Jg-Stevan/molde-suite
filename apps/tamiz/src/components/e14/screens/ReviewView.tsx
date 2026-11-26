@@ -25,6 +25,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Acta } from "@/lib/e14/fachada";
 import { useE14Store } from "@/lib/e14/store";
+import type { DocumentoEnCurso } from "@/lib/e14/store/tipos";
 import { defaultQuad } from "@/lib/e14/fachada";
 // G4 (KIT camara-visor-v1): descarga de la foto PROCESADA. downloadBlob y
 // sanitizeFileName YA están publicados en el core (pdf-export 0.1.0) —
@@ -138,6 +139,97 @@ const ESTADO_ESTRUCTURA_TONO: Record<
 /** Tope de rects del overlay (señal visual, no auditoría — memoria/DOM). */
 const MAX_CAJAS_OVERLAY = 20;
 
+/* Overlay por campo (solo VALORES): verde=ok, ámbar=revisión, rojo=faltante.
+ * Las anclas no se pintan. En MANUSCRITOS (firma, campo `htr` o etiqueta
+ * huella/sello/manuscrito) el color es BINARIO: verde=hay trazo (solo la caja,
+ * sin rótulo), rojo=no hay trazo (caja + etiqueta «FALTA …» en el borde). */
+const TONO_CAMPO: Record<"ok" | "revision" | "faltante", string> = {
+  ok: "#10b981",
+  revision: "#f59e0b",
+  faltante: "#ef4444",
+};
+
+type CajaCampo = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  clase: "ok" | "revision" | "faltante";
+  etiqueta: string;
+  /** Palabra pintada sobre la foto: el texto reconocido (los manuscritos no
+   *  pintan palabra — su transcription a mano no es fiable). */
+  palabra: string;
+  /** Manuscrito: firma, campo `htr` o etiqueta huella/sello/manuscrito. */
+  esManuscrito: boolean;
+  /** Tinta medida en la zona (ratio del motor ≥ 0.001). */
+  tinta: boolean;
+};
+
+/** Cajas del overlay por campo (%). Las usan la tarjeta y el visor ampliado:
+ *  mismo contrato de coordenadas normalizadas sobre la foto PROCESADA. Los
+ *  campos de texto muestran solo la palabra; los manuscritos resaltan la
+ *  zona — verde si hay tinta, roja con rótulo «FALTA …» si no la hay. */
+function CajasCampos({ cajas }: { cajas: CajaCampo[] }) {
+  return cajas.map((c, i) => {
+    const tono = TONO_CAMPO[c.clase];
+    if (c.esManuscrito) {
+      // Rótulo SOLO cuando falta tinta, montado sobre el borde superior de la
+      // caja (mock rechazada). Si la caja toca el filo superior, va dentro.
+      const etiquetaDentro = c.y < 0.04;
+      return (
+        <span
+          key={`campo-${i}`}
+          aria-hidden
+          data-testid="campo-manuscrito"
+          className="absolute rounded-[4px]"
+          style={{
+            left: `${c.x * 100}%`,
+            top: `${c.y * 100}%`,
+            width: `${c.w * 100}%`,
+            height: `${c.h * 100}%`,
+            border: `2px solid ${tono}`,
+            backgroundColor: `${tono}26`,
+            boxShadow: `0 0 8px ${tono}73`,
+          }}
+        >
+          {!c.tinta && (
+            <span
+              data-testid="campo-manuscrito-etiqueta"
+              className="absolute left-0 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap rounded-[3px] px-1 py-[1px] font-mono text-[9px] font-bold leading-tight"
+              style={{
+                top: 0,
+                transform: etiquetaDentro ? undefined : "translateY(-50%)",
+                color: tono,
+                backgroundColor: "rgba(2,6,12,0.85)",
+                border: `1px solid ${tono}`,
+              }}
+            >
+              FALTA {c.etiqueta}
+            </span>
+          )}
+        </span>
+      );
+    }
+    return (
+      <span
+        key={`campo-${i}`}
+        aria-hidden
+        data-testid="campo-palabra"
+        className="absolute max-w-[70%] overflow-hidden text-ellipsis whitespace-nowrap rounded-[3px] px-1 py-[1px] font-mono text-[9px] font-bold leading-tight"
+        style={{
+          left: `${c.x * 100}%`,
+          top: `${c.y * 100}%`,
+          color: tono,
+          backgroundColor: "rgba(2,6,12,0.78)",
+          border: `1px solid ${tono}`,
+        }}
+      >
+        {c.palabra}
+      </span>
+    );
+  });
+}
+
 function TarjetaEstructura({ estructura }: { estructura: EstructuraActaVista }) {
   const nOk = estructura.reglas.filter((r) => r.estado === "ok").length;
   const nProblemas = estructura.reglas.length - nOk;
@@ -197,8 +289,68 @@ function TarjetaEstructura({ estructura }: { estructura: EstructuraActaVista }) 
   );
 }
 
+/** Fase 3 (multipágina REAL): bloque ámbar de PROGRESO DE DIGITALIZACIÓN
+ *  (N/M) con chips PÁG 1..M (mock «paginas faltantes») — solo mientras el
+ *  documento está INCOMPLETO. Las páginas capturadas van en verde ✓. */
+function ProgresoDocumento({ doc }: { doc: DocumentoEnCurso }) {
+  const capturadas = doc.paginas.length;
+  return (
+    <section
+      aria-label="Progreso de digitalización"
+      data-testid="progreso-documento"
+      className="shrink-0 rounded-lg border border-amber-500/60 bg-amber-500/10 px-2.5 py-2 flex flex-col gap-1.5"
+    >
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span
+            aria-hidden
+            className="shrink-0 w-5 h-5 rounded-full border border-amber-500/40 bg-amber-500/15 text-amber-400 flex items-center justify-center font-mono text-[10px] font-black"
+          >
+            !
+          </span>
+          <span
+            className="font-mono text-[10px] font-bold tracking-widest text-amber-400 uppercase truncate"
+          >
+            Progreso de digitalización ({capturadas}/{doc.esperadas})
+          </span>
+        </span>
+        <span className="shrink-0 font-mono text-[9px] font-bold text-slate-400">
+          MOLDE: {doc.moldeNombre.toUpperCase()}
+        </span>
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {Array.from({ length: doc.esperadas }, (_, i) => {
+          const n = i + 1;
+          const ok = n <= capturadas;
+          return (
+            <span
+              key={n}
+              data-testid={`progreso-pagina-${n}`}
+              className={`px-2 py-0.5 rounded-md border font-mono text-[9.5px] font-bold ${
+                ok
+                  ? "border-[#10b981]/50 bg-[#10b981]/10 text-[#10b981]"
+                  : "border-slate-700 bg-[#090d12] text-slate-500"
+              }`}
+            >
+              PÁG {n}
+              {ok ? " ✓" : ""}
+            </span>
+          );
+        })}
+      </div>
+      <p className="font-mono text-[9.5px] text-slate-400 truncate">
+        Falta la página {capturadas + 1} de {doc.esperadas} — el veredicto llega al completar el documento
+      </p>
+    </section>
+  );
+}
+
 export function ReviewView() {
   const acta = useE14Store((s) => s.actaActual);
+  // Fase 3 (multipágina): sesión del documento en curso (null = una página).
+  const documentoEnCurso = useE14Store((s) => s.documentoEnCurso);
+  const docIncompleto =
+    documentoEnCurso != null && documentoEnCurso.paginas.length < documentoEnCurso.esperadas;
   // KIT consenso-frankfurt-v1 (FASE 5, §6.1): el selector paginaObjetivo fue
   // RETIRADO de esta pantalla — PROHIBIDO paginaObjetivo?.tipo (era el tipo
   // del HUECO donde cayó archivada la acta, no el del acta: el «DELEGADOS»
@@ -218,6 +370,10 @@ export function ReviewView() {
   // Mantenedor 2026-11-22: el ojo de ZONAS arranca APAGADO (no se muestran
   // las cajas) y se resetea al cambiar de acta.
   const [zonasVisibles, setZonasVisibles] = useState(false);
+  // Overlay de verificación por campo: azul = ancla encontrada, verde = valor
+  // reconocido (ok), rojo = no reconocido / firma faltante. Default ON: es la
+  // señal que le dice al operador QUÉ vio el motor y DÓNDE.
+  const [camposVisibles, setCamposVisibles] = useState(true);
   // G4 (KIT camara-visor-v1): mismo patrón de feedback — 1.5 s en el botón
   // «Imagen» («DESCARGADA ✓» / «NO SE PUDO»), sin toast flotante.
   const [imagenDesc, setImagenDesc] = useState<"ok" | "err" | null>(null);
@@ -228,12 +384,15 @@ export function ReviewView() {
   // mientras el editor está abierto (errorRecorte al fallar APLICAR,
   // recortando, revelando del upgrade silencioso) re-tweeneaba el quad al
   // marco completo y BORRABA el recorte del usuario (contrato T2 roto:
-  // «reintenta SIN perder su quad»). Memoizado: identidad estable mientras
-  // status/quadDetectado no cambien de verdad.
+  // «reintenta SIN perder su quad»).
+  // El editor parte SIEMPRE del quad DETECTADO (la misma detección OpenCV que
+  // pinta las marcas en vivo): si la detección real falló, `quadDetectado`
+  // llega identidad y el operador ve el marco completo igual que antes —
+  // descartarlo solo por el status RECHAZADA borraba un quad válido (recorte
+  // cortado/incompleto) que el operador acababa de ver en el visor.
   const quadInicialEditor = useMemo(
-    () =>
-      acta?.status === "RECHAZADA" ? defaultQuad() : (acta?.quadDetectado ?? defaultQuad()),
-    [acta?.status, acta?.quadDetectado],
+    () => acta?.quadDetectado ?? defaultQuad(),
+    [acta?.quadDetectado],
   );
 
   // Overlay de ZONAS (mantenedor 2026-11-22): cajas aplanadas del gate
@@ -249,6 +408,62 @@ export function ReviewView() {
   useEffect(() => {
     setZonasVisibles(false);
   }, [acta?.id]);
+  useEffect(() => {
+    setCamposVisibles(true);
+  }, [acta?.id]);
+
+  // Palabras del overlay por campo (sobre la foto PROCESADA, coordenadas 0-1):
+  // SOLO los valores reconocidos (mantenedor 2026-11-25d — las anclas no se
+  // pintan). `requiere_revision` y `no_encontrado` van en rojo/ámbar (no es un
+  // reconocimiento confiable); `ok` en verde. Excepción: un manuscrito se pinta
+  // en verde cuando hay trazo y en rojo cuando no (mantenedor 2026-11-25h) —
+  // ahí "leyó mal" no es información, "hay o no hay tinta" sí lo es.
+  const cajasCampos = useMemo<CajaCampo[]>(() => {
+    const campos = acta?.evaluacionMolde?.campos ?? [];
+    const recorte = (s: string) => (s.length > 28 ? `${s.slice(0, 27)}…` : s);
+    const out: CajaCampo[] = [];
+    for (const c of campos) {
+      if (!c.rect) continue;
+      const esFirma = c.tipo === "firma";
+      const esHtr = !esFirma && c.htr === true;
+      // Huella/sello/manuscrito declarados por ETIQUETA también son manuscritos
+      // (el contrato no tiene tipo 'huella' — presencia con rótulo de sello).
+      const esManuscrito =
+        esFirma || esHtr || /huella|sello|manuscrito/i.test(c.etiqueta);
+      // Manuscrito DETECTADO = la zona tiene algo medido. No se exige que el
+      // OCR haya acertado el patrón: un trazo a mano ilegible sigue siendo
+      // trazo. El veredicto del motor no cambia (sigue pidiendo humano).
+      // v1.5.1: manda la TINTA medida (`c.tinta`, ratio del motor ≥ 0.001);
+      // el heurístico por estado queda solo para resúmenes sin ratio.
+      const tinta =
+        typeof c.tinta === "boolean"
+          ? c.tinta
+          : c.estado !== "no_encontrado" &&
+            !(c.banderas ?? []).includes("firma_ausente") &&
+            !(c.banderas ?? []).includes("zona_vacia");
+      const texto =
+        typeof c.valor === "string" && c.valor.trim() && !esManuscrito && c.tipo !== "checkbox"
+          ? c.valor.trim()
+          : c.etiqueta;
+      out.push({
+        ...c.rect,
+        clase: esManuscrito
+          ? tinta
+            ? "ok"
+            : "faltante"
+          : c.estado === "ok"
+            ? "ok"
+            : c.estado === "requiere_revision"
+              ? "revision"
+              : "faltante",
+        etiqueta: c.etiqueta,
+        palabra: recorte(texto),
+        esManuscrito,
+        tinta,
+      });
+    }
+    return out.slice(0, MAX_CAJAS_OVERLAY);
+  }, [acta?.evaluacionMolde?.campos]);
 
   // L5: Esc cierra el visor (el cierre por toque lo resuelve el
   // ZoomableVisor dentro del modal — ver §4 del sync-visor).
@@ -351,11 +566,22 @@ export function ReviewView() {
   // (warp degenerado sobre superficie lisa → blanco puro) se muestra la
   // ORIGINAL con nota tenue. Con tinta (aunque poca, p. ej. la borrosa
   // B/N) se muestra la procesada como hoy — sin regresión.
+  // Regla del mantenedor (2026-11-25): RECHAZADA → foto CRUDA (original del
+  // disparo, sin recorte); ÓPTIMA/ADVERTENCIA/REVISIÓN HUMANA → la PROCESADA
+  // (recorte enderezado). Es SOLO lo que el visor pinta, el veredicto no
+  // cambia.
+  const esRechazo = status === "RECHAZADA";
   const fotoSinTinta = !acta.fotoProcesada || acta.procesadaVacia === true;
-  const fotoVisible = fotoSinTinta
-    ? (acta.fotoOriginal ?? acta.fotoProcesada)
-    : acta.fotoProcesada;
-  const mostrandoOriginal = fotoSinTinta && Boolean(acta.fotoOriginal);
+  // Overlay de CAMPOS (mantenedor 2026-11-25b): sus rects están medidos sobre
+  // la foto PROCESADA (filtro BW/binarizada). Para poder pintarlos en la
+  // imagen hay que mostrar ESA foto — también cuando el acta salió RECHAZADA
+  // por el veredicto del molde: la cruda tiene otra geometría (sin recorte) y
+  // verificaría una posición falsa. La cruda solo manda sin overlay que pintar.
+  const hayCamposOverlay = cajasCampos.length > 0 && !fotoSinTinta;
+  const mostrarCruda =
+    Boolean(acta.fotoOriginal) && (esRechazo || fotoSinTinta) && !hayCamposOverlay;
+  const fotoVisible = mostrarCruda ? acta.fotoOriginal : acta.fotoProcesada;
+  const mostrandoOriginal = mostrarCruda;
   // §D8.4/AC4/AC14 (SPEC-e14-score-ocr Rev. 3) + SERIE 1 (sync-visor
   // §3): contain UNIVERSAL (REV. 2 — visor invariante por score; el
   // precedente as-is ya lo estrenó). El warp real produce un acta ALTA
@@ -364,9 +590,11 @@ export function ReviewView() {
   // se ve GRANDE y CORTADA»). Con contain aparece letterboxing vertical:
   // la carta de papel blanca COMPLETA dentro del contenedor oscuro.
   const hayFoto = Boolean(fotoVisible);
-  const altFoto = mostrandoOriginal
-    ? "Foto original del documento (la procesada salió vacía)"
-    : "Foto real del documento procesado por el core";
+  const altFoto = !mostrandoOriginal
+    ? "Foto real del documento procesado por el core"
+    : esRechazo
+      ? "Foto cruda del documento rechazado (sin recortar)"
+      : "Foto original del documento (la procesada salió vacía)";
   // D35: SIMULACIÓN produce fotos reales (pipeline real) — el gate es la foto, no la fuente.
   // §D4: cualquier foto (procesada u original de respaldo) = acta real.
   const esReal = Boolean(fotoVisible);
@@ -377,11 +605,12 @@ export function ReviewView() {
   // estructural (alineación exacta con la foto PROCESADA; con la original
   // de respaldo las coordenadas no aplican → el ojo no se ofrece).
   const puedeVerZonas = cajasZonas.length > 0 && !mostrandoOriginal;
+  const puedeVerCampos = cajasCampos.length > 0 && !mostrandoOriginal;
   const contenidoFoto = fotoVisible ? (
-    // P5 (plan PLAN-AJUSTES-VISUALES — adaptación E-14 del zip): SIN SCROLL,
-    // todo cabe en pantalla. La FOTO DEL DOCUMENTO es el ÚNICO elemento
-    // flexible (FitScale la escala para caber completa) y la VERIFICACIÓN
-    // DOCUMENTAL flota como overlay sobre la imagen (P4).
+    // La FOTO DEL DOCUMENTO es el ÚNICO elemento flexible (FitScale la
+    // escala para caber completa). La VERIFICACIÓN DOCUMENTAL vive FUERA de
+    // la imagen (su fila arriba) y SOLO el panel desplegado se superpone
+    // sobre la foto (portal al visor): abrir/cerrar no la re-escala.
     <div className="w-full flex-1 min-h-0 relative flex flex-col mt-2">
       <div className="flex items-center justify-between gap-2 shrink-0">
         <span className="font-mono text-[9px] font-bold tracking-[0.18em] uppercase text-slate-400 truncate">
@@ -413,8 +642,36 @@ export function ReviewView() {
             </span>
           </button>
         )}
+        {puedeVerCampos && (
+          <button
+            type="button"
+            aria-pressed={camposVisibles}
+            aria-label={camposVisibles ? "Ocultar campos" : "Mostrar campos"}
+            title="Palabras: reconocidos (verde) · por confirmar (ámbar) · no leídos (rojo)"
+            data-testid="toggle-campos"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCamposVisibles((v) => !v);
+            }}
+            onKeyDown={(e) => e.stopPropagation()}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 transition-colors ${
+              camposVisibles
+                ? "border-sky-500/60 bg-sky-500/15 text-sky-300"
+                : "border-slate-700 bg-[#090d12] text-slate-300 hover:text-white"
+            }`}
+          >
+            <span aria-hidden className="inline-flex gap-0.5">
+              <span className="h-3 w-1 rounded-sm bg-[#10b981]" />
+              <span className="h-3 w-1 rounded-sm bg-[#f59e0b]" />
+              <span className="h-3 w-1 rounded-sm bg-[#ef4444]" />
+            </span>
+            <span className="font-mono text-[9px] font-bold uppercase tracking-wide">
+              Campos
+            </span>
+          </button>
+        )}
       </div>
-      {/* Área del documento: foto ESCALADA (FitScale) + overlay de verificación */}
+      {/* Área del documento: foto ESCALADA (FitScale) + overlays de cajas */}
       <div className="relative flex-1 min-h-0 w-full mt-1.5" data-purpose="visor-documento">
         <FitScale className="absolute inset-0">
           <div className="relative w-fit max-w-full overflow-hidden rounded-lg border border-slate-800 bg-black/40">
@@ -445,20 +702,9 @@ export function ReviewView() {
                   />
                 );
               })}
+            {camposVisibles && puedeVerCampos && <CajasCampos cajas={cajasCampos} />}
           </div>
         </FitScale>
-        {/* P4+P5 — VERIFICACIÓN DOCUMENTAL como OVERLAY sobre la imagen:
-            fila-resumen siempre visible; el panel desplegado flota SOBRE la
-            foto con fondo oscuro semitransparente — sin empujar contenido. */}
-        <div className="absolute inset-0 z-20 flex flex-col pointer-events-none px-1.5 pt-1.5 pb-1.5">
-          <div
-            className="pointer-events-auto flex flex-col min-h-0"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            <VerificacionDocumental acta={acta} overlay />
-          </div>
-        </div>
       </div>
     </div>
   ) : (
@@ -490,15 +736,24 @@ export function ReviewView() {
   // la tarjeta del óptimo tiene el mismo tratamiento que medio/bajo.
   const pillFlotante = (() => {
     if (status === "RECHAZADA") {
+      // Mock rechazada: bandera con el score REAL + motivo accionable.
+      const scoreTxt = `✗ ${acta.score.toFixed(1)}/10`;
       if (acta.rechazo?.tipo === "INCOMPLETA")
-        return { texto: `DOCUMENTO INCOMPLETO${acta.rechazo.detalle ? ` · ${acta.rechazo.detalle}` : ""}`, tono: "crit" as const };
+        return { texto: `${scoreTxt} · DOCUMENTO INCOMPLETO${acta.rechazo.detalle ? ` · ${acta.rechazo.detalle}` : ""}`, tono: "crit" as const };
       if (acta.rechazo?.tipo === "BAJO")
-        return { texto: `SCORE BAJO${acta.rechazo.detalle ? ` · ${acta.rechazo.detalle}` : ""}`, tono: "crit" as const };
+        return { texto: `${scoreTxt} · SCORE BAJO${acta.rechazo.detalle ? ` · ${acta.rechazo.detalle}` : ""}`, tono: "crit" as const };
       // KIT e14-gate-v2 (G2): marcador obligatorio de votos fallido — copy
       // CORTO y descriptivo (decisión del mantenedor: SIN guía de cámara).
       if (acta.rechazo?.tipo === "SIN_VOTOS")
-        return { texto: "DOCUMENTO SIN DATOS", tono: "crit" as const };
-      return { texto: "DOCUMENTO RECHAZADO", tono: "crit" as const };
+        return { texto: `${scoreTxt} · DOCUMENTO SIN DATOS`, tono: "crit" as const };
+      if (acta.rechazo?.tipo === "MOLDE") {
+        const faltan = acta.evaluacionMolde?.obligatoriosFaltantes ?? [];
+        return {
+          texto: `${scoreTxt} RECHAZADA${faltan.length > 0 ? ` · FALTA ${faltan.join(" / ").toUpperCase()}` : ""}`,
+          tono: "crit" as const,
+        };
+      }
+      return { texto: `${scoreTxt} · DOCUMENTO RECHAZADO`, tono: "crit" as const };
     }
     if (status === "ADVERTENCIA") {
       // KIT actas-vivas-paginas-v1 (FASE C): el RECORTE del papel (OCR de
@@ -615,12 +870,14 @@ export function ReviewView() {
     // de acciones FIJA abajo. Shell (page.tsx: h-dvh + main flex-1 min-h-0)
     // INTOCABLE; único overflow-y-auto (sin scroll duplicado).
     <div className="flex-1 min-h-0 flex flex-col">
-      {/* ZONA SCROLL — banner + tarjeta + nota + panel. P5: la foto es el
-          único elemento flexible (FitScale) y la verificación es overlay —
-          el contenido CABE por diseño; el scroll queda solo como válvula de
-          seguridad para casos de contingencia (panel de clasificación RH,
-          pantallas muy bajas). max-w-md centrado aquí y en la zona fija.
-          Task 2-b: lg:max-w-2xl — escritorio 2 columnas de ancho útil. */}
+      {/* ZONA SCROLL — banner + verificación + tarjeta + nota + panel. La
+          foto es el único elemento flexible (FitScale) y la VERIFICACIÓN
+          DOCUMENTAL ocupa su propia fila ARRIBA de la foto; solo su panel
+          desplegado se superpone sobre la imagen (portal al visor), de modo
+          que abrir/cerrar no la re-escala. El contenido CABE por diseño; el
+          scroll queda como válvula de seguridad para casos de contingencia
+          (panel de clasificación RH, pantallas muy bajas).
+          max-w-md centrado aquí y en la zona fija. */}
       <div className="flex-1 min-h-0 overflow-y-auto thin-scroll max-w-md lg:max-w-2xl xl:max-w-3xl mx-auto w-full px-4 lg:px-6 py-3 space-y-3 lg:space-y-4 flex flex-col">
         {/* Banner de ubicación (mock del mantenedor): borde + glow del estado,
             dot a cada lado del nombre del documento/puesto. */}
@@ -673,11 +930,23 @@ export function ReviewView() {
           </div>
         )}
 
-        {/* VERIFICACIÓN DOCUMENTAL — SOLO como fallback EN FLUJO cuando la
-            foto no está disponible (D4 hace que sea casi imposible: el visor
-            nunca queda vacío). Con foto, la verificación vive como OVERLAY
-            dentro de la tarjeta (P4+P5 del plan PLAN-AJUSTES-VISUALES). */}
-        {!fotoVisible && <VerificacionDocumental acta={acta} overlay={false} />}
+        {/* Fase 3 (multipágina): documento en curso con páginas PENDIENTES —
+            bloque de progreso (mock «paginas faltantes») ARRIBA de todo. */}
+        {documentoEnCurso && docIncompleto && <ProgresoDocumento doc={documentoEnCurso} />}
+
+        {/* VERIFICACIÓN DOCUMENTAL — FUERA de la imagen, como elemento propio
+            del layout (a pedido del dueño 2026-11-26): la barra ocupa su fila
+            arriba de la tarjeta y SOLO el panel desplegado se superpone sobre
+            la foto (portal al visor, `modo='overlay'`), así que la imagen no
+            cambia de tamaño al abrir/cerrar. Sin foto no hay visor donde
+            montarlo → vuelve a la columna (`modo='flujo'`).
+            Fase 3: en documento multipágina incompleto se filtra a la página
+            capturada (la verificación del LOTE llega al completar). */}
+        <VerificacionDocumental
+          acta={acta}
+          modo={fotoVisible ? 'overlay' : 'flujo'}
+          filtroPagina={documentoEnCurso && docIncompleto ? documentoEnCurso.paginas.length : null}
+        />
 
         {/* PLAN-AGENTE-LAYOUT F4 (ADITIVO): diagnóstico del gate estructural
             — SOLO se monta con acta.estructura (molde con layout + modelo
@@ -703,7 +972,7 @@ export function ReviewView() {
                   }
                 : undefined
             }
-            className="relative bg-[#10161f] rounded-2xl p-3 border border-slate-800 shadow-2xl w-full text-left flex flex-col flex-1 min-h-[240px] lg:min-h-[320px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]/60"
+            className="relative bg-[#10161f] rounded-2xl p-3 border border-slate-800 shadow-2xl w-full text-left flex flex-col flex-1 min-h-[120px] lg:min-h-[180px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]/60"
           >
             {pillEnTarjeta && (
               <span
@@ -735,7 +1004,7 @@ export function ReviewView() {
                   }
                 : undefined
             }
-            className="relative bg-[#10161f] rounded-2xl p-3 border border-slate-800 shadow-2xl w-full text-left flex flex-col flex-1 min-h-[240px] lg:min-h-[320px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]/60"
+            className="relative bg-[#10161f] rounded-2xl p-3 border border-slate-800 shadow-2xl w-full text-left flex flex-col flex-1 min-h-[120px] lg:min-h-[180px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]/60"
           >
             {pillEnTarjeta && (
               <span
@@ -786,12 +1055,10 @@ export function ReviewView() {
       {editando && acta.fotoOriginal ? (
         <QuadEditor
           fotoOriginal={acta.fotoOriginal}
-          // KIT e14-luz-sim-puntos-v1 (T-E): RECHAZADA = la detección ya
-          // falló una vez (importadas: franja Sobel degenerada — ZIPs A56)
-          // → NO se devuelve al mantenedor el quad fracasado como punto de
-          // partida: el marco completo (puntos a arrastrar al papel).
-          // ADVERTENCIA conserva quadDetectado (la detección acertó el
-          // marco; solo hay que corregir una esquina).
+          // El punto de partida es el quad DETECTADO (heurística memoizada
+          // arriba): RECHAZADA ya no fuerza el marco completo — el operador
+          // corrige sobre lo que vio en el visor. Detección fallida llega
+          // identidad por sí sola.
           quadInicial={quadInicialEditor}
           rotation={acta.rotation ?? 0}
           aplicando={recortando}
@@ -846,6 +1113,14 @@ export function ReviewView() {
                 : undefined
             }
             onClose={() => setVisorAbierto(false)}
+            /* Overlay por campo también en pantalla completa: la capa vive
+               dentro del wrapper de zoom (escala/panea con la foto) y se
+               oculta sola al comparar el original. */
+            overlay={
+              camposVisibles && puedeVerCampos ? (
+                <CajasCampos cajas={cajasCampos} />
+              ) : undefined
+            }
           />
           <span className="pointer-events-none absolute top-3 inset-x-0 text-center font-mono text-[9px] tracking-[0.2em] text-gray-400 uppercase">
             Toca o ESC para cerrar
@@ -896,6 +1171,59 @@ function BadgeRefresco({ size = 6 }: { size?: 5 | 6 }) {
   );
 }
 
+/** Fase 2 (guardar cruda, decisión del dueño): archiva la foto ORIGINAL sin
+ *  verificación cuando el auto-recorte salió mal (≥ 2 rechazos consecutivos).
+ *  DESHABILITADO sin tinta: con molde, algún manuscrito/firma/huella debe
+ *  tener trazo (`tinta === true`); sin molde, el acta no puede ser «vacía» —
+ *  una hoja en blanco NO es evidencia (fiabilidad: todo documento VÁLIDO se
+ *  guarda). Tras archivar queda «CRUDA GUARDADA ✓» (idempotente). */
+function BtnGuardarCruda({ acta }: { acta: Acta }) {
+  const guardarCruda = useE14Store((s) => s.guardarCruda);
+  const [enVuelo, setEnVuelo] = useState(false);
+  const campos = acta.evaluacionMolde?.campos;
+  const hasTinta = campos
+    ? campos.some(
+        (c) =>
+          (c.htr === true || c.tipo === "firma" || /huella|sello|firma|manuscrito/i.test(c.etiqueta)) &&
+          c.tinta === true,
+      )
+    : !acta.procesadaVacia;
+  const guardada = acta.guardadaCruda === true;
+  const disabled = guardada || enVuelo || !hasTinta;
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={async () => {
+        setEnVuelo(true);
+        try {
+          await guardarCruda();
+        } finally {
+          setEnVuelo(false);
+        }
+      }}
+      aria-label="Guardar la foto original sin verificación"
+      className={`w-full py-2.5 px-2 rounded-xl border font-mono font-bold text-[10px] leading-tight uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm tap-action transition-all text-center min-h-[36px] ${
+        guardada
+          ? "border-emerald-500/80 text-emerald-400 bg-emerald-500/10"
+          : disabled
+            ? "border-slate-700 bg-brand-surface text-slate-500 cursor-not-allowed"
+            : "border-amber-500/80 bg-brand-surface text-amber-400 hover:bg-brand-surfacelight"
+      }`}
+    >
+      <span>
+        {guardada
+          ? "CRUDA GUARDADA ✓"
+          : enVuelo
+            ? "GUARDANDO…"
+            : disabled
+              ? "GUARDAR CRUDA — SIN TINTA DETECTADA"
+              : "GUARDAR CRUDA (SIN VERIFICAR)"}
+      </span>
+    </button>
+  );
+}
+
 export function ReviewCtas() {
   const acta = useE14Store((s) => s.actaActual);
   const navegar = useE14Store((s) => s.navegar);
@@ -903,12 +1231,74 @@ export function ReviewCtas() {
   // no llega a REVISIÓN (se auto-envía al capturar y tras el recorte), y
   // el envío MANUAL solo existe para ADVERTENCIA vía REVISIÓN HUMANA.
   const repetirFoto = useE14Store((s) => s.repetirFoto);
+  // Fase 3 (multipágina): CTAs del documento EN CURSO tienen prioridad —
+  // ESCANEAR PÁGINA N+1 / REPETIR PÁGINA N / DESCARTAR documento.
+  const documentoEnCurso = useE14Store((s) => s.documentoEnCurso);
+  const siguientePagina = useE14Store((s) => s.siguientePagina);
+  const cancelarDocumento = useE14Store((s) => s.cancelarDocumento);
   // Selector extra + candado (una sola fuente de verdad):
   const escalarRevisionHumana = useE14Store((s) => s.escalarRevisionHumana);
+  // Fase 2 (guardar cruda): el botón aparece tras 2 rechazos CONSECUTIVOS.
+  const rechazosConsecutivos = useE14Store((s) => s.rechazosConsecutivos);
 
   if (!acta) return null;
+
+  // Fase 3 (multipágina): mientras falten páginas, la acción es CAPTURAR LA
+  // SIGUIENTE (verde, mock «paginas faltantes»); el veredicto no es final.
+  if (documentoEnCurso && documentoEnCurso.paginas.length < documentoEnCurso.esperadas) {
+    const capturadas = documentoEnCurso.paginas.length;
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        <button
+          type="button"
+          data-testid="btn-escanear-siguiente-pagina"
+          onClick={siguientePagina}
+          className="w-full bg-brand-green hover:bg-emerald-400 text-black font-extrabold text-[13px] py-3.5 px-6 rounded-2xl shadow-[0_2px_12px_rgba(0,230,118,0.25)] flex items-center justify-center gap-2 tap-action transition-all select-none"
+        >
+          <span className="tracking-wide uppercase font-mono font-bold">
+            ESCANEAR PÁGINA {capturadas + 1} (DE {documentoEnCurso.esperadas})
+          </span>
+        </button>
+        <div className="flex gap-2.5 w-full">
+          <button
+            type="button"
+            onClick={repetirFoto}
+            className="flex-1 min-w-0 py-2.5 px-2 rounded-xl bg-brand-surface border border-amber-500/80 hover:bg-brand-surfacelight text-amber-400 font-mono font-bold text-[10px] leading-tight uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm tap-action transition-all text-center"
+          >
+            <StitchRotateIcon className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">REPETIR PÁGINA {capturadas}</span>
+          </button>
+          <button
+            type="button"
+            onClick={cancelarDocumento}
+            className="flex-1 min-w-0 py-2.5 px-2 rounded-xl border border-slate-700 bg-[#090d12] font-mono font-bold text-[10px] leading-tight text-slate-300 hover:border-red-500/50 hover:text-[#E52222] uppercase tracking-wider flex items-center justify-center shadow-sm tap-action transition-colors text-center"
+          >
+            <span className="truncate">DESCARTAR DOCUMENTO</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const status = acta.status;
   const puedeEscalar = acta.intento >= UMBRAL_REVISION_HUMANA;
+
+  if (status === "OPTIMA") {
+    // Guard (D4/G4): la ÓPTIMA se auto-guarda en analisisCompletado y llega
+    // aquí como ENVIADA; este botón solo cubre el fallo excepcional del
+    // registro (sin él la pantalla quedaría sin salida).
+    return (
+      <button
+        type="button"
+        onClick={() => navegar("escanear")}
+        className="w-full bg-brand-green hover:bg-emerald-400 text-black font-extrabold text-[13px] py-3.5 px-6 rounded-2xl shadow-[0_2px_12px_rgba(0,230,118,0.25)] flex items-center justify-center gap-2 tap-action transition-all select-none"
+      >
+        <span className="tracking-wide uppercase font-mono font-bold">
+          SEGUIR ESCANEANDO
+        </span>
+      </button>
+    );
+  }
 
   if (status === "ENVIADA") {
     // Mock 6 §3.2.7: CTA verde «SEGUIR ESCANEANDO» (bg-brand-green,
@@ -963,31 +1353,39 @@ export function ReviewCtas() {
     // Mock 2/3 (§2): CTA único rojo «OBLIGATORIO REPETIR FOTO (INTENTO X DE
     // 4)» con badge azul giratorio; con candado → par [REPETIR] +
     // [REVISIÓN HUMANA surface]. «DE 4» = política real (mock dice 3 — §6.2).
-    return puedeEscalar ? (
-      <div className="flex gap-2.5 w-full">
-        <button
-          type="button"
-          onClick={repetirFoto}
-          className="flex-1 min-w-0 bg-[#E52222] hover:bg-red-600 text-white font-black text-xs py-3.5 px-3 rounded-2xl shadow-[0_4px_20px_rgba(229,34,34,0.4)] flex items-center justify-center gap-2 tap-action transition-all uppercase tracking-wider leading-tight text-center"
-        >
-          <BadgeRefresco size={5} />
-          <span>REPETIR</span>
-        </button>
-        <BtnRevisionHumana onClick={escalarRevisionHumana} />
-      </div>
-    ) : (
-      <div className="flex w-full">
-        <button
-          type="button"
-          id="btn-repeat-scan"
-          onClick={repetirFoto}
-          className="w-full bg-[#E52222] hover:bg-red-600 text-white font-black text-xs sm:text-sm py-4 px-4 rounded-2xl shadow-[0_4px_20px_rgba(229,34,34,0.4)] flex items-center justify-center gap-2.5 tap-action transition-all uppercase tracking-wider leading-tight text-center"
-        >
-          <BadgeRefresco size={6} />
-          <span>
-            OBLIGATORIO REPETIR FOTO (INTENTO {acta.intento} DE {acta.maxIntentos})
-          </span>
-        </button>
+    // Fase 2: con ≥ 2 rechazos consecutivos, GUARDAR CRUDA encima (foto
+    // ORIGINAL sin verificar — el auto-recorte mal no pierde el papel).
+    const mostrarCruda = rechazosConsecutivos >= 2;
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        {mostrarCruda ? <BtnGuardarCruda acta={acta} /> : null}
+        {puedeEscalar ? (
+          <div className="flex gap-2.5 w-full">
+            <button
+              type="button"
+              onClick={repetirFoto}
+              className="flex-1 min-w-0 bg-[#E52222] hover:bg-red-600 text-white font-black text-xs py-3.5 px-3 rounded-2xl shadow-[0_4px_20px_rgba(229,34,34,0.4)] flex items-center justify-center gap-2 tap-action transition-all uppercase tracking-wider leading-tight text-center"
+            >
+              <BadgeRefresco size={5} />
+              <span>REPETIR</span>
+            </button>
+            <BtnRevisionHumana onClick={escalarRevisionHumana} />
+          </div>
+        ) : (
+          <div className="flex w-full">
+            <button
+              type="button"
+              id="btn-repeat-scan"
+              onClick={repetirFoto}
+              className="w-full bg-[#E52222] hover:bg-red-600 text-white font-black text-xs sm:text-sm py-4 px-4 rounded-2xl shadow-[0_4px_20px_rgba(229,34,34,0.4)] flex items-center justify-center gap-2.5 tap-action transition-all uppercase tracking-wider leading-tight text-center"
+            >
+              <BadgeRefresco size={6} />
+              <span>
+                OBLIGATORIO REPETIR FOTO (INTENTO {acta.intento} DE {acta.maxIntentos})
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     );
   }

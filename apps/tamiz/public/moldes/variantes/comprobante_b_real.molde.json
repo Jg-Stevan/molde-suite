@@ -1,0 +1,283 @@
+{
+  "tipo": "universal",
+  "version": "1.0.0",
+  "nombre": "Comprobante de entrega — B (todo a mano)",
+  "descripcion": "Variante B del papel real: formulario en blanco; TODOS los datos a mano (htr). Calibrado sobre comprobante-b-todo-mano-01.",
+  "documento": "generico/comprobante_entrega",
+  "idioma": "es",
+  "campos": [
+    {
+      "id": "titulo",
+      "etiqueta": "COMPROBANTE DE ENTREGA",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.01,
+        "y": -0.006,
+        "w": 0.52,
+        "h": 0.028
+      },
+      "ancla": {
+        "texto": "COMPROBANTE DE ENTREGA",
+        "rect": {
+          "x": 0.106,
+          "y": 0.099,
+          "w": 0.483,
+          "h": 0.013
+        }
+      },
+      "umbral": 0.02,
+      "patron": ".*COMPROBANTE\\s+DE\\s+ENTREGA.*",
+      "obligatorio": true,
+      "realce": true
+    },
+    {
+      "id": "nombre_comprador",
+      "etiqueta": "COMPRADOR (nombre)",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0,
+        "y": -0.004,
+        "w": 0.45,
+        "h": 0.026
+      },
+      "ancla": {
+        "texto": "Nombre y apellido",
+        "rect": {
+          "x": 0.112,
+          "y": 0.157,
+          "w": 0.129,
+          "h": 0.01
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": true,
+      "realce": true
+    },
+    {
+      "id": "documento_comprador",
+      "etiqueta": "DOCUMENTO",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0,
+        "y": -0.004,
+        "w": 0.3,
+        "h": 0.026
+      },
+      "ancla": {
+        "texto": "Número de Documento",
+        "rect": {
+          "x": 0.112,
+          "y": 0.196,
+          "w": 0.163,
+          "h": 0.01
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": true,
+      "realce": true
+    },
+    {
+      "id": "telefono",
+      "etiqueta": "TELÉFONO",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0,
+        "y": -0.004,
+        "w": 0.24,
+        "h": 0.026
+      },
+      "ancla": {
+        "texto": "Teléfono",
+        "rect": {
+          "x": 0.509,
+          "y": 0.197,
+          "w": 0.061,
+          "h": 0.009
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": false
+    },
+    {
+      "id": "direccion",
+      "etiqueta": "DIRECCIÓN",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0,
+        "y": 0.014,
+        "w": 0.55,
+        "h": 0.032
+      },
+      "ancla": {
+        "texto": "Dirección de entrega",
+        "rect": {
+          "x": 0.113,
+          "y": 0.23,
+          "w": 0.145,
+          "h": 0.012
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": false
+    },
+    {
+      "id": "articulo",
+      "etiqueta": "ARTÍCULO",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0,
+        "y": -0.004,
+        "w": 0.55,
+        "h": 0.032
+      },
+      "ancla": {
+        "texto": "Artículo",
+        "rect": {
+          "x": 0.115,
+          "y": 0.325,
+          "w": 0.058,
+          "h": 0.011
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": true
+    },
+    {
+      "id": "numero_operacion",
+      "etiqueta": "N.º OPERACIÓN",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0,
+        "y": -0.004,
+        "w": 0.24,
+        "h": 0.026
+      },
+      "ancla": {
+        "texto": "Operación",
+        "rect": {
+          "x": 0.61,
+          "y": 0.329,
+          "w": 0.074,
+          "h": 0.01
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": false
+    },
+    {
+      "id": "descripcion",
+      "etiqueta": "DESCRIPCIÓN",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": 0.0,
+        "y": -0.004,
+        "w": 0.8,
+        "h": 0.046
+      },
+      "ancla": {
+        "texto": "Descripción",
+        "rect": {
+          "x": 0.113,
+          "y": 0.363,
+          "w": 0.088,
+          "h": 0.01
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": true
+    },
+    {
+      "id": "firma_comprador",
+      "etiqueta": "Firma comprador",
+      "pagina": 1,
+      "tipo": "firma",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.09,
+        "y": -0.075,
+        "w": 0.46,
+        "h": 0.062
+      },
+      "ancla": {
+        "texto": "Firma del comprador",
+        "rect": {
+          "x": 0.195,
+          "y": 0.526,
+          "w": 0.134,
+          "h": 0.011
+        }
+      },
+      "umbral": 0.0035,
+      "obligatorio": true
+    },
+    {
+      "id": "fecha_entrega",
+      "etiqueta": "FECHA DE ENTREGA",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": {
+        "x": -0.18,
+        "y": -0.004,
+        "w": 0.18,
+        "h": 0.026
+      },
+      "ancla": {
+        "texto": "Fecha de entrega",
+        "rect": {
+          "x": 0.637,
+          "y": 0.528,
+          "w": 0.109,
+          "h": 0.012
+        }
+      },
+      "umbral": 0.02,
+      "htr": true,
+      "obligatorio": true
+    }
+  ],
+  "huella": {
+    "frasesClave": [
+      "COMPROBANTE DE ENTREGA",
+      "Nombre y apellido",
+      "Número de Documento",
+      "Operación"
+    ],
+    "paginas": 1,
+    "franja": {
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 0.5
+    },
+    "minFrases": 2
+  },
+  "meta": {
+    "orden": 12,
+    "estado": "activo",
+    "etiquetaCampos": "Campos mapeados"
+  }
+}

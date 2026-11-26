@@ -1,0 +1,271 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:43.772470400 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:43.773465600 -0500
+@@ -38,34 +38,38 @@
+  * fachada delgada que re-exporta la API pública EXACTA.
+  */
+ import {
+-  detectDocumentEdgesDetail,
+   ErrorRescateHeic,
+   processImage,
+-} from "@jg-stevan/scanner-core/core/image-processor";
+-import type { OrigenQuad } from "@jg-stevan/scanner-core/core/image-processor";
+-import { defaultQuad } from "@jg-stevan/scanner-core/core/types";
++} from "@molde-suite/scanner-core/core/image-processor";
++import type { OrigenQuad } from "@molde-suite/scanner-core/core/image-processor";
++import { defaultQuad } from "@molde-suite/scanner-core/core/types";
+ import type {
+   PageFilter,
+   Quad,
+-} from "@jg-stevan/scanner-core/core/types";
+-import { ocrTextIsValid } from "@jg-stevan/scanner-core/core/ocr";
+-import { statusDeScore } from "@jg-stevan/scanner-core/dominio/types";
+-import type {
+-  Acta,
+-  ActaFirma,
+-  ActaStatus,
+-  ProgresoAnalisis,
+-} from "@jg-stevan/scanner-core/dominio/types";
+-import type { E14Bridge, OpcionesEscaneo } from "@jg-stevan/scanner-core/dominio/bridge";
+-import { tituloYUbicacionDe } from "@jg-stevan/scanner-core/dominio/clasificador";
+-import type { ClasificacionE14 } from "@jg-stevan/scanner-core/dominio/clasificador";
++} from "@molde-suite/scanner-core/core/types";
++import { ocrTextIsValid } from "@molde-suite/scanner-core/core/ocr";
++import { statusDeScore } from "@molde-suite/scanner-core/dominio/types";
++import type { Acta, ProgresoAnalisis } from "@molde-suite/scanner-core/dominio/types";
++import type { E14Bridge, OpcionesEscaneo } from "@molde-suite/scanner-core/dominio/bridge";
++import { tituloYUbicacionDe } from "@molde-suite/scanner-core/dominio/clasificador";
++import type { ClasificacionE14 } from "@molde-suite/scanner-core/dominio/clasificador";
+ import { IMAGENES_SIMULADAS } from "../simulacion-imagenes";
+ // KIT e14-ocr-tessbest-v1 (GO-B): presupuesto del ESCANEO por tier — el
+ // default lo resuelve `presupuestoEscaneoEfectivo()` (adaptacion/plan.ts).
+ import { presupuestoEscaneoEfectivo } from "../adaptacion/plan";
++import { leerFlags } from "../flags";
++// FASE 0 (blueprint DLA): evaluación del molde activo tras el gate (paso inyectado).
++import { evaluarMoldeEnActa } from "../molde/evaluacion";
++// FASE B3 (blueprint DLA): bandas OCR dinámicas desde regiones de layout (ONNX).
++import { ocrBandaDinamicaSiDisponible } from "./ocr-dinamico";
++// PLAN-AGENTE-LAYOUT F4: gate estructural del molde activo (etapa LAYOUT).
++import { evaluarEstructuraDelActa } from "./estructura";
+ // FASE F (plan post-v2.3) — el CUERPO de §5 vive en pipeline.ts (move-only) y
+ // recibe por inyección los helpers que este módulo comparte con el recorte.
+ import { correrPipelineL2 } from "../pipeline";
++// Quad de la foto con el detector REAL (worker OpenCV) — misma vía del
++// pipeline de escaneo y de las marcas en vivo.
++import { detectarQuadDeFoto } from "./deteccion-quad";
+ import { logger } from "../../logger"; // SPRINT-A A6 — console→logger (mensajes byte-idénticos)
+ // R-28 — piezas extraídas del antiguo scanner-core-bridge.ts.
+ import {
+@@ -131,7 +135,7 @@
+     //  · SIMULACIÓN sin archivo (D35) → el acta E-14 incluida, EXACTAMENTE
+     //    como un archivo de IMPORTAR (la foto real del mantenedor, EXIF incluido).
+     //  · Sin entrada → error explícito (el guard del store ya avisó).
+-    let entrada: EntradaPipeline | null = null;
++    let entrada: EntradaPipeline;
+     if (opciones.archivo) {
+       entrada = { archivo: opciones.archivo };
+     } else if (opciones.fuente === "CAMARA") {
+@@ -238,6 +242,38 @@
+             return;
+           }
+           clearTimeout(timer);
++          // B1 — la muestra PerfActa también en el ÉXITO (antes solo el
++          // watchdog emitía y las actas que terminaban quedaban fuera de la
++          // medición). tiempos = fases del pipeline (parcial.msParciales) +
++          // tiempos del molde si corrió (prefijo molde_ — nunca pisa fases).
++          try {
++            const tiempos: Record<string, number> = { ...(parcial.msParciales ?? {}) };
++            const tMolde = acta.evaluacionMolde?.tiempos;
++            if (tMolde) {
++              tiempos.molde_render_ms = tMolde.render_ms;
++              tiempos.molde_ocr_ms = tMolde.ocr_ms;
++              tiempos.molde_motor_ms = tMolde.motor_ms;
++            }
++            void import("../obs/captura")
++              .then((m) =>
++                m.emitirPerfDeActa({
++                  actaId: acta.id,
++                  escaneoId: parcial.escaneoId,
++                  status: acta.status,
++                  intento: opciones.intento,
++                  tiempos,
++                  scoreVisual: acta.scoreVisual ?? 0,
++                  scoreFinal: acta.score,
++                  gate: acta.rechazo?.tipo ?? acta.status,
++                  ocrValido: (acta.ocrTexto ?? "").trim().length > 0,
++                  vencido: false,
++                  camino: "pipeline",
++                }),
++              )
++              .catch(() => {});
++          } catch {
++            /* la emisión de perf jamás rompe el desenlace */
++          }
+           resolve(acta);
+         },
+         (error) => {
+@@ -272,6 +308,8 @@
+       decodeArchivoMemo,
+       quadIdentidad: QUAD_IDENTITY,
+       esperarWorkerCaliente,
++      // FASE A3 (blueprint DLA): kill-switch del operador (Panel DEV).
++      deskewHabilitado: leerFlags().deskew,
+       calidadDeActa,
+       scoreDeCalidad,
+       contrasteEfectivoDe,
+@@ -290,6 +328,18 @@
+       DETALLE_BAJO,
+       TECHO_SIN_SENAL,
+       TECHO_ESCUDO_FONDO,
++      // FASE 0 (blueprint DLA): evaluación del molde tras el gate —
++      // ETAPA B: reenvía el CONTEXTO E-14 al router universal (el molde
++      // puede convertirse en el veredicto del acta); null honesto sin
++      // moldes o con el flag apagado.
++      evaluarMolde: (fotoProcesada, contexto, opciones) =>
++        evaluarMoldeEnActa(fotoProcesada, contexto, opciones),
++      // FASE B3 (blueprint DLA): bandas OCR dinámicas (PP-DocLayout) cuando
++      // el flag + modelo están; undefined = bandas fijas de siempre.
++      ocrBandaDinamica: ocrBandaDinamicaSiDisponible,
++      // PLAN-AGENTE-LAYOUT F4: gate estructural ANTES del OCR (etapa LAYOUT)
++      // — null honesto sin molde con layout / flag / modelo (etapa saltada).
++      evaluarEstructuraActa: evaluarEstructuraDelActa,
+     };
+   }
+ 
+@@ -351,7 +401,6 @@
+           score: 0,
+           status: "RECHAZADA",
+           rechazo: { tipo: "ILEGIBLE", detalle: DETALLE_TIMEOUT },
+-          firmas: this.firmasPorStatus(acta.firmas, "RECHAZADA"),
+           // FIX (auditoría 2-a #8): el invariante del gate (RECHAZADA ⇒
+           // clasificación descartada) también en el timeout del recorte —
+           // el spread conservaba una clasificación AUTO previa (p. ej. de
+@@ -366,7 +415,6 @@
+       void correrPipelineRecorte(
+         {
+           evaluarGate: (s, t, c, i, m) => this.evaluarGate(s, t, c, i, m),
+-          firmasPorStatus: (f, st) => this.firmasPorStatus(f, st),
+         },
+         acta,
+         fotoOriginal,
+@@ -421,7 +469,7 @@
+     let quad: Quad;
+     let quadOrigen: OrigenQuad | "pagina-completa" | null = null;
+     try {
+-      const detalle = await detectDocumentEdgesDetail(fotoNueva);
++      const detalle = await detectarQuadDeFoto(fotoNueva);
+       quad = detalle.quad;
+       quadOrigen = detalle.origen;
+     } catch {
+@@ -511,6 +559,11 @@
+       acta.rotation ?? 0,
+       { manual: true },
+     );
++    // Guarda §D4: salida vacía de processImage jamás llega al acta como
++    // fotoProcesada:'' (el catch de cambiarFiltro conserva la foto anterior).
++    if (!resultado.processed) {
++      throw new Error('PROCESADO DE IMAGEN SIN SALIDA (data URL vacío)');
++    }
+     return { ...acta, fotoProcesada: resultado.processed, filtro };
+   }
+ 
+@@ -547,6 +600,11 @@
+           "original",
+           acta.rotation ?? 0,
+         );
++        // Guarda §D4: salida vacía → mismo trato que un fallo de processImage
++        // (cae al fallback de abajo con la fotoProcesada del acta).
++        if (!r.processed) {
++          throw new Error('PROCESADO DE IMAGEN SIN SALIDA (data URL vacío)');
++        }
+         // PROD-2 (§2-C2): el re-OCR del editor pasa por el ÚNICO motor.
+         return reconocerRapidOcr(r.processed);
+       } catch {
+@@ -556,15 +614,6 @@
+     return reconocerRapidOcr(fotoProcesada); // comportamiento de hoy (fallback)
+   }
+ 
+-  /** Firmas coherentes con el estado (misma regla del mock/§7.5):
+-   *  ADVERTENCIA → firma 2 TENUE · RECHAZADA → NO_DETECTADO · resto OK. */
+-  private firmasPorStatus(firmas: ActaFirma[], status: ActaStatus): ActaFirma[] {
+-    if (firmas.length < 2) return firmas;
+-    const estadoFirma2: ActaFirma["estado"] =
+-      status === "ADVERTENCIA" ? "TENUE" : status === "RECHAZADA" ? "NO_DETECTADO" : "OK";
+-    return firmas.map((f, i) => (i === 1 ? { ...f, estado: estadoFirma2 } : { ...f }));
+-  }
+-
+   /** Acta final: seed SOLO cuando la clasificación no está resuelta (§1) + campos reales §3.1. */
+   private construirActa(
+     opciones: OpcionesEscaneo,
+@@ -576,11 +625,6 @@
+       : "001";
+     this.contador += 1;
+ 
+-    // Firmas coherentes con el estado (misma regla del mock §7.5):
+-    // ADVERTENCIA → firma 2 TENUE · RECHAZADA → NO_DETECTADO · resto OK.
+-    const estadoFirma2: ActaFirma["estado"] =
+-      campos.status === "ADVERTENCIA" ? "TENUE" : campos.status === "RECHAZADA" ? "NO_DETECTADO" : "OK";
+-
+     // §1.2 (SPEC-titulo-ubicacion): clasificación AUTO → el acta nace con
+     // título/ubicación REALES. KIT e14-sin-relleno-v1 + auditoría 2026-11-11
+     // (hallazgos #2 y #3): NINGÚN campo de pantalla viene ya del acta de
+@@ -594,9 +638,17 @@
+         : campos.clasificacion?.tipo === "DELEGADOS"
+           ? "CÓNSUL/EMBAJADOR"
+           : "SIN CLASIFICAR";
++    // ETAPA B (enrutamiento universal): acta reconocida por un MOLDE de la
++    // biblioteca → el banner/tipo llevan el NOMBRE DEL DOCUMENTO (p. ej.
++    // «RECIBO DE LUZ»), no «DOCUMENTO SIN IDENTIFICAR». La ubicación no
++    // existe en documentos no electorales: honesta con «—».
++    const enrutado = campos.evaluacionMolde?.enrutado === true;
++    const nombreMolde = enrutado
++      ? (campos.evaluacionMolde?.moldeNombre ?? "DOCUMENTO").toUpperCase()
++      : null;
+     return {
+       id: `acta-${Date.now()}-${this.contador}`,
+-      titulo: titUbi?.titulo ?? "ACTA SIN IDENTIFICAR",
++      titulo: nombreMolde ?? (titUbi?.titulo ?? "DOCUMENTO SIN IDENTIFICAR"),
+       ubicacion: titUbi?.ubicacion ?? {
+         departamento: "—",
+         municipio: "—",
+@@ -604,7 +656,7 @@
+         puesto: "—",
+         mesa: numeroMesa,
+       },
+-      tipo: tipoHonesto,
++      tipo: nombreMolde ?? tipoHonesto,
+       // §6: página REAL del «Ver/Pag/de» cuando la clasificación la leyó.
+       // KIT actas-vivas-paginas-v1 (FASE B): la página viaja COMO VENGA de
+       // la clasificación (null incluido — DESCONOCIDA: el chip muestra
+@@ -618,17 +670,13 @@
+             total: 2,
+           },
+       candidatos: [],
+-      firmas: [
+-        { nombre: "—", jurado: "JURADO 1", estado: "OK" },
+-        { nombre: "—", jurado: "JURADO 2", estado: estadoFirma2 },
+-        { nombre: "—", jurado: "JURADO 3", estado: "OK" },
+-      ],
++      firmas: [],
+       score: campos.score,
+       scoreVisual: campos.scoreVisual,
+       status: campos.status,
+       rechazo: campos.rechazo,
+-      intento: opciones.intento,
+-      maxIntentos: opciones.maxIntentos,
++      intento: opciones.intento ?? 1,
++      maxIntentos: opciones.maxIntentos ?? 3,
+ 
+       // ----- Campos reales (§3.1) -----
+       fuente: opciones.fuente,
+@@ -655,6 +703,11 @@
+       // SPEC-cabecera-clasificacion §6: clasificación de cabecera (AUTO →
+       // archivada en su mesa al envío; SUGERIDA/MANUAL → panel de corrección §5).
+       clasificacion: campos.clasificacion ?? undefined,
++      // FASE 0 (blueprint DLA): veredicto por molde (ADITIVO — sin score/status).
++      evaluacionMolde: campos.evaluacionMolde ?? null,
++      // PLAN-AGENTE-LAYOUT F4: veredicto del gate estructural (ADITIVO —
++      // null = etapa saltada; el rechazo temprano lo lleva RECHAZADA).
++      estructura: campos.estructura ?? null,
+       // e64-qr T-2.1 — señal de la CAPA 0 QR de cámara (ADITIVA AL FINAL,
+       // contrato D57): qrCam definido = el decodificador corrió ("leido" con
+       // payload / "sin-payload" con null); undefined (timeout — el

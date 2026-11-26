@@ -67,3 +67,11 @@ apps/tamiz/public/scanner/heartbeat.worker.js
 
 # Scratch local de verificación (volcados de BD, capturas)
 _verificacion/
+# Salidas de procesos lanzados en segundo plano durante la verificación
+*.out
+*.err
+
+# Fixtures servidos al teléfono durante el banco E2E (los originales viven en
+# scripts/resultados/fixtures/; se copian aquí solo para que el dev server los
+# sirva a Chrome Android, que no puede leer /sdcard vía CDP).
+apps/tamiz/public/dev-fixtures/

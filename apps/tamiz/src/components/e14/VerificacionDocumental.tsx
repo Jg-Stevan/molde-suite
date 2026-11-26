@@ -1,30 +1,31 @@
 'use client';
 
 /**
- * VERIFICACIÓN DOCUMENTAL (mock del mantenedor, 2026-11-16) — P4 del plan
- * PLAN-AJUSTES-VISUALES (adaptación E-14 del parche del zip táctico):
- *
- *  · OVERLAY sobre la foto del documento en REVISIÓN (P5): la fila-resumen
- *    (icono del gate + título + badge % + chevron) siempre visible y clicable;
- *    el panel desplegado flota SOBRE la imagen con fondo oscuro semitransparente
- *    (backdrop-blur) — no empuja el contenido, no crea scroll.
- *  · Comportamiento por estado (P4):
+ * VERIFICACIÓN DOCUMENTAL — fila-resumen propia del layout ARRIBA de la foto
+ * (mocks del mantenedor 2026-11-25; overlay del panel 2026-11-26): la
+ * fila-resumen (icono del gate + título + badge % + chevron) siempre visible y
+ * clicable; el panel se despliega como ACORDEÓN suave (grid-rows 0fr→1fr),
+ * scrollea por dentro y FLOTA sobre la foto (portal al visor) — la imagen no
+ * se re-escala al abrir ni al cerrar y la pantalla no scrollea.
+ *  · Comportamiento por estado:
  *      - OPTIMA/ENVIADA (todo OK): COLAPSADA por defecto; al abrirla muestra
  *        el detalle completo (todos los items).
- *      - ADVERTENCIA / RECHAZADA / EN_REVISION_HUMANA: DESPLEGADA por defecto
- *        mostrando SOLO los campos faltantes (los OK no se listan). El badge
- *        [pasados/total] conserva el conteo COMPLETO del checklist.
+ *      - ADVERTENCIA / RECHAZADA / EN_REVISION_HUMANA: auto-despliegue al
+ *        segundo de vida del acta mostrando SOLO los campos faltantes (los
+ *        OK no se listan). El badge [pasados/total] conserva el conteo
+ *        COMPLETO del checklist.
  *      - RECHAZADA sin clasificación (sin plantilla conocida): mensaje
- *        «DOCUMENTO NO IDENTIFICADO — SIN PLANTILLA CONOCIDA» (el 5.º estado
- *        del ciclo del zip).
+ *        «DOCUMENTO NO IDENTIFICADO — SIN PLANTILLA CONOCIDA».
  *
  * Los datos siguen siendo los MISMOS data-driven de lib/e14/checklist.ts
- * (cero lógica nueva en el motor, solo la piel del mock + reglas P4).
+ * (cero lógica nueva en el motor, solo la piel del mock).
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import type { Acta } from '@/lib/e14/fachada';
 import type { ResumenMoldeCampo } from '@molde-suite/scanner-core/dominio/types';
+import { useE14Store } from '@/lib/e14/store';
 import {
   construirChecklist,
   tonoDeStatus,
@@ -86,10 +87,189 @@ function IconoGate({ tono }: { tono: TonoChecklist }) {
   );
 }
 
+/** §5 — una FILA del panel con su estado/confianza y, si es editable, el
+ *  lápiz + editor inline (input + GUARDAR/CANCELAR). Al guardar llama al
+ *  store (editarCampoActa): re-evalúa, recalcula el veredicto, persiste
+ *  EDITADO y aplica la REGLA DE ORO si completa los obligatorios. Los
+ *  manuscritos (firma/huella) NO se editan — su evidencia es la tinta. */
+function FilaVerificacion({ item, acta }: { item: ItemChecklist; acta: Acta }) {
+  const editarCampoActa = useE14Store((s) => s.editarCampoActa);
+  const [editando, setEditando] = useState(false);
+  const [borrador, setBorrador] = useState('');
+  const [enVuelo, setEnVuelo] = useState(false);
+  const [fallo, setFallo] = useState(false);
+
+  const esCheckbox = item.tipoCampo === 'checkbox';
+  const valorActual = (() => {
+    if (item.editado && acta.valoresEditados && item.id in acta.valoresEditados) {
+      const v = acta.valoresEditados[item.id];
+      return typeof v === 'string' ? v : v ? 'true' : '';
+    }
+    if (esCheckbox) return item.detalle === 'DILIGENCIADO' ? 'true' : '';
+    return item.detalle && !['CONFIRMAR', 'SIN LECTURA', 'SIN MARCA'].includes(item.detalle)
+      ? item.detalle
+      : '';
+  })();
+
+  const confTxt =
+    typeof item.conf === 'number' ? `conf ${Math.round(item.conf * 100)}%` : null;
+
+  async function guardar() {
+    setEnVuelo(true);
+    setFallo(false);
+    try {
+      const valor = esCheckbox ? borrador === 'true' : borrador;
+      const ok = await editarCampoActa(item.id, valor);
+      if (ok) setEditando(false);
+      else setFallo(true);
+    } finally {
+      setEnVuelo(false);
+    }
+  }
+
+  return (
+    <li
+      key={item.id}
+      data-testid="checklist-item"
+      className="flex flex-col rounded-lg bg-[#090d12]/70 border border-slate-800/70 px-2.5 py-1"
+    >
+      <div className="flex items-center justify-between gap-3 min-h-[28px]">
+        <span className="flex items-center gap-2 min-w-0">
+          <span
+            aria-hidden
+            className={`shrink-0 font-mono text-[11px] font-black leading-none ${GLIFO_COLOR[item.estado]}`}
+          >
+            {GLIFO[item.estado]}
+          </span>
+          <span className="font-mono text-[11px] font-semibold text-slate-200 truncate">
+            {item.etiqueta}
+          </span>
+          {item.editado && (
+            <span
+              data-testid="campo-editado"
+              className="shrink-0 rounded border border-sky-500/50 bg-sky-500/10 px-1 font-mono text-[8.5px] font-black uppercase text-sky-300"
+            >
+              EDITADO
+            </span>
+          )}
+        </span>
+        <span className="flex items-center gap-1.5 shrink-0">
+          {confTxt && (
+            <span
+              title="Confianza de lectura del OCR"
+              className="font-mono text-[9px] text-slate-500 tabular-nums"
+            >
+              {confTxt}
+            </span>
+          )}
+          {item.detalle && (
+            <span
+              className={`font-mono text-[10px] font-bold uppercase tracking-wide text-right ${VALOR_ESTADO[item.estado]} max-w-[45%] truncate`}
+            >
+              {item.detalle}
+            </span>
+          )}
+          {item.editable && !editando && (
+            <button
+              type="button"
+              data-testid={`editar-campo-${item.id}`}
+              aria-label={`Corregir el valor de ${item.etiqueta}`}
+              title="Corregir el valor leído"
+              onClick={() => {
+                setBorrador(esCheckbox ? valorActual || 'false' : valorActual);
+                setFallo(false);
+                setEditando(true);
+              }}
+              className="shrink-0 rounded border border-slate-700 bg-[#0d131a] px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-300 hover:border-sky-500/60 hover:text-sky-300 cursor-pointer"
+            >
+              ✎
+            </button>
+          )}
+        </span>
+      </div>
+
+      {/* Editor inline (§5): input de edición + GUARDAR/CANCELAR. Al guardar
+          se re-evalúa el documento con el valor corregido; si completa los
+          obligatorios → auto-guardado inmediato (REGLA DE ORO §4). */}
+      {editando && (
+        <div className="mt-1.5 flex flex-col gap-1.5 border-t border-slate-800 pt-1.5" data-testid="editor-campo">
+          {esCheckbox ? (
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setBorrador('true')}
+                aria-pressed={borrador === 'true'}
+                className={`flex-1 rounded-md border px-2 py-1.5 font-mono text-[10px] font-bold cursor-pointer ${
+                  borrador === 'true'
+                    ? 'border-[#10b981]/60 bg-[#10b981]/15 text-[#10b981]'
+                    : 'border-slate-700 bg-[#0d131a] text-slate-400'
+                }`}
+              >
+                MARCADO
+              </button>
+              <button
+                type="button"
+                onClick={() => setBorrador('false')}
+                aria-pressed={borrador === 'false'}
+                className={`flex-1 rounded-md border px-2 py-1.5 font-mono text-[10px] font-bold cursor-pointer ${
+                  borrador === 'false'
+                    ? 'border-red-500/60 bg-red-500/15 text-red-300'
+                    : 'border-slate-700 bg-[#0d131a] text-slate-400'
+                }`}
+              >
+                SIN MARCA
+              </button>
+            </div>
+          ) : (
+            <input
+              type="text"
+              value={borrador}
+              autoFocus
+              aria-label={`Nuevo valor para ${item.etiqueta}`}
+              data-testid="input-valor-campo"
+              onChange={(e) => setBorrador(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && borrador.trim()) void guardar();
+                if (e.key === 'Escape') setEditando(false);
+              }}
+              className="w-full rounded-md border border-slate-700 bg-black/40 px-2 py-1.5 font-mono text-[11px] text-white placeholder:text-white/30 focus:border-sky-500/60 focus:outline-none"
+              placeholder="Valor correcto del campo"
+            />
+          )}
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              data-testid="guardar-valor-campo"
+              disabled={enVuelo || (!esCheckbox && !borrador.trim())}
+              onClick={() => void guardar()}
+              className="flex-1 rounded-md bg-brand-green px-2 py-1.5 font-mono text-[10px] font-bold text-black hover:brightness-110 disabled:opacity-40 cursor-pointer"
+            >
+              {enVuelo ? 'GUARDANDO…' : 'GUARDAR CORRECCIÓN'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditando(false)}
+              className="flex-1 rounded-md border border-slate-700 px-2 py-1.5 font-mono text-[10px] font-bold text-slate-300 hover:border-slate-500 cursor-pointer"
+            >
+              CANCELAR
+            </button>
+          </div>
+          {fallo && (
+            <p role="alert" className="font-mono text-[9.5px] text-red-300">
+              No se pudo aplicar la corrección (campo no editable o sin molde).
+            </p>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
 /** Una sección del panel (mock: título bold + badge [N/M] + filas).
  *  P4: cuando `soloFaltantes` está activo, la LISTA muestra únicamente los
  *  items con problema (los OK no se listan); el badge conserva el conteo
- *  completo [pasados/total] para no perder la perspectiva del progreso. */
+ *  completo [pasados/total] para no perder la perspectiva del progreso.
+ *  §5: las filas del MOLDE se renderizan con FilaVerificacion (conf +
+ *  edición inline) — las filas del checklist E-14 genérico quedan intactas. */
 function SeccionVerificacion({
   titulo,
   items,
@@ -97,6 +277,7 @@ function SeccionVerificacion({
   desplegable,
   abierta,
   onToggle,
+  acta,
 }: {
   titulo: string;
   items: ItemChecklist[];
@@ -104,6 +285,9 @@ function SeccionVerificacion({
   desplegable?: boolean;
   abierta?: boolean;
   onToggle?: () => void;
+  /** §5 — acta con filas del motor (presente SOLO en secciones del molde):
+   *  activa la fila editable con conf/estado/lápiz. */
+  acta?: Acta;
 }) {
   const total = items.length;
   const pasados = items.filter((it) => it.estado === 'ok').length;
@@ -155,29 +339,35 @@ function SeccionVerificacion({
           (las secciones fijas — Campos Obligatorios — siempre la muestran). */}
       {(!desplegable || abierta) && (
         <ul className="mt-1 space-y-0.5">
-        {lista.map((item) => (
-          <li
-            key={item.id}
-            data-testid="checklist-item"
-            className="flex items-center justify-between gap-3 rounded-lg bg-[#090d12]/70 border border-slate-800/70 px-2.5 py-1 min-h-[28px]"
-          >
-            <span className="flex items-center gap-2 min-w-0">
-              <span aria-hidden className={`shrink-0 font-mono text-[11px] font-black leading-none ${GLIFO_COLOR[item.estado]}`}>
-                {GLIFO[item.estado]}
+        {lista.map((item) =>
+          acta ? (
+            // §5 — fila del MOLDE: conf + estado + lápiz de corrección.
+            <FilaVerificacion key={item.id} item={item} acta={acta} />
+          ) : (
+            // Fila del checklist E-14 genérico (intacta).
+            <li
+              key={item.id}
+              data-testid="checklist-item"
+              className="flex items-center justify-between gap-3 rounded-lg bg-[#090d12]/70 border border-slate-800/70 px-2.5 py-1 min-h-[28px]"
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <span aria-hidden className={`shrink-0 font-mono text-[11px] font-black leading-none ${GLIFO_COLOR[item.estado]}`}>
+                  {GLIFO[item.estado]}
+                </span>
+                <span className="font-mono text-[11px] font-semibold text-slate-200 truncate">
+                  {item.etiqueta}
+                </span>
               </span>
-              <span className="font-mono text-[11px] font-semibold text-slate-200 truncate">
-                {item.etiqueta}
-              </span>
-            </span>
-            {item.detalle && (
-              <span
-                className={`shrink-0 font-mono text-[10px] font-bold uppercase tracking-wide text-right ${VALOR_ESTADO[item.estado]} max-w-[55%] truncate`}
-              >
-                {item.detalle}
-              </span>
-            )}
-          </li>
-        ))}
+              {item.detalle && (
+                <span
+                  className={`shrink-0 font-mono text-[10px] font-bold uppercase tracking-wide text-right ${VALOR_ESTADO[item.estado]} max-w-[55%] truncate`}
+                >
+                  {item.detalle}
+                </span>
+              )}
+            </li>
+          ),
+        )}
       </ul>
       )}
     </section>
@@ -240,8 +430,11 @@ function fusionarGrupos(
 /** ETAPA B (enrutamiento universal): una fila del motor universal → item del
  *  checklist con el MISMO semáforo. Valores legibles por tipo de campo:
  *  texto → el valor leído; presencia/firma/checkbox → diligenciado o sin
- *  marca; dudoso → CONFIRMAR (revisión humana); vacío → SIN LECTURA. */
-function itemDeFilaMolde(c: ResumenMoldeCampo): ItemChecklist {
+ *  marca; dudoso → CONFIRMAR (revisión humana); vacío → SIN LECTURA.
+ *  §5 (plan cierre 2 agentes): la fila lleva TAMBIÉN la confianza de
+ *  lectura, el tipo, si es editable (texto/checkbox) y si fue EDITADA por
+ *  el operador — el panel la muestra junto al valor. */
+function itemDeFilaMolde(c: ResumenMoldeCampo, acta: Acta): ItemChecklist {
   const estado: EstadoChecklist =
     c.estado === 'ok'
       ? 'ok'
@@ -262,20 +455,52 @@ function itemDeFilaMolde(c: ResumenMoldeCampo): ItemChecklist {
   } else {
     detalle = 'SIN LECTURA';
   }
-  return { id: c.id, etiqueta: c.etiqueta, detalle, estado };
+  const editable = c.tipo === 'texto' || c.tipo === 'checkbox';
+  return {
+    id: c.id,
+    etiqueta: c.etiqueta,
+    detalle,
+    estado,
+    conf: c.conf ?? null,
+    tipoCampo: c.tipo,
+    editable,
+    // Marca EDITADO: el acta lleva el override del operador para este campo.
+    editado: acta.valoresEditados ? c.id in acta.valoresEditados : false,
+  };
 }
 
-/** Tarjeta VERIFICACIÓN DOCUMENTAL.
- *  · overlay (default true): fila-resumen flotante sobre la foto — colapsada
- *    ocupa solo la barra (la foto queda tocable); desplegada, el panel llena
- *    el área disponible (flex-1) y scrollea por dentro.
- *  · overlay=false: tarjeta EN FLUJO con fondo propio (fallback sin foto). */
+/** Mueve su contenido al nodo `host` (el visor de la foto) cuando existe; sin
+ *  host se queda en el flujo. El wrapper intermedio solo existe en el portal:
+ *  así el panel absoluto no hereda el ancho de la columna. */
+function EnVisor({
+  host,
+  className,
+  children,
+}: {
+  host: HTMLElement | null;
+  className: string;
+  children: ReactNode;
+}) {
+  if (!host) return <>{children}</>;
+  return createPortal(<div className={className}>{children}</div>, host);
+}
+
+/** Tarjeta VERIFICACIÓN DOCUMENTAL. `modo='overlay'`: la FILA-RESUMEN sigue
+ *  siendo un elemento del layout (arriba de la foto, le cede su propia fila)
+ *  pero el PANEL desplegado se portaliza DENTRO del visor, así que flota
+ *  sobre la imagen sin re-escalarla nunca — abrir y cerrar no mueve la foto.
+ *  `modo='flujo'`: todo en la columna (fallback sin foto), panel con tope. */
 export function VerificacionDocumental({
   acta,
-  overlay = true,
+  modo = 'flujo',
+  filtroPagina,
 }: {
   acta: Acta;
-  overlay?: boolean;
+  modo?: 'overlay' | 'flujo';
+  /** Fase 3 (multipágina): muestra SOLO los campos de esta página (1-indexada;
+   *  `c.pagina ?? 1`); el % del badge es el de la página. `null/undefined` =
+   *  documento completo / molde de una página (sin filtro). */
+  filtroPagina?: number | null;
 }) {
   const checklist = useMemo(() => construirChecklist(acta), [acta]);
   const tono = tonoDeStatus(acta.status);
@@ -286,15 +511,23 @@ export function VerificacionDocumental({
   // las FILAS del motor universal con el semáforo de siempre (B.3). El
   // nombre del documento vive en el banner (acta.titulo) y en el caption.
   const molde = acta.evaluacionMolde?.enrutado ? acta.evaluacionMolde : null;
+  // Plan primera ola (Fase 4): molde evaluado que NO sustituye el veredicto
+  // del gate → pista de una línea (el % y las filas del checklist NO cambian).
+  const moldeAditivo = acta.evaluacionMolde && !acta.evaluacionMolde.enrutado ? acta.evaluacionMolde : null;
   // Filas del motor universal → items del checklist (derivación barata; el
-  // compilador de React memoiza automáticamente).
-  const filasMolde = useMemo(() => molde?.campos ?? [], [molde]);
+  // compilador de React memoiza automáticamente). Fase 3 (multipágina):
+  // `filtroPagina` restringe la verificación a la página capturada.
+  const filasMolde = useMemo(() => {
+    const filas = molde?.campos ?? [];
+    if (filtroPagina == null) return filas;
+    return filas.filter((c) => (c.pagina ?? 1) === filtroPagina);
+  }, [molde, filtroPagina]);
   const obligatoriosMolde = filasMolde
     .filter((c) => c.obligatorio)
-    .map(itemDeFilaMolde);
+    .map((c) => itemDeFilaMolde(c, acta));
   const opcionalesMolde = filasMolde
     .filter((c) => !c.obligatorio)
-    .map(itemDeFilaMolde);
+    .map((c) => itemDeFilaMolde(c, acta));
 
   // ── FASE 4 (v3.2.0 — interfaz táctica): cuando el molde declara `grupo`
   // (importador Chandra), el checklist se presenta AGRUPADO por sección de
@@ -321,9 +554,9 @@ export function VerificacionDocumental({
           if (oa !== ob) return oa - ob;
           return a.etiqueta.localeCompare(b.etiqueta);
         })
-        .map(itemDeFilaMolde),
+        .map((c) => itemDeFilaMolde(c, acta)),
     }));
-  }, [filasMolde]);
+  }, [filasMolde, acta]);
 
   // ── P4 — SIN PLANTILLA: rechazada sin clasificación NI texto útil
   // (ILEGIBLE: ni código de barras ni cabecera detectados → nada que
@@ -357,16 +590,42 @@ export function VerificacionDocumental({
   );
   const abiertaPorDefecto = sinPlantilla || tono !== 'ok' || hayZonasFaltantes;
   const [overrideAbierta, setOverrideAbierta] = useState<boolean | null>(null);
+  // Auto-despliegue al segundo (mocks 2026-11-25): en no-OK la tarjeta nace
+  // colapsada y se abre sola con el acordeón suave; el toque del operador
+  // siempre gana (override). Reset al cambiar el acta.
+  const [autoAbierta, setAutoAbierta] = useState(false);
   const actaId = acta.id ?? null;
   useEffect(() => {
     setOverrideOpcionales(null);
     setOverrideAbierta(null);
+    setAutoAbierta(false);
   }, [actaId]);
-  const abierta = overrideAbierta ?? abiertaPorDefecto;
+  useEffect(() => {
+    if (!abiertaPorDefecto) {
+      setAutoAbierta(false);
+      return;
+    }
+    const t = window.setTimeout(() => setAutoAbierta(true), 1000);
+    return () => window.clearTimeout(t);
+  }, [actaId, abiertaPorDefecto]);
+  const abierta = overrideAbierta ?? autoAbierta;
   const opcionalesAbiertos = overrideOpcionales ?? tono !== 'ok';
 
+  // §5 (plan cierre 2 agentes) — el operador necesita CORREGIR cualquier
+  // campo, también los que el motor leyó 'ok' (el OCR puede pasar un valor
+  // equivocado por el patrón). P4 solo-mostraba los faltantes: este toggle
+  // EXPLÍCITO del operador despliega TODAS las filas del molde para editar
+  // (la presentación por defecto de P4 queda intacta). Reset al cambiar acta.
+  const [mostrarTodos, setMostrarTodos] = useState(false);
+  useEffect(() => {
+    setMostrarTodos(false);
+  }, [actaId]);
+  const hayEditables = filasMolde.some((c) => c.tipo === 'texto' || c.tipo === 'checkbox');
+
   // P4 — contenido: óptima muestra TODO; el resto SOLO lo faltante.
-  const soloFaltantes = tono !== 'ok';
+  // §5: el toggle «mostrar todos» del operador gana (edición de cualquier
+  // campo — ver comentario arriba).
+  const soloFaltantes = tono !== 'ok' && !mostrarTodos;
 
   // Porcentaje global del gate (mock: badge del header) — para actas
   // ENRUTADAS el conteo sale de las filas del MOLDE (semáforo universal).
@@ -382,27 +641,35 @@ export function VerificacionDocumental({
       opcionales.filter((it) => it.estado === 'ok').length;
   const pct = totalItems > 0 ? Math.round((pasadosItems / totalItems) * 100) : 0;
 
+  const esOverlay = modo === 'overlay';
+  // OVERLAY (dueño 2026-11-26): el panel desplegado se monta dentro del visor
+  // de la foto, no en la columna — abrir/cerrar NO re-escala la imagen. Se
+  // resuelve tras el commit (el visor se renderiza después que esta barra);
+  // mientras está colapsado (0fr) da igual, y el auto-open llega al segundo.
+  const [visor, setVisor] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!esOverlay) {
+      setVisor(null);
+      return;
+    }
+    setVisor(document.querySelector<HTMLElement>('[data-purpose="visor-documento"]'));
+  }, [esOverlay, actaId]);
+
   return (
     <div
       aria-label="Verificación documental"
       data-testid="verificacion-documental"
-      className={
-        overlay
-          ? abierta
-            ? 'flex flex-col gap-1.5 flex-1 min-h-0'
-            : 'flex flex-col gap-1.5'
-          : 'bg-[#10161f] rounded-2xl border border-slate-800 shadow-sm p-3.5 flex flex-col gap-2.5'
-      }
+      className="flex flex-col gap-1.5 shrink-0"
     >
-      {/* Fila-resumen: SIEMPRE visible y clicable (overlay flotante sobre la
-          foto, estilo táctico del zip: barra oscura semitransparente). */}
+      {/* Fila-resumen: SIEMPRE visible y clicable, en su propia fila del
+          layout (fuera de la imagen). */}
       <button
         type="button"
         onClick={() => setOverrideAbierta(!abierta)}
         aria-expanded={abierta}
         aria-controls="verificacion-detalle"
         data-testid="verificacion-toggle"
-        className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#0d131a]/90 backdrop-blur border ${piel.borde} w-full text-left cursor-pointer select-none transition-colors hover:border-slate-600`}
+        className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#0d131a] border ${piel.borde} w-full text-left cursor-pointer select-none transition-colors hover:border-slate-600 shrink-0`}
       >
         <div className="flex items-center gap-2 min-w-0">
           <IconoGate tono={tono} />
@@ -431,20 +698,43 @@ export function VerificacionDocumental({
         </span>
       </button>
 
-      {/* Panel desplegado — flota SOBRE la imagen (blur oscuro semitransparente).
-          En overlay llena el área disponible (flex-1) y scrollea por dentro;
-          en flujo usa un tope de altura propio. */}
-      {abierta && (
+      {/* Pista ADITIVA del molde (solo si evaluó pero no enrutó): hace visible
+          la identificación sin tocar el % ni las filas del checklist. */}
+      {moldeAditivo && (
+        <p
+          data-testid="molde-pista"
+          className="px-2.5 -mt-0.5 font-mono text-[10px] text-slate-400/90 truncate shrink-0"
+        >
+          MOLDE: {moldeAditivo.moldeNombre.toUpperCase()} · {Math.round(moldeAditivo.score)}% ·{' '}
+          {moldeAditivo.ok}/{moldeAditivo.total}
+        </p>
+      )}
+
+      {/* Panel desplegable — ACORDEÓN suave (grid-rows 0fr→1fr, CSS puro):
+          siempre montado para animar apertura Y cierre; el contenido scrollea
+          por dentro. En overlay se portaliza dentro del visor (`flex-1`, sin
+          tope de altura): abierto cubre la foto entera y la pantalla NUNCA
+          scrollea, porque el panel absoluto no le quita un píxel de alto. */}
+      <EnVisor
+        host={esOverlay ? visor : null}
+        className="absolute inset-1.5 z-20 flex flex-col min-h-0 pointer-events-none"
+      >
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+          abierta ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        } ${esOverlay ? 'flex-1 min-h-0' : ''}`}
+      >
+        <div className="overflow-hidden min-h-0" inert={!abierta}>
         <div
           id="verificacion-detalle"
           role="region"
           aria-label="Detalle de verificación documental"
           data-testid="verificacion-detalle"
-          className={
-            overlay
-              ? 'rounded-lg bg-[#0d131a]/85 backdrop-blur-md border border-slate-800/80 p-2.5 flex flex-col gap-2.5 flex-1 min-h-0 overflow-y-auto thin-scroll'
-              : 'rounded-lg bg-[#0d131a]/85 border border-slate-800/80 p-2.5 flex flex-col gap-2.5 max-h-[60vh] overflow-y-auto thin-scroll'
-          }
+          className={`rounded-lg border border-slate-800/80 p-2.5 flex flex-col gap-2.5 overflow-y-auto thin-scroll ${
+            esOverlay
+              ? `h-full bg-[#0d131a]/95 backdrop-blur-[2px] ${abierta ? 'pointer-events-auto' : ''}`
+              : 'bg-[#0d131a] max-h-[60vh]'
+          }`}
         >
           {molde ? (
             <>
@@ -452,6 +742,22 @@ export function VerificacionDocumental({
               <p className="font-mono text-[9.5px] font-bold tracking-widest text-slate-300 uppercase shrink-0">
                 Molde: {molde.moldeNombre.toUpperCase()} · {molde.ok}/{molde.total} campos ok
               </p>
+              {/* §5 — corrección de datos: el toggle despliega TODAS las filas
+                  del molde para que el operador pueda corregir también las que
+                  el motor leyó 'ok' (por defecto P4: solo faltantes). */}
+              {hayEditables && (
+                <button
+                  type="button"
+                  data-testid="toggle-mostrar-todos"
+                  aria-pressed={mostrarTodos}
+                  onClick={() => setMostrarTodos((v) => !v)}
+                  className="w-full rounded-md border border-sky-500/50 bg-sky-500/10 px-2 py-1 font-mono text-[9.5px] font-bold uppercase tracking-wide text-sky-300 hover:bg-sky-500/15 cursor-pointer shrink-0"
+                >
+                  {mostrarTodos
+                    ? 'SOLO CAMPOS CON PROBLEMAS'
+                    : 'CORREGIR DATOS — MOSTRAR TODOS LOS CAMPOS'}
+                </button>
+              )}
               {gruposTacticos ? (
                 <>
                   {/* FASE 4 (v3.2.0 — interfaz táctica): checklist AGRUPADO por
@@ -463,6 +769,7 @@ export function VerificacionDocumental({
                       titulo={g.titulo}
                       items={g.items}
                       soloFaltantes={soloFaltantes}
+                      acta={acta}
                     />
                   ))}
                 </>
@@ -475,6 +782,7 @@ export function VerificacionDocumental({
                       titulo="Campos Obligatorios"
                       items={obligatoriosMolde}
                       soloFaltantes={soloFaltantes}
+                      acta={acta}
                     />
                   )}
                   {/* Campos informativos del molde (desplegable, regla del mock). */}
@@ -484,8 +792,9 @@ export function VerificacionDocumental({
                       items={opcionalesMolde}
                       soloFaltantes={soloFaltantes}
                       desplegable
-                      abierta={opcionalesAbiertos}
+                      abierta={mostrarTodos || opcionalesAbiertos}
                       onToggle={() => setOverrideOpcionales(!opcionalesAbiertos)}
+                      acta={acta}
                     />
                   )}
                 </>
@@ -533,7 +842,9 @@ export function VerificacionDocumental({
             </>
           )}
         </div>
-      )}
+        </div>
+      </div>
+      </EnVisor>
     </div>
   );
 }

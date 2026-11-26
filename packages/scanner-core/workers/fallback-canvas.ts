@@ -41,6 +41,11 @@
  *    main lo reserva para sí — ver processImageCanvas.
  */
 import { enhanceToRgba, unsharpRgba, type EnhanceMode } from "../core/image-modes";
+// Plan §B (rotada-12): guarda anti-degenerados del quad — MISMA matemática
+// que el gemelo del hilo principal (image-processor.ts usa sanearQuad de
+// core/quad-guardas.ts; aquí la variante PLANA del mensaje). Corregir en el
+// mismo commit (regla de casa de los gemelos).
+import { sanearQuadPlano } from "../core/quad-guardas";
 
 interface PeticionFallback {
   id: number;
@@ -56,44 +61,21 @@ type RespuestaFallback =
   | { id: number; ok: true; png: Blob; ancho: number; alto: number }
   | { id: number; ok: false; error: string };
 
-/** Gemelo de `filterToSharedMode` (image-processor.ts L81): los 3 filtros del
- *  producto → modos de image-modes. Literal pequeño duplicado para NO importar
- *  image-processor (ciclo + DOM). */
-/** FILTROS DEL FORK (Tamiz) — gemelo byte-fiel de image-processor.ts:219-261:
- *  el worker devuelve EXACTAMENTE lo que el hilo principal (misma matemática,
- *  sin unsharp — el fork no lo aplica). */
-function aplicarFiltroForkAPixeles(px: Uint8ClampedArray, filtro: string): void {
+/** FILTROS — gemelo byte-fiel de la ruta local (image-processor.ts): bw =
+ *  unsharp + Bradley-Roth ADAPTATIVO de digielect14 (funciones puras de
+ *  image-modes: integral image, ventana w/12, t=0.15, despeckle, corrección
+ *  de sombra); el resto (contrast/text) = modo 'text' del motor (white-point
+ *  + LUT sigmoidal), SIN unsharp (R4 de la auditoría diff-puertos; el
+ *  p5/p95 lineal del fork quedó retirado). Exportada para el test de
+ *  paridad worker↔local (misma entrada → mismos bytes). */
+export function aplicarFiltroForkAPixeles(px: Uint8ClampedArray, w: number, h: number, filtro: string): void {
   if (filtro === "original") return;
-  const n = px.length / 4;
-  const hist = new Uint32Array(256);
-  for (let i = 0, p = 0; i < px.length; i += 4, p++) {
-    const g = (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]) | 0;
-    hist[g]++;
-    void p;
+  if (filtro === "bw") {
+    const afilada = unsharpRgba(px, w, h);
+    px.set(enhanceToRgba(afilada, w, h, "bw"));
+    return;
   }
-  let acc = 0;
-  let p5 = 0;
-  for (let v = 0; v < 256; v++) {
-    acc += hist[v];
-    if (acc >= n * 0.05) { p5 = v; break; }
-  }
-  acc = 0;
-  let p95 = 255;
-  for (let v = 0; v < 256; v++) {
-    acc += hist[v];
-    if (acc >= n * 0.95) { p95 = v; break; }
-  }
-  const span = Math.max(8, p95 - p5);
-  for (let i = 0; i < px.length; i += 4) {
-    const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-    let v = ((g - p5) * 255) / span;
-    v = Math.min(255, Math.max(0, v));
-    if (filtro === "bw") {
-      // Otsu simple por umbral fijo sobre la imagen estirada (fork L254-256).
-      v = v > 165 ? 255 : v < 90 ? 0 : v;
-    }
-    px[i] = px[i + 1] = px[i + 2] = v;
-  }
+  px.set(enhanceToRgba(px, w, h, "text"));
 }
 
 // ── GEMELO: solveHomographyDstToSrc (image-processor.ts L1025) — copia
@@ -319,7 +301,7 @@ function aplicarFiltroAPixeles(
   const H = canvas.height;
   if (W < 1 || H < 1) return;
   const image = ctx.getImageData(0, 0, W, H);
-  aplicarFiltroForkAPixeles(image.data, filter);
+  aplicarFiltroForkAPixeles(image.data, W, H, filter);
   ctx.putImageData(image, 0, 0);
 }
 
@@ -327,13 +309,28 @@ function aplicarFiltroAPixeles(
  *  sale como `{ok:false}` (red line del kit). */
 async function procesar(p: PeticionFallback): Promise<RespuestaFallback> {
   try {
+    // Guarda §B (gemelo de sanearQuad en image-processor.ts): un quad plano
+    // con NaN/±Inf envenena warpQuadAPixeles (dist/hypot NaN → w0 NaN →
+    // return null) Y cropQuadCanvas (min/max NaN → OffscreenCanvas NaN →
+    // canvas 0×0). Se sana a identidad ANTES de tocar píxeles: degradación
+    // honesta idéntica a la del hilo principal.
+    const saneado = sanearQuadPlano(p.quad);
+    const quad = saneado.plano;
     const fuente = pixelesDe(p.bitmap);
-    const warp = warpQuadAPixeles(fuente, p.quad, p.maxLongSide);
+    if (saneado.saneado) {
+      // Telemetría §B: el worker no tiene el logger del paquete (obs-base
+      // arrastra IndexedDB) — una línea de consola es visible en devtools
+      // y no altera el contrato {ok:true} (la salida es VÁLIDA, identidad).
+      console.warn("[fallback-canvas] quad no finito → identidad", {
+        dims: `${fuente.sw}x${fuente.sh}`,
+      });
+    }
+    const warp = warpQuadAPixeles(fuente, quad, p.maxLongSide);
     let canvas: OffscreenCanvas;
     if (warp !== null) {
       canvas = rotarCanvas(canvasDePixeles(warp), p.rotation);
     } else {
-      canvas = cropQuadCanvas(fuente, p.quad, p.rotation, p.maxLongSide); // último recurso bbox
+      canvas = cropQuadCanvas(fuente, quad, p.rotation, p.maxLongSide); // último recurso bbox
     }
     aplicarFiltroAPixeles(canvas, p.filter);
     // R-10: los 3 filtros del producto salen PNG (sin ringing sobre tinta) —

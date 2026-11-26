@@ -82,8 +82,24 @@ interface ReporteUniversal {
   obligatorios_faltantes?: string[];
 }
 
-/** Banderas que anulan la lectura: el campo NO es un acierto genuino. */
-export const BANDERAS_NO_LECTURA = ['ancla_no_encontrada', 'ocr_vacio', 'zona_vacia', 'fallback_no_verificado'];
+/**
+ * Banderas que anulan la lectura: el campo NO es un acierto genuino.
+ * §9.3 del diagnóstico (2026-11-24, ANALISIS-RECORTADO): `forma_sin_caja`
+ * entra aquí — una firma "sí" medida SIN caja impresa detectada (fuente
+ * 'ancla' geométrica, sin bypass) es señal blanda: la tinta puede ser texto
+ * impreso vecino, no una rúbrica. El endurecedor del motor (v3.2.0) ya anula
+ * el caso bypass (`ancla_solo_textual` → `ancla_sin_geometria`); esta línea
+ * hace que el SCORE GENUINO del arnés también descuente el caso geométrico
+ * blando SIN cambiar veredictos del motor (evita regresiones en los fixtures
+ * limpios, donde la banda `umbral_al_borde` ya degrada lo dudoso).
+ */
+export const BANDERAS_NO_LECTURA = [
+  'ancla_no_encontrada',
+  'ocr_vacio',
+  'zona_vacia',
+  'fallback_no_verificado',
+  'forma_sin_caja',
+];
 
 export function normalizarCampos(r: ReporteUniversal): CampoReporte[] {
   return r.campos ?? (r.paginas ?? []).flatMap((p) => p.campos);
@@ -183,20 +199,34 @@ Pasos que automatiza (referencia manual):
     const botonAbrir = pagina.getByRole('button', { name: /Abrir en Editor Visual/i }).first();
     await botonAbrir.waitFor({ state: 'visible', timeout: 30_000 });
     // Si hay varias tarjetas, elegir la que contiene el nombre del molde.
+    // El xpath `ancestor::*[contains(., nombre)]` NO sirve: subiendo cualquier
+    // botón se llega a un contenedor con TODAS las tarjetas (su texto contiene
+    // todos los nombres) y ganaba siempre el primero — medido: el arnés
+    // evaluaba el Acta E-14 activa aunque se pidiera «Recibo de pago». Se
+    // busca en cambio el ANCESTRO PEQUEÑO (≤4 botones: la tarjeta en sí) que
+    // lleva el nombre.
     const totalAbrir = await pagina.getByRole('button', { name: /Abrir en Editor Visual/i }).count();
-    let elegido = botonAbrir;
+    let idx = 0;
     if (totalAbrir > 1) {
-      for (let i = 0; i < totalAbrir; i++) {
-        const b = pagina.getByRole('button', { name: /Abrir en Editor Visual/i }).nth(i);
-        const contexto = b.locator('xpath=ancestor::*[contains(., "' + NOMBRE_MOLDE + '")][1]');
-        if ((await contexto.count()) > 0) {
-          elegido = b;
-          break;
+      idx = await pagina.evaluate((nombre) => {
+        const btns = Array.from(document.querySelectorAll('button')).filter((b) =>
+          /Abrir en Editor Visual/i.test(b.textContent || ''),
+        );
+        for (let i = 0; i < btns.length; i++) {
+          let el: HTMLElement | null = btns[i];
+          for (let d = 0; d < 8 && el; d++) {
+            el = el.parentElement;
+            if (el && (el.textContent || '').includes(nombre) && el.querySelectorAll('button').length <= 4) {
+              return i;
+            }
+          }
         }
-      }
+        return 0;
+      }, NOMBRE_MOLDE);
     }
+    const elegido = pagina.getByRole('button', { name: /Abrir en Editor Visual/i }).nth(idx);
     await elegido.click();
-    console.log('[arnés] Editor abierto');
+    console.log(`[arnés] Editor abierto (tarjeta ${idx + 1}/${totalAbrir} «${NOMBRE_MOLDE}»)`);
 
     // 3) «Probar Plantilla» SOLO si no venía imagen: re-ejecuta la última
     //    corrida. Con imagen propia es un desperdicio (2-4 min de OCR) y su

@@ -25,8 +25,13 @@ Manual maestro para agentes de IA (y humanos) que crean o modifican moldes de
 | Importador Chandra (datalab-convert → MoldeUniversal, v3.2.0) | El humano YA tiene la salida de Chandra del documento y su matriz de obligatorios: pégala en Biblioteca → «Importar JSON / Chandra» → revisa la tabla (tipo, obligatorio, grupo, orden) → crear | NO sustituye al editor: los rects ESTIMADOS (retícula de celdas) y las anchuras de lectura iniciales se ajustan en el editor con «Probar faro» antes de validar |
 | Rect de referencia (`ancla.rect`) | Siempre (fallback cuando el OCR pierde la etiqueta) | Como estrategia única en documentos con variantes de layout |
 | `zona_fija` | Documentos 100% rígidos (mismo layout exacto siempre) | Fotos de celular con desplazamientos |
-| Grupo de campos con restricciones (pendiente — ver PLAN-DESARROLLO.md Fase 4) | Varios campos comparten banda/columna uniforme | Campos dispersos |
-| Umbral por clustering (pendiente — Fase 8) | ≥3 corridas del mismo molde | Primera prueba |
+| Anclas de voto (`anclas[]`, v3.3.0 — Fase 3) | El campo tiene DOS o más etiquetas estables en BANDAS distintas y no quieres depender de una sola (tachón/luz pueden borrar una): cada ancla declara su `zona` propia hasta el mismo rect; el motor acepta POR CONSENSO (≥2 coinciden) y con discrepancia va a revisión (jamás escoge) | El campo tiene una sola etiqueta (usa `ancla` normal — una lista de 1 la rechaza el validador) |
+| Grupo de campos con restricciones (`grupos`, v3.3.0 — Fase 4) | Varios campos comparten banda (`fila`) / columna (`columna`) / celda repetida (`repetidor`, alineación + espaciado uniforme): una violación demueve los 'ok' con bandera `grupo_*` — hace imposible por construcción que J1 y J3 resuelvan el mismo rect | Campos dispersos sin relación espacial (usa `tipo: "seccion"`, que no opina) |
+| Auto-propuesta de anclas (FASE 5 — editor) | Recién dibujaste la zona: el botón «Proponer anclas (FASE 5)» lista las 3 mejores candidatas por cercanía + unicidad + confianza; las que difieren solo en dígitos van en ROJO — añade `desambiguadores` antes de guardar | La capa OCR de la página aún no corrió |
+| Umbral por clustering (IMPLEMENTADO — Fase 8) | ≥3 corridas del mismo molde | Primera prueba |
+| Herencia por tipo (`herencia`, v3.3.0 — Fase 9) | El molde define MUCHOS campos del mismo tipo con el mismo umbral/patrón: decláralos UNA vez en `herencia[tipo]` (un campo sin `umbral` hereda; sin herencia el validador lo rechaza) | Cada campo necesita un umbral calibrado distinto (la calibración fina vive en el campo) |
+| Fixtures de verdad de terreno (`fixtures`, v3.3.0 — Fase 9) | El molde YA tiene casos de prueba conocidos ('limpia', 'sin-firmas'): declara `esperado`/`estadosEsperados` y Verificación confronta cada corrida contra ellos con evidencia | No tienes la verdad de terreno medida (inventarla produce desvíos falsos) |
+| Huella de cascada (`huella`, v3.3.0 — Fase 6) | Quieres que Verificación AVISE cuando el documento subido parece ser OTRO tipo (frases clave de cabecera + nº de páginas): identificación barata ANTES del análisis completo | Un solo molde cargado (no hay contra quién comparar) |
 | Dedupe de rects (`ancla_colision`) | AUTOMÁTICO — el motor marca colisiones | Nada que decidir: si aparece, revisa el molde |
 
 ## 3. Criterios de aprobación de un molde
@@ -59,6 +64,40 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
 
 - Estados de campo: `ok` / `no_encontrado` / `requiere_revision` — el motor
   NUNCA inventa lecturas (conf null ≠ 0.5; manuscritos `htr` siempre a revisión).
+- **Overlay por campo (aditivo)**: cada `ResultadoCampoUniversal` trae `rect`
+  (dónde se leyó el valor) y `ancla_rect` (dónde el OCR encontró el texto del
+  ANCLA; `null` en `zona_fija`/`referencia`/`arnés`, donde no hubo hit real que
+  señalar). La app Tamiz pinta sobre la foto procesada SOLO el valor
+  reconocido como PALABRA coloreada (mantenedor 2026-11-25d): verde (`ok`),
+  ámbar (`requiere_revision`) o rojo (`no_encontrado`/firma faltante). Los
+  campos `tipo: "firma"` (manuscritos) se RESALTAN como banda translúcida con
+  el rótulo de qué firma es DEBAJO de la banda (mantenedor 2026-11-25f; si la
+  banda toca el pie, el rótulo va arriba).
+  **Semáforo de manuscritos por TINTA medida (v1.5.1, mantenedor 2026-11-26):**
+  un manuscrito (`tipo: "firma"` o `htr: true` en la definición, v1.4.2) NUNCA
+  se pinta por lectura — una rúbrica ilegible con trazo es «hay trazo». La
+  banda va VERDE si `tinta === true` y ROJO si `tinta === false` (zona en
+  blanco); sin ámbar. `tinta` es aditivo en `ResumenMoldeCampo` y lo deriva el
+  puente de Tamiz de `ResultadoCampoUniversal.ratio` (el mismo ratio de
+  píxeles oscuros que alimenta `firma_ausente`/`zona_vacia`; piso 0.001 =
+  «tinta real», ≈20 px en la canónica). `tinta` ausente = zona sin resolver:
+  la UI cae al heurístico por estado/banderas de siempre. Esto hace correcto
+  el semáforo en formularios en blanco (todo rojo) y en relleno manuscrito
+  ilegible (verde donde hay trazo), sin tocar el motor.
+  Las anclas NO se dibujan (queda
+  `ancla_rect` como dato del contrato). También en
+  el visor a pantalla completa: la capa vive dentro del wrapper de zoom y
+  escala/panea con la foto (se oculta al comparar el original). Los rects son
+  normalizados (0-1) sobre el canvas de la foto PROCESADA — el overlay solo
+  se ofrece con esa foto (jamás sobre la original).
+- **Referencia posicional del ancla en identificación (v1.5.0, real-fotos
+  2026-11-25)**: `buscarAncla(texto, lineas, w, h, rect?)` acepta el rect
+  DECLARADO por el molde como referencia posicional con penalización suave
+  (`1/(1+3d)`); el router de Tamiz (`ratioAnclasDe`) lo pasa para desempatar
+  moldes que comparten rótulos pero no geometría. Aditivo: sin `rect` se
+  comporta como siempre. Ojo: variantes del MISMO papel impreso comparten
+  también geometría — ahí el desempate no existe y la respuesta correcta es
+  un molde por familia con `htr` + semáforo por tinta (ver `lessons/`).
 - Banderas relevantes al diseñar: `ancla_no_encontrada`, `ancla_colision`,
   `desambiguacion_fallida`, `umbral_al_borde`, `pagina_faltante`,
   `posible_pagina_equivocada`, `rotacion_180_corregida`.
@@ -77,6 +116,11 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
   `rescate_fallido` (se intentó el rescate y no mejoró — el resultado original
   se conserva). Solo campos obligatorios con tinta y lectura inválida; nunca
   global.
+- **Rescate honesto en zona vacía (real-fotos 2026-11-25)**: el rescate con
+  `realce` se OMITE si la zona se midió vacía (`zona_vacia`). En un formulario
+  en blanco, ampliar y binarizar solo inventa glifos legibles («de», «2024»)
+  con confianza fantasma; un vacío medido es más honesto. Con tinta escasa
+  (sin la bandera) el rescate corre como siempre.
 - **Plan extracción relacional (FASE 3 — validaciones)**: `regla: 'rango'`
   compara FECHAS entre dos campos (`"fecha_pago >= fecha_emision"`). Formatos
   parseados: ISO, dd/mm/aaaa, dd-mm-aaaa, «24 de noviembre de 2026». Un
@@ -87,7 +131,13 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
   desplazamiento al rect esperado es `|dx|+|dy| ≤ 0.3`
   (`ANCLA_TEXUAL_DESPLAZAMIENTO_MAX`). Sin cota, una etiqueta que aparezca una
   sola vez en otra zona ancla el campo allí (medido: dos firmas `ok` con valor
-  "true" y `forma_sin_caja`).
+  "true" y `forma_sin_caja`). **Ambigüedad resuelta por columna** (v1.4.1,
+  recorte-66 medido): con ≥2 perfectos (`«Firma»` izquierda/derecha) y score
+  posicional bajo el corte, se concede el bypass solo si el score posicional
+  ya falló y EXACTAMENTE UN perfecto cae en la columna esperada
+  (`|dx| ≤ 0.1`, `ANCLA_COLUMNA_DX_MAX`) con `|dy| ≤ 0.3`. La unicidad se
+  juzga por `dx` sobre todos los perfectos: dos copias en la MISMA columna
+  siguen ambiguas y nunca ganan el bypass.
 - **Campos de tinta**: `ancla_sin_geometria` — un campo `tipo !== 'texto'`
   (firma, presencia, checkbox) anclado SOLO por texto no puede quedar `ok`: su
   evidencia es la geometría (caja/rúbrica), que el bypass no verifica.
@@ -102,7 +152,8 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
     de escala distinta de la referencia (geometría normalizada desplazada, dy
     ≥ 0.16 → penalización < 0.72): antes el match perfecto se RECHAZABA por
     posición y el campo caía al fallback. Con ambigüedad (≥ 2 ventanas
-    perfectas) la posición sigue mandando.
+    perfectas) la posición sigue mandando, salvo la desambiguación por COLUMNA
+    descrita arriba (un único perfecto en la columna esperada, dy ≤ 0.3).
   - `ancla_rescate_anti_tachon` / `valor_rescate_anti_tachon` — ancla/valor
     recuperados desde el MAPA OCR DE RESCATE (2ª pasada OCR perezosa sobre el
     canvas con limpieza anti-tachón — la apertura 1D elimina los trazos largos
@@ -114,6 +165,28 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
     bien (caso real: fecha_pago correcto se degradaba porque fecha_emision
     estaba bajo un revelado). `ok: false` mantiene la democión (defensa
     principal). El gate global `requiere_revision` sigue encendido con null.
+- **Plan extracción relacional (FASE 5 — arnés geométrico)**: `fuente: 'arnes'`
+  — el campo perdió su ancla y el motor proyectó su rect desde ≥3 anclas de alta
+  confianza (`ARNES_ANCLAS_MIN`) con un afín de mínimos cuadrados cuyo modelo se
+  reajusta solo sobre los votos que se sustentan entre sí (leave-one-out:
+  residual normalizado ≤ `ARNES_VOTO_TOL` = 0.02). `confProy` = fracción de votos
+  soportados; se adopta con `conf ≥ ARNES_CONF_PROY_MIN` = 0.8. Bandera
+  `ancla_inferida` (posición inferida, no medida) y aditivo `auto_reparado_numero`
+  (ver FASE 6). Adopción texto exige lectura válida + conf ≥ 0.7 + patrón; sin
+  eso queda `requiere_revision` — NUNCA un `ok` silencioso. Las firmas se
+  separan por caja: con `cajasLayout` de clase `seal` (la inyecta la app; el
+  motor no importa dla-onnx), cada firma recibe su propio rect y se acaba el
+  «dos firmas en el mismo rect» por construcción.
+- **Plan extracción relacional (FASE 6 — votación 2/3 y letras↔número)**: un
+  campo rescatado por el arnés vale `ok` solo con dos de tres señales de acuerdo
+  (geometría del arnés + patrón validado + conf OCR ≥ `ARNES_TEXTO_CONF_MIN`).
+  `letrasANumero` convierte «dos mil cuatrocientos…» a número (español, 10-15/
+  20-29, millone/billón, «con» decimales); devuelve null ante cualquier token
+  desconocido — nunca inventa. `repararNumeroAmbiguo` solo mapea dígitos
+  ambiguos (O→0 I/l→1 S→5 B→8 Z→2 G→6 T→7 q→9) y la reparación se acepta
+  ÚNICAMENTE si el otro operando de la validación la cruza por letras al mismo
+  valor (`auto_reparado_numero`); sin cruce, el valor queda intacto y la
+  validación `ok: null`.
 - **v3.2.0 — faro (ancla_relacional)**: `ancla_fuera_de_zona` (el texto existe
   PERO fuera del faro — el mapa está mal puesto o la variante es otra; cae a
   referencia), `relacion_sin_candidato` (nada en la dirección pedida →

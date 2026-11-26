@@ -38,7 +38,6 @@
  * fachada delgada que re-exporta la API pública EXACTA.
  */
 import {
-  detectDocumentEdgesDetail,
   ErrorRescateHeic,
   processImage,
 } from "@molde-suite/scanner-core/core/image-processor";
@@ -68,6 +67,9 @@ import { evaluarEstructuraDelActa } from "./estructura";
 // FASE F (plan post-v2.3) — el CUERPO de §5 vive en pipeline.ts (move-only) y
 // recibe por inyección los helpers que este módulo comparte con el recorte.
 import { correrPipelineL2 } from "../pipeline";
+// Quad de la foto con el detector REAL (worker OpenCV) — misma vía del
+// pipeline de escaneo y de las marcas en vivo.
+import { detectarQuadDeFoto } from "./deteccion-quad";
 import { logger } from "../../logger"; // SPRINT-A A6 — console→logger (mensajes byte-idénticos)
 // R-28 — piezas extraídas del antiguo scanner-core-bridge.ts.
 import {
@@ -240,6 +242,38 @@ export class RealCoreBridge implements E14Bridge {
             return;
           }
           clearTimeout(timer);
+          // B1 — la muestra PerfActa también en el ÉXITO (antes solo el
+          // watchdog emitía y las actas que terminaban quedaban fuera de la
+          // medición). tiempos = fases del pipeline (parcial.msParciales) +
+          // tiempos del molde si corrió (prefijo molde_ — nunca pisa fases).
+          try {
+            const tiempos: Record<string, number> = { ...(parcial.msParciales ?? {}) };
+            const tMolde = acta.evaluacionMolde?.tiempos;
+            if (tMolde) {
+              tiempos.molde_render_ms = tMolde.render_ms;
+              tiempos.molde_ocr_ms = tMolde.ocr_ms;
+              tiempos.molde_motor_ms = tMolde.motor_ms;
+            }
+            void import("../obs/captura")
+              .then((m) =>
+                m.emitirPerfDeActa({
+                  actaId: acta.id,
+                  escaneoId: parcial.escaneoId,
+                  status: acta.status,
+                  intento: opciones.intento,
+                  tiempos,
+                  scoreVisual: acta.scoreVisual ?? 0,
+                  scoreFinal: acta.score,
+                  gate: acta.rechazo?.tipo ?? acta.status,
+                  ocrValido: (acta.ocrTexto ?? "").trim().length > 0,
+                  vencido: false,
+                  camino: "pipeline",
+                }),
+              )
+              .catch(() => {});
+          } catch {
+            /* la emisión de perf jamás rompe el desenlace */
+          }
           resolve(acta);
         },
         (error) => {
@@ -298,8 +332,8 @@ export class RealCoreBridge implements E14Bridge {
       // ETAPA B: reenvía el CONTEXTO E-14 al router universal (el molde
       // puede convertirse en el veredicto del acta); null honesto sin
       // moldes o con el flag apagado.
-      evaluarMolde: (fotoProcesada, contexto) =>
-        evaluarMoldeEnActa(fotoProcesada, contexto),
+      evaluarMolde: (fotoProcesada, contexto, opciones) =>
+        evaluarMoldeEnActa(fotoProcesada, contexto, opciones),
       // FASE B3 (blueprint DLA): bandas OCR dinámicas (PP-DocLayout) cuando
       // el flag + modelo están; undefined = bandas fijas de siempre.
       ocrBandaDinamica: ocrBandaDinamicaSiDisponible,
@@ -435,7 +469,7 @@ export class RealCoreBridge implements E14Bridge {
     let quad: Quad;
     let quadOrigen: OrigenQuad | "pagina-completa" | null = null;
     try {
-      const detalle = await detectDocumentEdgesDetail(fotoNueva);
+      const detalle = await detectarQuadDeFoto(fotoNueva);
       quad = detalle.quad;
       quadOrigen = detalle.origen;
     } catch {
@@ -525,6 +559,11 @@ export class RealCoreBridge implements E14Bridge {
       acta.rotation ?? 0,
       { manual: true },
     );
+    // Guarda §D4: salida vacía de processImage jamás llega al acta como
+    // fotoProcesada:'' (el catch de cambiarFiltro conserva la foto anterior).
+    if (!resultado.processed) {
+      throw new Error('PROCESADO DE IMAGEN SIN SALIDA (data URL vacío)');
+    }
     return { ...acta, fotoProcesada: resultado.processed, filtro };
   }
 
@@ -561,6 +600,11 @@ export class RealCoreBridge implements E14Bridge {
           "original",
           acta.rotation ?? 0,
         );
+        // Guarda §D4: salida vacía → mismo trato que un fallo de processImage
+        // (cae al fallback de abajo con la fotoProcesada del acta).
+        if (!r.processed) {
+          throw new Error('PROCESADO DE IMAGEN SIN SALIDA (data URL vacío)');
+        }
         // PROD-2 (§2-C2): el re-OCR del editor pasa por el ÚNICO motor.
         return reconocerRapidOcr(r.processed);
       } catch {

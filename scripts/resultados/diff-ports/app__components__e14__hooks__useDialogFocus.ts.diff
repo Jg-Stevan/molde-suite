@@ -1,0 +1,100 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:48.473414600 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:48.474417800 -0500
+@@ -1,59 +1,34 @@
+-"use client";
++'use client';
+ 
+-/**
+- * KIT a11y-diálogos-v1 (plan de remediación — bloque 4.2.2, cierra U5):
+- * focus-trap compartido para los diálogos modales `role="dialog"` del repo
+- * (AyudaOverlay, QuadEditor). Con el diálogo abierto:
+- *  · foco inicial al elemento `[data-autofocus]` (si existe);
+- *  · Tab / Shift+Tab CÍCLICOS dentro del diálogo (jamás escapan al fondo);
+- *  · Escape cierra (onCerrar);
+- *  · al cerrar, el foco VUELVE al elemento que lo tenía antes de abrir.
+- *
+- * Desviación documentada del snippet del plan: el selector de focuseables
+- * excluye los elementos disabled (`:not([disabled])`) — durante
+- * `aplicando` (QuadEditor) la mayoría de botones se deshabilitan y un trap
+- * que los incluya movería el foco a un botón muerto (el foco se perdería).
+- */
+-import { useEffect, useRef, type RefObject } from "react";
++// Focus trap de diálogos: Tab cíclico, Escape cierra, foco inicial en
++// [data-autofocus] y retorno del foco al cerrar.
+ 
+-/** Focuseables canónicos (misma lista del plan, con guard de disabled). */
+-const SELECTOR_FOCUSEABLE =
+-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
++import { useEffect, type RefObject } from 'react';
+ 
+-export function useDialogFocus(
+-  ref: RefObject<HTMLElement | null>,
+-  abierto: boolean,
+-  onCerrar: () => void,
+-) {
+-  // Ref fresca de onCerrar: el EFECTO solo depende de [abierto, ref] — un
+-  // cambio de identidad del callback (p. ej. `aplicando` en QuadEditor
+-  // re-creando el closure) NO re-ejecuta el efecto (el re-run haría
+-  // cleanup → devolvería el foco al opener a mitad de sesión y lo
+-  // volvería a montar: saltito de foco evitable).
+-  const alCerrarRef = useRef(onCerrar);
+-  alCerrarRef.current = onCerrar;
++const FOCUSABLE =
++  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+ 
++export function useDialogFocus(ref: RefObject<HTMLDivElement | null>, abierto: boolean, cerrar: () => void): void {
+   useEffect(() => {
+-    if (!abierto || !ref.current) return;
++    if (!abierto) return;
+     const nodo = ref.current;
+-    // Foco de RETORNO: quién lo tenía justo antes de abrir el diálogo.
+     const previo = document.activeElement as HTMLElement | null;
+-    // Foco inicial: el elemento marcado por el mantenedor del diálogo.
+-    nodo.querySelector<HTMLElement>("[data-autofocus]")?.focus();
++    const inicial = nodo?.querySelector<HTMLElement>('[data-autofocus]') ?? null;
++    inicial?.focus();
+ 
+-    const alTecla = (e: KeyboardEvent) => {
+-      if (e.key === "Escape") {
+-        e.stopPropagation();
+-        alCerrarRef.current();
++    const alTeclar = (e: KeyboardEvent) => {
++      if (e.key === 'Escape') {
++        e.preventDefault();
++        cerrar();
+         return;
+       }
+-      if (e.key !== "Tab") return;
+-      // Trap cíclico: Tab en el último → primero; Shift+Tab en el primero →
+-      // último. El foco jamás sale del diálogo por teclado.
+-      const f = nodo.querySelectorAll<HTMLElement>(SELECTOR_FOCUSEABLE);
+-      if (!f.length) return;
+-      const primero = f[0] as HTMLElement;
+-      const ultimo = f[f.length - 1] as HTMLElement;
++      if (e.key !== 'Tab' || !nodo) return;
++      const focuseables = Array.from(nodo.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
++        (el) => el.offsetParent !== null,
++      );
++      if (!focuseables.length) return;
++      const primero = focuseables[0];
++      const ultimo = focuseables[focuseables.length - 1];
+       if (e.shiftKey && document.activeElement === primero) {
+         e.preventDefault();
+         ultimo.focus();
+@@ -62,13 +37,10 @@
+         primero.focus();
+       }
+     };
+-
+-    nodo.addEventListener("keydown", alTecla);
++    document.addEventListener('keydown', alTeclar);
+     return () => {
+-      nodo.removeEventListener("keydown", alTecla);
+-      // Retorno del foco al cerrar (o al desmontar). Si el opener ya no
+-      // existe en el DOM, focus() es un no-op inofensivo.
++      document.removeEventListener('keydown', alTeclar);
+       previo?.focus();
+     };
+-  }, [abierto, ref]);
++  }, [abierto, cerrar, ref]);
+ }

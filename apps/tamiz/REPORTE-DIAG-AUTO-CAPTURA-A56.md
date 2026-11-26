@@ -6,6 +6,13 @@ Instrumentos: telemetría por frame (`window.__e14Telemetria`) + sonda pasiva de
 `devicemotion` inyectada por CDP (no toca el código de la app).
 Registro crudo: `medir.mjs` (60 s, 148 lecturas de gate, 2360 eventos de sensor).
 
+> **Vigencia (2026-11-25):** §1–§9 son registro histórico del 24-nov. El estado
+> vigente del dispositivo, de los pendientes y la evidencia es §10–§13. Hay dos
+> secciones numeradas §9 (la segunda es continuación de la primera). Afirmaciones
+> operativas viejas quedan superadas: `adb` ya está instalado (los pendientes
+> §9.1/§9.2/§9.7/§9.8 se cerraron en §11/§12) y el push a `main` ya se hizo
+> (`origin/main` = 9c3c7f0).
+
 ---
 
 ## 1. Veredicto en una línea
@@ -237,6 +244,14 @@ disparar nunca.
   se lee la revelada y el pipeline no muere) y `fotoLectura` alimenta a
   **CALIDAD y OCR**. Con SIMULACIÓN la revelada ya es `"original"`, así que el
   segundo warp no corre.
+  > **Superado (2026-11-25):** este port no quedó en el código vigente. El
+  > revelado actual vuelve al filtro del FORK byte-fiel (p5/p95 + umbral fijo
+  > 165/90) en `packages/scanner-core/workers/fallback-canvas.ts:70-106` y
+  > `packages/scanner-core/core/image-processor.ts:483-532`; `modoEnhance` y
+  > `filterToSharedMode` ya no existen y `detector-client.enhance` (el
+  > Bradley-Roth OpenCV de digielect14) no tiene llamadores. Lo vigente: el OCR
+  > lee la variante `original` (`pipeline.ts:164-169`) y la CALIDAD mide la
+  > procesada (§10, `pipeline.ts:209`).
 - `apps/tamiz/src/lib/e14/bridge/pipeline-recorte.ts` → la misma regla para el
   flujo de importado/recorte manual.
 - **NO** se tocó la entrada de `evaluarEstructuraActa` (LAYOUT): esa etapa es
@@ -343,17 +358,243 @@ código, que es lo que era en el origen.
 verificación documental): se mezcla `main` hacia esta rama, nunca al revés, y el
 mapa se regenera con `bun run agent:map` después de la mezcla.
 
-**Sigue abierto (decisiones del dueño, no del agente):**
-1. **Dependencias** — `onnxruntime-web@1.31.1`, `zxing-wasm@^3.1.8`,
-   `jspdf@^4.2.1`, `framer-motion@^14.14.0` entran con el porte y necesitan OK
-   explícito. `onnxruntime-web` además es problema de versión compartida con
-   `packages/dla-onnx` (`^1.20.1`).
-2. **`CALIDAD` medida sobre la imagen binarizada** — `pipeline.ts` evalúa
-   `calidadDeActa(warp.processed)` mientras el OCR lee `warpOcr.processed`.
-3. **Enrutado de moldes** — `molde/evaluacion.ts` sigue exigiendo
-   `contexto.esE14` para enrutar, o sea herencia electoral.
-4. **`CameraFrameLoop` / `live.corners` sin cablear** — `useSesionCamara` corre su
-   propio lazo rAF de 250 ms con Laplaciano en vez del lazo k-de-n porteado.
-5. Distribución de scores sobre ≥20 capturas reales antes de tocar
-   `UMBRAL_RECHAZO_SCORE`, y el presupuesto de ~8 s del worker de QR capa 0.
+**Pendientes al retomar** (estado del árbol en `5dae3fa`, ya publicado en `main`):
 
+*Código — todo en main y funcionando, pero con herencia o deuda:*
+1. **Enrutado de moldes** — `apps/tamiz/src/lib/e14/molde/evaluacion.ts:226` exige
+   `contexto?.esE14` para marcar `resumen.enrutado`: un documento genérico no se
+   enruta a la biblioteca de moldes.
+2. **`CALIDAD` medida sobre la imagen binarizada** — `pipeline.ts` evalúa
+   `calidadDeActa(warp.processed)` mientras el OCR lee `warpOcr.processed` (raw).
+3. **`CameraFrameLoop` / `live.corners` sin cablear** — `useSesionCamara` corre su
+   propio lazo rAF de 250 ms con Laplaciano en vez del lazo k-de-n porteado
+   (`core/frame-loop.ts`, `core/motion-stabilizer.ts`).
+4. **OCR ONNX incompleto** — RapidOCR es solo fallback y sus 3 `.onnx` no viajan:
+   faltan URL + SHA-256 en `apps/tamiz/scripts/assets.lock.json` (hoy solo fija
+   OpenCV 4.12.0-core y `spa.traineddata.gz`). No bloquea: el motor base es
+   Tesseract spa, que sí se materializa con `bun run preparar`.
+
+*Dependencias:*
+5. `onnxruntime-web@1.31.1`, `zxing-wasm@^3.1.8`, `jspdf@^4.2.1` y
+   `framer-motion@^14.14.0` ya entraron con el porte (orden "monta"); confirmar si
+   se quedan. `onnxruntime-web` además comparte versión con `packages/dla-onnx`
+   (`^1.20.1`): unificar o justificar la divergencia.
+
+*Datos y dispositivo:*
+6. Distribución de scores sobre ≥20 capturas reales antes de tocar
+   `UMBRAL_RECHAZO_SCORE`.
+7. Presupuesto de ~8 s del worker de QR capa 0: subirlo o recortar el ensamble.
+8. Prueba táctil en el Galaxy A56 — `adb` no está instalado en este equipo; lo
+   verificado es headless (8.9/10 ÓPTIMA, verificación 73%, editor con 8 asas,
+   0 errores de runtime).
+
+*Operación:*
+9. `main` tiene protección de rama (PR obligatorio + 3 checks) y el push
+   `0f83cfe..5dae3fa` la saltó con permisos de admin. Decidir si el siguiente
+   cambio va por rama + PR.
+
+
+---
+
+## §10. Cierre medido en navegador real (2026-11-24, noche)
+
+Lo cerrado en esta jornada, verificado con `Importar imagen` sobre el banco
+`scripts/resultados/fixtures/` (SW desregistrado, auto-captura desactivada):
+
+| Hallazgo | Cierre |
+|---|---|
+| **Todo PNG/JPEG subido salía NEGRO** (`bw` mapeaba blanco→0 con rango p5=p95=255) → OCR 0 lecturas → «PAPEL CORTADO» → score 0 en el 100 % del banco | guarda `degenerado = p95 - p5 < 8` en `core/image-processor.ts` **y** su gemelo `workers/fallback-canvas.ts`; workers regenerados con `construir-workers.mjs` |
+| **Enrutado de moldes** (§9.1): `!contexto?.esE14` no enrutaba ningún documento que mencionara MESA/DELEGADOS | `debeEnrutar()` (puro, testeado): decide por `molde.documento === 'acta_e14'`, no por el flag del clasificador |
+| **Rechazos tempranos se saltaban el router** (`recortada`, `procesadaVacia` retornaban antes de `evaluarMolde`) | evaluación de molde movida ANTES y ambos rechazos condicionados a `!veredictoMolde` |
+| **Importador de PLANTILLAS era falso**: solo escribía metadatos en localStorage; el motor nunca veía el molde | `registrarArchivo` usa `importarMoldeDesdeTexto → activarMolde → guardarMolde` (misma puerta que PanelMoldes); `eliminarMolde` desactiva el registry |
+| **PREVIEW de PLANTILLAS mentía**: `construirChecklist({} as Acta)` mostraba siempre los grupos base E-14 | el preview lee el molde ACTIVO del registry y lista SUS campos (grupo/obligatorio); sin molde, cae a la base |
+
+**Distribución medida (banco de 7, gate 0-10 y verificación documental):**
+
+| Fixture | px | score bruto | veredicto UI | verificación | molde |
+|---|---|---|---|---|---|
+| ref-limpia-pag01 | 1700×2200 | 7.5 (10.0 con molde) | ÓPTIMA | 100 % OK | 12/12 enrutado |
+| recibo-tachado | 1700×1519 | 8.7 | REVISIÓN HUMANA | 18 % ALERTA | no enrutado (0 lecturas) |
+| recibo-datos-nuevos | 1700×2200 | 7.5 | RECHAZADA | 75 % | 9/12 |
+| recibo-sin-firmas | 1700×2200 | 7.5 | RECHAZADA | 75 % | 9/12 |
+| recorte-60pct-usuario | 1700×1227 | 7.5 | RECHAZADA | 75 % | 9/12 |
+| recorte-66pct-sin-firma | 1700×1447 | 7.5 | RECHAZADA | 75 % | 9/12 |
+| rotada-12 | 2120×2505 | 7.5 | RECHAZADA | 75 % | 9/12 |
+
+Lectura de la tabla: **el score del gate NO discrimina** (7.5–8.7 en todo el
+banco, siempre > 6.5). Los rechazos salen de la VERIFICACIÓN DOCUMENTAL, y en
+los 4 casos de 9/12 los 3 campos que faltan son **firmas + fecha/título**: las
+firmas no son texto OCR. Es un asunto de ESTRUCTURA DEL MOLDE (firmas
+`tipo: 'firma'` con `min_trazos`/`firma_esperada`, o no obligatorias), no del
+umbral. **No se toca `UMBRAL_RECHAZO_SCORE`.**
+
+**§9.2 (CALIDAD sobre binarizada vs. la que lee el OCR) — decidido por medición.**
+Métricas reales de `calidadDeActa` sobre la imagen CRUDA de los 7 fixtures
+(400 px, misma fórmula): scores 6.6 / 7.2 / 7.3 / 7.4 / 7.7 / 7.7 / 8.2 —
+`recibo-sin-firmas` cae a **6.6, a 0.1 del umbral**. Sobre la imagen procesada
+el score es 7.5 estable. Mudar la entrada de CALIDAD estrecharía el margen a
+cero y produciría rechazos falsos en fotos reales algo más blandas. **Se queda
+en la procesada.** La doctrina «el OCR manda» (C3) ya impide que la calidad
+tapa un documento legible.
+
+**§9.5 (dependencias) — confirmadas por uso real:** `framer-motion` (ZoomableVisor),
+`jspdf` (pdf-export + tests), `zxing-wasm` (QR + test), `onnxruntime-web` (solo
+`packages/dla-onnx`; copia única 1.31.1 instalada que satisface ambos rangos —
+el pin exacto de tamiz actúa de ancla de dedupe). Ninguna es código muerto.
+
+**Pendientes que quedan (para retomar):**
+
+1. **`CameraFrameLoop`/`live.corners` sin cablear** (§9.3) — los módulos
+   `apps/tamiz/src/lib/e14/core/{frame-loop,motion-stabilizer}.ts` existen y
+   NADIE los importa; `useSesionCamara` sigue con su rAF propio de 250 ms.
+   Cablearlos cambia el disparo de la auto-captura: exige validación en
+   dispositivo, no en headless.
+2. **RapidOCR `.onnx`: URL + SHA-256** en `apps/tamiz/scripts/assets.lock.json`
+   (§9.4). Requiere decisión del dueño sobre el origen de los pesos.
+3. **QR capa 0: presupuesto ~8 s** (§9.7). Evidencia en vivo: en cada escaneo
+   sin QR el worker agota `presupuesto=8000+1500` y el acta muestra «CÓDIGO QR
+   NO CORRIÓ EN ESTA CAPTURA» — 9.5 s de espera por documento sin QR.
+4. **«SE MUESTRA LA FOTO ORIGINAL» con `rotada-12`**: el visor cae al original
+   (2120×2505) aunque el OCR leyó 9/12; revisar por qué `processed` no llegó.
+5. **≥20 capturas REALES en el A56** antes de mover cualquier umbral (§9.6) y
+   **prueba táctil** del editor (§9.8) — `adb` no está en este equipo.
+
+## §11. Verificación del porte del agente externo (2026-11-25)
+
+El agente externo entregó `molde-suite-cambios-f9ed87.zip` (motor v3.3.0 +
+tareas A–E del PLAN-AGENTE-EXTERNO). Se portó SELECTIVAMENTE a este monorepo
+(rama `feat/motor-v330-portado`): el agente había aplanado el repo (studio a
+la raíz) — se rechazó ese layout y se trajeron solo scanner-core, tamiz,
+scripts, docs, moldes y tests. Los cambios de Studio del agente (upload API,
+botón F5, Verificación re-ejecutable) NO se portaron; solo la compatibilidad
+de tipos con `umbral` opcional (EditorTab/VerificacionTab).
+
+**Banco oficial** (`scripts/resultados/importacion-2026-11-25T13-18-26-593Z.json`,
+`verificar-importacion.mjs`, 7/7 sin fallos, exit 0):
+
+| Fixture | s | score | veredicto | verificación |
+|---|---|---|---|---|
+| recibo_pago/pag-01 (limpia) | 15 | 10.0 | ÓPTIMA | 100 % OK · banner RECIBO DE PAGO |
+| recibo-tachado | 19 | 8.7 | REVISIÓN HUMANA | 18 % ALERTA (excepción honesta) |
+| recibo-datos-nuevos | 11 | 7.5 | RECHAZADA | 75 % · 9/12 |
+| recibo-sin-firmas | 11 | 7.5 | RECHAZADA | 75 % · 9/12 |
+| recorte-60pct-usuario | 15 | 7.5 | RECHAZADA | 75 % · 9/12 |
+| recorte-66pct-sin-firma | 15 | 7.5 | RECHAZADA | 75 % · 9/12 |
+| rotada-12 | 11 | 7.5 | RECHAZADA | 75 % · 9/12 |
+
+Distribución IDÉNTICA a la del §10 (el porte no movió el gate). Ningún score 0,
+ninguna imagen negra (medias 238–252).
+
+**Tarea A (QR capa 0)** — `scripts/resultados/qr-capa0-2026-11-25T13-15-02-761Z.json`
+(`verificar-qr-capa0.mjs`): sin QR el pre-chequeo corta en **932 ms** (antes
+~9.5 s muertos), jamás `fin=vencido`; con `qr-test-capa0.png` el worker devuelve
+el payload EXACTO `MOLDE-SUITE-QR-CAPA0-TEST-2026`. Test unitario del
+pre-chequeo en `packages/scanner-core/qr/prechequeo-qr.test.ts`.
+
+**Tarea B (rotada-12)** — el visor muestra **FOTO PROCESADA** (volcado
+`scripts/resultados/vista-7.txt`; ya no «SE MUESTRA LA FOTO ORIGINAL»). Causa
+raíz: la medida de tinta a 200 px borraba los trazos finos del quad sesgado →
+`ANCHO_MEDIDA_TINTA = 600` + `razonTintaDePixeles` pura + guardas de quad
+(`core/quad-guardas.ts`, gemelo en `workers/fallback-canvas.ts`) + guardia de
+procesada nunca vacía en el pipeline.
+
+**Tarea C (firmas)** — ya estaba en base: el motor marca `firma_ausente` por
+trazos (`universal-engine.ts:1431`); `recibo-sin-firmas` sigue RECHAZADA honesta
+(los 3 faltantes: firmas + fecha) y la limpia 100 %. `UMBRAL_RECHAZO_SCORE`
+intacto.
+
+**Tarea D (frame-loop)** — cableado detrás de flag `tamiz.flags.v1 → frameLoop`
+DEFAULT OFF con fallback al rAF propio; 23 tests del estabilizador verdes.
+Validación táctil pendiente en el A56 (anotado TODO en `useSesionCamara.ts`).
+
+**Tarea E (RapidOCR)** — decisión escrita en `docs/DECISION-rapidocr-fallback.md`:
+fallback sin pesos; no se inventaron URLs ni hashes.
+
+**Higiene (tarea F)** — scanner-core 36 ✓ · tamiz 93 ✓ · raíz motor 178 ✓ ·
+studio 34 ✓ · typecheck 0 y lint 0 en tamiz y studio. Moldes `recibo_pago` y
+`comprobante_entrega` v1.4.0 sincronizados en las 3 copias (tamiz, finales,
+studio; la de studio añade `paginasRef` a propósito).
+
+**Pendiente real de dispositivo (sin cambios):** prueba táctil A56 + ≥20
+capturas reales antes de mover cualquier umbral.
+
+## §12. Verificación en dispositivo real (Galaxy A56, 2026-11-25)
+
+Canal: `adb reverse tcp:3100` (localhost seguro → cámara/PWA) + CDP sobre
+`adb forward tcp:9223 localabstract:chrome_devtools_remote`. Chrome Android
+no puede leer `/sdcard` desde `DOM.setFileInputFiles`, así que los fixtures se
+sirven en `/dev-fixtures/` y se inyectan como `File` in-page (fetch +
+DataTransfer + `change` burbujeante: mismo camino que el picker). Herramientas
+consolidadas en `scripts/entrega/a56-comun.mjs` (conexión CDP, toque táctil
+real con `Input.dispatchTouchEvent`, capturas `adb screencap`, limpieza PWA,
+importación in-page); las usan `verificar-a56.mjs` (banco), 
+`verificar-a56-editor.mjs` (editor) y `diag-a56-hit.mjs` (hit-test/CSSOM).
+
+**Banco completo 7/7 sin fallos** (`scripts/resultados/a56-importacion-2026-11-25T13-56-21-839Z.json`,
+9–12 s por fixture; distribución idéntica al banco de escritorio):
+
+| fixture | score | veredicto | verificación |
+|---|---|---|---|
+| recibo_pago/pag-01 (limpia) | 10.0/10 | ÓPTIMA | 100% OK |
+| recibo-tachado | 8.7/10 | REVISIÓN HUMANA | 18% ALERTA |
+| recibo-datos-nuevos | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| recibo-sin-firmas | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| recorte-60pct-usuario | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| recorte-66pct-sin-firma | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+| rotada-12 | 7.5/10 | RECHAZADA | 75% RECHAZADO |
+
+**Prueba táctil del editor 6/6** (`a56-editor-2026-11-25T14-07-00-462Z.json`;
+todos los toques por `Input.dispatchTouchEvent`, capturas `a56-editor-*.png`):
+abrir QuadEditor → ROTAR 90° local → CANCELAR → reabrir → APLICAR RECORTE
+(el pipeline re-corrió: 8.5/10 REVISIÓN HUMANA, 12/12 campos OK, 100% ALERTA)
+→ ROTAR 90° de toolbar (gira la procesada, sin OCR). Consulta del 2026-11-25
+resuelta: la toolbar "Rotar 90°" NO re-ejecuta el pipeline (F-ROT-RAPID).
+
+**Hallazgo UI corregido — CTA verdes transparentes:** `globals.css` define a
+mano las utilidades `brand-*` pero faltaba `.bg-brand-green` (13 usos reales:
+DETECCIÓN AUTOMÁTICA / APLICAR RECORTE del QuadEditor, botones de
+PanelMoldes/PanelModelos/ReviewView/primitives). Los CTA sólidos verdes se
+pintaban transparentes (dejaban ver la vista de resultados detrás; en el A56
+se veía como un problema de apilamiento). Fix: se añadió la utilidad con el
+mismo patrón de sus vecinas (`background-color: var(--color-brand-green)`).
+`next dev` servía el chunk CSS compilado sin recomputar → reinicio del dev
+server tras el cambio. El banco del editor ahora verifica explícitamente que
+overlay/footer/APLICAR computen fondos opacos (regresión → FALLA).
+
+**Pendiente real (sin cambios):** captura en vivo con la cámara del A56 por el
+operador y ≥20 capturas reales antes de mover cualquier umbral. Primer resultado
+vivo registrado en §13.
+
+## §13. Prueba en vivo con recibo impreso (2026-11-25)
+
+Vigía `scripts/entrega/vigilar-a56.mjs` (polling del DOM cada 3 s; captura adb al
+detectar veredicto nuevo). Primera captura real del operador (recibo de pago
+impreso, a pulso): pantalla en `scripts/resultados/a56-vivo-01.png` e imagen
+procesada extraída del visor en `a56-vivo-01-procesada.png` (PNG 3.4 MB).
+
+| campo | valor |
+|---|---|
+| score | 0.0/10 |
+| veredicto | RECHAZADA (INTENTO 1 DE 3) |
+| molde | NO IDENTIFICADO · 0% |
+| motivo | INCOMPLETA — «EL DOCUMENTO ESTÁ CORTADO EN EL ENCUADRE…» |
+| campos | 0 lecturas (el router no enrutó) |
+
+Lectura honesta: el flujo vivo corre completo (disparo → warp → OCR → molde →
+gate → UI; sin deadlock y sin falso OK). El rechazo se explica por dos causas
+de captura que el software hoy no absorbe:
+
+1. **Geometría:** `esquinas.completa=false` → F-5 (`pipeline.ts:353`) devuelve
+   RECHAZADA INCOMPLETA con score 0. La procesada muestra el recibo entero, así
+   que la detección marcó «cortado» con el papel completo en cuadro (el papel
+   llenaba el encuadre hasta el filo).
+2. **Filtro/legibilidad:** el `bw` aplicado es el del fork (p5/p95 + umbral fijo
+   165/90, `workers/fallback-canvas.ts:70-106`), no el Bradley-Roth adaptativo
+   de digielect14 (hoy sin llamadores). Con fondo sombreado el binarizado deja
+   manchas y el OCR no extrae anclas → molde 0%.
+
+El disparo automático en vivo usa el bucle rAF legacy (`flags.frameLoop=false`,
+§9.3/§11-D); el port k-de-n sigue detrás de bandera, sin validar en dispositivo.
+
+Reintento sugerido al operador: papel con margen respecto a los bordes del
+marco, superficie plana y luz pareja, pulso quieto hasta el disparo.

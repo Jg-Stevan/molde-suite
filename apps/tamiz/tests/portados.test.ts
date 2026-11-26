@@ -13,6 +13,12 @@ import { downloadBlob, pdfConsolidadoDeActas, pdfDeActa, type DocPdf } from "../
 import { aplicarPoliticaUniversal, TECHO_MANUAL } from "../src/lib/e14/politica/gate";
 import { ANCLAS_LECTURA, norm, senalDeLectura } from "@molde-suite/scanner-core/dominio/senal-lectura";
 import { RealCoreBridge } from "../src/lib/e14/bridge/real-core-bridge";
+import {
+  MOLDE_DEMO_RECIBO,
+  UMBRAL_RUTA_SCORE,
+  debeEnrutar,
+  moldeElectoral,
+} from "../src/lib/e14/molde/enrutamiento";
 import { readBarcodesFromImageData } from "zxing-wasm/reader";
 import { writeBarcode } from "zxing-wasm/writer";
 
@@ -171,5 +177,39 @@ describe("política universal del gate (Bloque 2.4)", () => {
     });
     expect(r.score).toBeLessThanOrEqual(7.2);
     expect(r.techoDiag.join(",")).toContain("escudo-fondo");
+  });
+});
+
+describe("enrutado universal de moldes (ETAPA B)", () => {
+  const recibo = MOLDE_DEMO_RECIBO;
+  const actaE14 = { ...MOLDE_DEMO_RECIBO, nombre: "ACTA E-14", documento: "acta_e14" };
+
+  test("moldeElectoral decide por lo que el molde DECLARA, no por el OCR", () => {
+    expect(moldeElectoral(actaE14)).toBe(true);
+    expect(moldeElectoral(recibo)).toBe(false);
+  });
+
+  test("documento genérico se enruta AUNQUE el clasificador electoral crea que es E-14", () => {
+    // Regresión: `esE14` se enciende con cualquier «MESA»/«DELEGADOS» del OCR;
+    // un recibo que mencione esas palabras no puede quedar aditivo para siempre.
+    expect(debeEnrutar(recibo, { esE14: true }, 90, 3)).toBe(true);
+    expect(debeEnrutar(recibo, { esE14: false }, 90, 3)).toBe(true);
+    expect(debeEnrutar(recibo, undefined, 90, 3)).toBe(true);
+  });
+
+  test("acta E-14 reconocida contra su propio molde → el gate manda (ADITIVO)", () => {
+    expect(debeEnrutar(actaE14, { esE14: true }, 95, 8)).toBe(false);
+  });
+
+  test("molde del acta sobre un documento NO reconocido como electoral → enruta", () => {
+    expect(debeEnrutar(actaE14, { esE14: false }, 95, 8)).toBe(true);
+    expect(debeEnrutar(actaE14, undefined, 95, 8)).toBe(true);
+  });
+
+  test("sin confianza del motor no se enruta (umbral y campos leídos)", () => {
+    expect(debeEnrutar(recibo, undefined, UMBRAL_RUTA_SCORE - 1, 3)).toBe(false);
+    expect(debeEnrutar(recibo, undefined, UMBRAL_RUTA_SCORE, 3)).toBe(true);
+    // Prohibido el falso ok: cero campos leídos ⇒ nunca veredicto del molde.
+    expect(debeEnrutar(recibo, undefined, 100, 0)).toBe(false);
   });
 });

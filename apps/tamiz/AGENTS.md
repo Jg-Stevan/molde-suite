@@ -53,6 +53,9 @@ cd packages/scanner-core && bun test   # si tocaste el contrato o el motor
 
 Después de cambios en `packages/*`: `bun run agent:map` desde la raíz.
 
+Estado del motor, decisiones tomadas y pendientes abiertos (con archivo:línea):
+`REPORTE-DIAG-AUTO-CAPTURA-A56.md` §9.
+
 ## Restricciones duras
 
 - Sin backend, sin cuentas, sin nube: los datos (moldes, actas, historial)

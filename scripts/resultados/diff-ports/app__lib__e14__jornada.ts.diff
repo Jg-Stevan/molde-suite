@@ -1,0 +1,23 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:45.023871700 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:45.025868500 -0500
+@@ -29,9 +29,9 @@
+  * Errores de IDB NUNCA tumban la app: la jornada vive mejor en RAM que
+  * romper el escaneo (mismo criterio del kit carga-masiva §3).
+  */
+-import type { Acta } from "@jg-stevan/scanner-core/dominio/types";
++import type { Acta } from "@molde-suite/scanner-core/dominio/types";
+ import type { ActaArchivada, PuestoActual } from "./store";
+-import type { HistorialRow, Mesa, MesaPagina } from "@jg-stevan/scanner-core/dominio/types";
++import type { HistorialRow, Mesa, MesaPagina } from "@molde-suite/scanner-core/dominio/types";
+ 
+ const DB_NOMBRE = "e14-jornada-v1";
+ const DB_VERSION = 1;
+@@ -423,7 +423,7 @@
+     }
+     const ocupadas = paginas.filter((p) => p.estado === "OK").length;
+     return {
+-      id: `MESA ${String(numero).padStart(2, "0")}`,
++      id: `DOC ${String(numero).padStart(2, "0")}`,
+       estado:
+         ocupadas === 0 ? "PENDIENTE" : ocupadas === paginas.length ? "COMPLETADA" : "EN_PROCESO",
+       progresoPct: Math.round((ocupadas / paginas.length) * 100),

@@ -1,0 +1,46 @@
+{
+  "archivo": "recibo-c-mixto-01.jpg",
+  "config": "sincascada",
+  "pase": "run1",
+  "msVeredicto": null,
+  "veredicto": null,
+  "etapas": [
+    {
+      "fase": "DETECTANDO",
+      "t": 1456
+    }
+  ],
+  "acta": null,
+  "rotacion": null,
+  "rssAntes": [
+    "sin meminfo: Error: Command failed: C:\\platform-tools\\adb.exe shell dumpsys meminfo com.andro"
+  ],
+  "rssDespues": [
+    "sin meminfo: Error: Command failed: C:\\platform-tools\\adb.exe shell dumpsys meminfo com.andro"
+  ],
+  "consola": [
+    "[e14] qr-capa0 prechequeo sin-candidato ms=295 patrones=0 confianza=0.00",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (1565ms)",
+    "[e14] orientacion crop=1033x1280 rot=0 probe={0:7.64} anclas0=3 conf0=0.83 aplicado=0 ms=3110 cortes=sana orden=0,90,180,270 gan=90 exif=0 escala=1280",
+    "[e14-rapidocr] det run [1,3,1280,1024]...",
+    "[e14-rapidocr] det run OK (1524ms)",
+    "[e14-rapidocr] celda: det=1584ms cls=259.3149999976158ms rec=3357ms (run=2914.5499999523163 js=442.4500000476837) · 21 cajas · 20 líneas · conf 93.0% · 4941ms detMemo=miss · leidas=21/21 anclasBordes=-1 pieBordes=-1 rescate=0 crops=4ms",
+    "[e14-rapidocr] det run [1,3,448,1408]...",
+    "[e14-rapidocr] det run OK (891ms)",
+    "[e14-rapidocr] celda: det=952ms cls=50.339999973773956ms rec=935ms (run=825.2300000190735 js=109.76999998092651) · 4 cajas · 3 líneas · conf 94.4% · 1894ms detMemo=miss · leidas=4/4 anclasBordes=-1 pieBordes=-1 rescate=0 crops=3ms",
+    "[tamiz:info] [e14] ocr-rescate-cabecera y0=0 y1=0.25 ms=1925 anclas1=5 anclas2=5 adoptado=0",
+    "[tamiz:info] [e14] ocr-escalonado pasada1=1280 lectura=MEDIA reocr=1 elegido=1280 anclas1=5 anclas2=5 ms1=4948 ms2=1925 ventana=45000 k=1.2 est=5938 abre=1",
+    "[e14-rapidocr] det run [1,3,256,1280]...",
+    "[e14-rapidocr] det run OK (526ms)",
+    "[e14-rapidocr] celda: det=569ms cls=0ms rec=236ms (run=225 js=11) · 1 cajas · 1 líneas · conf 94.1% · 810ms detMemo=miss · leidas=1/1 anclasBordes=-1 pieBordes=-1 rescate=0 crops=0ms",
+    "[e14-rapidocr] det run [1,3,352,1408]...",
+    "[e14-rapidocr] det run OK (827ms)",
+    "[e14-rapidocr] celda: det=865ms cls=37.17999994754791ms rec=685ms (run=615.539999961853 js=69.46000003814697) · 3 cajas · 3 líneas · conf 95.0% · 1554ms detMemo=miss · leidas=3/3 anclasBordes=-1 pieBordes=-1 rescate=0 crops=1ms",
+    "[tamiz:info] [molde] ratio de anclas por molde {\"ocrMs\":2370,\"lineas\":16,\"activo\":null,\"ratios\":[{\"nombre\":\"Comprobante de entrega — real (A/B/C)\",\"ratio\":0},{\"nombre\":\"Recibo de pago — real (A/B/C)\",\"ratio\":0.9}]}",
+    "[tamiz:info] [molde] candidato del router {\"nombre\":\"Recibo de pago — real (A/B/C)\",\"ratioAnclas\":0.9}",
+    "[tamiz:info] [molde] resumen del motor universal {\"molde\":\"Recibo de pago — real (A/B/C)\",\"score\":16.7,\"ok\":2,\"total\":12,\"obligatoriosFaltantes\":[\"FECHA\",\"N.º RECIBO\",\"DNI EMISOR\",\"PAGADOR (nombre y DNI)\",\"IMPORTE (€)\",\"CONCEPTO\",\"FORMA DE PAGO\",\"FECHA DE PAGO\",\"Firma emisor\",\"Firma pagador\"],\"campos\":[\"RECIBO DE PAGO=ok(RECIBO DE PAGO)[ancla_solo_textual] rect=0.401,0.084,0.260,0.028 fuente=ancla",
+    "[pageerror] TypeError: (0 , __TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$tamiz$2f$src$2f$lib$2f$e14$2f$molde$2f$registry$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__.paginasEsperadas) is not a function"
+  ],
+  "medidoEn": "2026-11-26T04:28:53.814Z"
+}

@@ -8,7 +8,7 @@ import {
   clasificarDesdeOcr,
   type ClasificacionE14,
 } from '@molde-suite/scanner-core/dominio/clasificador';
-import { detectDocumentEdgesDetail, processImage } from '@molde-suite/scanner-core/core/image-processor';
+import { processImage, processImageDual } from '@molde-suite/scanner-core/core/image-processor';
 import { defaultQuad, type PageFilter } from '@molde-suite/scanner-core/core/types';
 import type { Acta, ProgresoAnalisis } from '@molde-suite/scanner-core/dominio/types';
 import type { OpcionesEscaneo } from '@molde-suite/scanner-core/dominio/bridge';
@@ -25,6 +25,15 @@ import { logger } from '../logger';
 import { probeOrientacion, rotarDataUrl } from './orientacion';
 import type { ProbeOrientacion } from './orientacion';
 import { decodificarQrCapa0Camara } from '@molde-suite/scanner-core/qr/capa0-qr.client';
+// KIT e14-ocr-cascada-v1: con `ocrCascada` ON el OCR es la CASCADA de
+// digielect (intento 1 → GATE → core → rescate); OFF = escalonado de siempre.
+import { cascadaActiva } from '@molde-suite/scanner-core/orquestacion/cascada';
+import { leerFlags } from './flags';
+import { presupuestoEscaneoEfectivo } from './adaptacion/plan';
+import type { CfgOcr } from './bridge/ocr';
+// Detección del quad de la foto: worker OpenCV (la misma vía del visor en
+// vivo) con la heurística del core como respaldo.
+import { detectarQuadDeFoto } from './bridge/deteccion-quad';
 // 2.4 — política universal del gate (C3 lectura + escudo-fondo).
 import { aplicarPoliticaUniversal } from './politica/gate';
 import { senalDeLectura } from '@molde-suite/scanner-core/dominio/senal-lectura';
@@ -33,25 +42,71 @@ function marcar(parcial: ParcialPipeline, fase: string, t0: number): void {
   parcial.msParciales = { ...(parcial.msParciales ?? {}), [fase]: Math.round(performance.now() - t0) };
 }
 
+// §D4/plan §B (rotada-12) — ANCHO de la miniatura de medición de tinta.
+// CAUSA RAÍZ medida: a 200 px el promediado de la reducción BORRA los trazos
+// finos — rotada-12 (recibo claro, 1.37 % de tinta real a resolución
+// completa) medía 0.0009 < 0.002 ⇒ procesadaVacia FALSA y el visor caía a la
+// foto original (§D4 activado sin procesada realmente vacía). A 600 px la
+// misma foto mide 0.0124 (6× el umbral) y TODOS los fixtures del banco
+// quedan sobre 0.008; una página REALMENTE en blanco mide 0 a cualquier
+// ancho (scripts/resultados/*.json, diagnóstico 2026-11-25). El costo es el
+// mismo: img.decode() ya decodifica la foto completa.
+export const ANCHO_MEDIDA_TINTA = 600;
+
+/**
+ * Densidad de tinta (0..1) sobre PÍXELES RGBA — PURA (sin DOM, testeable en
+ * bun): reducción por caja a `ancho` px de ancho (identidad si los píxeles
+ * ya vienen a ese ancho o menos — sin upscale) y conteo de oscuros
+ * (canal rojo < 120, mismo criterio histórico del pipeline).
+ */
+export function razonTintaDePixeles(
+  px: { w: number; h: number; data: Uint8Array | Uint8ClampedArray },
+  ancho: number = ANCHO_MEDIDA_TINTA,
+): number {
+  if (px.w <= 0 || px.h <= 0) return 0;
+  const W = Math.max(1, Math.min(px.w, Math.round(ancho)));
+  const H = Math.max(1, Math.round((px.h / px.w) * W));
+  let oscuros = 0;
+  // Reducción por caja (misma semántica del drawImage suavizado que había):
+  // cada píxel destino promedia su ventana origen [x0..x1)×[y0..y1).
+  const sx = px.w / W;
+  const sy = px.h / H;
+  for (let y = 0; y < H; y++) {
+    const y0 = Math.floor(y * sy);
+    const y1 = Math.min(px.h, Math.max(y0 + 1, Math.floor((y + 1) * sy)));
+    for (let x = 0; x < W; x++) {
+      const x0 = Math.floor(x * sx);
+      const x1 = Math.min(px.w, Math.max(x0 + 1, Math.floor((x + 1) * sx)));
+      let acc = 0;
+      let n = 0;
+      for (let yy = y0; yy < y1; yy++) {
+        for (let xx = x0; xx < x1; xx++) {
+          acc += px.data[(yy * px.w + xx) * 4];
+          n++;
+        }
+      }
+      if (acc / n < 120) oscuros++;
+    }
+  }
+  return oscuros / (W * H);
+}
+
 /** Densidad de tinta de una foto procesada (0..1) — para procesadaVacia. */
 async function razonTinta(dataUrl: string): Promise<number> {
   const img = new Image();
   img.src = dataUrl;
   await img.decode();
-  const W = 200;
+  const W = ANCHO_MEDIDA_TINTA;
   const H = Math.max(1, Math.round((img.naturalHeight / img.naturalWidth) * W));
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
   const ctx = c.getContext('2d', { willReadFrequently: true })!;
   ctx.drawImage(img, 0, 0, W, H);
-  const d = ctx.getImageData(0, 0, W, H).data;
-  let oscuros = 0;
-  const n = W * H;
-  for (let i = 0; i < n; i++) {
-    if (d[i * 4] < 120) oscuros++;
-  }
-  return oscuros / n;
+  // La PURA hace el conteo (downscale identidad: los píxeles ya vienen a W) —
+  // el camino de producción y los tests bun comparten la MISMA matemática.
+  const d = ctx.getImageData(0, 0, W, H);
+  return razonTintaDePixeles({ w: d.width, h: d.height, data: d.data }, W);
 }
 
 export async function correrPipelineL2(
@@ -61,6 +116,10 @@ export async function correrPipelineL2(
   emitir: (p: ProgresoAnalisis) => void,
   pasos: PasosPipelineL2,
 ): Promise<Acta> {
+  // Base del PRESUPUESTO del OCR (el timeout existente del pipeline manda —
+  // §3 del kit escalonado): cuenta desde el arranque del pipeline, como en
+  // digielect14.
+  const tInicioPipeline = performance.now();
   // ---- CAPTURA: decode + warm-up ----
   let t0 = performance.now();
   emitir(pasos.conRampa('DETECTANDO', 0));
@@ -86,16 +145,13 @@ export async function correrPipelineL2(
   emitir(pasos.conRampa('DETECTANDO', 0.6));
   let quad = pasos.quadIdentidad;
   let origenDeteccion: string | null = null;
-  // La cámara también entrega un File; solo los archivos importados omiten la detección.
-  const esArchivoSubido = 'archivo' in entrada && opciones.fuente !== 'CAMARA';
+  // Regresión del port corregida (2026-11-25): los archivos importados TAMBIÉN
+  // pasan por el detector — antes usaban quad identidad y la «procesada» era
+  // el fotograma entero con fondo. Sin bordes, el detector degrada a identidad.
   try {
-    if (esArchivoSubido) {
-      origenDeteccion = 'archivo-identidad';
-    } else {
-      const detalle = await detectDocumentEdgesDetail(fotoOriginal);
-      quad = detalle.quad;
-      origenDeteccion = detalle.origen;
-    }
+    const detalle = await detectarQuadDeFoto(fotoOriginal);
+    quad = detalle.quad;
+    origenDeteccion = detalle.origen;
   } catch {
     quad = defaultQuad(); // degradación honesta: la foto entera es el documento
   }
@@ -109,18 +165,41 @@ export async function correrPipelineL2(
   const filtro: PageFilter = opciones.fuente === 'SIMULACION' ? 'original' : 'bw';
   // FASE A3 (blueprint DLA): warp de perspectiva real cuando el quad está
   // sesgado + deskew residual por perfil de proyección (flag del operador).
-  const warp = await processImage(fotoOriginal, quad, filtro, 0, {
-    deskew: pasos.deskewHabilitado,
-  });
-  // D2 (§D8.2 upstream) — VARIANTE OCR ORIGINAL: el OCR JAMÁS lee la
-  // variante binarizada ('bw'/'contrast'); corre sobre un warp SIN filtro.
-  // Con el worker fallback-canvas el segundo warp sale del hilo principal.
-  const warpOcr =
-    filtro === 'original'
-      ? warp
-      : await processImage(fotoOriginal, quad, 'original', 0, {
-          deskew: pasos.deskewHabilitado,
-        });
+  // F1: warp compartido — un solo warp (original) y bw derivado por Bradley.
+  // Kill-switch: warpCompartido=false ⇒ dos processImage (histórico).
+  let warp: Awaited<ReturnType<typeof processImage>>;
+  let warpOcr: Awaited<ReturnType<typeof processImage>>;
+  if (filtro !== 'original' && leerFlags().warpCompartido) {
+    const dual = await processImageDual(fotoOriginal, quad, 0, {
+      deskew: pasos.deskewHabilitado,
+    });
+    warp = dual.bw;
+    warpOcr = dual.original;
+  } else {
+    warp = await processImage(fotoOriginal, quad, filtro, 0, {
+      deskew: pasos.deskewHabilitado,
+    });
+    // D2 (§D8.2 upstream) — VARIANTE OCR ORIGINAL: el OCR JAMÁS lee la
+    // variante binarizada ('bw'/'contrast'); corre sobre un warp SIN filtro.
+    warpOcr =
+      filtro === 'original'
+        ? warp
+        : await processImage(fotoOriginal, quad, 'original', 0, {
+            deskew: pasos.deskewHabilitado,
+          });
+  }
+  // Guarda §D4 (contrato del visor): una salida VACÍA de processImage
+  // (canvas 0×0, encode fallido) JAMÁS viaja como fotoProcesada:'' — se
+  // lanza con causa explícita y el puente resuelve el rechazo (catch
+  // honesto aguas arriba: bridge → ESCANEO_FALLIDO). fotoProcesada queda
+  // ausente/null en cualquier acta; el '' silencioso está prohibido.
+  if (!warp.processed || !warpOcr.processed) {
+    logger.warn('[pipeline] processImage devolvió salida vacía', {
+      dims: `${warp.width}x${warp.height}`,
+      ms: Math.round(performance.now() - t0),
+    });
+    throw new Error('PROCESADO DE IMAGEN SIN SALIDA (data URL vacío)');
+  }
   let fotoOcr = warpOcr.processed;
   let fotoProcesada = warp.processed;
   marcar(parcial, 'proceso', t0);
@@ -197,10 +276,27 @@ export async function correrPipelineL2(
   // ---- OCR ----
   t0 = performance.now();
   emitir(pasos.conRampa('OCR', 0.15));
-  let ocrTexto = await pasos.reconocerRapidOcrEscalonado(fotoOcr);
-  if (ocrTexto.length < 60) {
-    ocrTexto = await pasos.reconocerRapidOcrCascada(fotoOcr);
-  }
+  // KIT e14-ocr-cascada-v1 — `ocrCascada` ON: CASCADA de digielect (intento 1
+  // Tesseract best / RapidOCR según `ocrPrimeraPasadaRapida` → GATE entre
+  // motores → core RapidOCR escalonado → rescate ROI/motor). OFF: escalonado
+  // de siempre byte a byte. SIM: una pasada completa, 0 trazas (§3).
+  const cfgOcr: CfgOcr = {
+    simular: opciones.fuente === 'SIMULACION',
+    presupuestoMs: opciones.timeoutMs ?? presupuestoEscaneoEfectivo(),
+    inicioMs: tInicioPipeline,
+    orientacionDecidida: false, // la brújula QR aún no se cablea al pipeline
+    corteIncompleta: false,
+  };
+  const onProgresoOcr = (p: number): void =>
+    emitir(pasos.conRampa('OCR', Math.min(1, 0.15 + 0.85 * Math.max(0, p))));
+  // F2: capturar las líneas Rapid del cascade para reuso en el router/molde.
+  let lineasRapidCascade: Array<{ texto: string; conf: number; box: Array<{ x: number; y: number }> }> | undefined;
+  const ocrTexto = cascadaActiva(leerFlags().ocrCascada, cfgOcr.simular)
+    ? await pasos.reconocerRapidOcrCascada(fotoOcr, onProgresoOcr, cfgOcr).then((r) => {
+        lineasRapidCascade = r.lineasRapid;
+        return r.texto;
+      })
+    : await pasos.reconocerRapidOcrEscalonado(fotoOcr, onProgresoOcr, cfgOcr);
   // FASE B3 (blueprint DLA): banda DINÁMICA desde regiones de layout cuando
   // el paso inyectado la provee (flag + modelo); caída a las bandas fijas
   // 16%/20% de siempre sin señal (Nivel 1 intacto).
@@ -219,6 +315,14 @@ export async function correrPipelineL2(
   const esquinas = await pasos.esquinasDeActa(warp.processed);
   const tinta = await razonTinta(warp.processed);
   const procesadaVacia = tinta < 0.002;
+  // Telemetría §D4: cuando la bandera se activa, el valor medido viaja al
+  // log (diagnóstico de falsos positivos sin reproducir el escaneo).
+  if (procesadaVacia) {
+    logger.warn('[pipeline] procesada sin tinta medible (§D4)', {
+      tinta: tinta.toFixed(6),
+      umbral: 0.002,
+    });
+  }
 
   // ---- GATE (2.4 — política universal; paridad escaneo↔recorte) ----
   // C3 PRIMERO (pitfall §9.4): el OCR manda — piso FUERTE / techo DEBIL por
@@ -257,23 +361,57 @@ export async function correrPipelineL2(
     clasificacion,
   };
 
-  // Recorte cortado con tinta al filo → INCOMPLETA directa (F-5).
-  if (campos.recortada) {
+  // ETAPA B — el ROUTER de moldes corre ANTES de los rechazos del gate: un
+  // documento genérico no puede morir por una razón electoral (recorte
+  // sospechado, página sin tinta) sin que la biblioteca haya tenido la
+  // oportunidad de identificarlo. El OCR ya corrió y el router lo reutiliza.
+  // Fallo del paso → null honesto (el escaneo sigue sin él).
+  let evaluacionMolde: CamposActa['evaluacionMolde'] = null;
+  try {
+    evaluacionMolde = await pasos.evaluarMolde(
+      fotoProcesada,
+      { esE14: (clasificacionBase?.tipo ?? null) !== null },
+      // Fase 4 (plan primera ola): la geometría SIN binarizar ya existe
+      // (`fotoOcr`, la que leyó RapidOCR) — el molde la usa como A/B cuando
+      // la imagen bw no produce ninguna lectura.
+      // F2: líneas Rapid del cascade para reuso en el router (flag-gated).
+      { fotoOriginal: fotoOcr, lineasRapid: lineasRapidCascade, anchoOcr: warpOcr.width },
+    );
+  } catch (e) {
+    logger.warn('[pipeline] paso de molde falló (el escaneo sigue sin él)', {
+      mensaje: (e as Error).message,
+    });
+    evaluacionMolde = null;
+  }
+  // Acta ENRUTADA al molde: score/estado/rechazo derivan del RESULTADO DEL
+  // MOLDE (semáforo universal con la misma escala del gate). La clasificación
+  // E-14 queda null y el banner toma el nombre del documento en construirActa.
+  // Sin enrutamiento: veredicto del gate intacto y resultado del molde ADITIVO.
+  const veredictoMolde = evaluacionMolde?.enrutado
+    ? veredictoDeResumen(evaluacionMolde)
+    : null;
+
+  // Recorte cortado con tinta al filo → INCOMPLETA directa (F-5). Si el molde
+  // ya identificó el documento y dio veredicto, manda él: la geometría sola no
+  // condena (doctrina «prohibido rechazar por coordenadas»).
+  if (campos.recortada && !veredictoMolde) {
     return pasos.construirActa(opciones as OpcionesEscaneo, parcial, {
       ...campos,
       score: 0,
       status: 'RECHAZADA',
       rechazo: { tipo: 'INCOMPLETA', detalle: pasos.DETALLE_INCOMPLETA },
       clasificacion: null,
+      evaluacionMolde,
     });
   }
-  if (procesadaVacia) {
+  if (procesadaVacia && !veredictoMolde) {
     return pasos.construirActa(opciones as OpcionesEscaneo, parcial, {
       ...campos,
       score: 0,
       status: 'RECHAZADA',
       rechazo: { tipo: 'SIN_VOTOS', detalle: pasos.DETALLE_SIN_VOTOS },
       clasificacion: null,
+      evaluacionMolde,
     });
   }
 
@@ -290,34 +428,6 @@ export async function correrPipelineL2(
     opciones.intento ?? 1,
     opciones.maxIntentos ?? 3,
   );
-
-  // FASE 0 (blueprint DLA): evaluación del MOLDE tras el gate (paso
-  // inyectado — Tamiz ejecuta el motor universal compartido). ETAPA B: el
-  // paso recibe el CONTEXTO E-14 (¿el clasificador electoral leyó el tipo?)
-  // y puede marcar el resultado `enrutado` cuando la biblioteca identifica
-  // un documento no electoral. Fallo del paso → null honesto (el escaneo
-  // sigue).
-  let evaluacionMolde: CamposActa['evaluacionMolde'] = null;
-  try {
-    evaluacionMolde = await pasos.evaluarMolde(fotoProcesada, {
-      esE14: (clasificacionBase?.tipo ?? null) !== null,
-    });
-  } catch (e) {
-    logger.warn('[pipeline] paso de molde falló (el escaneo sigue sin él)', {
-      mensaje: (e as Error).message,
-    });
-    evaluacionMolde = null;
-  }
-
-  // ETAPA B (B.2 + B.3) — acta ENRUTADA al molde: el score/estado/rechazo
-  // del acta derivan del RESULTADO DEL MOLDE (semáforo verde/ámbar/rojo
-  // universal con la misma escala del gate). La clasificación E-14 queda
-  // null (no hay cabecera electoral que archivar) y el banner toma el
-  // nombre del documento en construirActa. Sin enrutamiento: veredicto del
-  // gate intacto y resultado del molde ADITIVO (doctrina de siempre).
-  const veredictoMolde = evaluacionMolde?.enrutado
-    ? veredictoDeResumen(evaluacionMolde)
-    : null;
 
   void origenDeteccion;
   return pasos.construirActa(opciones as OpcionesEscaneo, parcial, {

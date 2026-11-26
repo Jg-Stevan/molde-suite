@@ -1,0 +1,9 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "flags": "{\"evaluacionMolde\":false}",
+  "fixture": "rotada-12.png",
+  "segundos": 6,
+  "veredicto": "REVISIÓN HUMANA",
+  "captura": "a56-velocidad-veredicto.png",
+  "medidoEn": "2026-11-25T15:17:37.558Z"
+}

@@ -56,9 +56,10 @@
  *    automática a SIMULACIÓN (spec §7).
  *
  * FIDELIDAD AL LAB (fix/e14-fidelidad-lab — SPEC-auditoria-copias.md):
- *  · F-LENS v4 COMPLETO (H1): sondas secuenciales cerrando cada cámara +
+ *  · F-LENS v5 CABLEADO (H1): la cámara la abre `core/camara-principal.ts`
+ *    desde `useSesionCamara` (sondas secuenciales cerrando cada cámara +
  *    chooseMainProbe (autofocus real → mayor resolución) + fix zoom +
- *    telemetría window.__cameraChoice — la cascada facingMode quedó como red
+ *    telemetría window.__cameraChoice); la cascada facingMode queda como red
  *    de seguridad (lab L116-223 + L1095-1207).
  *  · F-SENSOR-PROFILER (H2): perfilado del track + takePhotoBlob con capa 1
  *    (photoSettings al ISP) y capa 2 (clampBlobToSafeCap) + capa 3 (decode
@@ -250,6 +251,8 @@ export function ScanView() {
     // KIT e14-prowarm-ocr-v1 (T2b): pre-warm del OCR diferido 2 s (app recién
     // abierta — no competir con la carga). Idempotente: si el precalentamiento
     // ya corrió, rapidOcrPrecalentar() resuelve al instante (flag de módulo).
+    // F4: kill-switch ocrProwarmScanView — OFF ⇒ sin pre-warm al montar.
+    if (!leerFlags().ocrProwarmScanView) return;
     const t = window.setTimeout(() => {
       void rapidOcrPrecalentar().then(() => {
         // KIT e14-ocr-tessbest-v1 (GO-B): pre-warm de TESSERACT BEST SOLO

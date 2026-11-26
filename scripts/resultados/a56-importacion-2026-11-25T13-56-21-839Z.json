@@ -1,0 +1,76 @@
+{
+  "cdp": "http://127.0.0.1:9223",
+  "medidoEn": "2026-11-25T13:56:21.839Z",
+  "filas": [
+    {
+      "fixture": "recibo_pago/pag-01 (limpia)",
+      "segundos": 9,
+      "score": "10.0/10",
+      "veredicto": "ÓPTIMA",
+      "banner": "RECIBO DE PAGO",
+      "verificacion": "100% OK",
+      "molde": null,
+      "captura": "a56-01-pag-01.png"
+    },
+    {
+      "fixture": "recibo-tachado",
+      "segundos": 12,
+      "score": "8.7/10",
+      "veredicto": "REVISIÓN HUMANA",
+      "banner": null,
+      "verificacion": "18% ALERTA",
+      "molde": null,
+      "captura": "a56-02-recibo-tachado.png"
+    },
+    {
+      "fixture": "recibo-datos-nuevos",
+      "segundos": 9,
+      "score": "7.5/10",
+      "veredicto": "RECHAZADA",
+      "banner": "RECIBO DE PAGO",
+      "verificacion": "75% RECHAZADO",
+      "molde": "MOLDE: RECIBO DE PAGO · 9/12 CAMPOS OK",
+      "captura": "a56-03-recibo-datos-nuevos.png"
+    },
+    {
+      "fixture": "recibo-sin-firmas",
+      "segundos": 9,
+      "score": "7.5/10",
+      "veredicto": "RECHAZADA",
+      "banner": "RECIBO DE PAGO",
+      "verificacion": "75% RECHAZADO",
+      "molde": "MOLDE: RECIBO DE PAGO · 9/12 CAMPOS OK",
+      "captura": "a56-04-recibo-sin-firmas.png"
+    },
+    {
+      "fixture": "recorte-60pct-usuario",
+      "segundos": 9,
+      "score": "7.5/10",
+      "veredicto": "RECHAZADA",
+      "banner": "RECIBO DE PAGO",
+      "verificacion": "75% RECHAZADO",
+      "molde": "MOLDE: RECIBO DE PAGO · 9/12 CAMPOS OK",
+      "captura": "a56-05-recorte-60pct-usuario.png"
+    },
+    {
+      "fixture": "recorte-66pct-sin-firma",
+      "segundos": 9,
+      "score": "7.5/10",
+      "veredicto": "RECHAZADA",
+      "banner": "RECIBO DE PAGO",
+      "verificacion": "75% RECHAZADO",
+      "molde": "MOLDE: RECIBO DE PAGO · 9/12 CAMPOS OK",
+      "captura": "a56-06-recorte-66pct-sin-firma.png"
+    },
+    {
+      "fixture": "rotada-12",
+      "segundos": 9,
+      "score": "7.5/10",
+      "veredicto": "RECHAZADA",
+      "banner": "RECIBO DE PAGO",
+      "verificacion": "75% RECHAZADO",
+      "molde": "MOLDE: RECIBO DE PAGO · 9/12 CAMPOS OK",
+      "captura": "a56-07-rotada-12.png"
+    }
+  ]
+}

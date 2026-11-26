@@ -1,0 +1,120 @@
+--- C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-ref	2026-11-25 10:31:47.590790600 -0500
++++ C:\Users\JG\Documents\PROYECTOS\molde-suite\scripts\resultados\diff-ports\.tmp-port	2026-11-25 10:31:47.591775500 -0500
+@@ -46,28 +46,28 @@
+     Icon: StitchCameraIcon,
+     titulo: "1 · ESCANEA",
+     detalle:
+-      "Apunta la cámara al acta E-14 llenando el encuadre. También puedes subir la foto desde la galería (JPG, PNG, WEBP, HEIC).",
++      "Apunta la cámara al documento llenando el encuadre. También puedes subir la foto desde la galería (JPG, PNG, WEBP, HEIC).",
+   },
+   {
+     Icon: StitchSpinIcon,
+     titulo: "2 · ANALIZA",
+     detalle:
+-      "La app detecta los bordes del acta, la endereza y lee la cabecera y el contenido con OCR.",
++      "La app detecta los bordes del documento, lo endereza y lee la cabecera y el contenido con OCR.",
+   },
+   {
+     Icon: StitchEyeIcon,
+     titulo: "3 · REVISA",
+     detalle:
+-      "Comprueba el resultado: calidad del escaneo, clasificación (puesto · tipo · mesa · página) y texto leído.",
++      "Comprueba el resultado: calidad del escaneo, verificación documental y texto leído.",
+   },
+   {
+     Icon: StitchCloudCheckIcon,
+-    titulo: "4 · TRANSMITE",
++    titulo: "4 · ENVÍA",
+     // C-12 (Vía B — copys honestos): ADVERTENCIA no tiene CTA de envío
+     // manual (el botón se retiró con el gate-v2): lo real es repetir la foto
+     // (o revisión humana tras varios intentos).
+     detalle:
+-      "Las actas óptimas se envían solas; en las demás te pedimos repetir la foto (o revisión humana tras varios intentos). Sin conexión, se acumulan en cola.",
++      "Los documentos óptimos se envían solos; en los demás te pedimos repetir la foto (o revisión humana tras varios intentos). Sin conexión, se acumulan en cola.",
+   },
+ ];
+ 
+@@ -78,19 +78,19 @@
+ const PRIVACIDAD: [string, string][] = [
+   [
+     "QUÉ SE ENVÍA",
+-    "La FOTO del acta ya procesada (enderezada y legible) y los datos de la cabecera: departamento, municipio, puesto, mesa y tipo de formulario.",
++    "La FOTO del documento ya procesado (enderezado y legible) y los datos de cabecera que lee la plantilla (ubicación, número y tipo de formulario).",
+   ],
+   [
+     "A DÓNDE VA",
+-    "Al hub del proyecto (e14-puente) para que el equipo de supervisión la reciba. Nada va a servicios de terceros; el envío va firmado con la clave de tu jornada.",
++    "Al hub del proyecto para que el equipo de supervisión lo reciba. Nada va a servicios de terceros; el envío va firmado con la clave de tu jornada.",
+   ],
+   [
+     "CUÁNTO SE RETIENE",
+-    "30 días, o antes si la Registraduría confirma la recepción. Después se borra automáticamente.",
++    "30 días, o antes si el receptor confirma la recepción. Después se borra automáticamente.",
+   ],
+   [
+     "QUÉ NO SALE DE TU CELULAR",
+-    "Nombres, cédulas, contenido de votos ni texto del OCR del área de votación: la app no lee ni transmite los números.",
++    "Nombres, cédulas, contenido de la zona de datos ni texto del OCR: la app no lee ni envía los números.",
+   ],
+ ];
+ 
+@@ -118,16 +118,16 @@
+ 
+ const GLOSARIO: [string, string][] = [
+   [
+-    "E-14",
+-    "El acta oficial de escrutinio que firman los jurados de mesa el día electoral.",
++    "DOCUMENTO",
++    "Documento físico que se digitaliza, verifica y envía desde la app.",
+   ],
+   [
+-    "DELEGADOS / TRANSMISIÓN",
+-    "Cada mesa tiene 2 páginas por tipo: DELEGADOS (elegidos) y TRANSMISIÓN (resultados). El guion completa P1 y P2 de cada tipo.",
++    "PÁGINAS",
++    "Un documento puede tener varias páginas por tipo; el flujo las recorre en orden (P1, P2).",
+   ],
+   [
+     "Score (0–10)",
+-    "Calidad de la digitalización: nitidez, contraste y legibilidad del OCR. Define el desenlace del acta.",
++    "Calidad de la digitalización: nitidez, contraste y legibilidad del OCR. Define el desenlace del documento.",
+   ],
+   [
+     // C-12 (Vía B — copys honestos): el producto NO marca duplicadas en el
+@@ -135,14 +135,14 @@
+     // (RESCANEO ⚠ en RESUMEN) y la cola de envío no manda dos veces la misma
+     // acta (huella SHA-256 del sobre en el outbox del puente).
+     "Dedup",
+-    "No hay marca de «duplicada» en el flujo normal: repetir un hueco reemplaza la captura anterior (⚠ en RESUMEN) y la cola de envío no manda dos veces la misma acta (huella por hash).",
++    "No hay marca de «duplicada» en el flujo normal: repetir un hueco reemplaza la captura anterior (⚠ en RESUMEN) y la cola de envío no manda dos veces la misma captura (huella por hash).",
+   ],
+ ];
+ 
+ const TIPS = [
+   "Luz uniforme sin sombras duras (evita el contraluz y el reflejo del flash).",
+-  "Acta apoyada plana: arrugas y curvas distorsionan el texto para el OCR.",
+-  "Llena el encuadre con el acta completa, sin cortar bordes.",
++  "Documento apoyado plano: arrugas y curvas distorsionan el texto para el OCR.",
++  "Llena el encuadre con el documento completo, sin cortar bordes.",
+   "Si sale RECHAZADA dos veces, prueba desde SUBIR con una foto de la galería.",
+ ];
+ 
+@@ -193,7 +193,7 @@
+       className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+       role="dialog"
+       aria-modal="true"
+-      aria-label="Cómo funciona el Digitalizador E-14"
++      aria-label="Cómo funciona el Digitalizador de Documentos"
+       onClick={cerrarYRecordar}
+     >
+       <div
+@@ -209,8 +209,8 @@
+             ¿Cómo funciona el Digitalizador?
+           </h2>
+           <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
+-            Convierte las fotos de las actas E-14 en registros digitales
+-            verificados: escanea, la app lee el acta con OCR y transmite el
++            Convierte las fotos de tus documentos en registros digitales
++            verificados: escanea, la app los lee con OCR y envía el
+             resultado.
+           </p>
+         </div>

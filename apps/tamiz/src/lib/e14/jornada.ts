@@ -34,9 +34,10 @@ import type { ActaArchivada, PuestoActual } from "./store";
 import type { HistorialRow, Mesa, MesaPagina } from "@molde-suite/scanner-core/dominio/types";
 
 const DB_NOMBRE = "e14-jornada-v1";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_ESTADO = "estado";
 const STORE_ACTA = "acta";
+const STORE_CRUDAS = "crudas";
 const KEY_ESTADO = "jornada";
 const KEY_ACTA = "en-revision";
 
@@ -92,7 +93,14 @@ function abrirJornada(): Promise<IDBDatabase> {
           db.createObjectStore(STORE_ACTA);
         }
       }
-      // if (vieja < 2) { /* futuro: nueva store/índice — nunca tocar v1 aquí */ }
+      if (vieja < 2) {
+        // v2 — guardar cruda: fotos ORIGINALES archivadas SIN verificación
+        // (auto-recorte mal / rechazo persistente). keyPath id autoIncrement.
+        if (!db.objectStoreNames.contains(STORE_CRUDAS)) {
+          db.createObjectStore(STORE_CRUDAS, { keyPath: "id", autoIncrement: true });
+        }
+      }
+      // if (vieja < 3) { /* futuro: nueva store/índice — nunca tocar v1 aquí */ }
     };
     req.onsuccess = () => {
       dbSingleton = req.result;
@@ -378,6 +386,66 @@ export async function leerActaEnRevision(): Promise<Acta | null> {
     return registro;
   } catch {
     // slot ilegible o IDB caído: nada que restaurar — la REVISIÓN arranca vacía
+    return null;
+  }
+}
+
+// ---------- GUARDAR CRUDA (fase 2 — store «crudas») ----------
+
+/**
+ * Registro liviano de una foto ORIGINAL archivada SIN verificación (botón
+ * GUARDAR CRUDA — rechazos consecutivos ≥ 2 con auto-recorte sospechoso).
+ * La foto duerme como Blob nativo (mismo patrón e68/e69 — dataUrlABlob arriba;
+ * si el parseo falla el registro NO se escribe: jamás una cruda sin foto).
+ * `null` = fallo (cuota / IDB caída — ya notificado por el callback §6.10).
+ */
+export interface CrudaGuardada {
+  id: number;
+  titulo: string;
+  hora: string | null;
+  hashSha256?: string;
+  score: number;
+}
+
+export async function guardarCrudaEnIdb(entrada: {
+  fotoOriginalDataUrl: string;
+  titulo: string;
+  hora: string | null;
+  hashSha256?: string;
+  score: number;
+}): Promise<CrudaGuardada | null> {
+  try {
+    const blob = dataUrlABlob(entrada.fotoOriginalDataUrl);
+    if (!blob) return null;
+    const db = await abrirJornada();
+    const tx = db.transaction(STORE_CRUDAS, "readwrite");
+    const store = tx.objectStore(STORE_CRUDAS);
+    const req = store.put({
+      foto: blob,
+      titulo: entrada.titulo,
+      hora: entrada.hora,
+      hashSha256: entrada.hashSha256,
+      score: entrada.score,
+    });
+    const id = await new Promise<IDBValidKey>((resolve, reject) => {
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error ?? new Error("IDB_CRUDA_GUARDAR"));
+    });
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error("IDB_CRUDA_GUARDAR"));
+      tx.onabort = () => reject(tx.error ?? new Error("IDB_CRUDA_GUARDAR_ABORTADA"));
+    });
+    return {
+      id: Number(id),
+      titulo: entrada.titulo,
+      hora: entrada.hora,
+      hashSha256: entrada.hashSha256,
+      score: entrada.score,
+    };
+  } catch (err) {
+    // §6.10 — las fotos son MB: un QuotaExceededError sale por el callback.
+    notificarFallo("acta", err);
     return null;
   }
 }

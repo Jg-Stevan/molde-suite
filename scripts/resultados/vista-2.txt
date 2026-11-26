@@ -1,0 +1,50 @@
+8.7/10
+REVISIÓN HUMANA
+— · DOC — — DOC
+CLASIFICACIÓN PENDIENTE
+Repita la foto para clasificarlo automáticamente · INTENTO 1 DE 3
+FOTO PROCESADA
+!
+VERIFICACIÓN DOCUMENTAL
+18% ALERTA
+▼
+Campos Obligatorios
+0/5 · FALTAN 5
+•
+Código QR (capa 0)
+NO CORRIÓ EN ESTA CAPTURA
+•
+Cabecera del documento
+CABECERA SIN MATCH
+✗
+Tipo de formulario
+ILEGIBLE / SIN LECTURA
+✗
+Número de documento
+ILEGIBLE / SIN LECTURA
+✗
+Página
+SIN LECTURA
+Campos Opcionales
+2/6 · FALTAN 4
+▲
+•
+Departamento
+SIN LECTURA
+•
+Municipio
+SIN LECTURA
+•
+Sede
+SIN LECTURA
+•
+Kit
+SIN LECTURA
+Recortar
+Rotar 90°
+Imagen
+REPETIR CAPTURA (FOTO MÁS NÍTIDA)
+HISTORIAL
+PLANTILLAS
+Nueva versión disponible
+RECARGAR AHORA

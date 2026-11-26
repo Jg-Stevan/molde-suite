@@ -101,6 +101,16 @@ export interface E14Store {
   colaOffline: number;
   solicitudesRescaneo: number;
   historial: HistorialRow[];
+  /** Fase 2 (guardar cruda): rechazos CONSECUTIVOS del turno (crucen capturas —
+   *  repetirFoto NO lo resetea; cualquier desenlace no-RECHAZADA lo pone a 0).
+   *  ≥ 2 → REVISIÓN muestra el botón GUARDAR CRUDA (mock rechazada). */
+  rechazosConsecutivos: number;
+  /** Fase 3 (multipágina real): sesión del documento en curso cuando el molde
+   *  activo declara > 1 páginas. Cada página VÁLIDA (OPTIMA/ADVERTENCIA) se
+   *  acumula; al completar las esperadas se evalúa el lote con
+   *  `evaluarMoldeMultipagina` y el veredicto resultante manda en el acta.
+   *  `null` = flujo de una página de siempre. */
+  documentoEnCurso: DocumentoEnCurso | null;
   /** KIT e14-optimizacion-v1 (T5): contador en memoria de sesión «por qué
    *  no se envió» — espejo PASIVO de desenlaces YA ocurridos. Sin
    *  persistencia (igual que historial): se resetea al recargar. Claves:
@@ -156,7 +166,32 @@ export interface E14Store {
    *  inválidos/tardíos quedan RECHAZADA (correcto — kit §criterios C). */
   rescatarActaPostTimeout: (vencida: Acta, real: Acta, tiempoRealMs: number) => void;
   enviarActa: () => Promise<void>;
+  /**
+   * Fase 2 (guardar cruda, decisión del dueño): archiva la foto ORIGINAL del
+   * acta RECHAZADA SIN verificación (auto-recorte mal — el papel completo con
+   * sus firmas merece conservarse). Persiste en IDB «crudas» como Blob +
+   * fila de historial GUARDADO_CRUDO + marca `acta.guardadaCruda`. El botón
+   * solo aparece con rechazosConsecutivos ≥ 2 y queda DESHABILITADO sin
+   * tinta (manuscrito/firma/huella sin trazo) — doctrina: todo documento
+   * VÁLIDO se guarda; una hoja en blanco no es evidencia. NO archiva hueco
+   * ni cuenta como envío (estado «CRUDA · NO VERIFICADA» en ACTAS).
+   * `true` = archivada; `false` = fallo (cuota/IDB — aviso del visor ya
+   * notificado) o sin foto original.
+   */
+  guardarCruda: () => Promise<boolean>;
   repetirFoto: () => void;
+  /**
+   * Fase 3 (multipágina): «ESCANEAR PÁGINA N+1» — vuelve al escáner SIN
+   * tocar `documentoEnCurso` (las páginas ya capturadas se conservan; a
+   * diferencia de repetirFoto, que descarta la última página acumulada).
+   */
+  siguientePagina: () => void;
+  /**
+   * Fase 3 (multipágina): descarta la sesión del documento en curso (páginas
+   * acumuladas) y vuelve al escáner — el operador empieza el documento de
+   * cero. No toca el historial ni los contadores.
+   */
+  cancelarDocumento: () => void;
   /** D6-bis (SPEC-rediseno-chrome-3-estados Rev. 3): escalación MANUAL a
    *  revisión humana — el botón «REVISIÓN HUMANA» (solo ADVERTENCIA/RECHAZADA,
    *  habilitado tras rechazos repetidos) entrega el acta al sabor contingencia
@@ -202,6 +237,20 @@ export interface E14Store {
    *  reanudación de cámara fallida (3.3). Los de tipo "error" NO se
    *  autodestruyen (bloque 4.3.1): salen por Reintentar o descartar. */
   avisoVisor: AvisoOperador | null;
+  /**
+   * §5 (plan cierre 2 agentes, 2026-11-26) — VERIFICACIÓN Y ACTUALIZACIÓN
+   * DE DATOS: corrige el valor de un campo capturado desde el panel de
+   * verificación. Re-evalúa el documento con el override (misma semántica
+   * de agregación del motor + validaciones cruzadas), recalcula el
+   * veredicto (acta enrutada), persiste en IndexedDB con
+   * valoresEditados/corregidoPorOperador (marca EDITADO — el hash de la
+   * foto cruda NO cambia), actualiza la ÚNICA fila de historial (EDITADO)
+   * y aplica la REGLA DE ORO: si la corrección completa los obligatorios
+   * y el documento queda legible → auto-guardado INMEDIATO (banner
+   * ENVIADA + «SEGUIR ESCANEANDO»). `true` = la edición aplicó; `false` =
+   * guard honesto (sin acta/campo/molde — el panel conserva el valor).
+   */
+  editarCampoActa: (campoId: string, valor: string | boolean) => Promise<boolean>;
   /** Monta el aviso del visor (ts lo estampa el store). */
   mostrarAvisoVisor: (aviso: {
     tipo: AvisoOperador["tipo"];
@@ -298,6 +347,25 @@ export interface PdfLibroEntry {
 export interface ActaArchivada {
   clasificacion: ClasificacionE14;
   huecos: HuecoArchivado[];
+}
+
+/** Fase 3 (multipágina): página capturada y acumulada de un documento. */
+export interface PaginaDocumento {
+  /** Número de página (1-indexado) que el documento esperaba. */
+  pagina: number;
+  fotoProcesada: string;
+  fotoOriginal?: string;
+  quad?: Quad;
+  rotation?: number | null;
+}
+
+/** Fase 3 (multipágina): sesión en curso mientras el molde espera N páginas. */
+export interface DocumentoEnCurso {
+  moldeNombre: string;
+  /** Páginas totales que declara el molde (huella.paginas o max campo.pagina). */
+  esperadas: number;
+  /** Páginas VÁLIDAS ya capturadas (en orden). */
+  paginas: PaginaDocumento[];
 }
 
 /** PUESTO ACTUAL (regla del mantenedor: «solo un puesto debe de aparecer»): el
