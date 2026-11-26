@@ -29,6 +29,8 @@ import { ErrorRescateHeic } from '@molde-suite/scanner-core/core/image-processor
 import { reiniciarMotorOcrSiInactivo } from '@molde-suite/scanner-core/ocr/rapidocr';
 import { reiniciarWorkerTesseractSiInactivo } from '../bridge/ocr-worker';
 import { leerFlags } from '../flags';
+import { decidirAutoGuardado } from '../politica/auto-guardado';
+import { editarCampoActa } from './edicion';
 import type { E14Get, E14Store, Vista } from './tipos';
 
 export type { Vista, ActaArchivada, PuestoActual, HuecoArchivado, E14Store } from './tipos';
@@ -114,6 +116,7 @@ function crearCaptura(
   | 'mostrarAvisoVisor'
   | 'descartarAvisoVisor'
   | 'setAutoCapturaDesarmada'
+  | 'editarCampoActa'
   | 'cancelarAnalisis'
   | 'interrumpirAnalisis'
 > {
@@ -336,11 +339,14 @@ function crearCaptura(
           rechazosConsecutivos:
             actaFinal.status === 'RECHAZADA' ? rechazosConsecutivos + 1 : 0,
         });
-        // Documento multipágina COMPLETO y VÁLIDO: UNA sola fila de historial
-        // (el documento, no cada página) — misma ruta G.1 de guardado local.
-        // Título: el del acta; sin clasificación electoral, el NOMBRE DEL
-        // MOLDE identifica el documento mejor que el genérico «DOC».
-        if (actaFinal.status === 'OPTIMA' || actaFinal.status === 'ADVERTENCIA') {
+        // Documento multipágina COMPLETO: REGLA DE ORO §4 (plan cierre 2
+        // agentes) — la decisión la toma decidirAutoGuardado (pura, testeada):
+        // lote legible (ÓPTIMA o ADVERTENCIA con obligatorios completos y sin
+        // relacion_ambigua) → UN solo registrarEnvio (una fila de historial);
+        // lote NO legible (RECHAZADA / obligatorios faltantes / sin tinta) →
+        // la última captura queda archivada con su veredicto real.
+        const decisionLote = decidirAutoGuardado(actaFinal, leerFlags().autoGuardado);
+        if (decisionLote.autoEnviar) {
           try {
             await registrarEnvio(set, get, tituloDeArchivo(get, sesion.moldeNombre));
           } catch (e) {
@@ -349,8 +355,10 @@ function crearCaptura(
             });
           }
         } else {
-          // 2026-11-26: lote RECHAZADO — la última captura también queda
-          // archivada (las anteriores ya se archivaron página a página).
+          logger.info('[store] lote multipágina sin auto-guardado', {
+            motivo: decisionLote.motivo,
+            status: actaFinal.status,
+          });
           try {
             await archivarCaptura(set, get, tituloDeArchivo(get, sesion.moldeNombre));
           } catch (e) {
@@ -362,14 +370,19 @@ function crearCaptura(
         reciclarWorkersPostEscaneo();
         return;
       }
-      // D4/G4 — ACEPTACIÓN Y GUARDADO AUTOMÁTICOS (documento de UNA página):
-      // el acta ÓPTIMA (completa, verificada y legible) se archiva SIN
-      // operador por el punto único G.1 — misma ruta que la multipágina.
-      // ADVERTENCIA sigue siendo decisión del operador (D20: su motivo
-      // manda) y RECHAZADA jamás se auto-acepta (negación explicable, sin
-      // ok falso). El status pasa a ENVIADA para que REVISIÓN muestre el
-      // banner «ENVIADO AUTOMÁTICAMENTE» + CTA SEGUIR ESCANEANDO.
-      if (actaActual.status === 'OPTIMA') {
+      // REGLA DE ORO §4 (recalcada por el dueño 2026-11-26) — documento de UNA
+      // página: la decisión del auto-guardado sale de decidirAutoGuardado:
+      //  · ÓPTIMA legible → auto-envío (regla existente D4/G4, ahora bajo el
+      //    flag `autoGuardado`).
+      //  · ADVERTENCIA legible (obligatorios completos, sin
+      //    `relacion_ambigua`) → HUECO CERRADO (B4): antes era decisión
+      //    manual (D20) y un documento legible podía quedar sin guardar.
+      //  · RECHAZADA / EN_REVISION_HUMANA / `relacion_ambigua` / sin tinta /
+      //    flag apagado → NO auto-guarda (excepciones del plan).
+      // Al enviar: status ENVIADA para que REVISIÓN muestre el banner
+      // «ENVIADO AUTOMÁTICAMENTE» + CTA SEGUIR ESCANEANDO.
+      const decision = decidirAutoGuardado(actaActual, leerFlags().autoGuardado);
+      if (decision.autoEnviar) {
         try {
           const { hora } = await registrarEnvio(set, get, tituloDeArchivo(get));
           const actual = get().actaActual;
@@ -380,9 +393,9 @@ function crearCaptura(
           }
         } catch (e) {
           // registrarEnvio es no-lanzable (hash null honesto, fotoLibro en
-          // try) — si algo fallara, el acta queda ÓPTIMA y REVISIÓN da la
-          // salida (no se pierde en silencio).
-          logger.warn('[store] auto-guardado del acta óptima falló', {
+          // try) — si algo fallara, el acta queda ÓPTIMA/ADVERTENCIA y
+          // REVISIÓN da la salida (no se pierde en silencio).
+          logger.warn('[store] auto-guardado del acta legible falló', {
             mensaje: (e as Error).message,
           });
         }
@@ -395,14 +408,21 @@ function crearCaptura(
         reciclarWorkersPostEscaneo();
         return;
       }
+      logger.info('[store] sin auto-guardado', { motivo: decision.motivo, status: actaActual.status });
       // RECHAZADA también va a REVISIÓN: el veredicto y su motivo (incluido
       // el corte temprano del gate estructural) deben llegar al operador —
       // volver a ESCANEAR en silencio ocultaba la regla que faltó.
-      // 2026-11-26 («aceptar y guardar automáticamente»): ADVERTENCIA y
-      // RECHAZADA se ARCHIVAN solas con su veredicto real antes de mostrar
-      // REVISIÓN — el operador decide repetir/revisar, pero la imagen ya
-      // no se pierde. (La ÓPTIMA se envió arriba por G.1.)
-      if (!actaActual.capturaArchivada && (actaActual.fotoProcesada || actaActual.fotoOriginal)) {
+      // 2026-11-26 («aceptar y guardar automáticamente las imágenes»):
+      // ADVERTENCIA y RECHAZADA se ARCHIVAN solas con su veredicto real antes
+      // de mostrar REVISIÓN — el operador decide repetir/revisar, pero la
+      // imagen ya no se pierde. (La legible se envió arriba por §4.)
+      // §4 test obligatorio (3): EN_REVISION_HUMANA NO guarda solo — queda
+      // fuera de TODO archivado automático (requiere humano).
+      if (
+        actaActual.status !== 'EN_REVISION_HUMANA' &&
+        !actaActual.capturaArchivada &&
+        (actaActual.fotoProcesada || actaActual.fotoOriginal)
+      ) {
         try {
           await archivarCaptura(set, get, tituloDeArchivo(get));
         } catch (e) {
@@ -606,6 +626,7 @@ function crearCaptura(
     mostrarAvisoVisor: (aviso) => set({ avisoVisor: aviso as AvisoOperador }),
     descartarAvisoVisor: () => set({ avisoVisor: null }),
     setAutoCapturaDesarmada: (v) => set({ autoCapturaDesarmada: v }),
+    editarCampoActa: (campoId, valor) => editarCampoActa(set, get, campoId, valor),
     cancelarAnalisis: () =>
       set({ vista: 'escanear', progresoAnalisis: null, analisisResuelto: false, analisisEnVuelo: false }),
     interrumpirAnalisis: () =>

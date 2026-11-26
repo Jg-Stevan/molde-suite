@@ -3,7 +3,8 @@
   "_notas": [
     "OpenCV: @techstark/opencv-js@4.12.0-release.1 por unpkg. El tarball de npm es inmutable, así que la versión fijada es garantía de reproducibilidad. docs.opencv.org devuelve 403 con challenge JS de Cloudflare y el alias /4.x/ es móvil: no sirve para un pipeline. La ruta lleva versión para invalidar las cachés (IndexedDB de tesseract.js, MOTOR_CACHE del SW y HTTP).",
     "spa.traineddata.gz: naptha/tessdata en commit fijo 806cd9a, sabor 4.0.0_fast (1,14 MB comprimido). La ruta lleva versión por el mismo motivo.",
-    "RapidOCR PP-OCRv4 (det/rec/cls): SWHL/RapidOCR en commit fijo 1cfba2e (mismos URL+SHA-256 probados del repo original e14-suite). Se materializan en public/models/rapidocr/ al preparar el entorno; los .onnx jamás se versionan (gitignore)."
+    "RapidOCR PP-OCRv4 (det/rec/cls): SWHL/RapidOCR en commit fijo 1cfba2e (mismos URL+SHA-256 probados del repo original e14-suite). Se materializan en public/models/rapidocr/ al preparar el entorno; los .onnx jamás se versionan (gitignore).",
+    "ppocr_keys.txt: diccionario oficial de caracteres de PaddleOCR (ppocr/utils/ppocr_keys_v1.txt, 6623 claves) — el rec de RapidOCR lo exige para decodificar CTC (rapidocr.ts §dict). Faltaba en este lock: sin él TODO escaneo caía con «ppocr_keys.txt HTTP 404» (bloqueante encontrado por Agente B al verificar en navegador el 2026-11-26). Origen main de PaddlePaddle (archivo estable) con SHA-256 fijado."
   ],
   "archivos": [
     {

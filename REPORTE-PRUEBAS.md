@@ -2,6 +2,65 @@
 
 Fecha: 2026-11-22 · Rama: `feat/layout-gate` · Base: `086a76a`
 
+## Agente B — verificación en navegador §7 (2026-11-26, rama `agent-b/mvp-captura-pwa`)
+
+- **Equipo**: sandbox Linux x64 · Chrome 158 (CDP/agent-browser) · dev server Tamiz :3000 y build estático (`BUILD_STATIC=1`, servidor :8790). **Sin celular real** — la fase A56 queda pendiente (mismo criterio de honestidad de la tabla de abajo).
+- **Fixtures**: SIM sintéticas del propio Tamiz (`simulacion-imagenes.ts`, canvas — sin fotos reales) + molde de control «RECIBO DE LUZ CONTROL» (recibo demo + obligatorio `saldo` que el papel no trae) en `scripts/resultados/verificacion-agente-b/` (LOCAL, sintético).
+
+### Checklist §7 (plan PLAN-CIERRE-2-AGENTES)
+
+| # | Ítem | PC | Móvil 390×844 | Evidencia |
+|---|---|---|---|---|
+| 1 | App carga sin errores de consola ni hidratación | ✓ (0 errores; `lcp 557 ms, cls 0`) | ✓ | capturas 01, 10 |
+| 2 | Fixture óptimo → OPTIMA → **AUTO-GUARDADO sin toque** (banner ENVIADA + fila HISTORIAL) | ✓ OPTIMA 8.9/10 → «ENVIADO AUTOMÁTICAMENTE» + SEGUIR ESCANEANDO + fila «DOCUMENTO PROCESADO Y GUARDADO» | ✓ idéntico | capturas 02, 11 |
+| 3 | Legible pero con UN obligatorio faltante → NO auto-guarda; estado/motivo correctos | ✓ RECHAZADA 8.0 · pill «FALTA SALDO PENDIENTE» · CTA repetir · fila «CAPTURA ARCHIVADA · RECHAZADA» | ✓ | capturas 04 |
+| 4 | Edición de valor en REVISIÓN → veredicto recalcula; completa obligatorios → auto-guardado inmediato | ✓ 8.0 RECHAZADA → editar «SALDO PENDIENTE=8500» → 10.0 OPTIMA → ENVIADO AUTOMÁTICAMENTE → UNA fila «DATOS CORREGIDOS · AUTO-GUARDADO» (RECHAZADAS 0) | ✓ idéntico | capturas 05, 06, 07, 12 |
+| 5 | Tarjeta de verificación, overlay de campos e historial sin regresiones (foto no desplazada, panel 0 px cerrado) | ✓ acordeón portal al visor; overlay de palabras verde/ámbar/rojo; conf visible | ✓ | capturas 02, 13, 14 |
+| 6 | Historial multipágina: lote válido → una sola fila | ✓ lote 2/2 «Prueba dos páginas» → evaluación única (score 100, 0 faltantes) → UNA fila de envío del documento (la evidencia página a página se conserva como capturas archivadas; título: molde para no-electorales — «RECIBO DE LUZ CONTROL», electoral para E-14 — doctrina main) | ✓ | capturas 16, 17, 18 |
+
+### Extra Agente B
+
+| Ítem | Resultado | Evidencia |
+|---|---|---|
+| Modo avión tras primera carga → escaneo OK | ✓ **sobre build estático**: recarga offline sirve el shell desde el SW (`online: false`, app completa) → escaneo SIM → OPTIMA 8.9 auto-guardada. En dev el combo SW+chunks efímeros rompe la hidratación offline (limitación de dev, documentada) | capturas 19, 20, 21 |
+| Import de molde por archivo OK | ✓ validado (contrato v3 + 2 MB + sin URLs remotas) → activado → usado en escaneos | captura 03 |
+| Cuota mostrada | ✓ «almacenamiento 63,2 MB de 10303,2 MB» (`navigator.storage.estimate()`) + persistencia | captura 15 |
+| Fotos de documentos NUNCA en caché del SW | ✓ por diseño: fotos en memoria/dataURLs (sin URL cacheable) + guardas del SW (no-GET y `/api/` jamás se cachean) | `public/sw.js` §privacidad |
+| COOP/COEP + multihilo | ✓ `crossOriginIsolated === true` en top-level; fallback 1 hilo en embebida (`src/proxy.ts`) | eval CDP |
+
+### Comandos y resultados (Agente B)
+
+| Comando | Resultado |
+|---|---|
+| `cd apps/tamiz && bun run typecheck` | ✓ 0 errores |
+| `cd apps/tamiz && bun run lint` | ✓ 0 errores |
+| `cd apps/tamiz && bun run test` | ✓ **132/132** (106 existentes + 26 nuevos: §4 auto-guardado + §5 edición) |
+| `cd packages/scanner-core && bun test` | ✓ contrato golden en verde (moldes existentes byte-idénticos) |
+| `BUILD_STATIC=1 bun run build` (tamiz) | ✓ export estático (PWA) |
+
+### Re-verificación de continuidad (2026-11-26, sesión posterior al merge — main `30f725a`)
+
+Smoke §8.2 repetido desde checkout fresco del estado fusionado (dev Tamiz :3000, Chrome CDP/agent-browser). Todas las capturas en `scripts/resultados/verificacion-agente-b/smoke-*.png` (SIM sintéticas, §3.3):
+
+| # | Ítem §7 | Resultado | Evidencia |
+|---|---|---|---|
+| 1 | Carga sin errores de consola ni hidratación | ✓ 0 errores (PC y móvil) | smoke-01, smoke-07 |
+| 2 | Fixture óptimo → OPTIMA → AUTO-GUARDADO sin toque | ✓ 8.9/10 OPTIMA → «✓ ENVIADO AUTOMÁTICAMENTE» + fila única en HISTORIAL | smoke-02, smoke-03 |
+| 3 | Legible con UN obligatorio faltante → NO auto-guarda | ✓ «✗ 8.0/10 RECHAZADA · FALTA SALDO PENDIENTE», sin banner de envío | smoke-04 |
+| 4 | Edición → re-veredicto; completa obligatorios → auto-guardado inmediato | ✓ lápiz §5 → «SALDO PENDIENTE=8500» → 10.0/10 OPTIMA · BRUTO 7.8/10 → ENVIADO AUTOMÁTICAMENTE | smoke-05 |
+| 5 | Historial sin regresiones (una fila EDITADO · AUTO-GUARDADO) | ✓ 2 filas: «RECIBO DE LUZ CONTROL · DATOS CORREGIDOS · AUTO-GUARDADO» + «DOC 001 — PRINCIPAL» | smoke-06 |
+| 6 | Móvil 390×844 | ✓ layout adaptado, targets táctiles correctos, 0 errores | smoke-07 |
+
+| Batería (re-verificación) | Resultado |
+|---|---|
+| `packages/scanner-core · bun test` | ✓ 77/77 |
+| `apps/tamiz · bun run test` | ✓ 132/132 |
+| `apps/tamiz · typecheck` + `lint` | ✓ 0 / 0 errores |
+
+---
+
+## Verificación previa (2026-11-22 — feat/layout-gate)
+
 ## Equipos
 
 | Equipo | SO | Navegador | Versión | Notas |
