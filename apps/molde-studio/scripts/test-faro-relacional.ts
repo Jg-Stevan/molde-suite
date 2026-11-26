@@ -344,7 +344,7 @@ check(
 
 check(
   'textoPlano: quita etiquetas y entidades',
-  textoPlano('<p>D. <b>Lucía</b>, &amp; hijos</p>') === 'D. Lucía, & hijos',
+  textoPlano('<p>D. <b>María</b>, &amp; hijos</p>') === 'D. María, & hijos',
 );
 
 {
@@ -471,13 +471,13 @@ const fixture: ChandraConvert = {
             id: '/p0/t2',
             block_type: 'Text',
             bbox: [198, 428, 1404, 518],
-            html: '<p>D. <b>Lucía Torres Medina</b>, con DNI <b>48.221.907</b>, en calidad de <b>Administradora</b>, de la empresa <b>Suministros Delta S.L.</b>, con CIF <b>B-87654321</b>.</p>',
+            html: '<p>D. <b>María García Pons</b>, con DNI <b>45.678.123</b>, en calidad de <b>Administradora</b>, de la empresa <b>Suministros Alfa S.L.</b>, con CIF <b>B-98765432</b>.</p>',
           },
           {
             id: '/p0/t3',
             block_type: 'Text',
             bbox: [198, 562, 1349, 653],
-            html: '<p>Recibí de: D. <b>Andrés Molina Castaño</b>, con DNI <b>79.554.312</b>.</p>',
+            html: '<p>Recibí de: D. <b>Juan Pérez Soto</b>, con DNI <b>12.345.678</b>.</p>',
           },
           { id: '/p0/tbl', block_type: 'Table', bbox: [198, 1696, 1422, 1879], html: '<table><tr><td><b>Firma</b></td><td><b>Firma</b></td></tr></table>' },
         ],
