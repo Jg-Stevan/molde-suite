@@ -1,0 +1,86 @@
+{
+  "tipo": "universal",
+  "version": "3.1.0",
+  "nombre": "RECIBO DE LUZ CONTROL",
+  "descripcion": "Molde de control para la verificación en navegador (Agente B): recibo demo + UN obligatorio extra (SALDO PENDIENTE) que el documento no trae — prueba RECHAZADA por obligatorio faltante y el auto-guardado tras la corrección del operador (§4/§5).",
+  "documento": "recibo_servicio",
+  "idioma": "spa",
+  "campos": [
+    {
+      "id": "suscriptor",
+      "etiqueta": "NÚMERO DE SUSCRIPTOR",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": { "x": 0.19, "y": -0.002, "w": 0.105, "h": 0.03 },
+      "ancla": { "texto": "SUSCRIPTOR No", "rect": { "x": 0.17, "y": 0.23, "w": 0.19, "h": 0.03 } },
+      "patron": "\\d{5,8}",
+      "limpiar_valor": "(\\d{5,8})",
+      "realce": true,
+      "umbral": 0.1,
+      "obligatorio": true,
+      "nota": "Identidad del cliente en el recibo."
+    },
+    {
+      "id": "periodo",
+      "etiqueta": "PERIODO FACTURADO",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": { "x": 0.12, "y": -0.002, "w": 0.115, "h": 0.03 },
+      "ancla": { "texto": "PERIODO", "rect": { "x": 0.17, "y": 0.262, "w": 0.1, "h": 0.03 } },
+      "patron": "\\d{4}-\\d{2}",
+      "realce": true,
+      "umbral": 0.1,
+      "obligatorio": true,
+      "nota": "Mes facturado (AAAA-MM)."
+    },
+    {
+      "id": "consumo",
+      "etiqueta": "CONSUMO (kWh)",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": { "x": 0.175, "y": -0.002, "w": 0.12, "h": 0.03 },
+      "ancla": { "texto": "CONSUMO kWh", "rect": { "x": 0.17, "y": 0.293, "w": 0.14, "h": 0.03 } },
+      "patron": "\\d{2,5}",
+      "umbral": 0.1,
+      "obligatorio": false,
+      "nota": "Consumo del periodo."
+    },
+    {
+      "id": "valor",
+      "etiqueta": "VALOR A PAGAR",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": { "x": 0.25, "y": -0.003, "w": 0.16, "h": 0.033 },
+      "ancla": { "texto": "VALOR A PAGAR", "rect": { "x": 0.17, "y": 0.353, "w": 0.24, "h": 0.038 } },
+      "patron": "\\d{4,8}",
+      "limpiar_valor": "(\\d{4,8})",
+      "realce": true,
+      "umbral": 0.1,
+      "obligatorio": true,
+      "destacado": true,
+      "nota": "Total a pagar del recibo."
+    },
+    {
+      "id": "saldo",
+      "etiqueta": "SALDO PENDIENTE",
+      "pagina": 1,
+      "tipo": "texto",
+      "estrategia": "ancla_relativa",
+      "zona": { "x": 0.2, "y": 0.01, "w": 0.12, "h": 0.03 },
+      "ancla": { "texto": "SALDO PENDIENTE", "rect": { "x": 0.17, "y": 0.384, "w": 0.2, "h": 0.03 } },
+      "patron": "\\d{2,6}",
+      "umbral": 0.1,
+      "obligatorio": true,
+      "nota": "Obligatorio de CONTROL — el recibo demo NO lo trae: RECHAZADA por obligatorio faltante (§7 ítem 2) y auto-guardado tras la corrección del operador (§5)."
+    }
+  ],
+  "meta": {
+    "orden": 2,
+    "estado": "activo",
+    "etiquetaCampos": "Campos mapeados"
+  }
+}
