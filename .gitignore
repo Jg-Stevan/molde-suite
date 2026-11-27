@@ -108,3 +108,11 @@ scripts/resultados/
 /scripts/entrega/verificar-procesado-reales.mjs
 /scripts/entrega/verificar-reales.mjs
 /scripts/entrega/verificar-recorte-reales.mjs
+
+# V3 (PLAN-BENCHMARK-V3.md §5/§8): bundle del arnés bench-ocr (`bun build`
+# → public/_bench/), servido por el conductor CDP en local. Anclado a la
+# raíz por la lección FIX F2 — un patrón suelto silenciaría cualquier
+# public/_bench anidado futuro. El dataset real ya está cubierto:
+# /upload/ (línea 28) y scripts/resultados/ (línea 83, incluye
+# fixtures-reales/) van de punta a punta.
+/public/_bench/
