@@ -23,12 +23,89 @@ function lineas(textoPlano) {
     .filter((l) => l !== '' && !/^[-\s|]+$/i.test(l));
 }
 
-export function extraerCampos(textoPlano, tipoDoc) {
+/**
+ * resolverPorGeometria(arbol, definiciones) — asociación etiqueta↔valor por
+ * PROXIMIDAD GEOMÉTRICA sobre el árbol estructurado (informe E2 §10.3): el
+ * OCR puede INVERTIR la secuencia etiqueta/valor (toma vac-03 del recibo) y
+ * la lectura por orden de texto falla. Prioridad:
+ *   1. misma línea: el resto de la línea de la etiqueta (si cumple esValor).
+ *   2. línea más cercana por distancia centro-a-centro de bbox (la vertical
+ *      domina, como lee un humano un formulario: el valor vive debajo).
+ * Excluye líneas dentro de tablas (celdas) y la propia línea de la etiqueta.
+ * Devuelve { id: valor } solo con pares RESUELTOS — nunca inventa.
+ */
+export function resolverPorGeometria(arbol, definiciones) {
+  const resueltos = {};
+  if (!arbol || !Array.isArray(arbol.bloques)) return resueltos;
+
+  const lineas = [];
+  for (const b of arbol.bloques) {
+    if (b.tipo === 'tabla') continue; // los valores de celdas no van por proximidad
+    for (const l of b.lineas ?? []) {
+      if (!l.texto || !Array.isArray(l.bbox)) continue;
+      lineas.push({ texto: limpiar(l.texto), bbox: l.bbox });
+    }
+  }
+  if (lineas.length === 0) return resueltos;
+
+  const centro = (bbox) => ({
+    x: (bbox[0] + bbox[2]) / 2,
+    y: (bbox[1] + bbox[3]) / 2,
+    h: bbox[3] - bbox[1],
+  });
+
+  for (const def of definiciones) {
+    // línea de la etiqueta: la primera que matchea (etiquetas únicas por formulario)
+    const iLabel = lineas.findIndex((l) => def.etiqueta.test(l.texto));
+    if (iLabel < 0) continue;
+    const etiqueta = lineas[iLabel];
+    const cEti = centro(etiqueta.bbox);
+
+    // 1) misma línea: lo que sigue al texto de la etiqueta
+    const cruda = lineas[iLabel].texto;
+    const coincidencia = cruda.match(def.etiqueta);
+    const resto = cruda.slice(coincidencia ? coincidencia.index + coincidencia[0].length : 0)
+      .replace(/^[:\s]+/, '').trim();
+    if (resto && def.esValor(resto)) { resueltos[def.id] = resto; continue; }
+
+    // 2) línea más cercana que parezca valor (vertical domina sobre horizontal)
+    let mejor = null, mejorDist = Infinity, mejorFila = false;
+    for (let i = 0; i < lineas.length; i++) {
+      if (i === iLabel) continue;
+      const l = lineas[i];
+      if (!def.esValor(l.texto)) continue;
+      const c = centro(l.bbox);
+      const dy = Math.abs(c.y - cEti.y);
+      const dx = Math.abs(c.x - cEti.x);
+      // MISMA FILA (formulario a dos columnas): la cota vertical no aplica —
+      // el valor vive al costado, no debajo (hallazgo vac-03, informe E2 §10.3).
+      const mismaFila = dy <= Math.max(6, cEti.h * 0.8) && dx <= (arbol.ancho || 800) * 0.6;
+      const dist = dy + dx * 0.5;
+      if (dist < mejorDist) { mejorDist = dist; mejor = l; mejorFila = mismaFila; }
+    }
+    // cota honesta: a más de 6 alturas de línea (o fuera de la misma fila en
+    // una página) la distancia no dice relación — se deja sin resolver.
+    if (mejor && (mejorFila || mejorDist <= Math.max(60, cEti.h * 6))) {
+      resueltos[def.id] = mejor.texto;
+    }
+  }
+  return resueltos;
+}
+
+export function extraerCampos(textoPlano, tipoDoc, arbol = null) {
   const ls = lineas(textoPlano);
   const plano = ls.join('\n');
   const hallado = {};
   const poner = (id, v) => { if (v != null && String(v).trim() !== '') hallado[id] = String(v).trim(); };
-  const matchEn = (re, i = 0) => { const m = re.exec(plano); return m ? m[i] ?? m[0] : null; };
+  // V2: si el regex tiene grupo de captura, el valor es el GRUPO (m[1]) —
+  // m[0] arrastraba la etiqueta al valor («nombre y apellido\njuan…», bug
+  // preexistente que la prueba del cierre expuso). Sin grupo → match completo.
+  const matchEn = (re, i = -1) => {
+    const m = re.exec(plano);
+    if (!m) return null;
+    if (i >= 0) return m[i] ?? m[0];
+    return m.length > 1 ? (m[1] ?? m[0]) : m[0];
+  };
 
   // índice de la primera línea que cumple re; offset para tomar líneas siguientes
   const lineaCon = (re, desde = 0) => {
@@ -50,6 +127,26 @@ export function extraerCampos(textoPlano, tipoDoc) {
     }
     return null;
   };
+
+  // GEOMETRÍA PRIMERO (informe E2 §10.3): con árbol estructurado, los campos
+  // definidos se asocian por proximidad de bbox (inmune a la inversión
+  // etiqueta/valor del OCR); el camino textual queda como respaldo.
+  if (arbol) {
+    const definiciones = tipoDoc === 'recibo'
+      ? [
+          { id: 'forma_pago', etiqueta: /forma de pago/, esValor: (l) => /transferencia|efectivo|tarjeta|contado/.test(l) },
+          { id: 'fecha_pago', etiqueta: /fecha de pago/, esValor: (l) => /\d{1,2}\s*[/ -]\s*\d{1,2}\s*[/ -]\s*\d{2,4}/.test(l) },
+          { id: 'concepto', etiqueta: /en concepto de/, esValor: (l) => l.length >= 15 && !/:\s*$/.test(l) },
+        ]
+      : [
+          { id: 'telefono', etiqueta: /telefono/, esValor: (l) => /\d[\d -]{6,}/.test(l) },
+          { id: 'nombre_comprador', etiqueta: /nombre y apellido/, esValor: (l) => /^[a-z ]{6,50}$/.test(l.trim()) },
+          { id: 'fecha_entrega', etiqueta: /fecha de entrega/, esValor: (l) => /\d{1,2}\s+de\s+[a-z]+\s+de\s+\d{4}/.test(l) },
+        ];
+    for (const [id, valor] of Object.entries(resolverPorGeometria(arbol, definiciones))) {
+      poner(id, valor);
+    }
+  }
 
   if (tipoDoc === 'recibo') {
     poner('titulo', matchEn(/recibo de pago/));

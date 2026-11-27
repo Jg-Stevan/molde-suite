@@ -233,10 +233,16 @@ export function postprocesar(arbol) {
     const esCorto = texto.length <= 60;
     const cercaTop = H > 0 && b.bbox[1] < H * 0.22;
     const cercaPie = H > 0 && b.bbox[1] + b.bbox[3] > H * 0.94;
+    // Regla de ACTAS (informe E2 §10.2): «línea corta mayúsculas con prefijo
+    // numérico» es SectionHeader aunque exceda el techo de 45 chars — los
+    // encabezados numerados de actas (E-14/E-26: «1. IDENTIFICACIÓN DEL
+    // PUESTO…», «3.2 VERIFICACIÓN…») llegaban a 'parrafo' por longitud.
+    const conPrefijoNumerico = /^(\d+(\.\d+)*)[.)]?\s+\S/.test(texto);
+    const esSeccionMayus = esCorto && esMayusculas(texto) && (texto.length <= 45 || (conPrefijoNumerico && texto.length <= 90));
     if (cercaPie && esCorto) b.tipo = 'pie';
     else if (cercaTop && esCorto && esMayusculas(texto) && texto.length <= 45) b.tipo = 'titulo';
     else if (hMax >= alturaMediana * 1.35 && esCorto) b.tipo = 'titulo';
-    else if ((hMax >= alturaMediana * 1.15 && esCorto) || (esCorto && esMayusculas(texto) && texto.length <= 45)) b.tipo = 'seccion';
+    else if ((hMax >= alturaMediana * 1.15 && esCorto) || esSeccionMayus) b.tipo = 'seccion';
     else b.tipo = 'parrafo';
   }
 

@@ -282,7 +282,7 @@ function main() {
       const gt = GT_CAMPOS[claveGt];
       const tipoDoc = doc.startsWith('01') ? 'recibo' : 'comprobante';
       const tE = performance.now();
-      const camposEstruct = compararCampos(extraerCampos(md, tipoDoc), gt);
+      const camposEstruct = compararCampos(extraerCampos(md, tipoDoc, estTsv), gt);
       const msE = +(performance.now() - tE).toFixed(1);
       const camposPlano = compararCampos(extraerCampos(bruto.texto, tipoDoc), gt);
       const resumenCampos = (c) => {
@@ -296,7 +296,7 @@ function main() {
       fila.campos_m2_plano = { detalle: camposPlano, ...resumenCampos(camposPlano) };
       if (estCajas) {
         const mdRapid = estructuraAMd(estCajas, { bbox: false });
-        const camposRapid = compararCampos(extraerCampos(mdRapid, tipoDoc), gt);
+        const camposRapid = compararCampos(extraerCampos(mdRapid, tipoDoc, estCajas), gt);
         fila.campos_m2_estructural_rapidocr = { detalle: camposRapid, ...resumenCampos(camposRapid) };
         acum.camposRapid.push(fila.campos_m2_estructural_rapidocr);
       }
