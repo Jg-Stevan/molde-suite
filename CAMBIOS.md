@@ -1,3 +1,74 @@
+# Cambios — Cierre del Benchmark OCR V3: fusión de ramas, informe consolidado, chandra-convert oficial y acciones E1/E2 (2026-11-27)
+
+- Fecha: 2026-11-27
+- Base: `main` `dba8bb4` (tras fusionar PRs #12/#13/#14: Agente 1, Agente 2 y plan de BD)
+- Orden del dueño: «ejecuta el plan; chandra-convert es OFICIAL; sube todo a main»
+
+## Fusión del Benchmark V3 (PRs #12/#13/#14)
+
+- **Agente 1** (`bench/agente-1-arnes-motores`): plan V3 + `INVESTIGACION-MOTORES.md` + arnés CDP
+  (`scripts/entrega/bench-ocr/`) + informe E1 con 262 corridas y la prueba M completa.
+- **Agente 2** (`bench/agente-2-salidas-estructura`): convertidores .md/.html estilo Chandra +
+  arnés mínimo + evaluador + informe E2 + resultados versionados en `docs/benchmark-v3/`.
+- `docs/plan-bases-de-datos`: `PLAN-BASES-DE-DATOS.md` (referencia de persistencia).
+
+## Nuevo en este cierre (PRs #15-#19)
+
+1. **`INFORME-BENCHMARK-V3.md`** (raíz) — consolidado: respuestas Q1–Q5 con datos, matriz
+   documento→pipeline, estado de las metas del plan §7, hallazgos accionables con su estado,
+   lecciones candidatas y pendientes. Fuente de verdad para las decisiones de pipeline.
+2. **`docs/benchmark-v3/motores/RESUMEN-MOTORES.json`** — agregados del arnés A1 versionados
+   (latencia, calidad, filtros, prueba M, S6, ZXing, coste de mantenimiento) con procedencia y
+   comando de regeneración. Los crudos completos siguen gitignored (texto OCR de documentos).
+3. **`docs/benchmark-v3/GOBERNANZA-DATASET.md`** — inventario de correcciones del dataset real:
+   etiquetas que contradicen las fotos (`firmas-vacias-02/03` llevan firma), duplicados md5
+   (`recibo-impreso-01/02`), GT Chandra desalineado (duplicado comprobante↔recibo; render antiguo
+   1624×2100 vs vigente 1700×2200), EXIF orientation 6, inconsistencias molde↔spec, y el análisis
+   numérico de umbrales de tinta.
+4. **chandra-convert OFICIAL** (decisión del dueño) — `packages/scanner-core/conversion/`
+   (serializador datalab-like sin dependencias, paridad 100 % 11/11 char-a-char contra el GT
+   datalab-convert: comprobante + E-26) + export `./conversion` + README con las convenciones
+   verificadas + puente Tamiz (`apps/tamiz/src/lib/e14/conversion/chandra-bridge.ts`:
+   regiones sintetizadas honestas — campos del molde con rect medido + bandas OCR + recortes de
+   firma inline) + botón **EXPORTAR CONVERSIÓN** en la revisión (JSON consumible por
+   `importar-chandra.ts` de Studio + `.md`/`.html` opcionales). Fix del zip: import faltante de
+   `ConversionChandra` en `exportHtml.ts`. Tests: tamiz 149/149, scanner-core 82/82.
+5. **estructura v2** (`scripts/entrega/estructura/`): regla de actas para SectionHeader (prefijo
+   numérico ≤ 90 chars) + `resolverPorGeometria` (etiqueta↔valor por proximidad de bbox, inmune
+   a la inversión del OCR) + fix preexistente de `matchEn` (grupo de captura). Tests 18/18.
+
+## Veredictos del benchmark (con datos)
+
+- **Q2 — moldes:** el molde por familia (a_real) + mapa OCR global gana (92 % comprobante, 83 %
+  anclas reales). M3 auto solo propone zonas. M2 sin molde identifica (11/11, 0 falsos rechazos)
+  pero no localiza manuscritos → REFUERZA.
+- **Q3 — .md/.html:** viable offline-first (<1 ms de render, 0 dependencias); REFUERZA al molde.
+- **Q1/Q4/Q5:** `4.0.0_fast` es el rápido real (p50 1,1 s); resolución reina (800 px −20 pp);
+  ningún filtro global supera al original; cascada ZXing→OCR→molde→respaldos validada.
+
+## Umbrales de tinta — decisión documentada (NO «0.10» ni «0.04» automáticos)
+
+- **Comprobante:** NO se aplica el 0.10 del informe E1 — la calibración v1.3.1 del molde registra
+  firma real 0.0087-0.0413 y la textura en fotos 0.052-0.089 SE SOLAPAN: un umbral estático
+  rechazaría firmas reales (el error peligroso). Se mantiene 0.0035 (contrato correcto para el
+  escaneado, verificado en 8 imágenes). Vías reales: recalibrar zona a_real con las fotos o
+  portar el método v2 de fondo local (10/10, 0 FP/0 FN).
+- **E-26:** NO se aplica el 0.04 — la calibración v1.2.0 registra firma real 0.0238 en la rendija
+  de `firma_1` (2× el umbral vigente). Conflicto de métodos de medición (PIL cruda vs medirTinta
+  del motor). Resolución: mantener 0.012 y re-calibrar con los ratios por zona del crudo A1
+  (`bench-ocr.mjs --solo-analisis`) + actas firmadas. Detalle completo en
+  `GOBERNANZA-DATASET.md` §4.
+
+## Pendientes que quedan abiertos
+
+1. Luz verde del dueño sobre el GT tinta AUTO (`gt-tinta.json`, §2.4 del informe E1).
+2. Re-test de falsos rechazos con el matcher completo del motor de producción.
+3. Recalibración a_real del comprobante (zona solo sobre la rúbrica) con las fotos reales.
+4. Convertidor v3: conectar PP-DocLayout S para la rejilla de votos E-26 (puertas matemáticas
+   desde el .md/.html).
+5. Regenerar el GT Chandra del banco escaneado vigente (gobernanza).
+6. GitHub Support para GC de `refs/pull/*` (heredado de la Opción B, ajeno al benchmark).
+
 # Cambios — Opción B: purga de blobs del historial (filter-repo + force-push, 2026-11-27)
 
 - Fecha: 2026-11-27
