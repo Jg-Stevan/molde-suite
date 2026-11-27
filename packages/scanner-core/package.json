@@ -46,7 +46,8 @@
     "./ocr/rapidocr": "./ocr/rapidocr.ts",
     "./ocr/crop-geometria": "./ocr/crop-geometria.ts",
     "./ocr/db-postprocess": "./ocr/db-postprocess.ts",
-    "./ocr/db-postprocess-client": "./ocr/db-postprocess-client.ts"
+    "./ocr/db-postprocess-client": "./ocr/db-postprocess-client.ts",
+    "./conversion": "./conversion/index.ts"
   },
   "dependencies": {
     "onnxruntime-web": "1.31.1",

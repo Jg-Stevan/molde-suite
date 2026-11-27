@@ -39,7 +39,10 @@ import { PanelClasificacion } from "../PanelClasificacion";
 // VERIFICACIÓN DOCUMENTAL (mock del mantenedor, 2026-11-16) — P4 del plan
 // PLAN-AJUSTES-VISUALES (adaptación E-14 del zip): overlay sobre la foto con
 // acordeón por estado (P4) y documento sin plantilla → «NO IDENTIFICADO».
+import { BotonExportarConversion } from "../BotonExportarConversion";
 import { VerificacionDocumental } from "../VerificacionDocumental";
+// CIERRE BENCHMARK V3 (chandra-convert OFICIAL): exportación datalab-convert
+// (JSON consumible por importar-chandra de Studio; .md/.html de lectura).
 // FitScale (P5 del plan): la FOTO es el único elemento flexible — se escala
 // para caber completa sin scroll ni recortes.
 import { FitScale } from "../fit-scale";
@@ -947,6 +950,11 @@ export function ReviewView() {
           modo={fotoVisible ? 'overlay' : 'flujo'}
           filtroPagina={documentoEnCurso && docIncompleto ? documentoEnCurso.paginas.length : null}
         />
+
+        {/* CIERRE BENCHMARK V3: exportación datalab-convert del acta actual
+            (JSON para importar-chandra de Studio + .md/.html de lectura). El
+            botón se oculta solo cuando no hay foto que convertir. */}
+        <BotonExportarConversion />
 
         {/* PLAN-AGENTE-LAYOUT F4 (ADITIVO): diagnóstico del gate estructural
             — SOLO se monta con acta.estructura (molde con layout + modelo
