@@ -1,0 +1,87 @@
+{
+  "meta": {
+    "fecha": "2026-11-27",
+    "fuente": "Resumen extraído de INFORME-MOTORES-MOLDES.md (Agente 1, fases B1+C1+D1+E1 del PLAN-BENCHMARK-V3.md)",
+    "nota_procedencia": "Los crudos completos (resultados-motores.json con 262 corridas, texto/cajas/tiempos por imagen) viven en scripts/resultados/bench-ocr/motores/ (gitignored por doctrina de privacidad). Este archivo versiona SOLO los agregados publicados en el informe; regenerar con: bun scripts/entrega/bench-ocr/bench-ocr.mjs --solo-analisis <crudo.json>",
+    "dataset": "23 imágenes + 1 PDF reales, 4 tipos de documento; recibo-impreso-01/02 son duplicados md5 (ver GOBERNANZA-DATASET.md)"
+  },
+  "latencia": {
+    "meta_plan": "p50 <= 15 s por documento",
+    "cumple": true,
+    "motores": {
+      "tesseract_4_0_0_fast": { "frio_ms": 1518, "p50_caliente_ms": 1097, "p95_caliente_ms": 1787, "heap_pico_mb": 85 },
+      "rapidocr_pp_ocrv4": { "frio_ms": 4304, "p50_caliente_ms": 3271, "p95_caliente_ms": 5618, "heap_pico_mb": 128 }
+    },
+    "contexto": "Chrome headless x64, ORT WASM 2 hilos (techo 4 GB del sandbox); el det a 1920 es el costo dominante de RapidOCR"
+  },
+  "barrido_calidad": {
+    "metrica": "ancla-recall media del subset de 6 imágenes",
+    "linea_base": { "tess_fast": 0.733, "rapidocr": 0.481 },
+    "combos": [
+      { "combo": "w800q60", "ms": 1836, "heap_pico_mb": 9, "recall_total": 0.403, "tess_fast": 0.581, "rapidocr": 0.224 },
+      { "combo": "w800q92", "ms": 1983, "heap_pico_mb": 12, "recall_total": 0.46, "tess_fast": 0.578, "rapidocr": 0.341 },
+      { "combo": "w1200q92", "ms": 2271, "heap_pico_mb": 76, "recall_total": 0.509, "tess_fast": 0.63, "rapidocr": 0.389 },
+      { "combo": "w1600q60", "ms": 2231, "heap_pico_mb": 152, "recall_total": 0.532, "tess_fast": 0.706, "rapidocr": 0.357 },
+      { "combo": "w1600q92", "ms": 2193, "heap_pico_mb": 139, "recall_total": 0.57, "tess_fast": 0.706, "rapidocr": 0.433 }
+    ],
+    "lecturas": [
+      "800 px degrada -20 pp vs nativo: la resolución es la variable reina",
+      "JPEG Q60→92 a 1600 px aporta +3.8 pp",
+      "1600 px es el techo práctico (heap 152 MB pico, sin tocar el límite móvil)"
+    ]
+  },
+  "barrido_filtros": {
+    "nivel": "página completa, nativo, subset de 6",
+    "linea_base_original": { "tess_fast": 0.733, "rapidocr": 0.481 },
+    "filtros": [
+      { "filtro": "gris", "ms": 2185, "recall_total": 0.552, "tess_fast": 0.679, "rapidocr": 0.426 },
+      { "filtro": "bn_otsu_pipeline_actual", "ms": 2090, "recall_total": 0.536, "tess_fast": 0.651, "rapidocr": 0.421 },
+      { "filtro": "gris_clahe", "ms": 2227, "recall_total": 0.593, "tess_fast": 0.733, "rapidocr": 0.453 }
+    ],
+    "lectura": "NINGÚN filtro global supera al original a nivel página (Otsu -8 pp; CLAHE empata). Los filtros quedan para RECORTE (M1), no como paso global"
+  },
+  "prueba_m": {
+    "definiciones": { "res": "campos leídos con texto no vacío", "FR": "falsos rechazos de obligatorios", "hit": "% de campos cuyo ancla se halló por OCR en la propia imagen" },
+    "limitacion": "matcher de anclas del arnés simplificado (2 pasos, umbral 0.72) frente al de producción (editDistancePonderada + voto + desambiguadores): los FR y el M3 SUBESTIMAN al motor real; la comparación RELATIVA es válida, los absolutos son cota superior del error",
+    "agregados": [
+      { "estrategia": "M1", "molde": "recibo genérico v1.4.0", "motor": "tess_best", "res": "42/60 (70%)", "patron_ok": "9/42", "FR": "18/54", "hit_ancla": 0.12, "ms_corrida": 4193 },
+      { "estrategia": "M1", "molde": "recibo genérico v1.4.0", "motor": "rapid-rec", "res": "26/60 (43%)", "patron_ok": "7/42", "FR": "29/54", "hit_ancla": 0.12, "ms_corrida": 3408 },
+      { "estrategia": "M1", "molde": "recibo a_real", "motor": "tess_best", "res": "23/30 (77%)", "patron_ok": "3/21", "FR": "5/27", "hit_ancla": 0.47, "ms_corrida": 2816 },
+      { "estrategia": "M1", "molde": "comprobante genérico v1.4.0", "motor": "tess_best", "res": "39/45 (87%)", "patron_ok": "9/20", "FR": "5/25", "hit_ancla": 0.67, "ms_corrida": 4098 },
+      { "estrategia": "M1", "molde": "comprobante a_real", "motor": "tess_best", "res": "33/36 (92%)", "patron_ok": "0/20", "FR": "3/16", "hit_ancla": 0.83, "ms_corrida": 3793 },
+      { "estrategia": "M1", "molde": "e26 p1 escaneado", "motor": "tess_best", "res": "17/24 (71%)", "patron_ok": "4/24", "FR": "4/20", "hit_ancla": 0.38, "ms_corrida": 10442 },
+      { "estrategia": "M1", "molde": "e14 p1 escaneado", "motor": "tess_best", "res": "4/17 (24%)", "patron_ok": "2/6", "FR": "5/7", "hit_ancla": 0.71, "ms_corrida": 4334 },
+      { "estrategia": "M3", "molde": "recibo", "motor": "tess_best", "res": "4/70 (6%)", "patron_ok": "0/6", "FR": "60/64", "hit_ancla": 0.1, "ms_corrida": 2469 },
+      { "estrategia": "M3", "molde": "comprobante", "motor": "tess_best", "res": "19/49 (39%)", "patron_ok": "1/9", "FR": "19/29", "hit_ancla": 0.61, "ms_corrida": 3727 },
+      { "estrategia": "M3", "molde": "e26 p1", "motor": "tess_best", "res": "10/24 (42%)", "patron_ok": "0/11", "FR": "11/20", "hit_ancla": 0.38, "ms_corrida": 9111 },
+      { "estrategia": "M3", "molde": "e14 p1", "motor": "tess_best", "res": "2/21 (10%)", "patron_ok": "1/4", "FR": "7/8", "hit_ancla": 0.57, "ms_corrida": 3255 }
+    ],
+    "m2_identificacion": { "recibo": "6/6", "comprobante": "3/5 tess y 5/5 rapid", "e14": "6/6", "e26": "6/6" },
+    "veredicto_q2": "Molde por familia (a_real) + mapa OCR global gana (92% comprobante, 83% anclas reales). M2 identifica sin molde pero no localiza manuscritos ni firmas: REFUERZA, no sustituye. M3 solo como proponente de zonas."
+  },
+  "s6_tinta_arnes_a1": {
+    "contrato": "manuscritos jamás se transcriben: solo {con_tinta, bbox}",
+    "resultados": [
+      { "documento": "recibo", "zonas": 12, "resultado": "12/12 (100%)" },
+      { "documento": "comprobante", "zonas": 5, "resultado": "1/5 — 4 falsos con tinta (textura papel en fotos 0.052-0.089 vs umbral 0.0035)" },
+      { "documento": "e14", "zonas": 8, "resultado": "8/8 (100%)" },
+      { "documento": "e26", "zonas": 18, "resultado": "0/18 — 18 falsos con tinta (textura impresa 0.022-0.031 vs umbral 0.012)" }
+    ],
+    "total": "21/43 (49%) — meta ≥95% NO cumplida en el arnés; el fallo está en los UMBRALES de 2 moldes, no en el medidor (recibo y e14 = 100%)",
+    "falsos_sin_tinta": 0,
+    "arreglo_aplicado": "e26: NO se aplicó el 0.04 — la calibración v1.2.0 del molde registra firma real 0.0238 en la rendija de firma_1 (conflicto de métodos de medición, ver GOBERNANZA-DATASET.md §4); comprobante: sin separador estático posible, ver GOBERNANZA-DATASET.md §4",
+    "metodo_v2_agente2": "fondo local gaussiano + contraste agudo + oscuridad absoluta: 10/10, 0 FP / 0 FN (cumple la meta); margen estrecho (sombra 0.0197 vs firma más pequeña 0.0215)"
+  },
+  "zxing": {
+    "rol": "línea base de códigos independiente del OCR (capa 0)",
+    "resultado": "1/6: QR del acta 2 (cónsul/embajador) pág. 1 leído (base64 completo, 157 ms); códigos parciales/ocluidos no decodifican — el fallback OCR (paridad Civ) sigue imprescindible"
+  },
+  "coste_mantenimiento": [
+    { "molde": "recibo genérico v1.4.0", "campos": 12, "anclas": 12, "respaldos": 1, "umbrales": 12, "patrones": 7, "realces": 9 },
+    { "molde": "recibo a_real v1.0.0", "campos": 12, "anclas": 12, "respaldos": 0, "umbrales": 12, "patrones": 7, "realces": 3 },
+    { "molde": "comprobante genérico v1.4.0", "campos": 10, "anclas": 10, "respaldos": 0, "umbrales": 10, "patrones": 4, "realces": 7 },
+    { "molde": "comprobante a_real v1.0.0", "campos": 10, "anclas": 10, "respaldos": 0, "umbrales": 10, "patrones": 5, "realces": 3 }
+  ],
+  "lectura_coste": "La adaptación genérico→real NO añade zonas ni anclas (misma topología): solo recalibra realces y umbrales — una variante por familia",
+  "corridas": { "total": 262, "calientes_por_motor": 24, "reciclaje_chrome": "cada 12 corridas (OOM-sandbox), checkpoint cada 6" }
+}
