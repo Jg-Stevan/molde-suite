@@ -1,0 +1,15 @@
+{
+  "name": "@molde-suite/bench-estructura",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Agente 2 benchmark V3: convertidores OCR -> estructura -> .md/.html + arnes minimo (solo local, sin publicar)",
+  "scripts": {
+    "test": "bun test tests/",
+    "arnes": "node harness/arnes-minimo.mjs",
+    "evaluar": "node src/evaluar.mjs"
+  },
+  "dependencies": {
+    "tesseract.js": "^7.0.0"
+  }
+}
