@@ -159,3 +159,106 @@ describe('cajas (RapidOCR) → estructura', () => {
     expect(arbol.bloques[0].tipo).toBe('titulo');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// V2 (cierre Benchmark V3, informe E2 §10.2/§10.3): regla de actas para
+// SectionHeader + asociación etiqueta↔valor por GEOMETRÍA (bbox [x,y,w,h]).
+// ─────────────────────────────────────────────────────────────────────────────
+import { postprocesar } from '../src/estructura.mjs';
+import { resolverPorGeometria, extraerCampos } from '../src/extraer.mjs';
+
+describe('estructura v2 — SectionHeader de actas (prefijo numérico)', () => {
+  test('«1. IDENTIFICACIÓN DEL PUESTO DE VOTACIÓN MUNICIPAL» → seccion (no parrafo)', () => {
+    const arbol = postprocesar({
+      tipo: 'pagina', ancho: 1700, alto: 2200, pag: 1,
+      bloques: [
+        { texto: 'ACTA DE ESCRUTINIO', bbox: [100, 60, 900, 50], palabras: [] },
+        { texto: '1. IDENTIFICACIÓN DEL PUESTO DE VOTACIÓN MUNICIPAL', bbox: [100, 200, 1500, 30], palabras: [] },
+        { texto: 'El delegado del partido procedió a la verificación de las urnas y mesas instaladas.', bbox: [100, 260, 1400, 28], palabras: [] },
+        { texto: 'Acta levantada por los jurados presentes de la mesa número cuatro.', bbox: [100, 310, 1300, 28], palabras: [] },
+      ],
+    });
+    const secciones = arbol.bloques.filter((b) => b.tipo === 'seccion');
+    expect(secciones.length).toBeGreaterThanOrEqual(1);
+    expect(secciones.some((b) => b.lineas[0].texto.includes('IDENTIFICACIÓN DEL PUESTO'))).toBe(true);
+  });
+
+  test('párrafo largo sin prefijo numérico sigue siendo parrafo', () => {
+    const arbol = postprocesar({
+      tipo: 'pagina', ancho: 1700, alto: 2200, pag: 1,
+      bloques: [
+        { texto: 'ESTE TEXTO EN MAYUSCULAS SUPERA EL LIMITE DE NOVENTA CARACTERES PARA NO SER UN ENCABEZADO NUMERADO DE NINGUNA CLASE', bbox: [100, 200, 1600, 30], palabras: [] },
+      ],
+    });
+    expect(arbol.bloques[0].tipo).toBe('parrafo');
+  });
+});
+
+describe('estructura v2 — asociación etiqueta↔valor por geometría', () => {
+  const defForma = [{ id: 'forma_pago', etiqueta: /forma de pago/, esValor: (l) => /transferencia|efectivo|tarjeta|contado/.test(l) }];
+
+  test('valor en la MISMA línea que la etiqueta', () => {
+    const arbol = { bloques: [{ tipo: 'parrafo', lineas: [
+      { texto: 'Forma de pago: Transferencia bancaria', bbox: [100, 100, 500, 24] },
+    ] }] };
+    expect(resolverPorGeometria(arbol, defForma)).toEqual({ forma_pago: 'transferencia bancaria' });
+  });
+
+  test('valor en la línea de ABAJO (la más cercana gana)', () => {
+    const arbol = { bloques: [{ tipo: 'parrafo', lineas: [
+      { texto: 'Forma de pago', bbox: [100, 100, 200, 24] },
+      { texto: 'Cuenta ES91 2100 0418 4502 0005 1332', bbox: [100, 150, 500, 24] },
+      { texto: 'Transferencia bancaria', bbox: [100, 130, 300, 22] },
+    ] }] };
+    expect(resolverPorGeometria(arbol, defForma).forma_pago).toBe('transferencia bancaria');
+  });
+
+  test('OCR INVERTIDO (vac-03): el valor está ANTES en texto pero CERCA en geometría', () => {
+    // dos columnas de la misma fila: el valor queda a la derecha, misma altura
+    const arbol = { bloques: [{ tipo: 'parrafo', lineas: [
+      { texto: 'Transferencia bancaria', bbox: [400, 100, 300, 24] },
+      { texto: 'Forma de pago', bbox: [100, 100, 200, 24] },
+    ] }] };
+    expect(resolverPorGeometria(arbol, defForma).forma_pago).toBe('transferencia bancaria');
+  });
+
+  test('valor a más de 6 alturas de línea → NO resuelto (nunca inventar)', () => {
+    const arbol = { bloques: [{ tipo: 'parrafo', lineas: [
+      { texto: 'Forma de pago', bbox: [100, 100, 200, 24] },
+      { texto: 'Transferencia bancaria', bbox: [100, 600, 300, 24] },
+    ] }] };
+    expect(resolverPorGeometria(arbol, defForma)).toEqual({});
+  });
+
+  test('las líneas de TABLA se excluyen (los valores de celdas no van por proximidad)', () => {
+    const arbol = { bloques: [
+      { tipo: 'parrafo', lineas: [{ texto: 'Forma de pago', bbox: [100, 100, 200, 24] }] },
+      { tipo: 'tabla', celdas: [[{ texto: 'Transferencia bancaria', bbox: [100, 150, 300, 24] }]] },
+    ] };
+    expect(resolverPorGeometria(arbol, defForma)).toEqual({});
+  });
+
+  test('integración: extraerCampos con árbol resuelve telefono que el camino textual pierde', () => {
+    // texto plano: la línea del valor queda a >2 vecinos de la etiqueta
+    const textoPlano = [
+      'COMPROBANTE DE ENTREGA DEL PRODUCTO',
+      'Telefono',
+      'calle 10-40 piso 3 dpto 5',
+      'Nombre y apellido',
+      'JUAN PEREZ ROJAS',
+      'numero de operación OP-2026-012345',
+      '300 123 4567',
+    ].join('\n');
+    const arbol = { ancho: 800, bloques: [{ tipo: 'parrafo', lineas: [
+      { texto: 'Telefono', bbox: [100, 100, 150, 24] },
+      { texto: '300 123 4567', bbox: [100, 128, 220, 24] },
+      { texto: 'calle 10-40 piso 3 dpto 5', bbox: [100, 156, 320, 24] },
+      { texto: 'Nombre y apellido', bbox: [100, 200, 260, 24] },
+      { texto: 'JUAN PEREZ ROJAS', bbox: [100, 250, 260, 24] },
+      { texto: 'numero de operación OP-2026-012345', bbox: [100, 300, 420, 24] },
+    ] }] };
+    const r = extraerCampos(textoPlano, 'comprobante', arbol);
+    expect(r.telefono).toContain('300');
+    expect(r.nombre_comprador).toBe('juan perez rojas');
+  });
+});
