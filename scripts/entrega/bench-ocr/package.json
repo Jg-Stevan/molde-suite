@@ -1,0 +1,16 @@
+{
+  "name": "bench-ocr-arnes",
+  "private": true,
+  "description": "Arnés de benchmark OCR V3 (Agente 1) — bundle browser + conductor CDP crudo",
+  "type": "module",
+  "scripts": {
+    "preparar": "bun preparar.mjs",
+    "build": "bun build entry.ts --outfile=/home/z/molde-suite/public/_bench/bench-ocr.js --target=browser --minify",
+    "conducir": "bun bench-ocr.mjs"
+  },
+  "dependencies": {
+    "@zxing/library": "0.23.0",
+    "onnxruntime-web": "1.31.1",
+    "tesseract.js": "7.0.0"
+  }
+}

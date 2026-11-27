@@ -333,3 +333,47 @@ Informe completo: `VERIFICACION-HALLAZGOS-CORRECCIONES.md` (entregado junto al p
 
 ---
 
+
+---
+
+# Cambios — Benchmark OCR V3 · Agente 1: arnés + motores + moldes (2026-11-27)
+
+- Fecha: 2026-11-27 · Rama: `bench/agente-1-arnes-motores` · Plan: `PLAN-BENCHMARK-V3.md` §5
+- Ejecutado por: Agente 1 (sandbox, ordén del dueño: «analiza y ejecuta el plan»)
+
+## Qué entró al repo
+
+- `scripts/entrega/bench-ocr/` — arnés de benchmark OCR (fase C1): `entry.ts`
+  (bundle browser: Tesseract.js 7.0.0 fast+best · RapidOCR PP-OCRv4 en
+  onnxruntime-web 1.31.1 · ZXing 0.23.0 · filtros §6 · motor de moldes M1/M3 ·
+  medición de tinta S6 con port de imageproc + db-postprocess literal),
+  `bench-ocr.mjs`→`bench-ocr.ts` (conductor CDP crudo + análisis contra GT),
+  `preparar.mjs` (assets con URL+SHA-256 — lección ppocr-keys-404) y
+  `package.json` (deps fijadas; nodo aislado, no workspace).
+- `INFORME-MOTORES-MOLDES.md` — informe E1 con los resultados de las 262
+  corridas (fase D1): latencia, barrido calidad/filtros §6, prueba M completa
+  (M1/M2/M3), S6 tinta, ZXing y coste de mantenimiento.
+- `CAMBIOS.md` — esta entrada.
+
+## Qué NO entró (por diseño, gitignored)
+
+- El dataset real (`scripts/resultados/fixtures-reales/…`, origen `upload/*.rar`)
+  — regla de seguridad §1 del plan V3.
+- El GT y los resultados (`scripts/resultados/bench-ocr/{dataset,motores}/`) —
+  entregados como adjunto del zip de la entrega (no en git, igual que V2).
+- El bundle `public/_bench/` (gitignored por FIX F2; lo materializa
+  `bun preparar.mjs`).
+
+## Resultados clave (ver informe para cifras completas)
+
+- Latencia meta p50 ≤ 15 s: CUMPLE (tess_fast 1.1 s, rapidocr 3.3 s calientes).
+- Ranking V2 revertido en este hardware: tess_fast 3× más rápido que RapidOCR
+  (det 1920 en WASM 2 hilos).
+- Filtros globales §6: NINGUNO supera al original a nivel página (Otsu −8 pp).
+- Prueba M: molde por familia (a_real) gana (92 % resolución, 83 % ancla-hit
+  real); M2 sin molde identifica 100 % e14/e26 pero no ve manuscritos;
+  M3 solo proponente de zonas.
+- S6 tinta: medidor correcto (0 falsos «sin tinta»); falsos «con tinta» por
+  umbrales de molde no calibrados al papel impreso (comprobante 0.0035,
+  e26 0.012) — hallazgo accionable de una línea por molde.
+- GT autogenerado pendiente de la luz verde del usuario (plan §1).
