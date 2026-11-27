@@ -1,0 +1,5251 @@
+{
+ "meta": {
+  "fecha": "2026-11-27T13:43:02",
+  "agente": "agente-2-salidas-estructura",
+  "plan": "PLAN-BENCHMARK-V3 §4 (prueba S)",
+  "motores": {
+   "tesseract": {
+    "version": "7.0.0",
+    "variante": "4.0.0_fast (spa)",
+    "oem": 1,
+    "psm": 3,
+    "entorno": "Node WASM (arnés mínimo; arnés CDP de Agent 1 aún no publicado)"
+   },
+   "rapidocr": {
+    "version": "rapidocr-onnxruntime (PP-OCRv4 det+rec stock)",
+    "granularidad": "línea",
+    "entorno": "Python local, benchmark-only"
+   },
+   "gt_estructural": "datalab-convert-*.json (Chandra OCR, entregado en el dataset)"
+  },
+  "notas_gt": [
+   "E26: datalab-convert coincide 1:1 con las páginas escaneadas entregadas.",
+   "Recibo: datalab p0 = variante A de FOTO REAL (REC-2026-0157); el banco escaneado fue regenerado después (REC-2026-0314, valores ejemplo de la especificación).",
+   "Comprobante: el archivo datalab de la carpeta 02 es COPIA byte a byte del del recibo (md5 igual) — el comprobante no tiene GT estructural; se evalúa por campos.",
+   "GT textual: especificaciones + curación visual de escaneados y fotos reales (supuesto declarado: sin luz del usuario)."
+  ]
+ },
+ "documentos": {
+  "01-RECIBO-DE-PAGO/pag-01": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1422,
+   "ms_ocr_rapidocr": 4416,
+   "ms_render_md_html": 3.4,
+   "campos_m2_estructural": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0314",
+      "leido": "rec-2026-0314",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "03 de diciembre de 2026",
+      "leido": "fecha: 03 de diciembre de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Fernando Cabrera Leal",
+      "leido": "fernando cabrera leal",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "45.876.213",
+      "leido": "45.876.213",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Gerente financiero",
+      "leido": "gerente financiero",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Logística Ibérica S.L.",
+      "leido": "logistica iberica s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-78123456",
+      "leido": "b-78123456",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Carmen Ordóñez Vidal",
+      "leido": "carmen ordonez vidal",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "52.340.987",
+      "leido": "52.340.987",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Directora administrativa",
+      "leido": "directora administrativa",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Materiales Andaluces S.A.",
+      "leido": "materiales andaluces s.a",
+      "estado": "parcial"
+     },
+     "pagador_cif": {
+      "esperado": "A-60987412",
+      "leido": "a-60987412",
+      "estado": "exacto"
+     },
+     "importe": {
+      "esperado": "2.480,50 €",
+      "leido": "la suma de: 2.480,50 €",
+      "estado": "parcial"
+     },
+     "importe_letras": {
+      "esperado": "dos mil cuatrocientos ochenta euros con cincuenta céntimos",
+      "leido": "(dos mil cuatrocientos ochenta euros con cincuenta centimos)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Pago del 50 % de la factura F-2026-092, por servicio de transporte de mercancía.",
+      "leido": "en concepto de: pago del 50 % de la factura f-2026-092, por servicio de transporte de\nmercancia.",
+      "estado": "parcial"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "forma de pago: transferencia bancaria",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES76 2077 0024 0031 0442 9015",
+      "leido": "es76 2077 0024 0031 0442 9015",
+      "estado": "exacto"
+     },
+     "fecha_pago": {
+      "esperado": "05/12/2026",
+      "leido": "fecha de pago: 05/12/2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 11,
+    "parciales": 8,
+    "fallidos": 0,
+    "tasa": 0.789,
+    "ms": 1.5
+   },
+   "campos_m2_plano": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0314",
+      "leido": "rec-2026-0314",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "03 de diciembre de 2026",
+      "leido": "fecha: 03 de diciembre de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Fernando Cabrera Leal",
+      "leido": "fernando cabrera leal",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "45.876.213",
+      "leido": "45.876.213",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Gerente financiero",
+      "leido": "gerente financiero",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Logística Ibérica S.L.",
+      "leido": "logistica iberica s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-78123456",
+      "leido": "b-78123456",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Carmen Ordóñez Vidal",
+      "leido": "carmen ordonez vidal",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "52.340.987",
+      "leido": "52.340.987",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Directora administrativa",
+      "leido": "directora administrativa",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Materiales Andaluces S.A.",
+      "leido": "materiales andaluces s.a",
+      "estado": "parcial"
+     },
+     "pagador_cif": {
+      "esperado": "A-60987412",
+      "leido": "a-60987412",
+      "estado": "exacto"
+     },
+     "importe": {
+      "esperado": "2.480,50 €",
+      "leido": "la suma de: 2.480,50 €",
+      "estado": "parcial"
+     },
+     "importe_letras": {
+      "esperado": "dos mil cuatrocientos ochenta euros con cincuenta céntimos",
+      "leido": "(dos mil cuatrocientos ochenta euros con cincuenta centimos)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Pago del 50 % de la factura F-2026-092, por servicio de transporte de mercancía.",
+      "leido": "en concepto de: pago del 50 % de la factura f-2026-092, por servicio de transporte de\nmercancia.",
+      "estado": "parcial"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "forma de pago: transferencia bancaria",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES76 2077 0024 0031 0442 9015",
+      "leido": "es76 2077 0024 0031 0442 9015",
+      "estado": "exacto"
+     },
+     "fecha_pago": {
+      "esperado": "05/12/2026",
+      "leido": "fecha de pago: 05/12/2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 11,
+    "parciales": 8,
+    "fallidos": 0,
+    "tasa": 0.789
+   },
+   "campos_m2_estructural_rapidocr": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0314",
+      "leido": "rec-2026-0314",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "03 de diciembre de 2026",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "emisor_nombre": {
+      "esperado": "Fernando Cabrera Leal",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "emisor_dni": {
+      "esperado": "45.876.213",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "emisor_cargo": {
+      "esperado": "Gerente financiero",
+      "leido": "gerente financiero",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Logística Ibérica S.L.",
+      "leido": "logistica iberica s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-78123456",
+      "leido": "b-78123456",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Carmen Ordóñez Vidal",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_dni": {
+      "esperado": "52.340.987",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cargo": {
+      "esperado": "Directora administrativa",
+      "leido": "directora administrativa",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Materiales Andaluces S.A.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cif": {
+      "esperado": "A-60987412",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "importe": {
+      "esperado": "2.480,50 €",
+      "leido": "la suma de: 2.480,50",
+      "estado": "fallido"
+     },
+     "importe_letras": {
+      "esperado": "dos mil cuatrocientos ochenta euros con cincuenta céntimos",
+      "leido": "(dos mil cuatrocientos ochenta euros con cincuenta centimos)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Pago del 50 % de la factura F-2026-092, por servicio de transporte de mercancía.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "iban": {
+      "esperado": "ES76 2077 0024 0031 0442 9015",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_pago": {
+      "esperado": "05/12/2026",
+      "leido": "fecha de pago:\n05/12/2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 5,
+    "parciales": 3,
+    "fallidos": 11,
+    "tasa": 0.342
+   },
+   "clasificacion_anclas": {
+    "anclas_encontradas": 4,
+    "de": 5,
+    "clasifica": true
+   },
+   "ruta": "01-RECIBO-DE-PAGO/pag-01"
+  },
+  "01-RECIBO-DE-PAGO/recibo-a-impreso-firmas-vacias-01": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 987,
+   "ms_ocr_rapidocr": 3275,
+   "ms_render_md_html": 1.2,
+   "fidelidad_tesseract": {
+    "gt_bloques": 11,
+    "mis_bloques": 6,
+    "matcheados": 0,
+    "cobertura_gt": 0,
+    "cer_mediano": null,
+    "cer_sin_digitos_mediano": null,
+    "cer_medio": null,
+    "tipos_coinciden": "0/0",
+    "tipo_tasa": 0,
+    "orden_pares": 0,
+    "orden_inversiones": 0,
+    "orden_tasa": 1,
+    "detalle": []
+   },
+   "fidelidad_rapidocr": {
+    "gt_bloques": 11,
+    "mis_bloques": 4,
+    "matcheados": 2,
+    "cobertura_gt": 0.182,
+    "cer_mediano": 0.8816,
+    "cer_sin_digitos_mediano": 0.8816,
+    "cer_medio": 0.8113,
+    "tipos_coinciden": "2/2",
+    "tipo_tasa": 1,
+    "orden_pares": 1,
+    "orden_inversiones": 0,
+    "orden_tasa": 1,
+    "detalle": [
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.21,
+      "cer": 0.741,
+      "gt_texto": "D. Lucía Torres Medina, con DNI 48.221.907, en calidad de Administrado",
+      "mio_texto": "Fecha:02 defebrero de 2026 N.Recibo:REC-2026-0157 D.Lucia Torres Medin"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.45,
+      "cer": 0.882,
+      "gt_texto": "Forma de pago: Transferencia bancaria — cuenta ES91 2100 0418 4502 000",
+      "mio_texto": "Firma Firma"
+     }
+    ]
+   },
+   "campos_m2_estructural": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": "b-87654321",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "la suma de: 1.250,00 €",
+      "estado": "parcial"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "en concepto de: anticipo del 30 % por suministro di",
+      "estado": "fallido"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": null,
+      "estado": "fallido"
+     }
+    },
+    "exactos": 4,
+    "parciales": 1,
+    "fallidos": 14,
+    "tasa": 0.237,
+    "ms": 0.3
+   },
+   "campos_m2_plano": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": "b-87654321",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "la suma de: 1.250,00 €",
+      "estado": "parcial"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "en concepto de: anticipo del 30 % por suministro di",
+      "estado": "fallido"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": null,
+      "estado": "fallido"
+     }
+    },
+    "exactos": 4,
+    "parciales": 1,
+    "fallidos": 14,
+    "tasa": 0.237
+   },
+   "campos_m2_estructural_rapidocr": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "administradora",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros delta s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": "b-87654321",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": "representante legal",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": "construcciones roble ltda",
+      "estado": "parcial"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": "b-12345678",
+      "estado": "exacto"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "la suma de:1.250,00",
+      "estado": "fallido"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "anticipo del 30 % por suministro de material de obra, segun pedido p-2026-118.",
+      "estado": "exacto"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "transferencia bancaria",
+      "estado": "exacto"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": null,
+      "estado": "fallido"
+     }
+    },
+    "exactos": 12,
+    "parciales": 3,
+    "fallidos": 4,
+    "tasa": 0.711
+   },
+   "clasificacion_anclas": {
+    "anclas_encontradas": 4,
+    "de": 5,
+    "clasifica": true
+   },
+   "ruta": "01-RECIBO-DE-PAGO/recibo-a-impreso-firmas-vacias-01"
+  },
+  "01-RECIBO-DE-PAGO/recibo-a-impreso-firmas-vacias-02": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 901,
+   "ms_ocr_rapidocr": 3119,
+   "ms_render_md_html": 0.5,
+   "fidelidad_tesseract": {
+    "gt_bloques": 11,
+    "mis_bloques": 15,
+    "matcheados": 2,
+    "cobertura_gt": 0.182,
+    "cer_mediano": 0.4848,
+    "cer_sin_digitos_mediano": 0.4848,
+    "cer_medio": 0.2424,
+    "tipos_coinciden": "2/2",
+    "tipo_tasa": 1,
+    "orden_pares": 1,
+    "orden_inversiones": 0,
+    "orden_tasa": 1,
+    "detalle": [
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.38,
+      "cer": 0.485,
+      "gt_texto": "La suma de: 1.250,00 € (mil doscientos cincuenta euros)",
+      "mio_texto": "resa Construcciones Roble Ltda., con CIF B-12345678. >: 1.250,00 € (mi"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.54,
+      "cer": 0,
+      "gt_texto": "En concepto de: Anticipo del 30 % por suministro de material de obra, ",
+      "mio_texto": "En concepto de: Anticipo del 30 % por suministro de material de obra, "
+     }
+    ]
+   },
+   "fidelidad_rapidocr": {
+    "gt_bloques": 11,
+    "mis_bloques": 5,
+    "matcheados": 2,
+    "cobertura_gt": 0.182,
+    "cer_mediano": 0.8816,
+    "cer_sin_digitos_mediano": 0.8816,
+    "cer_medio": 0.7761,
+    "tipos_coinciden": "2/2",
+    "tipo_tasa": 1,
+    "orden_pares": 1,
+    "orden_inversiones": 0,
+    "orden_tasa": 1,
+    "detalle": [
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.29,
+      "cer": 0.671,
+      "gt_texto": "Recibí de: D. Andrés Molina Castaño, con DNI 79.554.312, en calidad de",
+      "mio_texto": "D.Lucia Torres Medina,con DNI 48.221.907,en calidad deAdministradora,d"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.24,
+      "cer": 0.882,
+      "gt_texto": "Forma de pago: Transferencia bancaria — cuenta ES91 2100 0418 4502 000",
+      "mio_texto": "Firma Firma"
+     }
+    ]
+   },
+   "campos_m2_estructural": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha: 02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "administradora",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros delta s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": "b-87654321",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": "representante legal",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": "b-12345678",
+      "estado": "exacto"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "1.250,00 €",
+      "estado": "exacto"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "en concepto de: anticipo del 30 % por suministro de material de obra, segun pedido p-2026-118.",
+      "estado": "parcial"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "forma de pago: transferencia bancaria",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": "es91 2100 0418 4502 0005 1332",
+      "estado": "exacto"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": "fecha de pago: 05/02/2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 12,
+    "parciales": 6,
+    "fallidos": 1,
+    "tasa": 0.789,
+    "ms": 0.2
+   },
+   "campos_m2_plano": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha: 02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "administradora",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros delta s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": "b-87654321",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": "representante legal",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": "b-12345678",
+      "estado": "exacto"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "1.250,00 €",
+      "estado": "exacto"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "en concepto de: anticipo del 30 % por suministro de material de obra, segun pedido p-2026-118.",
+      "estado": "parcial"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "forma de pago: transferencia bancaria",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": "es91 2100 0418 4502 0005 1332",
+      "estado": "exacto"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": "fecha de pago: 05/02/2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 12,
+    "parciales": 6,
+    "fallidos": 1,
+    "tasa": 0.789
+   },
+   "campos_m2_estructural_rapidocr": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha:02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "representante legal",
+      "estado": "fallido"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros deltas.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": "construccionesrobleltda",
+      "estado": "parcial"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "la suma de:1.250,00",
+      "estado": "fallido"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "anticipo del 30 % por suministro de material de obra, segun pedido p-2026-118.",
+      "estado": "exacto"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "transferencia bancaria-cuenta es91210004184502 0005 1332",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": null,
+      "estado": "fallido"
+     }
+    },
+    "exactos": 6,
+    "parciales": 5,
+    "fallidos": 8,
+    "tasa": 0.447
+   },
+   "clasificacion_anclas": {
+    "anclas_encontradas": 2,
+    "de": 5,
+    "clasifica": true
+   },
+   "ruta": "01-RECIBO-DE-PAGO/recibo-a-impreso-firmas-vacias-02"
+  },
+  "01-RECIBO-DE-PAGO/recibo-a-impreso-firmas-vacias-03": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 878,
+   "ms_ocr_rapidocr": 3233,
+   "ms_render_md_html": 1.2,
+   "fidelidad_tesseract": {
+    "gt_bloques": 11,
+    "mis_bloques": 15,
+    "matcheados": 1,
+    "cobertura_gt": 0.091,
+    "cer_mediano": 0.6483,
+    "cer_sin_digitos_mediano": 0.6483,
+    "cer_medio": 0.6483,
+    "tipos_coinciden": "1/1",
+    "tipo_tasa": 1,
+    "orden_pares": 0,
+    "orden_inversiones": 0,
+    "orden_tasa": 1,
+    "detalle": [
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.29,
+      "cer": 0.648,
+      "gt_texto": "Recibí de: D. Andrés Molina Castaño, con DNI 79.554.312, en calidad de",
+      "mio_texto": "D. Lucía Torres Medina, con DNI 48.221.907, en calidad de Administrado"
+     }
+    ]
+   },
+   "fidelidad_rapidocr": {
+    "gt_bloques": 11,
+    "mis_bloques": 5,
+    "matcheados": 1,
+    "cobertura_gt": 0.091,
+    "cer_mediano": 0.7457,
+    "cer_sin_digitos_mediano": 0.7393,
+    "cer_medio": 0.7457,
+    "tipos_coinciden": "1/1",
+    "tipo_tasa": 1,
+    "orden_pares": 0,
+    "orden_inversiones": 0,
+    "orden_tasa": 1,
+    "detalle": [
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.2,
+      "cer": 0.746,
+      "gt_texto": "D. Lucía Torres Medina, con DNI 48.221.907, en calidad de Administrado",
+      "mio_texto": "Fecha:02 de febrero de 2026 N.°Recibo:REC-2026-0157 D.Lucia Torres Med"
+     }
+    ]
+   },
+   "campos_m2_estructural": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha: 02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "administradora",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros delta s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": "b-87654321",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": "representante legal",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": "construcciones roble ltda",
+      "estado": "parcial"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": "b-123456738",
+      "estado": "parcial"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "la suma de: 1.250,00 €",
+      "estado": "parcial"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "en concepto de\ntransferencia bancaria — cuenta 2100 0418 4502 0005",
+      "estado": "fallido"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "transferencia bancaria — cuenta 2100 0418 4502 0005",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": "fecha de pago: 05/02/2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 9,
+    "parciales": 8,
+    "fallidos": 2,
+    "tasa": 0.684,
+    "ms": 0.4
+   },
+   "campos_m2_plano": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha: 02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "administradora",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros delta s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": "b-87654321",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": "representante legal",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": "construcciones roble ltda",
+      "estado": "parcial"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": "b-123456738",
+      "estado": "parcial"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "la suma de: 1.250,00 €",
+      "estado": "parcial"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "en concepto de\ntransferencia bancaria — cuenta es91 2100 0418 4502 0005 1332",
+      "estado": "fallido"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "transferencia bancaria — cuenta es91 2100 0418 4502 0005 1332",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": "es91 2100 0418 4502 0005 1332",
+      "estado": "exacto"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": "fecha de pago: 05/02/2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 10,
+    "parciales": 8,
+    "fallidos": 1,
+    "tasa": 0.737
+   },
+   "campos_m2_estructural_rapidocr": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha:02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "andres molina castano",
+      "estado": "fallido"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "administradora",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros delta s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "la suma de:1.250,00",
+      "estado": "fallido"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "anticipo del 30 % por suministro de material de obra, segun pedido p-2026-118.",
+      "estado": "exacto"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "transferencia bancaria-cuenta es912100041845020005 1332",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": null,
+      "estado": "fallido"
+     }
+    },
+    "exactos": 5,
+    "parciales": 4,
+    "fallidos": 10,
+    "tasa": 0.368
+   },
+   "clasificacion_anclas": {
+    "anclas_encontradas": 3,
+    "de": 5,
+    "clasifica": true
+   },
+   "ruta": "01-RECIBO-DE-PAGO/recibo-a-impreso-firmas-vacias-03"
+  },
+  "01-RECIBO-DE-PAGO/recibo-impreso-01": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 890,
+   "ms_ocr_rapidocr": 3045,
+   "ms_render_md_html": 0.5,
+   "campos_m2_estructural": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha: 02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "administradora",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros delta s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": "b-87654321",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": "representante legal",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": "b-12345678",
+      "estado": "exacto"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "1.250,00 €",
+      "estado": "exacto"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "en concepto de: anticipo del 30 % por suministro de material de obra, segun pedido p-2026-118.",
+      "estado": "parcial"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "forma de pago: transferencia bancaria",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": "es91 2100 0418 4502 0005 1332",
+      "estado": "exacto"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": "fecha de pago: 05/02/2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 12,
+    "parciales": 6,
+    "fallidos": 1,
+    "tasa": 0.789,
+    "ms": 0.1
+   },
+   "campos_m2_plano": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha: 02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "administradora",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros delta s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": "b-87654321",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": "representante legal",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": "b-12345678",
+      "estado": "exacto"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "1.250,00 €",
+      "estado": "exacto"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "en concepto de: anticipo del 30 % por suministro de material de obra, segun pedido p-2026-118.",
+      "estado": "parcial"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "forma de pago: transferencia bancaria",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": "es91 2100 0418 4502 0005 1332",
+      "estado": "exacto"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": "fecha de pago: 05/02/2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 12,
+    "parciales": 6,
+    "fallidos": 1,
+    "tasa": 0.789
+   },
+   "campos_m2_estructural_rapidocr": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha:02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "representante legal",
+      "estado": "fallido"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros deltas.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": "construccionesrobleltda",
+      "estado": "parcial"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "la suma de:1.250,00",
+      "estado": "fallido"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "anticipo del 30 % por suministro de material de obra, segun pedido p-2026-118.",
+      "estado": "exacto"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "transferencia bancaria-cuenta es91210004184502 0005 1332",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": null,
+      "estado": "fallido"
+     }
+    },
+    "exactos": 6,
+    "parciales": 5,
+    "fallidos": 8,
+    "tasa": 0.447
+   },
+   "clasificacion_anclas": {
+    "anclas_encontradas": 2,
+    "de": 5,
+    "clasifica": true
+   },
+   "ruta": "01-RECIBO-DE-PAGO/recibo-impreso-01"
+  },
+  "01-RECIBO-DE-PAGO/recibo-impreso-02": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 881,
+   "ms_ocr_rapidocr": 3133,
+   "ms_render_md_html": 0.6,
+   "campos_m2_estructural": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha: 02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "administradora",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros delta s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": "b-87654321",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": "representante legal",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": "construcciones roble ltda",
+      "estado": "parcial"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": "b-123456738",
+      "estado": "parcial"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "la suma de: 1.250,00 €",
+      "estado": "parcial"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "en concepto de\ntransferencia bancaria — cuenta 2100 0418 4502 0005",
+      "estado": "fallido"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "transferencia bancaria — cuenta 2100 0418 4502 0005",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": "fecha de pago: 05/02/2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 9,
+    "parciales": 8,
+    "fallidos": 2,
+    "tasa": 0.684,
+    "ms": 0.2
+   },
+   "campos_m2_plano": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": "recibo de pago",
+      "estado": "exacto"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha: 02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "lucia torres medina",
+      "estado": "exacto"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "administradora",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros delta s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": "b-87654321",
+      "estado": "exacto"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": "andres molina castano",
+      "estado": "exacto"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": "representante legal",
+      "estado": "exacto"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": "construcciones roble ltda",
+      "estado": "parcial"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": "b-123456738",
+      "estado": "parcial"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "la suma de: 1.250,00 €",
+      "estado": "parcial"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "en concepto de\ntransferencia bancaria — cuenta es91 2100 0418 4502 0005 1332",
+      "estado": "fallido"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "transferencia bancaria — cuenta es91 2100 0418 4502 0005 1332",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": "es91 2100 0418 4502 0005 1332",
+      "estado": "exacto"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": "fecha de pago: 05/02/2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 10,
+    "parciales": 8,
+    "fallidos": 1,
+    "tasa": 0.737
+   },
+   "campos_m2_estructural_rapidocr": {
+    "detalle": {
+     "titulo": {
+      "esperado": "RECIBO DE PAGO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "numero_recibo": {
+      "esperado": "REC-2026-0157",
+      "leido": "rec-2026-0157",
+      "estado": "exacto"
+     },
+     "fecha_emision": {
+      "esperado": "02 de febrero de 2026",
+      "leido": "fecha:02 de febrero de 2026",
+      "estado": "parcial"
+     },
+     "emisor_nombre": {
+      "esperado": "Lucía Torres Medina",
+      "leido": "andres molina castano",
+      "estado": "fallido"
+     },
+     "emisor_dni": {
+      "esperado": "48.221.907",
+      "leido": "48.221.907",
+      "estado": "exacto"
+     },
+     "emisor_cargo": {
+      "esperado": "Administradora",
+      "leido": "administradora",
+      "estado": "exacto"
+     },
+     "emisor_empresa": {
+      "esperado": "Suministros Delta S.L.",
+      "leido": "suministros delta s.l",
+      "estado": "parcial"
+     },
+     "emisor_cif": {
+      "esperado": "B-87654321",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_nombre": {
+      "esperado": "Andrés Molina Castaño",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_dni": {
+      "esperado": "79.554.312",
+      "leido": "79.554.312",
+      "estado": "exacto"
+     },
+     "pagador_cargo": {
+      "esperado": "Representante legal",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_empresa": {
+      "esperado": "Construcciones Roble Ltda.",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "pagador_cif": {
+      "esperado": "B-12345678",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "importe": {
+      "esperado": "1.250,00 €",
+      "leido": "la suma de:1.250,00",
+      "estado": "fallido"
+     },
+     "importe_letras": {
+      "esperado": "mil doscientos cincuenta euros",
+      "leido": "(mil doscientos cincuenta euros)",
+      "estado": "parcial"
+     },
+     "concepto": {
+      "esperado": "Anticipo del 30 % por suministro de material de obra, según pedido P-2026-118.",
+      "leido": "anticipo del 30 % por suministro de material de obra, segun pedido p-2026-118.",
+      "estado": "exacto"
+     },
+     "forma_pago": {
+      "esperado": "Transferencia bancaria",
+      "leido": "transferencia bancaria-cuenta es912100041845020005 1332",
+      "estado": "parcial"
+     },
+     "iban": {
+      "esperado": "ES91 2100 0418 4502 0005 1332",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "fecha_pago": {
+      "esperado": "05/02/2026",
+      "leido": null,
+      "estado": "fallido"
+     }
+    },
+    "exactos": 5,
+    "parciales": 4,
+    "fallidos": 10,
+    "tasa": 0.368
+   },
+   "clasificacion_anclas": {
+    "anclas_encontradas": 3,
+    "de": 5,
+    "clasifica": true
+   },
+   "ruta": "01-RECIBO-DE-PAGO/recibo-impreso-02"
+  },
+  "02-RECIBO-DE-ENTREGA/comprobante-a-impreso-firmas-vacias-01": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 585,
+   "ms_ocr_rapidocr": 3680,
+   "ms_render_md_html": 0.8,
+   "campos_m2_estructural": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": "nombre y apellido:\nmaria fernanda lopez gomez",
+      "estado": "parcial"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": "cc 1.023.456.789",
+      "estado": "exacto"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": "a nevera no frost 320 l, modelo xs=320",
+      "estado": "parcial"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "electrodomestico nuevo en caja, con ge del comprador. n",
+      "estado": "fallido"
+     }
+    },
+    "exactos": 1,
+    "parciales": 2,
+    "fallidos": 8,
+    "tasa": 0.182,
+    "ms": 0.8
+   },
+   "campos_m2_plano": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": "nombre y apellido:\nmaria fernanda lopez gomez",
+      "estado": "parcial"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": "cc 1.023.456.789",
+      "estado": "exacto"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": "nevera no frost 320 l, modelo xs=320",
+      "estado": "parcial"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "electrodomestico nuevo en caja, con ge del comprador. n",
+      "estado": "fallido"
+     }
+    },
+    "exactos": 1,
+    "parciales": 2,
+    "fallidos": 8,
+    "tasa": 0.182
+   },
+   "campos_m2_estructural_rapidocr": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": "nombre y apellido:\nmariafernanda lopez gomez",
+      "estado": "fallido"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": "cc 1.023.456.789",
+      "estado": "exacto"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": "calle\n302\n3\n12-34",
+      "estado": "fallido"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": "12-34",
+      "estado": "exacto"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": "45",
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": "12",
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": "op-2026-004512",
+      "estado": "exacto"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "del comprador. fecha de entrega firma del comprador o autorizado",
+      "estado": "fallido"
+     }
+    },
+    "exactos": 3,
+    "parciales": 0,
+    "fallidos": 8,
+    "tasa": 0.273
+   },
+   "clasificacion_anclas": {
+    "anclas_encontradas": 4,
+    "de": 6,
+    "clasifica": true
+   },
+   "ruta": "02-RECIBO-DE-ENTREGA/comprobante-a-impreso-firmas-vacias-01"
+  },
+  "02-RECIBO-DE-ENTREGA/comprobante-a-impreso-firmas-vacias-02": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 979,
+   "ms_ocr_rapidocr": 3601,
+   "ms_render_md_html": 0.7,
+   "campos_m2_estructural": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": "comprobante de entrega del producto",
+      "estado": "exacto"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": "nev no frost 320 l, modelo xs-320",
+      "estado": "parcial"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": "op-2026-004512",
+      "estado": "exacto"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "domestico nuevo en caja, con garantia de 12 meses. entrega a domicilio con verificacion de identidad comprador. novembre 26",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 2,
+    "parciales": 2,
+    "fallidos": 7,
+    "tasa": 0.273,
+    "ms": 0.4
+   },
+   "campos_m2_plano": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": "comprobante de entrega del producto",
+      "estado": "exacto"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": "nombre y apellido\nmaria fernant opez gome",
+      "estado": "fallido"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": "nev no frost 320 l, modelo xs-320",
+      "estado": "parcial"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": "op-2026-004512",
+      "estado": "exacto"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "domestico nuevo en caja, con garantia de 12 meses. entrega a domicilio con verificacion de identidad comprador. 20 novembre 26",
+      "estado": "fallido"
+     }
+    },
+    "exactos": 2,
+    "parciales": 1,
+    "fallidos": 8,
+    "tasa": 0.227
+   },
+   "campos_m2_estructural_rapidocr": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": "cc 1.023.456.789",
+      "estado": "exacto"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": "calle\n302\n3\n12-34",
+      "estado": "fallido"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": "12-34",
+      "estado": "exacto"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": "45",
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": "12",
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": "op-2026-004512",
+      "estado": "exacto"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "electrodomestico nuevo en caja, con garantia de 12 meses.entrega a domicilio con verificacion de identidad del comprador. 30 mouiembre 26",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 3,
+    "parciales": 1,
+    "fallidos": 7,
+    "tasa": 0.318
+   },
+   "clasificacion_anclas": {
+    "anclas_encontradas": 3,
+    "de": 6,
+    "clasifica": true
+   },
+   "ruta": "02-RECIBO-DE-ENTREGA/comprobante-a-impreso-firmas-vacias-02"
+  },
+  "02-RECIBO-DE-ENTREGA/comprobante-a-impreso-firmas-vacias-03": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1117,
+   "ms_ocr_rapidocr": 3483,
+   "ms_render_md_html": 0.8,
+   "campos_m2_estructural": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": "comprobante de entrega del producto",
+      "estado": "exacto"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": "nombre y apellido\nm fernanda lopez gomez",
+      "estado": "fallido"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": "cc 1.023.456.789",
+      "estado": "exacto"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": "calle 45 4 12-34",
+      "estado": "parcial"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": "nevera no frost 320 l, modelo x$=320",
+      "estado": "parcial"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": "op-2026-004512",
+      "estado": "exacto"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "electrodomestico nuevo en caja, con garantia de 12 meses. entrega a domicilio con verificacion de identidad del comprador. novembre 26",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 3,
+    "parciales": 3,
+    "fallidos": 5,
+    "tasa": 0.409,
+    "ms": 0.2
+   },
+   "campos_m2_plano": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": "comprobante de entrega del producto",
+      "estado": "exacto"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": "nombre y apellido\nm fernanda lopez gomez",
+      "estado": "fallido"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": "cc 1.023.456.789",
+      "estado": "exacto"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": "calle 45 4 12-34",
+      "estado": "parcial"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": "nevera no frost 320 l, modelo x$=320",
+      "estado": "parcial"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": "op-2026-004512",
+      "estado": "exacto"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "electrodomestico nuevo en caja, con garantia de 12 meses. entrega a domicilio con verificacion de identidad del comprador. 30 novembre 26",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 3,
+    "parciales": 3,
+    "fallidos": 5,
+    "tasa": 0.409
+   },
+   "campos_m2_estructural_rapidocr": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": "cc 1.023.456.789",
+      "estado": "exacto"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": "calle45 12-34 12-34",
+      "estado": "fallido"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": "12-34",
+      "estado": "exacto"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": "12",
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": "34",
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": "neveranofrost320l,modeloxs-320",
+      "estado": "parcial"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": "op-2026-004512",
+      "estado": "exacto"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "electrodomestico nuevo en caja,con garantia de 12 meses.entrega a domicilio con verificacion de identidad del comprador. nouiembre 26",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 3,
+    "parciales": 2,
+    "fallidos": 6,
+    "tasa": 0.364
+   },
+   "clasificacion_anclas": {
+    "anclas_encontradas": 4,
+    "de": 6,
+    "clasifica": true
+   },
+   "ruta": "02-RECIBO-DE-ENTREGA/comprobante-a-impreso-firmas-vacias-03"
+  },
+  "02-RECIBO-DE-ENTREGA/comprobante-a-impreso-firmas-vacias-04": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 447,
+   "ms_ocr_rapidocr": 3889,
+   "ms_render_md_html": 0.3,
+   "campos_m2_estructural": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": "cc 79.884.120",
+      "estado": "fallido"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "firma del cr al firmar el comprobante de",
+      "estado": "fallido"
+     }
+    },
+    "exactos": 0,
+    "parciales": 0,
+    "fallidos": 11,
+    "tasa": 0,
+    "ms": 0.1
+   },
+   "campos_m2_plano": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": "cc 79.884.120",
+      "estado": "fallido"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "firma del cr al firmar el comprobante de",
+      "estado": "fallido"
+     }
+    },
+    "exactos": 0,
+    "parciales": 0,
+    "fallidos": 11,
+    "tasa": 0
+   },
+   "campos_m2_estructural_rapidocr": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nombre_comprador": {
+      "esperado": "María Fernanda López Gómez",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.023.456.789",
+      "leido": "cc 79.884.120",
+      "estado": "fallido"
+     },
+     "telefono": {
+      "esperado": "310 555 0198",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "calle": {
+      "esperado": "Calle 45 # 12-34",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nro": {
+      "esperado": "12-34",
+      "leido": "22-15",
+      "estado": "fallido"
+     },
+     "piso": {
+      "esperado": "3",
+      "leido": "68",
+      "estado": "fallido"
+     },
+     "dpto": {
+      "esperado": "302",
+      "leido": "22",
+      "estado": "fallido"
+     },
+     "articulo": {
+      "esperado": "Nevera no frost 320 L, modelo XS-320",
+      "leido": "descripcion:",
+      "estado": "fallido"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-004512",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo en caja, con garantía de 12 meses. Entrega a domicilio con verificación de identidad del comprador.",
+      "leido": "fecha de entrega firmadelcompradoroautorizado alfirmarelcomprobantedeclarohaberrecibidoconformeelproducto.",
+      "estado": "fallido"
+     }
+    },
+    "exactos": 0,
+    "parciales": 0,
+    "fallidos": 11,
+    "tasa": 0
+   },
+   "clasificacion_anclas": {
+    "anclas_encontradas": 2,
+    "de": 6,
+    "clasifica": true
+   },
+   "ruta": "02-RECIBO-DE-ENTREGA/comprobante-a-impreso-firmas-vacias-04"
+  },
+  "02-RECIBO-DE-ENTREGA/pag-01": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1357,
+   "ms_ocr_rapidocr": 3769,
+   "ms_render_md_html": 0.9,
+   "campos_m2_estructural": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": "comprobante de entrega del producto",
+      "estado": "exacto"
+     },
+     "nombre_comprador": {
+      "esperado": "Valentina Rodríguez Salazar",
+      "leido": "nombre y apellido:\nvalentina rodriguez salazar",
+      "estado": "parcial"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.098.234.567",
+      "leido": "cc 1.098.234.567",
+      "estado": "exacto"
+     },
+     "telefono": {
+      "esperado": "310 555 0142",
+      "leido": "telefono:\n310 555 0142",
+      "estado": "parcial"
+     },
+     "calle": {
+      "esperado": "Calle 72 # 10-34",
+      "leido": "calle 72 +4 10-34",
+      "estado": "parcial"
+     },
+     "nro": {
+      "esperado": "10-34",
+      "leido": "10-34",
+      "estado": "exacto"
+     },
+     "piso": {
+      "esperado": "5",
+      "leido": "5",
+      "estado": "exacto"
+     },
+     "dpto": {
+      "esperado": "501",
+      "leido": "501",
+      "estado": "exacto"
+     },
+     "articulo": {
+      "esperado": "Lavadora secadora 20 kg, modelo LS-2000",
+      "leido": "lavadora secadora 20 kg, modelo ls-2000",
+      "estado": "exacto"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-005847",
+      "leido": "op-2026-005847",
+      "estado": "exacto"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo, con garantía de 24 meses. Entrega a domicilio con instalación básica incluida y verificación de identidad del comprador.",
+      "leido": "electrodomestico nuevo, con garantia de 24 meses. entrega a domicilio con instalacion basica incluida y verificacion de identidad del comprador. 7 7",
+      "estado": "parcial"
+     },
+     "fecha_entrega": {
+      "esperado": "18 de noviembre de 2026",
+      "leido": "fecha de entrega\n18 de noviembre de 2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 7,
+    "parciales": 5,
+    "fallidos": 0,
+    "tasa": 0.792,
+    "ms": 0.2
+   },
+   "campos_m2_plano": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": "comprobante de entrega del producto",
+      "estado": "exacto"
+     },
+     "nombre_comprador": {
+      "esperado": "Valentina Rodríguez Salazar",
+      "leido": "nombre y apellido:\nvalentina rodriguez salazar",
+      "estado": "parcial"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.098.234.567",
+      "leido": "cc 1.098.234.567",
+      "estado": "exacto"
+     },
+     "telefono": {
+      "esperado": "310 555 0142",
+      "leido": "telefono:\n310 555 0142",
+      "estado": "parcial"
+     },
+     "calle": {
+      "esperado": "Calle 72 # 10-34",
+      "leido": "calle 72 +4 10-34",
+      "estado": "parcial"
+     },
+     "nro": {
+      "esperado": "10-34",
+      "leido": "10-34",
+      "estado": "exacto"
+     },
+     "piso": {
+      "esperado": "5",
+      "leido": "5",
+      "estado": "exacto"
+     },
+     "dpto": {
+      "esperado": "501",
+      "leido": "501",
+      "estado": "exacto"
+     },
+     "articulo": {
+      "esperado": "Lavadora secadora 20 kg, modelo LS-2000",
+      "leido": "lavadora secadora 20 kg, modelo ls-2000",
+      "estado": "exacto"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-005847",
+      "leido": "op-2026-005847",
+      "estado": "exacto"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo, con garantía de 24 meses. Entrega a domicilio con instalación básica incluida y verificación de identidad del comprador.",
+      "leido": "electrodomestico nuevo, con garantia de 24 meses. entrega a domicilio con instalacion basica incluida y verificacion de identidad del comprador. 7 7",
+      "estado": "parcial"
+     },
+     "fecha_entrega": {
+      "esperado": "18 de noviembre de 2026",
+      "leido": "fecha de entrega\n18 de noviembre de 2026",
+      "estado": "parcial"
+     }
+    },
+    "exactos": 7,
+    "parciales": 5,
+    "fallidos": 0,
+    "tasa": 0.792
+   },
+   "campos_m2_estructural_rapidocr": {
+    "detalle": {
+     "titulo": {
+      "esperado": "COMPROBANTE DE ENTREGA DEL PRODUCTO",
+      "leido": null,
+      "estado": "fallido"
+     },
+     "nombre_comprador": {
+      "esperado": "Valentina Rodríguez Salazar",
+      "leido": "nombre y apellido:\nvalentinarodriguezsalazar",
+      "estado": "fallido"
+     },
+     "documento_comprador": {
+      "esperado": "CC 1.098.234.567",
+      "leido": "cc 1.098.234.567",
+      "estado": "exacto"
+     },
+     "telefono": {
+      "esperado": "310 555 0142",
+      "leido": "telefono:\n310 555 0142",
+      "estado": "parcial"
+     },
+     "calle": {
+      "esperado": "Calle 72 # 10-34",
+      "leido": "calle 72 10-34",
+      "estado": "parcial"
+     },
+     "nro": {
+      "esperado": "10-34",
+      "leido": "10-34",
+      "estado": "exacto"
+     },
+     "piso": {
+      "esperado": "5",
+      "leido": "5",
+      "estado": "exacto"
+     },
+     "dpto": {
+      "esperado": "501",
+      "leido": "01",
+      "estado": "parcial"
+     },
+     "articulo": {
+      "esperado": "Lavadora secadora 20 kg, modelo LS-2000",
+      "leido": "lavadorasecadora20kg,modelols-2000",
+      "estado": "parcial"
+     },
+     "numero_operacion": {
+      "esperado": "OP-2026-005847",
+      "leido": "op-2026-005847",
+      "estado": "exacto"
+     },
+     "descripcion": {
+      "esperado": "Electrodoméstico nuevo, con garantía de 24 meses. Entrega a domicilio con instalación básica incluida y verificación de identidad del comprador.",
+      "leido": "electrodomestico nuevo, con garantia de 24 meses. entrega a domicilio con instalacion basica incluida y verificacionde identidad del comprador. fecha de entrega",
+      "estado": "parcial"
+     },
+     "fecha_entrega": {
+      "esperado": "18 de noviembre de 2026",
+      "leido": null,
+      "estado": "fallido"
+     }
+    },
+    "exactos": 4,
+    "parciales": 5,
+    "fallidos": 3,
+    "tasa": 0.542
+   },
+   "clasificacion_anclas": {
+    "anclas_encontradas": 4,
+    "de": 6,
+    "clasifica": true
+   },
+   "ruta": "02-RECIBO-DE-ENTREGA/pag-01"
+  },
+  "03-E26-ACTA-PARCIAL-6PAG/pag-01": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 2942,
+   "ms_ocr_rapidocr": 7202,
+   "ms_render_md_html": 2.2,
+   "fidelidad_tesseract": {
+    "gt_bloques": 16,
+    "mis_bloques": 56,
+    "matcheados": 11,
+    "cobertura_gt": 0.688,
+    "cer_mediano": 0,
+    "cer_sin_digitos_mediano": 0,
+    "cer_medio": 0.1633,
+    "tipos_coinciden": "6/11",
+    "tipo_tasa": 0.545,
+    "orden_pares": 55,
+    "orden_inversiones": 0,
+    "orden_tasa": 1,
+    "detalle": [
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "parrafo",
+      "iou": 0.45,
+      "cer": 0.309,
+      "gt_texto": "REPÚBLICA DE COLOMBIA ORGANIZACIÓN ELECTORAL ELECCIONES AUTORIDADES TE",
+      "mio_texto": "REPÚBLICA DE COLOMBIA ORGANIZACIÓN ELECTORAL ELECCIONES AUTORIDADES TE"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "titulo",
+      "iou": 0.47,
+      "cer": 0,
+      "gt_texto": "E-26 CON",
+      "mio_texto": "E-26 CON"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.32,
+      "cer": 0,
+      "gt_texto": "DEPARTAMENTO 01-ANTIOQUIA MUNICIPIO 007-ABRIAQUI",
+      "mio_texto": "Ñ, á de 6 REGISTRADURÍA ACTA PARCIAL DEL ESCRUTINIO MUNICIPAL Pág ide "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.39,
+      "cer": 0.407,
+      "gt_texto": "En 1.E LA MILAGROSA, SECCION PRIMARIA, a las 10:05 PM el día 27 de oct",
+      "mio_texto": "En 1.E LA MILAGROSA, SECCION PRIMARIA, a las 10:05 PM el día 27 de oct"
+     },
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "parrafo",
+      "iou": 0.25,
+      "cer": 0.715,
+      "gt_texto": "0002 PARTIDO CONSERVADOR COLOMBIANO",
+      "mio_texto": "cómputo de los votos para cada uno de los candidatos, se obtuvo el sig"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.87,
+      "cer": 0,
+      "gt_texto": "CÓDIGO NOMBRE VOTOS VOTOS EN LETRAS 000 PARTIDO CONSERVADOR COLOMBIANO",
+      "mio_texto": "CÓDIGO NOMBRE VOTOS VOTOS EN LETRAS 000 PARTIDO CONSERVADOR COLOMBIANO"
+     },
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "seccion",
+      "iou": 0.6,
+      "cer": 0,
+      "gt_texto": "0003 PARTIDO CAMBIO RADICAL",
+      "mio_texto": "0003 PARTIDO CAMBIO RADICAL"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.88,
+      "cer": 0,
+      "gt_texto": "CÓDIGO NOMBRE VOTOS VOTOS EN LETRAS 000 PARTIDO CAMBIO RADICAL 12 DOCE",
+      "mio_texto": "CÓDIGO NOMBRE VOTOS VOTOS EN LETRAS 000 PARTIDO CAMBIO RADICAL 12 | DO"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "tabla",
+      "iou": 0.37,
+      "cer": 0,
+      "gt_texto": "CÓDIGO NOMBRE VOTOS VOTOS EN LETRAS 000 PARTIDO CENTRO DEMOCRÁTICO 10 ",
+      "mio_texto": "CENTRO     PARTIDO CENTRO OSCAR DARIO VELEZ IVAN ANDRES WILSON JAMIE B"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.46,
+      "cer": 0,
+      "gt_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.29,
+      "cer": 0.365,
+      "gt_texto": "ALEXANDRA MARIA RIVERA SECRETARIO(S) DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "SECRETARIO(S) DE LA COMISIÓN ESCRUTADORA"
+     }
+    ]
+   },
+   "fidelidad_rapidocr": {
+    "gt_bloques": 16,
+    "mis_bloques": 48,
+    "matcheados": 5,
+    "cobertura_gt": 0.313,
+    "cer_mediano": 0.4045,
+    "cer_sin_digitos_mediano": 0.4045,
+    "cer_medio": 0.3482,
+    "tipos_coinciden": "3/5",
+    "tipo_tasa": 0.6,
+    "orden_pares": 10,
+    "orden_inversiones": 0,
+    "orden_tasa": 1,
+    "detalle": [
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "parrafo",
+      "iou": 0.32,
+      "cer": 0.424,
+      "gt_texto": "REPÚBLICA DE COLOMBIA ORGANIZACIÓN ELECTORAL ELECCIONES AUTORIDADES TE",
+      "mio_texto": "REPUBLICADECOLOMBIA ORGANIZACIONELECTORAL ELECCIONESAUTORIDADESTERRITO"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.32,
+      "cer": 0.399,
+      "gt_texto": "En 1.E LA MILAGROSA, SECCION PRIMARIA, a las 10:05 PM el día 27 de oct",
+      "mio_texto": "MUNICIPIO007-ABRIAQUI En 1.ELAMILAGROSA,SECCIONPRIMARIA,a las10:05PMel"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "seccion",
+      "iou": 0.29,
+      "cer": 0,
+      "gt_texto": "CÓDIGO NOMBRE VOTOS VOTOS EN LETRAS 000 PARTIDO CENTRO DEMOCRÁTICO 10 ",
+      "mio_texto": "NOVENTAYDOS OSCARDARIOVELEZGIRALDO 002 SESENTAY CUATRO 64 IVANANDRESHO"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.21,
+      "cer": 0.514,
+      "gt_texto": "JOHN JAIME SALAS CARDONA",
+      "mio_texto": "JOHNJAIMESALASCARDONA CRISTIANPERDOMO"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.32,
+      "cer": 0.404,
+      "gt_texto": "ALEXANDRA MARIA RIVERA SECRETARIO(S) DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "ALEXANDRAMARIARIVERA SECRETARIO(S)DELACOMISIONESCRUTADORA MIEMBROSDELA"
+     }
+    ]
+   },
+   "tablas": {
+    "detectadas_tesseract": [
+     {
+      "filas": 1,
+      "cols": 5,
+      "celdas_con_texto": 1
+     },
+     {
+      "filas": 1,
+      "cols": 5,
+      "celdas_con_texto": 1
+     },
+     {
+      "filas": 2,
+      "cols": 5,
+      "celdas_con_texto": 6
+     }
+    ],
+    "gt_datalab": 4,
+    "detalle_vs_gt": [
+     {
+      "match": false
+     },
+     {
+      "match": false
+     },
+     {
+      "match": false
+     },
+     {
+      "match": true,
+      "iou": 0.37,
+      "filas_gt": [
+       "CÓDIGO",
+       "NOMBRE",
+       "VOTOS",
+       "VOTOS",
+       "EN",
+       "LETRAS",
+       "000",
+       "PARTIDO",
+       "CENTRO",
+       "DEMOCRÁTICO",
+       "10",
+       "DIEZ",
+       "001",
+       "OSCAR",
+       "DARIO",
+       "VELEZ",
+       "GIRALDO",
+       "92",
+       "NOVENTA",
+       "Y",
+       "DOS",
+       "002",
+       "IVAN",
+       "ANDRES",
+       "HOLGUIN",
+       "DUARTE",
+       "64",
+       "SESENTA",
+       "Y",
+       "CUATRO",
+       "003",
+       "WILSON",
+       "JAMIE",
+       "QUIROS",
+       "LIRAN",
+       "61",
+       "SESENTA",
+       "Y",
+       "UNO",
+       "004",
+       "BEATRIZ",
+       "ELENA",
+       "HIDALGO",
+       "GALLEGO",
+       "24",
+       "VEINTICUATRO",
+       "005",
+       "ALBA",
+       "LUCIA",
+       "PEREZ",
+       "LOPEZ",
+       "29",
+       "VEINTINUEVE",
+       "006",
+       "MARTA",
+       "ISABEL",
+       "JIMENEZ",
+       "GOMEZ",
+       "5",
+       "CINCO"
+      ],
+      "filas_mias": [
+       "CENTRO",
+       "PARTIDO CENTRO OSCAR DARIO VELEZ IVAN ANDRES WILSON JAMIE BEATRIZ ELENA ALBA LUCIA PEREZ MARTA ISABEL PAZ CRISTIAN PERDOMO",
+       "NOMBRE GALLEGO JOHN JAIME",
+       "II SALAS",
+       "CARDONA",
+       "VOTOS 10| DIEZ 92 | NOVENTA Y DOS 64 | SESENTA Y CUATRO 61 | SESENTA Y UNO 24 | VEINTICUATRO 29 | VEINTINUEVE 5 | CINCO -—Z— ALEXANDRA MARIA"
+      ],
+      "cer_tabla": 0.734
+     }
+    ]
+   },
+   "ruta": "03-E26-ACTA-PARCIAL-6PAG/pag-01"
+  },
+  "03-E26-ACTA-PARCIAL-6PAG/pag-02": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1431,
+   "ms_ocr_rapidocr": 4458,
+   "ms_render_md_html": 0.8,
+   "fidelidad_tesseract": {
+    "gt_bloques": 17,
+    "mis_bloques": 40,
+    "matcheados": 9,
+    "cobertura_gt": 0.529,
+    "cer_mediano": 0,
+    "cer_sin_digitos_mediano": 0,
+    "cer_medio": 0.0713,
+    "tipos_coinciden": "5/9",
+    "tipo_tasa": 0.556,
+    "orden_pares": 36,
+    "orden_inversiones": 3,
+    "orden_tasa": 0.917,
+    "detalle": [
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "titulo",
+      "iou": 0.54,
+      "cer": 0.333,
+      "gt_texto": "REGISTRADURÍA NACIONAL DEL ESTADO CIVIL",
+      "mio_texto": "REGISTRADURÍA NACIONAL DEL"
+     },
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "parrafo",
+      "iou": 0.45,
+      "cer": 0.309,
+      "gt_texto": "REPÚBLICA DE COLOMBIA ORGANIZACIÓN ELECTORAL ELECCIONES AUTORIDADES TE",
+      "mio_texto": "REPÚBLICA DE COLOMBIA ORGANIZACIÓN ELECTORAL ELECCIONES AUTORIDADES TE"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.5,
+      "cer": 0,
+      "gt_texto": "E-26 CON",
+      "mio_texto": "       E-26 CON "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.42,
+      "cer": 0,
+      "gt_texto": "Pág 2 de 6",
+      "mio_texto": "         Pág 2 de 6"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "tabla",
+      "iou": 0.73,
+      "cer": 0,
+      "gt_texto": "CÓDIGO NOMBRE VOTOS VOTOS EN LETRAS 007 JAIME DE JESUS GALLEGÓ HIDALGO",
+      "mio_texto": "0011 PARTIDO CENTRO DEMOCRÁTICO        CÓDIGO 007 TOTAL VOTOS JAIME DE"
+     },
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "seccion",
+      "iou": 0.64,
+      "cer": 0,
+      "gt_texto": "RESUMEN DE LA VOTACIÓN",
+      "mio_texto": "RESUMEN DE LA VOTACIÓN"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.54,
+      "cer": 0,
+      "gt_texto": "CÓDIGO PARTIDO/MOVIMIENTO POLÍTICO VOTOS EN LETRAS TOTAL 0002 PARTIDO ",
+      "mio_texto": "CÓDIGO PARTIDO/MOVIMIENTO POLÍTICO VOTOS EN LETRAS TOTAL 0002 | PARTID"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.53,
+      "cer": 0,
+      "gt_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.51,
+      "cer": 0,
+      "gt_texto": "SECRETARIO(S) DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "SECRETARIO(S) DE LA COMISIÓN ESCRUTADORA"
+     }
+    ]
+   },
+   "fidelidad_rapidocr": {
+    "gt_bloques": 17,
+    "mis_bloques": 13,
+    "matcheados": 4,
+    "cobertura_gt": 0.235,
+    "cer_mediano": 0.5704,
+    "cer_sin_digitos_mediano": 0.567,
+    "cer_medio": 0.4423,
+    "tipos_coinciden": "2/4",
+    "tipo_tasa": 0.5,
+    "orden_pares": 6,
+    "orden_inversiones": 1,
+    "orden_tasa": 0.833,
+    "detalle": [
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "parrafo",
+      "iou": 0.24,
+      "cer": 0.57,
+      "gt_texto": "REPÚBLICA DE COLOMBIA ORGANIZACIÓN ELECTORAL ELECCIONES AUTORIDADES TE",
+      "mio_texto": "REPUBLICADECOLOMBIA ORGANIZACIONELECTORAL ELECCIONESAUTORIDADESTERRITO"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.38,
+      "cer": 0,
+      "gt_texto": "CÓDIGO PARTIDO/MOVIMIENTO POLÍTICO VOTOS EN LETRAS TOTAL 0002 PARTIDO ",
+      "mio_texto": "343 0003 PARTIDOCAMBIORADICAL TRESCIENTOSCUARENTAYTRES PARTIDOCENTRODE"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.2,
+      "cer": 0.685,
+      "gt_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "ALEXANDRAMARIARIVERA SECRETARIO(S)DELACOMISIONESCRUTADORA MIEMBROSDELA"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.24,
+      "cer": 0.514,
+      "gt_texto": "JOHN JAIME SALAS CARDONA",
+      "mio_texto": "JOHNJAIMESALASCARDONA CRISTIANPERDOMO"
+     }
+    ]
+   },
+   "tablas": {
+    "detectadas_tesseract": [
+     {
+      "filas": 1,
+      "cols": 10,
+      "celdas_con_texto": 2
+     },
+     {
+      "filas": 1,
+      "cols": 10,
+      "celdas_con_texto": 1
+     },
+     {
+      "filas": 1,
+      "cols": 10,
+      "celdas_con_texto": 5
+     },
+     {
+      "filas": 1,
+      "cols": 10,
+      "celdas_con_texto": 2
+     },
+     {
+      "filas": 1,
+      "cols": 10,
+      "celdas_con_texto": 2
+     },
+     {
+      "filas": 1,
+      "cols": 10,
+      "celdas_con_texto": 2
+     },
+     {
+      "filas": 2,
+      "cols": 10,
+      "celdas_con_texto": 11
+     }
+    ],
+    "gt_datalab": 3,
+    "detalle_vs_gt": [
+     {
+      "match": false
+     },
+     {
+      "match": true,
+      "iou": 0.73,
+      "filas_gt": [
+       "CÓDIGO",
+       "NOMBRE",
+       "VOTOS",
+       "VOTOS",
+       "EN",
+       "LETRAS",
+       "007",
+       "JAIME",
+       "DE",
+       "JESUS",
+       "GALLEGÓ",
+       "HIDALGO",
+       "33",
+       "TREINTA",
+       "Y",
+       "TRES",
+       "TOTAL",
+       "VOTOS",
+       "PARTIDO",
+       "CENTRO",
+       "DEMOCRÁTICO",
+       "318",
+       "TRESCIENTOS",
+       "DIECIOCHO"
+      ],
+      "filas_mias": [
+       "0011 PARTIDO",
+       "CENTRO",
+       "DEMOCRÁTICO",
+       "CÓDIGO 007 TOTAL VOTOS",
+       "JAIME DE JESUS PARTIDO CENTRO",
+       "GALLEGÓ DEMOCRÁTICO",
+       "HIDALGO",
+       "NOMBRE",
+       "VOTOS 33 | 318 |",
+       "VOTOS TREINTA Y TRES TRESCIENTOS",
+       "EN LETRAS DIECIOCHO"
+      ],
+      "cer_tabla": 0.614
+     },
+     {
+      "match": false
+     }
+    ]
+   },
+   "ruta": "03-E26-ACTA-PARCIAL-6PAG/pag-02"
+  },
+  "03-E26-ACTA-PARCIAL-6PAG/pag-03": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1130,
+   "ms_ocr_rapidocr": 3888,
+   "ms_render_md_html": 0.7,
+   "fidelidad_tesseract": {
+    "gt_bloques": 16,
+    "mis_bloques": 17,
+    "matcheados": 3,
+    "cobertura_gt": 0.188,
+    "cer_mediano": 0,
+    "cer_sin_digitos_mediano": 0,
+    "cer_medio": 0.1652,
+    "tipos_coinciden": "2/3",
+    "tipo_tasa": 0.667,
+    "orden_pares": 3,
+    "orden_inversiones": 0,
+    "orden_tasa": 1,
+    "detalle": [
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "parrafo",
+      "iou": 0.29,
+      "cer": 0.496,
+      "gt_texto": "REPÚBLICA DE COLOMBIA ORGANIZACIÓN ELECTORAL ELECCIONES AUTORIDADES TE",
+      "mio_texto": "7 5 Y ORGANIZACIÓN ELECTORAL U ) ELECCIONES AUTORIDADES TERRITORIALES "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.88,
+      "cer": 0,
+      "gt_texto": "En 1.E LA MILAGROSA, SECCION PRIMARIA, a las 10:05 PM el día 27 de oct",
+      "mio_texto": " En 1.E LA MILAGROSA, SECCION PRIMARIA, a las 10:05 PM el día 27 de oc"
+     },
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "titulo",
+      "iou": 0.56,
+      "cer": 0,
+      "gt_texto": "TOTALES GENERALES DE LA VOTACIÓN",
+      "mio_texto": "TOTALES GENERALES DE LA VOTACIÓN"
+     }
+    ]
+   },
+   "fidelidad_rapidocr": {
+    "gt_bloques": 16,
+    "mis_bloques": 5,
+    "matcheados": 3,
+    "cobertura_gt": 0.188,
+    "cer_mediano": 0.6216,
+    "cer_sin_digitos_mediano": 0.6216,
+    "cer_medio": 0.4357,
+    "tipos_coinciden": "2/3",
+    "tipo_tasa": 0.667,
+    "orden_pares": 3,
+    "orden_inversiones": 0,
+    "orden_tasa": 1,
+    "detalle": [
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.49,
+      "cer": 0,
+      "gt_texto": "TOTAL VOTOS NULOS 33 TREINTA Y TRES TOTAL VOTOS NO MARCADOS 47 CUARENT",
+      "mio_texto": "TREINTAYTRES CUARENTAYSIETE TOTALVOTOSNOMARCADOS"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.2,
+      "cer": 0.622,
+      "gt_texto": "CRISTIAN PERDOMO",
+      "mio_texto": "JOHNJAIMESALASCARDONA CRISTIANPERDOMO"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.2,
+      "cer": 0.685,
+      "gt_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "ALEXANDRAMARIARIVERA SECRETARIO(S)DELACOMISIONESCRUTADORA MIEMBROSDELA"
+     }
+    ]
+   },
+   "tablas": {
+    "detectadas_tesseract": [],
+    "gt_datalab": 2,
+    "detalle_vs_gt": [
+     {
+      "match": false
+     },
+     {
+      "match": false
+     }
+    ]
+   },
+   "ruta": "03-E26-ACTA-PARCIAL-6PAG/pag-03"
+  },
+  "03-E26-ACTA-PARCIAL-6PAG/pag-04": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1374,
+   "ms_ocr_rapidocr": 4686,
+   "ms_render_md_html": 0.7,
+   "fidelidad_tesseract": {
+    "gt_bloques": 18,
+    "mis_bloques": 22,
+    "matcheados": 8,
+    "cobertura_gt": 0.444,
+    "cer_mediano": 0.5395,
+    "cer_sin_digitos_mediano": 0.5395,
+    "cer_medio": 0.503,
+    "tipos_coinciden": "4/8",
+    "tipo_tasa": 0.5,
+    "orden_pares": 28,
+    "orden_inversiones": 4,
+    "orden_tasa": 0.857,
+    "detalle": [
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "parrafo",
+      "iou": 0.29,
+      "cer": 0.484,
+      "gt_texto": "REPÚBLICA DE COLOMBIA ORGANIZACIÓN ELECTORAL ELECCIONES AUTORIDADES TE",
+      "mio_texto": "A 5 L ORGANIZACIÓN ELECTORAL U ) ELECCIONES AUTORIDADES TERRITORIALES "
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "seccion",
+      "iou": 0.35,
+      "cer": 0,
+      "gt_texto": "DEPARTAMENTO 01-ANTIOQUIA MUNICIPIO 007-ABRIAQUI",
+      "mio_texto": ""
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.82,
+      "cer": 0,
+      "gt_texto": "TOTAL VOTOS VALIDOS 1.383 NUMERO DE CURULES 6 CUOCIENTE ELECTORAL 230 ",
+      "mio_texto": "   "
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.63,
+      "cer": 0,
+      "gt_texto": "CÓDIGO PARTIDO O MOVIMIENTO POLÍTICO VOTOS 0002 PARTIDO CONSERVADOR CO",
+      "mio_texto": "    "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.26,
+      "cer": 1,
+      "gt_texto": "CRISTIAN PERDOMO",
+      "mio_texto": ""
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.22,
+      "cer": 0.539,
+      "gt_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA SECRETARIO(S) DE LA COMISIÓN ESCRU"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.29,
+      "cer": 1,
+      "gt_texto": "JOHN JAIME SALAS CARDONA",
+      "mio_texto": ""
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.34,
+      "cer": 1,
+      "gt_texto": "ALEXANDRA MARIA RIVERA",
+      "mio_texto": ""
+     }
+    ]
+   },
+   "fidelidad_rapidocr": {
+    "gt_bloques": 18,
+    "mis_bloques": 7,
+    "matcheados": 3,
+    "cobertura_gt": 0.167,
+    "cer_mediano": 0.5135,
+    "cer_sin_digitos_mediano": 0.5135,
+    "cer_medio": 0.3996,
+    "tipos_coinciden": "2/3",
+    "tipo_tasa": 0.667,
+    "orden_pares": 3,
+    "orden_inversiones": 1,
+    "orden_tasa": 0.667,
+    "detalle": [
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.42,
+      "cer": 0,
+      "gt_texto": "CÓDIGO PARTIDO O MOVIMIENTO POLÍTICO VOTOS 0002 PARTIDO CONSERVADOR CO",
+      "mio_texto": "PARTIDOCAMBIORADICAL 343 PARTIDOCENTRODEMOCRATICO 0011"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.21,
+      "cer": 0.685,
+      "gt_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "ALEXANDRAMARIARIVERA SECRETARIO(S)DELACOMISIONESCRUTADORA MIEMBROSDELA"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.22,
+      "cer": 0.514,
+      "gt_texto": "JOHN JAIME SALAS CARDONA",
+      "mio_texto": "JOHNJAIMESALASCARDONA CRISTIANPERDOMO"
+     }
+    ]
+   },
+   "tablas": {
+    "detectadas_tesseract": [
+     {
+      "filas": 2,
+      "cols": 2,
+      "celdas_con_texto": 3
+     }
+    ],
+    "gt_datalab": 3,
+    "detalle_vs_gt": [
+     {
+      "match": false
+     },
+     {
+      "match": false
+     },
+     {
+      "match": false
+     }
+    ]
+   },
+   "ruta": "03-E26-ACTA-PARCIAL-6PAG/pag-04"
+  },
+  "03-E26-ACTA-PARCIAL-6PAG/pag-05": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1963,
+   "ms_ocr_rapidocr": 5746,
+   "ms_render_md_html": 1.1,
+   "fidelidad_tesseract": {
+    "gt_bloques": 18,
+    "mis_bloques": 30,
+    "matcheados": 11,
+    "cobertura_gt": 0.611,
+    "cer_mediano": 0,
+    "cer_sin_digitos_mediano": 0,
+    "cer_medio": 0.149,
+    "tipos_coinciden": "3/11",
+    "tipo_tasa": 0.273,
+    "orden_pares": 55,
+    "orden_inversiones": 2,
+    "orden_tasa": 0.964,
+    "detalle": [
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "tabla",
+      "iou": 0.38,
+      "cer": 0.631,
+      "gt_texto": "REPÚBLICA DE COLOMBIA ORGANIZACIÓN ELECTORAL ELECCIONES AUTORIDADES TE",
+      "mio_texto": "  27 DE OCTUBRE DE 2019     REGISTRADURÍA ESTADO CIVIL ACTA PARCIAL DE"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.5,
+      "cer": 0,
+      "gt_texto": "E-26 CON",
+      "mio_texto": "     E-26 CON "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.51,
+      "cer": 0,
+      "gt_texto": "Pág 5 de 6",
+      "mio_texto": "       Pág 5 de 6"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.29,
+      "cer": 0,
+      "gt_texto": "DEPARTAMENTO 01-ANTIOQUIA MUNICIPIO 007-ABRIAQUI",
+      "mio_texto": ""
+     },
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "titulo",
+      "iou": 0.54,
+      "cer": 0,
+      "gt_texto": "CIFRA REPARTIDORA",
+      "mio_texto": "CIFRA REPARTIDORA"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.46,
+      "cer": 0.009,
+      "gt_texto": "En cumplimiento del artículo 263 de la Constitución Nacional (Acto Leg",
+      "mio_texto": "En cumplimiento del artículo 263 de la Constitución Nacional (Acto Leg"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.41,
+      "cer": 0,
+      "gt_texto": "CÓDIGO PARTIDO O MOVIMIENTO POLITICO VOTACIÓN / CIFRA R. VOTOS ENTERO ",
+      "mio_texto": "  "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.22,
+      "cer": 1,
+      "gt_texto": "CRISTIAN PERDOMO",
+      "mio_texto": ""
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.53,
+      "cer": 0,
+      "gt_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA     "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.3,
+      "cer": 0,
+      "gt_texto": "ALEXANDRA MARIA RIVERA",
+      "mio_texto": "     ALEXANDRA MARIA RIVERA "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.51,
+      "cer": 0,
+      "gt_texto": "SECRETARIO(S) DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "    SECRETARIO(S) DE LA COMISIÓN  ESCRUTADORA"
+     }
+    ]
+   },
+   "fidelidad_rapidocr": {
+    "gt_bloques": 18,
+    "mis_bloques": 6,
+    "matcheados": 4,
+    "cobertura_gt": 0.222,
+    "cer_mediano": 0.5135,
+    "cer_sin_digitos_mediano": 0.5135,
+    "cer_medio": 0.4228,
+    "tipos_coinciden": "3/4",
+    "tipo_tasa": 0.75,
+    "orden_pares": 6,
+    "orden_inversiones": 1,
+    "orden_tasa": 0.833,
+    "detalle": [
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.22,
+      "cer": 0.492,
+      "gt_texto": "En cumplimiento del artículo 263 de la Constitución Nacional (Acto Leg",
+      "mio_texto": "REPUBLICADECOLOMBIA ORGANIZACIONELECTORAL ELECCIONESAUTORIDADESTERRITO"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.45,
+      "cer": 0,
+      "gt_texto": "CÓDIGO PARTIDO O MOVIMIENTO POLITICO VOTACIÓN / CIFRA R. VOTOS ENTERO ",
+      "mio_texto": "DECIMAL CURUL(ES) 702 0002 4 0 PARTIDOCONSERVADORCOLOMBIANO 4 343"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.21,
+      "cer": 0.685,
+      "gt_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "ALEXANDRAMARIARIVERA SECRETARIO(S)DELACOMISIONESCRUTADORA MIEMBROSDELA"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "pie",
+      "iou": 0.22,
+      "cer": 0.514,
+      "gt_texto": "JOHN JAIME SALAS CARDONA",
+      "mio_texto": "JOHNJAIMESALASCARDONA CRISTIANPERDOMO"
+     }
+    ]
+   },
+   "tablas": {
+    "detectadas_tesseract": [
+     {
+      "filas": 3,
+      "cols": 8,
+      "celdas_con_texto": 9
+     },
+     {
+      "filas": 1,
+      "cols": 8,
+      "celdas_con_texto": 2
+     },
+     {
+      "filas": 2,
+      "cols": 8,
+      "celdas_con_texto": 7
+     },
+     {
+      "filas": 1,
+      "cols": 8,
+      "celdas_con_texto": 1
+     },
+     {
+      "filas": 3,
+      "cols": 8,
+      "celdas_con_texto": 12
+     },
+     {
+      "filas": 1,
+      "cols": 9,
+      "celdas_con_texto": 3
+     },
+     {
+      "filas": 1,
+      "cols": 9,
+      "celdas_con_texto": 4
+     },
+     {
+      "filas": 1,
+      "cols": 9,
+      "celdas_con_texto": 4
+     }
+    ],
+    "gt_datalab": 3,
+    "detalle_vs_gt": [
+     {
+      "match": false
+     },
+     {
+      "match": false
+     },
+     {
+      "match": true,
+      "iou": 0.16,
+      "filas_gt": [
+       "CÓDIGO",
+       "PARTIDO",
+       "O",
+       "MOVIMIENTO",
+       "POLITICO",
+       "VOTACIÓN",
+       "/",
+       "CIFRA",
+       "R.",
+       "VOTOS",
+       "ENTERO",
+       "DECIMAL",
+       "POSIBLE(S)",
+       "CURUL(ES)",
+       "0002",
+       "PARTIDO",
+       "CONSERVADOR",
+       "COLOMBIANO",
+       "702",
+       "4",
+       "0",
+       "4",
+       "0003",
+       "PARTIDO",
+       "CAMBIO",
+       "RADICAL",
+       "343",
+       "1",
+       "95441",
+       "1",
+       "0011",
+       "PARTIDO",
+       "CENTRO",
+       "DEMOCRÁTICO",
+       "318",
+       "1",
+       "81196",
+       "1",
+       "TOTAL",
+       "CURULES",
+       "6"
+      ],
+      "filas_mias": [
+       "LA CIFRA REPARTIDORA",
+       "CALCULO DE",
+       "POR PARTIDO O",
+       "POLITICO",
+       "CÓDIGO 0002 | 0003 | 0011 TOTAL CURULES",
+       "PARTIDO O CONSERVADOR CAMBIO RADICAL CENTRO DEMOCRÁTICO PERDOMO",
+       "SALAS CARDONA",
+       "voTOS",
+       "702 343 318",
+       "VOTACIÓN | CIFRARR. DECIMAL 4 95441 1 81196 ———",
+       "CURULIES o",
+       "4 1 1 6"
+      ],
+      "cer_tabla": 0.693
+     }
+    ],
+    "puerta_cifra_repartidora": {
+     "esperada": "175.5",
+     "leida": null
+    }
+   },
+   "ruta": "03-E26-ACTA-PARCIAL-6PAG/pag-05"
+  },
+  "03-E26-ACTA-PARCIAL-6PAG/pag-06": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1912,
+   "ms_ocr_rapidocr": 5503,
+   "ms_render_md_html": 1,
+   "fidelidad_tesseract": {
+    "gt_bloques": 17,
+    "mis_bloques": 38,
+    "matcheados": 13,
+    "cobertura_gt": 0.765,
+    "cer_mediano": 0,
+    "cer_sin_digitos_mediano": 0,
+    "cer_medio": 0.2308,
+    "tipos_coinciden": "6/13",
+    "tipo_tasa": 0.462,
+    "orden_pares": 78,
+    "orden_inversiones": 12,
+    "orden_tasa": 0.846,
+    "detalle": [
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "titulo",
+      "iou": 0.84,
+      "cer": 0,
+      "gt_texto": "REGISTRADURÍA NACIONAL DEL ESTADO CIVIL",
+      "mio_texto": "REGISTRADURÍA NACIONAL DEL ESTADO CIVIL"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.5,
+      "cer": 0,
+      "gt_texto": "E-26 CON",
+      "mio_texto": "    E-26 CON "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.45,
+      "cer": 0,
+      "gt_texto": "Pág 6 de 6",
+      "mio_texto": "      Pág 6 de 6"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "tabla",
+      "iou": 0.77,
+      "cer": 0,
+      "gt_texto": "PARTIDO Y/O MOVIMIENTO POLÍTICO CANDIDATO CÉDULA 0002-PARTIDO CONSERVA",
+      "mio_texto": "   DE ELECCIÓN     En consecuencia se declaran electos CONCEJALES depa"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.81,
+      "cer": 0,
+      "gt_texto": "Teniendo en cuenta que al momento de realizar la declaratoria de ALCAL",
+      "mio_texto": " Teniendo en cuenta que al momento de realizar la declaratoria de ALCA"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "seccion",
+      "iou": 0.58,
+      "cer": 1,
+      "gt_texto": "",
+      "mio_texto": "PAZ"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.31,
+      "cer": 0,
+      "gt_texto": "CRISTIAN PERDOMO",
+      "mio_texto": "CRISTIAN PERDOMO           "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.53,
+      "cer": 0,
+      "gt_texto": "MIEMBROS DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": " MIEMBROS DE LA COMISIÓN  ESCRUTADORA       "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.64,
+      "cer": 1,
+      "gt_texto": "",
+      "mio_texto": "————"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.36,
+      "cer": 0,
+      "gt_texto": "JOHN JAIME SALAS CARDONA",
+      "mio_texto": "    JOHN JAIME SALAS CARDONA     "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "titulo",
+      "iou": 0.56,
+      "cer": 1,
+      "gt_texto": "",
+      "mio_texto": "-—Z—"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.3,
+      "cer": 0,
+      "gt_texto": "ALEXANDRA MARIA RIVERA",
+      "mio_texto": "         ALEXANDRA MARIA RIVERA "
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "tabla",
+      "iou": 0.51,
+      "cer": 0,
+      "gt_texto": "SECRETARIO(S) DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "        SECRETARIO(S) DE LA COMISIÓN  ESCRUTADORA"
+     }
+    ]
+   },
+   "fidelidad_rapidocr": {
+    "gt_bloques": 17,
+    "mis_bloques": 12,
+    "matcheados": 4,
+    "cobertura_gt": 0.235,
+    "cer_mediano": 0.7034,
+    "cer_sin_digitos_mediano": 0.7011,
+    "cer_medio": 0.4076,
+    "tipos_coinciden": "2/4",
+    "tipo_tasa": 0.5,
+    "orden_pares": 6,
+    "orden_inversiones": 0,
+    "orden_tasa": 1,
+    "detalle": [
+     {
+      "gt_tipo": "SectionHeader",
+      "mio_tipo": "parrafo",
+      "iou": 0.2,
+      "cer": 0.703,
+      "gt_texto": "REPÚBLICA DE COLOMBIA ORGANIZACIÓN ELECTORAL ELECCIONES AUTORIDADES TE",
+      "mio_texto": "REPUBLICADECOLOMBIA ORGANIZACIONELECTORAL ELECCIONESAUTORIDADESTERRITO"
+     },
+     {
+      "gt_tipo": "Table",
+      "mio_tipo": "parrafo",
+      "iou": 0.21,
+      "cer": 0,
+      "gt_texto": "PARTIDO Y/O MOVIMIENTO POLÍTICO CANDIDATO CÉDULA 0002-PARTIDO CONSERVA",
+      "mio_texto": "0011-PARTIDOCENTRODEMOCRATICO 71718302 VELEZGIRALDOOSCARDARIO 0011-PAR"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.63,
+      "cer": 0.195,
+      "gt_texto": "Teniendo en cuenta que al momento de realizar la declaratoria de ALCAL",
+      "mio_texto": "1023702128 TeniendoencuentaquealmomentoderealizarladeclaratoriadeALCAL"
+     },
+     {
+      "gt_tipo": "Text",
+      "mio_tipo": "parrafo",
+      "iou": 0.22,
+      "cer": 0.732,
+      "gt_texto": "SECRETARIO(S) DE LA COMISIÓN ESCRUTADORA",
+      "mio_texto": "JOHNJAIMESALASCARDONA ALEXANDRAMARIARIVERA CRISTIANPERDOMO SECRETARIO("
+     }
+    ]
+   },
+   "tablas": {
+    "detectadas_tesseract": [
+     {
+      "filas": 1,
+      "cols": 7,
+      "celdas_con_texto": 2
+     },
+     {
+      "filas": 1,
+      "cols": 7,
+      "celdas_con_texto": 2
+     },
+     {
+      "filas": 1,
+      "cols": 7,
+      "celdas_con_texto": 2
+     },
+     {
+      "filas": 1,
+      "cols": 7,
+      "celdas_con_texto": 1
+     },
+     {
+      "filas": 1,
+      "cols": 7,
+      "celdas_con_texto": 4
+     },
+     {
+      "filas": 4,
+      "cols": 8,
+      "celdas_con_texto": 17
+     },
+     {
+      "filas": 1,
+      "cols": 13,
+      "celdas_con_texto": 4
+     },
+     {
+      "filas": 1,
+      "cols": 13,
+      "celdas_con_texto": 2
+     },
+     {
+      "filas": 1,
+      "cols": 13,
+      "celdas_con_texto": 3
+     },
+     {
+      "filas": 1,
+      "cols": 13,
+      "celdas_con_texto": 4
+     },
+     {
+      "filas": 1,
+      "cols": 13,
+      "celdas_con_texto": 4
+     }
+    ],
+    "gt_datalab": 2,
+    "detalle_vs_gt": [
+     {
+      "match": false
+     },
+     {
+      "match": true,
+      "iou": 0.77,
+      "filas_gt": [
+       "PARTIDO",
+       "Y/O",
+       "MOVIMIENTO",
+       "POLÍTICO",
+       "CANDIDATO",
+       "CÉDULA",
+       "0002-PARTIDO",
+       "CONSERVADOR",
+       "COLOMBIANO",
+       "QUIROZ",
+       "QUIROZ",
+       "GERARDO",
+       "DE",
+       "JESUS",
+       "8060916",
+       "0002-PARTIDO",
+       "CONSERVADOR",
+       "COLOMBIANO",
+       "CRUZ",
+       "VILLA",
+       "JORGE",
+       "ENRIQUE",
+       "8065048",
+       "0002-PARTIDO",
+       "CONSERVADOR",
+       "COLOMBIANO",
+       "HERRERA",
+       "LOAIZA",
+       "LUIS",
+       "JAVIER",
+       "8415520",
+       "0002-PARTIDO",
+       "CONSERVADOR",
+       "COLOMBIANO",
+       "VARGAS",
+       "LOPEZ",
+       "LUZ",
+       "MARGOTH",
+       "21426266",
+       "0003-PARTIDO",
+       "CAMBIO",
+       "RADICAL",
+       "ALVAREZ",
+       "CARVAJAL",
+       "MIRYAM",
+       "LUCIA",
+       "21426157",
+       "0011-PARTIDO",
+       "CENTRO",
+       "DEMOCRÁTICO",
+       "VELEZ",
+       "GIRALDO",
+       "OSCAR",
+       "DARIO",
+       "71718302",
+       "0011-PARTIDO",
+       "CENTRO",
+       "DEMOCRÁTICO",
+       "DUQUE",
+       "CORREA",
+       "CARLOS",
+       "ANDRES",
+       "*",
+       "1023702128"
+      ],
+      "filas_mias": [
+       "DE ELECCIÓN",
+       "En consecuencia",
+       "se declaran electos",
+       "CONCEJALES",
+       "departamento de",
+       "municipio",
+       "de",
+       "ABRIAQUI para",
+       "el período 2020-",
+       "2023 alos siguientes",
+       "candidatos:",
+       "0002-PARTIDO 0002-PARTIDO 0002-PARTIDO 0002-PARTIDO 0003-PARTIDO 0011-PARTIDO 0011-PARTIDO",
+       "Y/O MOVIMIENTO CONSERVADOR CONSERVADOR CONSERVADOR CONSERVADOR CAMBIO RADICAL CENTRO DEMOCRÁTICO CENTRO DEMOCRÁTICO",
+       "POLÍTICO",
+       "QUIROZ GERARDO VILLA JORGE ENRIQUE LOAIZA LUIS JAVIER LOPEZ LUZ MARGOTH CARVAJAL MIRYAM GIRALDO OSCAR CORREA CARLOS",
+       "JESUS LUCIA *",
+       "CÉDULA 8060916 8065048 8415520 21426266 21426157 71718302 1023702128"
+      ],
+      "cer_tabla": 0.742
+     }
+    ]
+   },
+   "ruta": "03-E26-ACTA-PARCIAL-6PAG/pag-06"
+  },
+  "04-ACTA-E14-2PAG/acta-1-transmision-pag1": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1490,
+   "ms_ocr_rapidocr": 3243,
+   "ms_render_md_html": 0.6,
+   "ruta": "04-ACTA-E14-2PAG/acta-1-transmision-pag1"
+  },
+  "04-ACTA-E14-2PAG/acta-1-transmision-pag2": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1328,
+   "ms_ocr_rapidocr": 3022,
+   "ms_render_md_html": 0.4,
+   "ruta": "04-ACTA-E14-2PAG/acta-1-transmision-pag2"
+  },
+  "04-ACTA-E14-2PAG/acta-2-consul-embajador-pag1": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1733,
+   "ms_ocr_rapidocr": 3386,
+   "ms_render_md_html": 0.7,
+   "ruta": "04-ACTA-E14-2PAG/acta-2-consul-embajador-pag1"
+  },
+  "04-ACTA-E14-2PAG/acta-2-consul-embajador-pag2": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1417,
+   "ms_ocr_rapidocr": 3211,
+   "ms_render_md_html": 0.6,
+   "ruta": "04-ACTA-E14-2PAG/acta-2-consul-embajador-pag2"
+  },
+  "04-ACTA-E14-2PAG/referencia-p1": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1258,
+   "ms_ocr_rapidocr": 3149,
+   "ms_render_md_html": 0.7,
+   "tablas": {
+    "detectadas_tesseract": [
+     {
+      "filas": 4,
+      "cols": 3,
+      "celdas_con_texto": 8
+     },
+     {
+      "filas": 1,
+      "cols": 3,
+      "celdas_con_texto": 2
+     }
+    ],
+    "gt_datalab": 0,
+    "notas_e14": {
+     "rejilla_nivelacion": true,
+     "rejilla_candidatos": true,
+     "codigo_barras_leido": "712005322010102",
+     "nota": "votos manuscritos: solo presencia de tinta (contrato §1); ver tinta.json"
+    }
+   },
+   "ruta": "04-ACTA-E14-2PAG/referencia-p1"
+  },
+  "04-ACTA-E14-2PAG/referencia-p2": {
+   "dims": [
+    1700,
+    2200
+   ],
+   "ms_ocr_tesseract": 1199,
+   "ms_ocr_rapidocr": 3177,
+   "ms_render_md_html": 0.7,
+   "tablas": {
+    "detectadas_tesseract": [
+     {
+      "filas": 3,
+      "cols": 6,
+      "celdas_con_texto": 10
+     },
+     {
+      "filas": 3,
+      "cols": 5,
+      "celdas_con_texto": 11
+     },
+     {
+      "filas": 2,
+      "cols": 5,
+      "celdas_con_texto": 6
+     }
+    ],
+    "gt_datalab": 0,
+    "notas_e14": {
+     "rejilla_nivelacion": false,
+     "rejilla_candidatos": false,
+     "codigo_barras_leido": "712005322010202",
+     "nota": "votos manuscritos: solo presencia de tinta (contrato §1); ver tinta.json"
+    }
+   },
+   "ruta": "04-ACTA-E14-2PAG/referencia-p2"
+  }
+ },
+ "sintesis": {
+  "n_imagenes": 23,
+  "fidelidad_vs_datalab": {
+   "paginas_evaluadas": 9,
+   "cobertura_gt_media": 0.389,
+   "cer_medio": 0.219,
+   "tipo_tasa_media": 0.556,
+   "orden_tasa_media": 0.954,
+   "cobertura_gt_media_rapidocr": 0.202,
+   "cer_medio_rapidocr": 0.474,
+   "nota": "CER por bloque matcheado (IoU≥0.2); en recibo real el CER refleja también el recorte de la toma vac-01."
+  },
+  "campos_m2": {
+   "estructural": {
+    "exactos": 70,
+    "parciales": 49,
+    "fallidos": 51,
+    "tasa_media": 0.512,
+    "ms_medios": 0.2
+   },
+   "plano": {
+    "exactos": 72,
+    "parciales": 48,
+    "fallidos": 50,
+    "tasa_media": 0.517
+   },
+   "estructural_rapidocr": {
+    "exactos": 52,
+    "parciales": 32,
+    "fallidos": 86,
+    "tasa_media": 0.38,
+    "nota": "extracción desde el .md generado a partir de las cajas de línea de RapidOCR"
+   },
+   "clasificacion": {
+    "documentos": 11,
+    "clasifican": 11,
+    "falsos_rechazos": 0
+   }
+  },
+  "latencia": {
+   "tesseract_ms_mediano": 1258,
+   "rapidocr_ms_mediano": 3483,
+   "render_ms_mediano": 0.7,
+   "total_mediano": 1258.7
+  }
+ },
+ "tinta_s6": {
+  "metodo": "v2: fondo-local gaussiano + contraste agudo + oscuridad absoluta (PIL, sin modelos)",
+  "gt": "curación visual de 11 recortes únicos (supuesto declarado: sin luz del usuario)",
+  "nota_dataset": "recibo-impreso-01/02 son duplicados md5 de firmas-vacias-02/03; las etiquetas del dataset contradicen las fotos: vac-02 lleva firma del emisor y vac-03 ambas; el comprobante vac-03 lleva una marca pequeña.",
+  "n_pruebas_unicas": 10,
+  "parametros_optimos": {
+   "umbral_contraste": 60,
+   "gris_max": 130,
+   "dens_min": 0.02,
+   "acierto": 10,
+   "tasa": 1
+  },
+  "tasa_acierto_optimo": 1,
+  "falsos_positivos": 0,
+  "falsos_negativos": 0,
+  "pruebas": [
+   {
+    "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-01.jpg",
+    "campo": "firma_emisor",
+    "bbox": [
+     180,
+     1560,
+     512,
+     124
+    ],
+    "densidad": 0.01218,
+    "con_tinta": false,
+    "gt_con_tinta": false,
+    "acierto": true
+   },
+   {
+    "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-01.jpg",
+    "campo": "firma_pagador",
+    "bbox": [
+     739,
+     1580,
+     512,
+     124
+    ],
+    "densidad": 0.00633,
+    "con_tinta": false,
+    "gt_con_tinta": false,
+    "acierto": true
+   },
+   {
+    "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-02.jpg",
+    "campo": "firma_emisor",
+    "bbox": [
+     180,
+     1557,
+     511,
+     124
+    ],
+    "densidad": 0.08293,
+    "con_tinta": true,
+    "gt_con_tinta": true,
+    "acierto": true
+   },
+   {
+    "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-02.jpg",
+    "campo": "firma_pagador",
+    "bbox": [
+     738,
+     1577,
+     511,
+     124
+    ],
+    "densidad": 0.0107,
+    "con_tinta": false,
+    "gt_con_tinta": false,
+    "acierto": true
+   },
+   {
+    "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-03.jpg",
+    "campo": "firma_emisor",
+    "bbox": [
+     177,
+     1531,
+     502,
+     122
+    ],
+    "densidad": 0.04528,
+    "con_tinta": true,
+    "gt_con_tinta": true,
+    "acierto": true
+   },
+   {
+    "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-03.jpg",
+    "campo": "firma_pagador",
+    "bbox": [
+     725,
+     1551,
+     502,
+     122
+    ],
+    "densidad": 0.06172,
+    "con_tinta": true,
+    "gt_con_tinta": true,
+    "acierto": true
+   },
+   {
+    "imagen": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-01.jpg",
+    "campo": "firma_comprador",
+    "bbox": [
+     153,
+     880,
+     673,
+     121
+    ],
+    "densidad": 0.01601,
+    "con_tinta": false,
+    "gt_con_tinta": false,
+    "acierto": true
+   },
+   {
+    "imagen": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-02.jpg",
+    "campo": "firma_comprador",
+    "bbox": [
+     156,
+     895,
+     684,
+     123
+    ],
+    "densidad": 0.01966,
+    "con_tinta": false,
+    "gt_con_tinta": false,
+    "acierto": true
+   },
+   {
+    "imagen": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-03.jpg",
+    "campo": "firma_comprador",
+    "bbox": [
+     156,
+     893,
+     684,
+     122
+    ],
+    "densidad": 0.02145,
+    "con_tinta": true,
+    "gt_con_tinta": true,
+    "acierto": true
+   },
+   {
+    "imagen": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-04.jpg",
+    "campo": "firma_comprador",
+    "bbox": [
+     156,
+     898,
+     687,
+     123
+    ],
+    "densidad": 0.01351,
+    "con_tinta": false,
+    "gt_con_tinta": false,
+    "acierto": true
+   }
+  ],
+  "barrido": [
+   {
+    "umbral_contraste": 35,
+    "gris_max": 130,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 35,
+    "gris_max": 130,
+    "dens_min": 0.012,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 35,
+    "gris_max": 130,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 35,
+    "gris_max": 150,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 35,
+    "gris_max": 150,
+    "dens_min": 0.012,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 35,
+    "gris_max": 150,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 35,
+    "gris_max": 170,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 35,
+    "gris_max": 170,
+    "dens_min": 0.012,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 35,
+    "gris_max": 170,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 40,
+    "gris_max": 130,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 40,
+    "gris_max": 130,
+    "dens_min": 0.012,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 40,
+    "gris_max": 130,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 40,
+    "gris_max": 150,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 40,
+    "gris_max": 150,
+    "dens_min": 0.012,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 40,
+    "gris_max": 150,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 40,
+    "gris_max": 170,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 40,
+    "gris_max": 170,
+    "dens_min": 0.012,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 40,
+    "gris_max": 170,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 45,
+    "gris_max": 130,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 45,
+    "gris_max": 130,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 45,
+    "gris_max": 130,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 45,
+    "gris_max": 150,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 45,
+    "gris_max": 150,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 45,
+    "gris_max": 150,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 45,
+    "gris_max": 170,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 45,
+    "gris_max": 170,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 45,
+    "gris_max": 170,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 50,
+    "gris_max": 130,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 50,
+    "gris_max": 130,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 50,
+    "gris_max": 130,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 50,
+    "gris_max": 150,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 50,
+    "gris_max": 150,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 50,
+    "gris_max": 150,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 50,
+    "gris_max": 170,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 50,
+    "gris_max": 170,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 50,
+    "gris_max": 170,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 55,
+    "gris_max": 130,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 55,
+    "gris_max": 130,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 55,
+    "gris_max": 130,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 55,
+    "gris_max": 150,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 55,
+    "gris_max": 150,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 55,
+    "gris_max": 150,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 55,
+    "gris_max": 170,
+    "dens_min": 0.008,
+    "acierto": 4,
+    "tasa": 0.4
+   },
+   {
+    "umbral_contraste": 55,
+    "gris_max": 170,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 55,
+    "gris_max": 170,
+    "dens_min": 0.02,
+    "acierto": 9,
+    "tasa": 0.9
+   },
+   {
+    "umbral_contraste": 60,
+    "gris_max": 130,
+    "dens_min": 0.008,
+    "acierto": 5,
+    "tasa": 0.5
+   },
+   {
+    "umbral_contraste": 60,
+    "gris_max": 130,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 60,
+    "gris_max": 130,
+    "dens_min": 0.02,
+    "acierto": 10,
+    "tasa": 1
+   },
+   {
+    "umbral_contraste": 60,
+    "gris_max": 150,
+    "dens_min": 0.008,
+    "acierto": 5,
+    "tasa": 0.5
+   },
+   {
+    "umbral_contraste": 60,
+    "gris_max": 150,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 60,
+    "gris_max": 150,
+    "dens_min": 0.02,
+    "acierto": 10,
+    "tasa": 1
+   },
+   {
+    "umbral_contraste": 60,
+    "gris_max": 170,
+    "dens_min": 0.008,
+    "acierto": 5,
+    "tasa": 0.5
+   },
+   {
+    "umbral_contraste": 60,
+    "gris_max": 170,
+    "dens_min": 0.012,
+    "acierto": 6,
+    "tasa": 0.6
+   },
+   {
+    "umbral_contraste": 60,
+    "gris_max": 170,
+    "dens_min": 0.02,
+    "acierto": 10,
+    "tasa": 1
+   }
+  ]
+ }
+}

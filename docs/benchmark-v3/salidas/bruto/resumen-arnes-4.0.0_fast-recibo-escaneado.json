@@ -1,0 +1,11 @@
+{
+  "motor": "tesseract.js",
+  "variante": "4.0.0_fast",
+  "corridas": [
+    {
+      "ruta": "01-RECIBO-DE-PAGO/escaneado/pag-01.png",
+      "ms": 1422,
+      "heapDeltaMB": 0.1
+    }
+  ]
+}
