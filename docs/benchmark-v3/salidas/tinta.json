@@ -1,0 +1,538 @@
+{
+ "metodo": "v2: fondo-local gaussiano + contraste agudo + oscuridad absoluta (PIL, sin modelos)",
+ "gt": "curación visual de 11 recortes únicos (supuesto declarado: sin luz del usuario)",
+ "nota_dataset": "recibo-impreso-01/02 son duplicados md5 de firmas-vacias-02/03; las etiquetas del dataset contradicen las fotos: vac-02 lleva firma del emisor y vac-03 ambas; el comprobante vac-03 lleva una marca pequeña.",
+ "n_pruebas_unicas": 10,
+ "parametros_optimos": {
+  "umbral_contraste": 60,
+  "gris_max": 130,
+  "dens_min": 0.02,
+  "acierto": 10,
+  "tasa": 1.0
+ },
+ "tasa_acierto_optimo": 1.0,
+ "falsos_positivos": 0,
+ "falsos_negativos": 0,
+ "pruebas": [
+  {
+   "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-01.jpg",
+   "campo": "firma_emisor",
+   "bbox": [
+    180,
+    1560,
+    512,
+    124
+   ],
+   "densidad": 0.01218,
+   "con_tinta": false,
+   "gt_con_tinta": false,
+   "acierto": true
+  },
+  {
+   "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-01.jpg",
+   "campo": "firma_pagador",
+   "bbox": [
+    739,
+    1580,
+    512,
+    124
+   ],
+   "densidad": 0.00633,
+   "con_tinta": false,
+   "gt_con_tinta": false,
+   "acierto": true
+  },
+  {
+   "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-02.jpg",
+   "campo": "firma_emisor",
+   "bbox": [
+    180,
+    1557,
+    511,
+    124
+   ],
+   "densidad": 0.08293,
+   "con_tinta": true,
+   "gt_con_tinta": true,
+   "acierto": true
+  },
+  {
+   "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-02.jpg",
+   "campo": "firma_pagador",
+   "bbox": [
+    738,
+    1577,
+    511,
+    124
+   ],
+   "densidad": 0.0107,
+   "con_tinta": false,
+   "gt_con_tinta": false,
+   "acierto": true
+  },
+  {
+   "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-03.jpg",
+   "campo": "firma_emisor",
+   "bbox": [
+    177,
+    1531,
+    502,
+    122
+   ],
+   "densidad": 0.04528,
+   "con_tinta": true,
+   "gt_con_tinta": true,
+   "acierto": true
+  },
+  {
+   "imagen": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-03.jpg",
+   "campo": "firma_pagador",
+   "bbox": [
+    725,
+    1551,
+    502,
+    122
+   ],
+   "densidad": 0.06172,
+   "con_tinta": true,
+   "gt_con_tinta": true,
+   "acierto": true
+  },
+  {
+   "imagen": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-01.jpg",
+   "campo": "firma_comprador",
+   "bbox": [
+    153,
+    880,
+    673,
+    121
+   ],
+   "densidad": 0.01601,
+   "con_tinta": false,
+   "gt_con_tinta": false,
+   "acierto": true
+  },
+  {
+   "imagen": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-02.jpg",
+   "campo": "firma_comprador",
+   "bbox": [
+    156,
+    895,
+    684,
+    123
+   ],
+   "densidad": 0.01966,
+   "con_tinta": false,
+   "gt_con_tinta": false,
+   "acierto": true
+  },
+  {
+   "imagen": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-03.jpg",
+   "campo": "firma_comprador",
+   "bbox": [
+    156,
+    893,
+    684,
+    122
+   ],
+   "densidad": 0.02145,
+   "con_tinta": true,
+   "gt_con_tinta": true,
+   "acierto": true
+  },
+  {
+   "imagen": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-04.jpg",
+   "campo": "firma_comprador",
+   "bbox": [
+    156,
+    898,
+    687,
+    123
+   ],
+   "densidad": 0.01351,
+   "con_tinta": false,
+   "gt_con_tinta": false,
+   "acierto": true
+  }
+ ],
+ "barrido": [
+  {
+   "umbral_contraste": 35,
+   "gris_max": 130,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 35,
+   "gris_max": 130,
+   "dens_min": 0.012,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 35,
+   "gris_max": 130,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 35,
+   "gris_max": 150,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 35,
+   "gris_max": 150,
+   "dens_min": 0.012,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 35,
+   "gris_max": 150,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 35,
+   "gris_max": 170,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 35,
+   "gris_max": 170,
+   "dens_min": 0.012,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 35,
+   "gris_max": 170,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 40,
+   "gris_max": 130,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 40,
+   "gris_max": 130,
+   "dens_min": 0.012,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 40,
+   "gris_max": 130,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 40,
+   "gris_max": 150,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 40,
+   "gris_max": 150,
+   "dens_min": 0.012,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 40,
+   "gris_max": 150,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 40,
+   "gris_max": 170,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 40,
+   "gris_max": 170,
+   "dens_min": 0.012,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 40,
+   "gris_max": 170,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 45,
+   "gris_max": 130,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 45,
+   "gris_max": 130,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 45,
+   "gris_max": 130,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 45,
+   "gris_max": 150,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 45,
+   "gris_max": 150,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 45,
+   "gris_max": 150,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 45,
+   "gris_max": 170,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 45,
+   "gris_max": 170,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 45,
+   "gris_max": 170,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 50,
+   "gris_max": 130,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 50,
+   "gris_max": 130,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 50,
+   "gris_max": 130,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 50,
+   "gris_max": 150,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 50,
+   "gris_max": 150,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 50,
+   "gris_max": 150,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 50,
+   "gris_max": 170,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 50,
+   "gris_max": 170,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 50,
+   "gris_max": 170,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 55,
+   "gris_max": 130,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 55,
+   "gris_max": 130,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 55,
+   "gris_max": 130,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 55,
+   "gris_max": 150,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 55,
+   "gris_max": 150,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 55,
+   "gris_max": 150,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 55,
+   "gris_max": 170,
+   "dens_min": 0.008,
+   "acierto": 4,
+   "tasa": 0.4
+  },
+  {
+   "umbral_contraste": 55,
+   "gris_max": 170,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 55,
+   "gris_max": 170,
+   "dens_min": 0.02,
+   "acierto": 9,
+   "tasa": 0.9
+  },
+  {
+   "umbral_contraste": 60,
+   "gris_max": 130,
+   "dens_min": 0.008,
+   "acierto": 5,
+   "tasa": 0.5
+  },
+  {
+   "umbral_contraste": 60,
+   "gris_max": 130,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 60,
+   "gris_max": 130,
+   "dens_min": 0.02,
+   "acierto": 10,
+   "tasa": 1.0
+  },
+  {
+   "umbral_contraste": 60,
+   "gris_max": 150,
+   "dens_min": 0.008,
+   "acierto": 5,
+   "tasa": 0.5
+  },
+  {
+   "umbral_contraste": 60,
+   "gris_max": 150,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 60,
+   "gris_max": 150,
+   "dens_min": 0.02,
+   "acierto": 10,
+   "tasa": 1.0
+  },
+  {
+   "umbral_contraste": 60,
+   "gris_max": 170,
+   "dens_min": 0.008,
+   "acierto": 5,
+   "tasa": 0.5
+  },
+  {
+   "umbral_contraste": 60,
+   "gris_max": 170,
+   "dens_min": 0.012,
+   "acierto": 6,
+   "tasa": 0.6
+  },
+  {
+   "umbral_contraste": 60,
+   "gris_max": 170,
+   "dens_min": 0.02,
+   "acierto": 10,
+   "tasa": 1.0
+  }
+ ]
+}

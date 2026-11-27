@@ -1,0 +1,116 @@
+{
+  "motor": "tesseract.js",
+  "variante": "4.0.0_fast",
+  "corridas": [
+    {
+      "ruta": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-01.jpg",
+      "ms": 987,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-02.jpg",
+      "ms": 901,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "01-RECIBO-DE-PAGO/real/recibo-a-impreso-firmas-vacias-03.jpg",
+      "ms": 878,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "01-RECIBO-DE-PAGO/real/recibo-impreso-01.jpg",
+      "ms": 890,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "01-RECIBO-DE-PAGO/real/recibo-impreso-02.jpg",
+      "ms": 881,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "02-RECIBO-DE-ENTREGA/escaneado/pag-01.png",
+      "ms": 1357,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-01.jpg",
+      "ms": 585,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-02.jpg",
+      "ms": 979,
+      "heapDeltaMB": -0.3
+    },
+    {
+      "ruta": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-03.jpg",
+      "ms": 1117,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "02-RECIBO-DE-ENTREGA/real/comprobante-a-impreso-firmas-vacias-04.jpg",
+      "ms": 447,
+      "heapDeltaMB": 0
+    },
+    {
+      "ruta": "03-E26-ACTA-PARCIAL-6PAG/escaneado/pag-01.png",
+      "ms": 2942,
+      "heapDeltaMB": 0.3
+    },
+    {
+      "ruta": "03-E26-ACTA-PARCIAL-6PAG/escaneado/pag-02.png",
+      "ms": 1431,
+      "heapDeltaMB": -1.5
+    },
+    {
+      "ruta": "03-E26-ACTA-PARCIAL-6PAG/escaneado/pag-03.png",
+      "ms": 1130,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "03-E26-ACTA-PARCIAL-6PAG/escaneado/pag-04.png",
+      "ms": 1374,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "03-E26-ACTA-PARCIAL-6PAG/escaneado/pag-05.png",
+      "ms": 1963,
+      "heapDeltaMB": 0.2
+    },
+    {
+      "ruta": "03-E26-ACTA-PARCIAL-6PAG/escaneado/pag-06.png",
+      "ms": 1912,
+      "heapDeltaMB": 0.2
+    },
+    {
+      "ruta": "04-ACTA-E14-2PAG/escaneado/referencia-p1.png",
+      "ms": 1258,
+      "heapDeltaMB": -0.1
+    },
+    {
+      "ruta": "04-ACTA-E14-2PAG/escaneado/referencia-p2.png",
+      "ms": 1199,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "04-ACTA-E14-2PAG/real/acta-1-transmision-pag1.png",
+      "ms": 1490,
+      "heapDeltaMB": -0.7
+    },
+    {
+      "ruta": "04-ACTA-E14-2PAG/real/acta-1-transmision-pag2.png",
+      "ms": 1328,
+      "heapDeltaMB": 0.1
+    },
+    {
+      "ruta": "04-ACTA-E14-2PAG/real/acta-2-consul-embajador-pag1.png",
+      "ms": 1733,
+      "heapDeltaMB": 0.2
+    },
+    {
+      "ruta": "04-ACTA-E14-2PAG/real/acta-2-consul-embajador-pag2.png",
+      "ms": 1417,
+      "heapDeltaMB": 0.1
+    }
+  ]
+}
