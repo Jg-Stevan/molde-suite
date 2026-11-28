@@ -190,7 +190,8 @@ const lados = [...new Set(runs.map((r) => r.lado))].sort((a, b) => a - b);
 
 console.log(`\n### ${crudo.split(/[\\/]/).slice(-3, -2)[0]} · ${MOTOR} · ${MAESTRA}${CABECERA ? " · rescate" : ""}\n`);
 for (const lado of lados) {
-  const r = runs.find((x) => x.lado === lado);
+  const delLado = runs.filter((x) => x.lado === lado);
+  const r = delLado[0];
   const lineas = agruparRenglones(r.lineas ?? []);
   const W = r.cropW ?? r.limpioW;
   const H = r.cropH ?? r.limpioH;
@@ -199,15 +200,35 @@ for (const lado of lados) {
   const oblig = resultados.filter((x) => !x.campo.opcional && !x.campo.tinta);
   const ok = oblig.filter((x) => x.estado === "ok").length;
   const noVerif = oblig.filter((x) => x.estado !== "ok").length;
+  // Repeticiones: el conteo por fila puede variar entre pasadas (el OCR no es
+  // determinista con la misma imagen en todos los motores), así que se reporta
+  // la mediana sobre todas, no solo la primera lectura.
+  const med = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
+  const porRep = delLado.map((x) => {
+    const re = campos.map((c) => evaluarCampo(c, agruparRenglones(x.lineas ?? []), x.cropW ?? x.limpioW, x.cropH ?? x.limpioH));
+    const ob = re.filter((y) => !y.campo.opcional && !y.campo.tinta);
+    return {
+      campos: ob.filter((y) => y.estado === "ok").length,
+      etiq: gt.filter((e) => norm(x.texto).includes(norm(e))).length,
+      okPorCampo: Object.fromEntries(re.map((y) => [y.campo.id, y.estado === "ok"])),
+    };
+  });
   const dims = r.cropW ? `${r.cropW}×${r.cropH} (recorte de ${r.limpioW}×${r.limpioH})` : `${r.limpioW}×${r.limpioH}`;
   console.log(
     `— lado ${lado} (${dims}) · ms=${r.ms} · conf=${r.conf} · etiquetas GT reales=${etiq.filter(Boolean).length}/${gt.length} · campos obligatorios OK=${ok}/${oblig.length}` +
       ` → ${noVerif ? "EN_REVISION_HUMANA (NO SE PUDO VERIFICAR " + noVerif + ")" : "VERIFICABLE (firmas pendientes de tinta)"}`,
   );
+  if (delLado.length > 1) {
+    const camposOk = [...new Set(porRep.map((p) => p.campos))].sort((a, b) => a - b);
+    console.log(
+      `  ${delLado.length} repeticiones: campos OK mediana=${med(porRep.map((p) => p.campos))}/${oblig.length} (rangos ${camposOk.join(",")}) · etiquetas mediana=${med(porRep.map((p) => p.etiq))}/${gt.length}`,
+    );
+  }
   for (const x of resultados) {
     const estado = EMOJI[x.estado] ?? x.estado;
     const valor = x.estado === "ok" || x.estado === "parcial" ? enmascarar(x) : x.estado === "sin_lectura" && x.valor ? "«" + enmascarar(x) + "»" : "";
-    console.log(`    ${x.campo.id.padEnd(15)} ${estado.padEnd(9)} ${valor}`);
+    const estables = porRep.filter((p) => p.okPorCampo?.[x.campo.id]).length;
+    console.log(`    ${x.campo.id.padEnd(15)} ${estado.padEnd(9)} ${valor}${estables && delLado.length > 1 ? ` (${estables}/${delLado.length} reps)` : ""}`);
   }
   console.log("");
 }
