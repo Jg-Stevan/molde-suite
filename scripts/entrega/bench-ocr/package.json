@@ -10,7 +10,14 @@
   },
   "dependencies": {
     "@zxing/library": "0.23.0",
+    "client-side-ocr": "2.1.0",
+    "ffocr": "0.1.13",
+    "litert-ocr": "0.2.2",
+    "ocrad.js": "0.0.1",
     "onnxruntime-web": "1.31.1",
+    "ppu-indra-ocr": "0.3.0",
+    "ppu-paddle-ocr": "6.7.1",
+    "scribe.js-ocr": "0.18.3",
     "tesseract.js": "7.0.0"
   }
 }

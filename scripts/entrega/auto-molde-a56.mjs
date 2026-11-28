@@ -556,8 +556,8 @@ async function main() {
 
   const corridas = [];
   const planes = [
-    { etiqueta: "recibo", archivo: "recibo-real-01.jpg" },
-    { etiqueta: "comprobante", archivo: "comprobante-real-01.jpg" },
+    { etiqueta: "recibo", archivo: process.env.TAMIZ_FIXTURE ?? "recibo-real-01.jpg" },
+    { etiqueta: "comprobante", archivo: process.env.TAMIZ_FIXTURE_COMPROBANTE ?? "comprobante-real-01.jpg" },
     { etiqueta: "acta-e14", archivo: "acta-e14-pag1.png" },
   ].filter((p) => !SOLO || p.etiqueta === SOLO);
 
