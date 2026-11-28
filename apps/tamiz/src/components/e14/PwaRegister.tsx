@@ -20,6 +20,10 @@ function registrarSw(): Promise<ServiceWorkerRegistration | null> {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
     return Promise.resolve(null);
   }
+  // En dev los chunks de `/_next/static/` no llevan hash y el SW los cachea
+  // cache-first: cada recarga servía el bundle viejo (error «module factory
+  // is not available» y ajustes que no llegan al teléfono).
+  if (process.env.NODE_ENV !== 'production') return Promise.resolve(null);
   registroEnVuelo ??= navigator.serviceWorker
     .register(rutaPublica('/sw.js'), { scope: rutaPublica('/') })
     .catch(() => {
