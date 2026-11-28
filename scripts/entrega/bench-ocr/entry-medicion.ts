@@ -546,9 +546,14 @@ async function ejecutarCorrida(c: Corrida): Promise<ResultadoCorrida> {
         conf: Math.round(p.conf) / 100,
         box: [{ x: p.x0, y: p.y0 }, { x: p.x1, y: p.y0 }, { x: p.x1, y: p.y1 }, { x: p.x0, y: p.y1 }],
       }));
-    } else if (EXT_SPEC[c.motor]) {
-      const ext = EXT_SPEC[c.motor];
-      const r = await ext.rec(canvas);
+    } else if (EXT_SPEC[c.motor] || EXT_ALIAS[c.motor]) {
+      const { ext, crop, escala } = extDe(c.motor)!;
+      const imagen = crop ? recorteCanvas(canvas, crop, escala) : canvas;
+      if (crop) {
+        res.cropW = imagen.width;
+        res.cropH = imagen.height;
+      }
+      const r = await ext.rec(imagen);
       texto = r.texto;
       res.conf = r.conf100;
       lineas = r.lineas;
@@ -631,6 +636,18 @@ const TESS_SPEC: Record<string, TessSpec> = {
   // Rescate de cabecera (cambio 4): recorte del bloque «Fecha / N.º Recibo»,
   // PSM 6 a 2× sobre el recorte. Solo para los dos campos que PSM 3 no segmenta.
   tess_header_p6: { modelo: "fast", lang: "spa", psm: "6", crop: [0.30, 0.02, 0.85, 0.25], escala: 2 },
+  // Variantes anchas: el recorte estrecho trunca el último carácter del valor
+  // («REC-2026-01») y pierde el año de la fecha. Se prueba el bloque completo.
+  tess_header_pw: { modelo: "fast", lang: "spa", psm: "6", crop: [0.05, 0.02, 0.95, 0.30], escala: 2 },
+  tess_header_pw1: { modelo: "fast", lang: "spa", psm: "6", crop: [0.05, 0.02, 0.95, 0.30], escala: 1 },
+  tess_header_p11w: { modelo: "fast", lang: "spa", psm: "11", crop: [0.05, 0.02, 0.95, 0.30], escala: 2 },
+  tess_header_bpw: { modelo: "best", lang: "spa", psm: "6", crop: [0.05, 0.02, 0.95, 0.30], escala: 2 },
+  // Banda fina medida sobre las cajas reales de la cabecera (las dos líneas de
+  // «Fecha» y «N.º Recibo» caen en x 0,60–0,95 · y 0,135–0,195 del rectificado).
+  tess_hdr_par: { modelo: "fast", lang: "spa", psm: "6", crop: [0.60, 0.135, 0.95, 0.195], escala: 3 },
+  tess_hdr_par_p7: { modelo: "fast", lang: "spa", psm: "7", crop: [0.60, 0.135, 0.95, 0.195], escala: 3 },
+  tess_hdr_par_p11: { modelo: "fast", lang: "spa", psm: "11", crop: [0.60, 0.135, 0.95, 0.195], escala: 3 },
+  tess_hdr_par_e2: { modelo: "fast", lang: "spa", psm: "6", crop: [0.60, 0.135, 0.95, 0.195], escala: 2 },
 };
 
 // Motores de terceros (medición sin molde): init/reconocer normalizados a
@@ -642,7 +659,27 @@ const EXT_SPEC: Record<string, { init: (hilos?: number) => Promise<void>; rec: (
   ffocr: { init: ffocrInit, rec: ffocrReconocer },
   indra_v31: { init: indraInit, rec: indraReconocer },
 };
-const motoresDisponibles = [...Object.keys(TESS_SPEC), ...Object.keys(EXT_SPEC), "rapid1280", "rapid1920"];
+
+// Alias con pre-proceso: el MISMO recorte de cabecera que usa tess_header_p6,
+// pero con el reconocedor que sí segmenta el impreso. Mide el coste de un
+// segundo pase acotado (la página entera con litert cuesta 25-43 s en ≤4 GB).
+const EXT_ALIAS: Record<string, { base: string; crop: [number, number, number, number]; escala: number }> = {
+  litert_header: { base: "litert", crop: [0.3, 0.02, 0.85, 0.25], escala: 2 },
+  litert_header_w: { base: "litert", crop: [0.05, 0.02, 0.95, 0.3], escala: 2 },
+};
+const extDe = (motor: string) => {
+  const a = EXT_ALIAS[motor];
+  const base = a?.base ?? motor;
+  const ext = EXT_SPEC[base];
+  return ext ? { ext, crop: a?.crop, escala: a?.escala ?? 1 } : null;
+};
+const motoresDisponibles = [
+  ...Object.keys(TESS_SPEC),
+  ...Object.keys(EXT_SPEC),
+  ...Object.keys(EXT_ALIAS),
+  "rapid1280",
+  "rapid1920",
+];
 
 async function iniciar(): Promise<void> {
   if (estado.iniciando || estado.listo) return;
@@ -697,11 +734,12 @@ async function iniciar(): Promise<void> {
             const warm = await tessReconocer(worker, mini, motor, spec.psm, undefined, spec.dpi);
             estado.meta.initFrioMs[motor] = Math.round(performance.now() - t);
             estado.meta.calentamientoMs[motor] = Math.round(warm.ms);
-          } else if (EXT_SPEC[motor]) {
-            const ext = EXT_SPEC[motor];
+          } else if (extDe(motor)) {
+            const { ext, crop, escala } = extDe(motor)!;
             await ext.init(HILOS_WASM);
+            const miniImg = crop ? recorteCanvas(mini, crop, escala) : mini;
             const t1 = performance.now();
-            await ext.rec(mini);
+            await ext.rec(miniImg);
             estado.meta.initFrioMs[motor] = Math.round(t1 - t);
             estado.meta.calentamientoMs[motor] = Math.round(performance.now() - t1);
           } else {

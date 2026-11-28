@@ -25,7 +25,7 @@ const op = (n, d) => {
 };
 const EQUIPOS = (op("equipos", "a56,a12,a13")).split(",").map((x) => x.trim()).filter(Boolean);
 const SALIDA = op("salida", join(homedir(), "Downloads", "motores-sinmolde.md"));
-const CARPETA = "motores-sinmolde";
+const CARPETA = op("carpeta", "motores-sinmolde");
 
 const mediana = (a) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : 0);
 const media = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
@@ -41,11 +41,15 @@ const secciones = [];
 const extras = [];
 for (const equipo of EQUIPOS) {
   const ruta = join(BASE, equipo, CARPETA, "resultados-medicion.json");
-  if (!existsSync(ruta)) {
+  // `p6` = página completa con PSM 6 (viene de la corrida de familia o del sondeo
+  // del débil); se puntúa en igualdad de condiciones que los demás motores.
+  const rutas = [ruta, join(BASE, equipo, "p6", "resultados-medicion.json")].filter((p) => existsSync(p));
+  if (!rutas.includes(ruta)) {
     extras.push(`> **${equipo.toUpperCase()}**: sin crudo en \`${ruta.replace(/\\/g, "/")}\` (aún no terminó o no se corrió).`);
-    continue;
+    if (!rutas.length) continue;
   }
-  const s = JSON.parse(readFileSync(ruta, "utf8"));
+  for (const p of rutas) {
+  const s = JSON.parse(readFileSync(p, "utf8"));
   const res = s.resultados ?? [];
   for (const r of res) {
     const { hit, total } = cuentaEtiquetas(r);
@@ -66,7 +70,8 @@ for (const equipo of EQUIPOS) {
       error: r.error ?? "",
     });
   }
-  secciones.push({ equipo, meta: s.meta ?? {}, ruta });
+  secciones.push({ equipo, meta: s.meta ?? {}, ruta: p });
+  }
 }
 
 const agrupa = new Map();
@@ -125,32 +130,54 @@ for (const s of secciones) {
 }
 for (const x of extras) md.push(x, "");
 
-// ── Validación nativa (A56): el ganador sobre las limpias a su lado mayor real ──
-const rutaNativo = join(BASE, "a56", "nativo", "resultados-medicion.json");
-if (existsSync(rutaNativo)) {
-  const s = JSON.parse(readFileSync(rutaNativo, "utf8"));
-  const agg = new Map();
-  for (const r of s.resultados ?? []) {
-    if (r.error) continue;
-    const k = `${r.motor}|${r.maestra}|${r.lado}`;
-    if (!agg.has(k)) agg.set(k, []);
-    agg.get(k).push(r);
+// ── Secciones de carpetas adicionales (nativo sin downsample, rescate de cabecera) ──
+const seccionCarpeta = (carpetas, titulo, intro, notaEquipo = true) => {
+  const filasEq = [];
+  for (const equipo of EQUIPOS) {
+    for (const carpeta of [].concat(carpetas)) {
+    const ruta = join(BASE, equipo, carpeta, "resultados-medicion.json");
+    if (!existsSync(ruta)) continue;
+    for (const r of JSON.parse(readFileSync(ruta, "utf8")).resultados ?? []) {
+      if (r.error) continue;
+      filasEq.push({ equipo, motor: r.motor, maestra: r.maestra, lado: r.lado, r });
+    }
+    }
   }
-  md.push("## Validación nativa (A56, sin downsample)");
+  if (!filasEq.length) return;
+  const agg = new Map();
+  for (const f of filasEq) {
+    const k = `${f.equipo}|${f.motor}|${f.maestra}|${f.lado}`;
+    if (!agg.has(k)) agg.set(k, []);
+    agg.get(k).push(f.r);
+  }
+  md.push(titulo);
   md.push("");
-  md.push("Corrida del ganador y de la referencia sobre las limpias a su lado mayor real (2463 recibo, 2577 comprobante; la sintética es upscale y no corre).");
+  md.push(intro);
   md.push("");
-  md.push("| motor | maestra | lado | n | ms mediana | conf | PSS pico MB | etiquetas GT |");
-  md.push("|---|---|---|---|---|---|---|---|");
+  md.push(`${notaEquipo ? "| equipo |" : ""} motor | maestra | lado | n | ms mediana | conf | PSS pico MB | etiquetas GT |`);
+  md.push(`${notaEquipo ? "|---|" : ""}---|---|---|---|---|---|---|---|`);
   for (const [k, v] of [...agg.entries()].sort()) {
-    const [motor, maestra, lado] = k.split("|");
+    const [equipo, motor, maestra, lado] = k.split("|");
     const hit = v.reduce((s2, r) => s2 + (r.etiquetas ?? []).filter((x) => x.hit).length, 0);
     const total = v.reduce((s2, r) => s2 + (r.etiquetas ?? []).length, 0);
     const pss = Math.max(...v.map((r) => r.pssPicoMB ?? 0));
-    md.push(`| ${motor} | ${maestra} | ${lado} | ${v.length} | ${mediana(v.map((r) => r.ms))} | ${Math.round(media(v.map((r) => r.conf ?? 0)))} | ${pss || "no medido"} | ${hit}/${total} |`);
+    md.push(
+      `${notaEquipo ? `| ${equipo} |` : ""} ${motor} | ${maestra} | ${lado} | ${v.length} | ${mediana(v.map((r) => r.ms))} | ${Math.round(media(v.map((r) => r.conf ?? 0)))} | ${pss || "no medido"} | ${hit}/${total} |`,
+    );
   }
   md.push("");
-}
+};
+
+seccionCarpeta(
+  "nativo",
+  "## Validación nativa (sin downsample)",
+  "Corrida del ganador y de la referencia sobre las limpias a su lado mayor real (2463 recibo, 2577 comprobante; la sintética es upscale y no corre).",
+);
+seccionCarpeta(
+  ["header", "header3"],
+  "## Rescate de cabecera (recortes, coste medido)",
+  "Recortes de la cabecera para cerrar `fecha_emision` y `numero_recibo`. `litert_header` = banda estrecha ×2; `litert_header_w` / `tess_header_pw` = banda ancha ×2; `tess_header_pw1` = banda ancha ×1; `tess_hdr_par*` = banda fina de las dos líneas (x 0,60–0,95 · y 0,135–0,195) a ×3 y ×2 con PSM 6/7/11.",
+);
 
 // ── Scorecard 50/30/10/10 por equipo (pesos fijados por el dueño) ──────────
 // Precisión = 60 % CER sintética + 40 % etiquetas GT reales.

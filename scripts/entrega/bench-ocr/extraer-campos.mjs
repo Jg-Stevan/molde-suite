@@ -180,9 +180,11 @@ if (runs.length === 0) throw new Error(`sin corridas de ${MOTOR}/${MAESTRA} en $
 
 const gt = JSON.parse(readFileSync(new URL("../../resultados/medicion-ocr/gt/etiquetas.json", import.meta.url), "utf8")).recibo;
 // Modo rescate de cabecera: solo los dos campos del bloque, sin el faro
-// `arriba` (dentro del recorte la etiqueta queda más abajo del 25 %).
+// `arriba` (dentro del recorte la etiqueta queda más abajo del 25 %) ni el
+// radio de `cerca` (se mide sobre el alto del recorte, donde «Fecha» y
+// «Recibo» caen a ~0,45 de separación y el faro descartaba el ancla).
 const campos = CABECERA
-  ? CAMPOS.filter((c) => c.id === "fecha_emision" || c.id === "numero_recibo").map((c) => ({ ...c, arriba: null }))
+  ? CAMPOS.filter((c) => c.id === "fecha_emision" || c.id === "numero_recibo").map((c) => ({ ...c, arriba: null, cerca: null }))
   : CAMPOS;
 const lados = [...new Set(runs.map((r) => r.lado))].sort((a, b) => a - b);
 
