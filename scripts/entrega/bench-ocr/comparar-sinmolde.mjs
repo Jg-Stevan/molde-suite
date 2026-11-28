@@ -116,7 +116,8 @@ md.push("");
 md.push("## Warmup, init en frío y motores no viables");
 md.push("");
 for (const s of secciones) {
-  md.push(`### ${s.equipo.toUpperCase()}`);
+  if (!Object.keys(s.meta.initFrioMs ?? {}).length) continue;
+  md.push(`### ${s.equipo.toUpperCase()}${s.ruta.includes("p6") ? " · p6" : ""}`);
   md.push("");
   md.push("```");
   for (const motor of Object.keys(s.meta.initFrioMs ?? {})) {
@@ -188,8 +189,13 @@ const scorecards = [];
 for (const equipo of EQUIPOS) {
   const filasEq = tabla.filter((t) => t.equipo === equipo);
   if (filasEq.length === 0) continue;
-  const minMs = Math.min(...filasEq.map((t) => t.ms));
-  const sc = filasEq.map((t) => {
+  // Base de velocidad = config de PÁGINA COMPLETA más rápida del equipo. Los
+  // recortes de rescate (header/hdr) leen una fracción y no son una config
+  // completa: usarlos de base aplastaba la velocidad de todos los demás.
+  const base = filasEq.filter((t) => !/header|hdr/.test(t.motor));
+  const recortes = filasEq.filter((t) => /header|hdr/.test(t.motor));
+  const minMs = Math.min(...base.map((t) => t.ms));
+  const puntuar = (t) => {
     const [hit, total] = t.etiquetas === "—" ? [0, 0] : t.etiquetas.split("/").map(Number);
     const ratio = total > 0 ? hit / total : 0;
     const cer = t.cer === "—" ? null : Number(t.cer);
@@ -202,10 +208,14 @@ for (const equipo of EQUIPOS) {
       ? 0.5 * precision + 0.3 * velocidad + 0.1 * ligero + 0.1 * recursos
       : null;
     return { ...t, precision, velocidad, ligero, recursos, gate, total: total99, ratio };
-  }).sort((a, b) => (b.total ?? -1) - (a.total ?? -1));
+  };
+  const sc = base.map(puntuar).sort((a, b) => (b.total ?? -1) - (a.total ?? -1));
+  const scRec = recortes.map(puntuar).sort((a, b) => (b.total ?? -1) - (a.total ?? -1));
   scorecards.push({ equipo, sc, minMs });
 
-  md.push(`## Scorecard ${equipo.toUpperCase()} (pesos 50/30/10/10; «ligero» neutro en esta fase)`);
+  md.push(`## Scorecard ${equipo.toUpperCase()} (pesos 50/30/10/10; «ligero» neutro en esta fase; velocidad relativa a la config de página completa más rápida del equipo)`);
+  md.push("");
+  md.push("Solo configs de PÁGINA COMPLETA, que es lo que compite como motor del documento: un recorte lee una fracción y su coste no es comparable (se lista aparte). Precisión = 60 % (1 − CER sintética) + 40 % etiquetas GT reales; recursos = 100 × (1 − PSS/2600); gate 4 GB = PSS pico ≤ 2600 MB.");
   md.push("");
   md.push("| motor | lado | precisión | velocidad | recursos | gate 4 GB | total | PSS pico MB | etiquetas reales |");
   md.push("|---|---|---|---|---|---|---|---|---|");
@@ -214,6 +224,14 @@ for (const equipo of EQUIPOS) {
     md.push(`| ${s.motor} | ${s.lado} | ${f(s.precision)} | ${f(s.velocidad)} | ${f(s.recursos)} | ${s.gate} | ${f(s.total)} | ${s.pss || "no medido"} | ${(100 * s.ratio).toFixed(0)} % (${s.etiquetas}) |`);
   }
   md.push("");
+  if (scRec.length) {
+    md.push(`Recortes de rescate medidos en ${equipo.toUpperCase()} (no compiten como motor de página; coste por pasada sobre la banda):`);
+    md.push("");
+    md.push("| config | lado | ms mediana | PSS pico MB | etiquetas del recorte |");
+    md.push("|---|---|---|---|---|");
+    for (const s of scRec) md.push(`| ${s.motor} | ${s.lado} | ${s.ms} | ${s.pss || "no medido"} | ${s.etiquetas} |`);
+    md.push("");
+  }
 }
 
 // ── Extracción por valores del recibo real (A56-limpia3), por equipo y motor ──
