@@ -5,8 +5,9 @@
  *
  *   bun fusionar-a13.mjs
  *
- * Lee motores/a13/sinmolde-*/resultados-medicion.json + motores/a13/motores-sinmolde/resultados-medicion.json
- * (tess, del primer cierre) y escribe motores/a13/motores-sinmolde/resultados-medicion.json.
+ * Lee los `resultados-medicion.json` de cada carpeta sinmolde- del A13 más el
+ * crudo histórico de Tesseract (motores-sinmolde) y escribe motores/a13/
+ * motores-sinmolde/resultados-medicion.json.
  */
 import { copyFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
