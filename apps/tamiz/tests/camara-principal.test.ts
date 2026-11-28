@@ -6,7 +6,13 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import { chooseMainProbe, type CameraProbeResult } from "../src/lib/e14/core/camara-principal";
+import {
+  capsCoinciden,
+  chooseMainProbe,
+  huellaDispositivos,
+  lenteCoincide,
+  type CameraProbeResult,
+} from "../src/lib/e14/core/camara-principal";
 
 function sonda(parcial: Partial<CameraProbeResult> & { deviceId: string }): CameraProbeResult {
   return {
@@ -115,5 +121,121 @@ describe("chooseMainProbe (F-LENS v5)", () => {
 
   test("sin sondas devuelve null (la cascada decide)", () => {
     expect(chooseMainProbe([])).toBeNull();
+  });
+
+  test("E15: la UW/macro no gana aunque reporte AF y la principal no lo liste", () => {
+    const principal = sonda({
+      deviceId: "main",
+      label: "cámara trasera",
+      facingMode: "environment",
+      focusModes: [],
+      torch: true,
+      maxWidth: 8160,
+      maxHeight: 6120,
+    });
+    const uw = sonda({
+      deviceId: "uw",
+      label: "cámara trasera ultra gran angular",
+      facingMode: "environment",
+      focusModes: ["continuous"],
+      maxWidth: 4000,
+      maxHeight: 3000,
+    });
+    const macro = sonda({
+      deviceId: "macro",
+      label: "cámara trasera macro",
+      facingMode: "environment",
+      focusModes: ["continuous"],
+      maxWidth: 2576,
+      maxHeight: 1932,
+    });
+    expect(chooseMainProbe([uw, macro, principal])?.deviceId).toBe("main");
+  });
+
+  test("la regla relativa respeta una única trasera pequeña", () => {
+    const uw = sonda({
+      deviceId: "uw-sola",
+      label: "cámara trasera ultra gran angular",
+      facingMode: "environment",
+      focusModes: [],
+      maxWidth: 2576,
+      maxHeight: 1932,
+    });
+    const frontal = sonda({
+      deviceId: "front",
+      label: "frontal",
+      facingMode: "user",
+      maxWidth: 8000,
+      maxHeight: 6000,
+    });
+    expect(chooseMainProbe([frontal, uw])?.deviceId).toBe("uw-sola");
+  });
+});
+
+describe("huellaDispositivos", () => {
+  test("determinista por conjunto (el orden no importa)", () => {
+    expect(huellaDispositivos(["b", "a"])).toBe(huellaDispositivos(["a", "b"]));
+  });
+
+  test("cambia si cambia el conjunto de cámaras", () => {
+    expect(huellaDispositivos(["a", "b"])).not.toBe(huellaDispositivos(["a", "c"]));
+    expect(huellaDispositivos(["a", "b"])).not.toBe(huellaDispositivos(["a", "b", "c"]));
+  });
+});
+
+describe("capsCoinciden (verificación post-apertura)", () => {
+  const esperado = { maxWidth: 2576, maxHeight: 1932 };
+
+  test("acepta caps iguales y diferencias dentro del 10 %", () => {
+    expect(capsCoinciden(esperado, { width: 2576, height: 1932 })).toBe(true);
+    expect(capsCoinciden(esperado, { width: 2560, height: 1920 })).toBe(true);
+  });
+
+  test("rechaza otro sensor con el mismo deviceId (renumeración)", () => {
+    expect(capsCoinciden(esperado, { width: 1920, height: 1080 })).toBe(false);
+  });
+
+  test("sin reporte no se puede refutar", () => {
+    expect(capsCoinciden(esperado, null)).toBe(true);
+    expect(capsCoinciden(esperado, {})).toBe(true);
+    expect(capsCoinciden({ maxWidth: 0, maxHeight: 0 }, { width: 1920, height: 1080 })).toBe(true);
+  });
+});
+
+describe("lenteCoincide (A12: camera 0 y camera 2 comparten 2576×1932)", () => {
+  const principal = {
+    label: "camera 0, facing back",
+    torch: true,
+    focusModes: ["manual", "single-shot", "continuous"],
+    maxWidth: 2576,
+    maxHeight: 1932,
+  };
+
+  test("la UW con el mismo máximo no coincide (torch/AF/label)", () => {
+    expect(
+      lenteCoincide(principal, {
+        label: "camera 2, facing back",
+        torch: false,
+        focusModes: ["manual"],
+        width: 2576,
+        height: 1932,
+      }),
+    ).toBe(false);
+  });
+
+  test("la principal abierta sí coincide (con redondeo de caps)", () => {
+    expect(
+      lenteCoincide(principal, {
+        label: "camera 0, facing back",
+        torch: true,
+        focusModes: ["manual", "single-shot", "continuous"],
+        width: 2560,
+        height: 1920,
+      }),
+    ).toBe(true);
+  });
+
+  test("sin reporte no se puede refutar", () => {
+    expect(lenteCoincide(principal, null)).toBe(true);
   });
 });
