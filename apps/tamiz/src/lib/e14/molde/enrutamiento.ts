@@ -29,6 +29,7 @@ import type { LineaOcr } from '@molde-suite/scanner-core/molde/ocr-tipos';
 import type { ActaStatus, RechazoActa, ResumenMoldeActa } from '@molde-suite/scanner-core/dominio/types';
 import { guardarMolde, listarMoldes } from './almacen';
 import { moldeActivo } from './registry';
+import { clasificarDesenlace } from './desenlaces';
 
 /** Umbral de CALIDAD del veredicto (0-100 del motor universal): desde el AUTO
  *  de 2026-11-27 ya NO es una puerta de enrutado — bajo este score el molde
@@ -256,25 +257,49 @@ export interface VeredictoMolde {
 }
 
 /** Convierte el resumen del motor universal en veredicto del acta.
- *  · Obligatorios faltantes o score bajo el umbral → RECHAZADA (detalle con
- *    el nombre del molde y los campos exactos).
- *  · Lectura dudosa (requiere_revision) → ADVERTENCIA.
- *  · Resto → OPTIMA. Jamás inventa: usa SOLO lo medido. */
+ *  Con FILAS por campo (v1.5.2) el plan §5 exige TRES desenlaces honestos:
+ *  · ausencia obligatoria COMPROBADA o regla del molde incumplida → RECHAZADA;
+ *  · obligatorio sin ubicación/lectura segura → EN_REVISION_HUMANA (jamás se
+ *    afirma que falta lo que no se localizó con certeza);
+ *  · obligatorios verificados → ADVERTENCIA u ÓPTIMA según las demás reglas
+ *    (el % de campos, incluidos opcionales, ya no rechaza por sí solo).
+ *  Sin filas (host viejo / resumen mínimo) conserva el comportamiento
+ *  histórico: faltantes o score bajo el umbral → RECHAZADA. Jamás inventa:
+ *  usa SOLO lo medido. */
 export function veredictoDeResumen(r: ResumenMoldeActa): VeredictoMolde {
   const scoreActa = Math.round((r.score / 10) * 10) / 10;
-  const faltanObligatorios = r.obligatoriosFaltantes.length > 0;
-  if (faltanObligatorios || r.score < UMBRAL_RUTA_SCORE) {
-    const motivo = faltanObligatorios
-      ? `CAMPOS OBLIGATORIOS FALTANTES: ${r.obligatoriosFaltantes.join(', ')}`
-      : `SCORE ${r.score}% BAJO EL UMBRAL DE CONFIANZA`;
-    return {
-      status: 'RECHAZADA',
-      score: scoreActa,
-      rechazo: {
-        tipo: 'MOLDE',
-        detalle: `MOLDE ${r.moldeNombre.toUpperCase()} — ${motivo}`,
-      },
-    };
+  const rechazo = (motivo: string): VeredictoMolde => ({
+    status: 'RECHAZADA',
+    score: scoreActa,
+    rechazo: { tipo: 'MOLDE', detalle: `MOLDE ${r.moldeNombre.toUpperCase()} — ${motivo}` },
+  });
+
+  const desenlace = clasificarDesenlace(r);
+  if (desenlace) {
+    if (desenlace.ausentes.length > 0) {
+      const etiquetas = [...new Set(desenlace.ausentes.map((c) => c.etiqueta))];
+      return rechazo(`CAMPOS OBLIGATORIOS AUSENTES: ${etiquetas.join(', ')}`);
+    }
+    if (desenlace.regla.length > 0) {
+      const etiquetas = [...new Set(desenlace.regla)];
+      return rechazo(`REGLA DEL MOLDE INCUMPLIDA: ${etiquetas.join(', ')}`);
+    }
+    if (desenlace.inciertos.length > 0 || desenlace.sinFila.length > 0) {
+      // Hay obligatorios que el OCR no resolvió: no se puede afirmar que
+      // falten. Decide un humano, no un veredicto inventado.
+      return { status: 'EN_REVISION_HUMANA', score: scoreActa, rechazo: null };
+    }
+    if (r.requiereRevision || r.score < UMBRAL_RUTA_SCORE) {
+      return { status: 'ADVERTENCIA', score: scoreActa, rechazo: null };
+    }
+    return { status: 'OPTIMA', score: scoreActa, rechazo: null };
+  }
+
+  if (r.obligatoriosFaltantes.length > 0) {
+    return rechazo(`CAMPOS OBLIGATORIOS FALTANTES: ${r.obligatoriosFaltantes.join(', ')}`);
+  }
+  if (r.score < UMBRAL_RUTA_SCORE) {
+    return rechazo(`SCORE ${r.score}% BAJO EL UMBRAL DE CONFIANZA`);
   }
   if (r.requiereRevision) {
     return { status: 'ADVERTENCIA', score: scoreActa, rechazo: null };

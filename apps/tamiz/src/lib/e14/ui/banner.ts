@@ -11,6 +11,7 @@
 
 import type { Acta, ResumenMoldeActa } from '@molde-suite/scanner-core/dominio/types';
 import type { ClasificacionE14 } from '@molde-suite/scanner-core/dominio/clasificador';
+import { clasificarDesenlace, etiquetasInseguras } from '../molde/desenlaces';
 
 export const DOCUMENTO_NO_IDENTIFICADO = 'DOCUMENTO NO IDENTIFICADO';
 
@@ -48,12 +49,20 @@ export function mandaElMolde(acta: Acta): boolean {
   return estaIdentificado(acta.evaluacionMolde) && !estaClasificado(acta.clasificacion);
 }
 
-/** Etiquetas de los obligatorios faltantes (el resumen trae ids; las etiquetas
- *  legibles van en las filas). `tope` para no reventar una línea de 412 px. */
+/** Etiquetas de los obligatorios cuya AUSENCIA quedó comprobada (el resumen
+ *  trae ids o etiquetas; las legibles van en las filas). `tope` para no
+ *  reventar una línea de 412 px. Sin filas → faltantes declarados por el
+ *  motor (comportamiento histórico). */
 export function faltantesDelMolde(ev: ResumenMoldeActa | null | undefined, tope = 3): string[] {
   if (!ev) return [];
+  const desenlace = clasificarDesenlace(ev);
+  if (desenlace) {
+    return [...new Set(desenlace.ausentes.map((c) => c.etiqueta))].slice(0, tope);
+  }
   const ids = new Set(ev.obligatoriosFaltantes);
-  const etiquetas = (ev.campos ?? []).filter((c) => ids.has(c.id)).map((c) => c.etiqueta);
+  const etiquetas = (ev.campos ?? [])
+    .filter((c) => ids.has(c.id) || ids.has(c.etiqueta))
+    .map((c) => c.etiqueta);
   const unicas = [...new Set(etiquetas.length > 0 ? etiquetas : ev.obligatoriosFaltantes)];
   return unicas.slice(0, tope);
 }
@@ -67,9 +76,13 @@ export function textoDelBanner(acta: Acta): string {
   return DOCUMENTO_NO_IDENTIFICADO;
 }
 
-/** Título del bloque ámbar de REVISIÓN: tres estados y uno solo verdadero. */
+/** Título del bloque ámbar de REVISIÓN: tres estados y uno solo verdadero.
+ *  Un obligatorio SIN LECTURA SEGURA no se anuncia como «datos incompletos»:
+ *  no se puede afirmar que falte lo que no se localizó (plan §5). */
 export function tituloDelAviso(acta: Acta): string {
-  if (mandaElMolde(acta)) return 'DATOS INCOMPLETOS';
+  if (mandaElMolde(acta)) {
+    return acta.status === 'EN_REVISION_HUMANA' ? 'NO SE PUDO VERIFICAR' : 'DATOS INCOMPLETOS';
+  }
   if (estaClasificado(acta.clasificacion)) return 'REVISIÓN HUMANA';
   return DOCUMENTO_NO_IDENTIFICADO;
 }
@@ -80,7 +93,18 @@ export function tituloDelAviso(acta: Acta): string {
 export function notaDelBanner(acta: Acta): string | null {
   const ev = acta.evaluacionMolde;
   if (mandaElMolde(acta)) {
-    const faltan = ev!.obligatoriosFaltantes.length;
+    const desenlace = clasificarDesenlace(ev);
+    if (acta.status === 'EN_REVISION_HUMANA') {
+      const nombres = desenlace ? etiquetasInseguras(desenlace).map((n) => n.toUpperCase()) : [];
+      return nombres.length > 0
+        ? `SIN LECTURA O UBICACIÓN SEGURA · ${nombres.join(' · ')}`
+        : 'La captura no resolvió todos los obligatorios · revisa el check list';
+    }
+    if (desenlace && desenlace.regla.length > 0) {
+      const nombres = [...new Set(desenlace.regla)].slice(0, 3).map((n) => n.toUpperCase());
+      return `REGLA DEL MOLDE INCUMPLIDA · ${nombres.join(' · ')}`;
+    }
+    const faltan = desenlace ? desenlace.ausentes.length : ev!.obligatoriosFaltantes.length;
     if (faltan === 0) {
       return ev!.requiereRevision
         ? 'Datos completos · revisa las lecturas marcadas en el check list'

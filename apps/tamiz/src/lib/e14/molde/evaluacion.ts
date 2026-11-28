@@ -37,6 +37,7 @@ import {
   elegirCandidato,
   ratioAnclasDe,
   sembrarMoldeDemo,
+  UMBRAL_RUTA_ANCLAS,
   type ContextoE14Acta,
 } from './enrutamiento';
 import '../dla/config';
@@ -273,6 +274,66 @@ export async function evaluarMoldeEnActa(
   // ms suman al ocr_ms que el motor ya no mide (usó las líneas reutilizadas).
   resultado.tiempos.ocr_ms = Math.round(resultado.tiempos.ocr_ms + ocrRouterMs);
 
+  // E14 (plan §5): entre HERMANOS del mismo `documento` (recibo impreso vs
+  // variante htr A/B/C) las anclas empatan porque es el mismo papel — decide
+  // la EVIDENCIA sobre el MISMO OCR: gana el molde que VERIFICA más
+  // obligatorios. Una variante manuscrita pierde con texto impreso (sus
+  // lecturas nacen «requiere revisión») y una impresa pierde con manuscrito.
+  // Sin diferencia ESTRICTA se queda el del router (desempate del activo).
+  let moldeFinal = molde;
+  let ratioFinal = candidato?.ratioAnclas ?? null;
+  if (identificado && molde.documento) {
+    const hermanos = moldes
+      .filter(
+        (m) =>
+          m.nombre !== molde.nombre &&
+          m.documento === molde.documento &&
+          (ratios.find((r) => r.nombre === m.nombre)?.ratio ?? 0) >= UMBRAL_RUTA_ANCLAS,
+      )
+      .sort(
+        (a, b) =>
+          (ratios.find((r) => r.nombre === b.nombre)?.ratio ?? 0) -
+          (ratios.find((r) => r.nombre === a.nombre)?.ratio ?? 0),
+      );
+    const hermano = hermanos[0];
+    if (hermano) {
+      const obligatoriosOk = (m: MoldeUniversal, r: ResultadoUniversal): number => {
+        const ids = new Set(m.campos.filter((c) => c.obligatorio === true).map((c) => c.id));
+        return r.paginas
+          .flatMap((p) => p.campos)
+          .filter((c) => ids.has(c.id) && c.estado === 'ok').length;
+      };
+      try {
+        const alt = await evaluarDocumentoUniversal(
+          [canvas],
+          hermano,
+          hermano.nombre,
+          undefined,
+          renderMs,
+          { previews: false, lineas: ocr.lines, ocrConf: ocr.conf ?? undefined, rescatePresupuesto: leerFlags().ocrRescatePresupuesto, htrConfDictamen: leerFlags().htrConfDictamen },
+        );
+        alt.tiempos.ocr_ms = Math.round(alt.tiempos.ocr_ms + ocrRouterMs);
+        const okA = obligatoriosOk(molde, resultado);
+        const okB = obligatoriosOk(hermano, alt);
+        logger.info('[molde] desempate por evidencia entre hermanos (E14)', {
+          hermanos: [molde.nombre, hermano.nombre],
+          obligatoriosOk: { [molde.nombre]: okA, [hermano.nombre]: okB },
+          elegido: okB > okA ? hermano.nombre : molde.nombre,
+        });
+        if (okB > okA) {
+          resultado = alt;
+          moldeFinal = hermano;
+          ratioFinal = ratios.find((r) => r.nombre === hermano.nombre)?.ratio ?? null;
+        }
+      } catch (e) {
+        // El desempate es ADITIVO: su fallo jamás cambia el resultado del router.
+        logger.warn('[molde] desempate entre hermanos falló (se conserva el del router)', {
+          mensaje: (e as Error).message,
+        });
+      }
+    }
+  }
+
   // A/B MEDIDO (Fase 4): binarizada sin NINGUNA lectura → reintento sobre la
   // geometría original (`fotoOcr`). Solo se adopta si mejora; la comparación
   // queda en consola. Sin tocar umbrales de enrutado.
@@ -285,15 +346,15 @@ export async function evaluarMoldeEnActa(
       const canvasAlt = await canvasDesdeDataUrl(opciones.fotoOriginal, { ancho: 1000 });
       const alt = await evaluarDocumentoUniversal(
         [canvasAlt],
-        molde,
-        molde.nombre,
+        moldeFinal,
+        moldeFinal.nombre,
         undefined,
         renderMs,
         { previews: false, rescatePresupuesto: leerFlags().ocrRescatePresupuesto, htrConfDictamen: leerFlags().htrConfDictamen },
       );
       const elegido = alt.ok_count > resultado.ok_count || alt.score > resultado.score ? 'original' : 'binarizada';
       logger.info('[molde] A/B binarizada vs original', {
-        molde: molde.nombre,
+        molde: moldeFinal.nombre,
         binarizada: { score: resultado.score, ok: resultado.ok_count, total: resultado.total },
         original: { score: alt.score, ok: alt.ok_count, total: alt.total },
         elegido,
@@ -311,17 +372,17 @@ export async function evaluarMoldeEnActa(
   }
 
   await segundaOpinionCasillas(canvasFuente, resultado);
-  const resumen = resumir(molde, resultado);
+  const resumen = resumir(moldeFinal, resultado);
   // AUTO: la IDENTIFICACIÓN es un hecho medido, independiente del VEREDICTO.
   // Vive aunque `debeEnrutar` diga false — es lo que autoriza a la
   // VERIFICACIÓN DOCUMENTAL listar los campos del molde y al banner nombrarlo.
   resumen.identificado = identificado;
-  if (candidato) resumen.ratioAnclas = candidato.ratioAnclas;
-  resumen.paginasDelMolde = paginasEsperadasDe(molde);
+  if (ratioFinal != null) resumen.ratioAnclas = ratioFinal;
+  resumen.paginasDelMolde = paginasEsperadasDe(moldeFinal);
   // Telemetría honesta del puente (visible en consola DEV): qué leyó el
   // motor universal y por qué estado va cada campo.
   logger.info('[molde] resumen del motor universal', {
-    molde: molde.nombre,
+    molde: moldeFinal.nombre,
     score: resultado.score,
     ok: resultado.ok_count,
     total: resultado.total,
@@ -343,10 +404,10 @@ export async function evaluarMoldeEnActa(
   // ETAPA B — ¿el molde se convierte en el VEREDICTO del acta? Lo decide
   // `debeEnrutar` (qué molde ganó + confianza del motor), no el flag `esE14`
   // del clasificador electoral, que se enciende con cualquier «MESA» del OCR.
-  if (debeEnrutar(molde, contexto, resultado.score, resultado.ok_count)) {
+  if (debeEnrutar(moldeFinal, contexto, resultado.score, resultado.ok_count)) {
     resumen.enrutado = true;
     logger.info('[molde] acta ENRUTADA al molde', {
-      nombre: molde.nombre,
+      nombre: moldeFinal.nombre,
       score: resultado.score,
       ok: resultado.ok_count,
       total: resultado.total,

@@ -16,6 +16,7 @@ import {
 import { TEXTO_MOTIVO } from '@/lib/e14/errores';
 import { leerFlags } from '@/lib/e14/flags';
 import { abrirCamaraTrasera } from '@/lib/e14/core/camara-principal';
+import { alcanzaMinimo, MINIMO_LADO_CAPTURA, planRefuerzo } from '@/lib/e14/core/captura-refuerzo';
 // P2-D (tarea D): TIPO del bucle del core — la clase se importa DINÁMICAMENTE
 // solo con el flag ON (import type no viaja al bundle; con el flag OFF ni
 // siquiera se carga el módulo: mismo grafo que hoy).
@@ -64,6 +65,59 @@ function esCalidadPrimero(): boolean {
 /** takePhoto puede colgarse (lab error #29): carrera de 8 s SOLO para el
  *  último peldaño (el desnudo); los intermedios fallan rápido. */
 const TAKEPHOTO_TIMEOUT_MS = 8000;
+
+// Contrato de captura (captura-refuerzo.ts): espera máxima a que el track
+// entregue el peldaño de 2048 tras applyConstraints; si no llega al piso de
+// 1600 se devuelve null y el flujo sigue con el respaldo de siempre.
+const REFUERZO_ESPERA_MS = 1200;
+
+function dibujarFrame(video: HTMLVideoElement): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d')!.drawImage(video, 0, 0);
+  return canvas;
+}
+
+async function esperarLadoMinimo(video: HTMLVideoElement, minimo: number, timeoutMs: number): Promise<boolean> {
+  const inicio = Date.now();
+  while (Date.now() - inicio < timeoutMs) {
+    if (video.videoWidth && Math.max(video.videoWidth, video.videoHeight) >= minimo) return true;
+    await new Promise((r) => setTimeout(r, 40));
+  }
+  return Math.max(video.videoWidth, video.videoHeight) >= minimo;
+}
+
+/** Refuerzo de captura cuando takePhoto no entrega el original: sube el track
+ *  temporalmente a 2048 y toma un frame, restaurando el preview de 720. Si el
+ *  equipo rechaza o ignora el cambio se devuelve null (respaldo habitual). */
+export async function capturarAlRefuerzo(
+  video: HTMLVideoElement | null,
+  stream: MediaStream | null,
+): Promise<HTMLCanvasElement | null> {
+  if (!video || !stream || video.readyState < 2 || !video.videoWidth) return null;
+  const track = stream.getVideoTracks()[0];
+  if (!track) return null;
+  const plan = planRefuerzo(video.videoWidth, video.videoHeight);
+  if (!plan) return alcanzaMinimo(video.videoWidth, video.videoHeight) ? dibujarFrame(video) : null;
+  let aplicado = false;
+  try {
+    await track.applyConstraints(plan);
+    aplicado = true;
+    if (!(await esperarLadoMinimo(video, MINIMO_LADO_CAPTURA, REFUERZO_ESPERA_MS))) return null;
+    // Un frame con la nueva resolución ya dibujado antes de leerlo.
+    await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    return dibujarFrame(video);
+  } catch {
+    return null;
+  } finally {
+    if (aplicado) {
+      void track
+        .applyConstraints({ width: { ideal: 1280 }, height: { ideal: 720 } })
+        .catch(() => undefined);
+    }
+  }
+}
 
 interface Config {
   videoRef: RefObject<HTMLVideoElement | null>;

@@ -30,9 +30,11 @@ const EVALUACION = {
   obligatoriosFaltantes: ["importe", "firma_emisor"],
   banderas: [],
   tiempos: { render_ms: 1, ocr_ms: 1, motor_ms: 1 },
+  // Plan §5: «falta» solo se afirma con ANCLA real encontrada y tinta medida
+  // CERO; el fixture representa ausencia comprobada, no incertidumbre.
   campos: [
-    { id: "importe", etiqueta: "IMPORTE", tipo: "texto", estado: "no_encontrado", valor: null, conf: null, obligatorio: true },
-    { id: "firma_emisor", etiqueta: "FIRMA DEL EMISOR", tipo: "firma", estado: "no_encontrado", valor: false, conf: null, obligatorio: true },
+    { id: "importe", etiqueta: "IMPORTE", tipo: "texto", estado: "no_encontrado", valor: null, conf: null, obligatorio: true, rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.04 }, fuente: "ancla", ancla_rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.04 }, tinta: false },
+    { id: "firma_emisor", etiqueta: "FIRMA DEL EMISOR", tipo: "firma", estado: "no_encontrado", valor: false, conf: null, obligatorio: true, fuente: "ancla", ancla_rect: { x: 0.1, y: 0.6, w: 0.2, h: 0.04 }, tinta: false },
     { id: "fecha_emision", etiqueta: "FECHA DE EMISIÓN", tipo: "texto", estado: "ok", valor: "2026-11-03", conf: 0.9, obligatorio: true },
     { id: "numero_recibo", etiqueta: "N.º RECIBO", tipo: "texto", estado: "ok", valor: "014", conf: 0.9, obligatorio: true },
     { id: "concepto", etiqueta: "CONCEPTO", tipo: "texto", estado: "ok", valor: "Alquiler", conf: 0.9, obligatorio: false },
@@ -82,7 +84,10 @@ describe("banner con identificación automática", () => {
   });
 
   test("el aviso de un documento identificado dice QUÉ falta, no cuántos intentos", () => {
-    const a = acta({ evaluacionMolde: { ...EVALUACION } as unknown as Acta["evaluacionMolde"] });
+    const a = acta({
+      status: "RECHAZADA",
+      evaluacionMolde: { ...EVALUACION } as unknown as Acta["evaluacionMolde"],
+    });
     const nota = notaDelBanner(a)!;
     expect(nota).toContain("FALTAN 2 DE 4");
     expect(nota).toContain("IMPORTE");
@@ -102,8 +107,31 @@ describe("banner con identificación automática", () => {
         ...EVALUACION,
         obligatoriosFaltantes: [],
         requiereRevision: false,
+        campos: EVALUACION.campos.filter((c) => c.estado === "ok"),
       } as unknown as Acta["evaluacionMolde"],
     });
     expect(notaDelBanner(a)).toBeNull();
+  });
+
+  test("obligatorio sin zona resuelta → «NO SE PUDO VERIFICAR», no se afirma que falte", () => {
+    // Plan §5: la ausencia del impreso y la incertidumbre del OCR no son lo
+    // mismo. Sin rect/fuente/tinta el motor no puede decir «falta».
+    const sinZona = {
+      ...EVALUACION,
+      requiereRevision: true,
+      campos: EVALUACION.campos.map((c) =>
+        c.estado === "no_encontrado" ? { ...c, rect: null, tinta: undefined } : c,
+      ),
+    };
+    const a = acta({
+      status: "EN_REVISION_HUMANA",
+      evaluacionMolde: sinZona as unknown as Acta["evaluacionMolde"],
+    });
+    expect(tituloDelAviso(a)).toBe("NO SE PUDO VERIFICAR");
+    const nota = notaDelBanner(a)!;
+    expect(nota).toContain("SIN LECTURA O UBICACIÓN SEGURA");
+    expect(nota).toContain("IMPORTE");
+    expect(nota).toContain("FIRMA DEL EMISOR");
+    expect(faltantesDelMolde(a.evaluacionMolde, 3)).toEqual([]);
   });
 });
