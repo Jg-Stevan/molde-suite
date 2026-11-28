@@ -251,8 +251,9 @@ async function paginaDesdeFoto(
   return pag;
 }
 
-/** Punto de entrada del botón «Exportar conversión»: fotos del acta (1..N) +
- *  resumen del molde → JSON/MD/HTML datalab-convert. */
+/** Punto de entrada del visor dev de conversión (y de cualquier consumidor
+ *  futuro del JSON): fotos del acta (1..N) + resumen del molde →
+ *  JSON/MD/HTML datalab-convert. */
 export async function convertirActaAChandra(
   fotos: string[],
   resumen: ResumenMoldeActa | null,

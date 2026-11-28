@@ -35,14 +35,12 @@ import { downloadBlob } from "@/lib/e14/core/pdf-export";
 import { nombreExportacion } from "@/lib/e14/fachada";
 import { QuadEditor } from "../QuadEditor";
 import { ZoomableVisor } from "@/lib/e14/ui/ZoomableVisor";
+import { estaClasificado, estaIdentificado, notaDelBanner, textoDelBanner, tituloDelAviso } from "@/lib/e14/ui/banner";
 import { PanelClasificacion } from "../PanelClasificacion";
 // VERIFICACIÓN DOCUMENTAL (mock del mantenedor, 2026-11-16) — P4 del plan
 // PLAN-AJUSTES-VISUALES (adaptación E-14 del zip): overlay sobre la foto con
 // acordeón por estado (P4) y documento sin plantilla → «NO IDENTIFICADO».
-import { BotonExportarConversion } from "../BotonExportarConversion";
 import { VerificacionDocumental } from "../VerificacionDocumental";
-// CIERRE BENCHMARK V3 (chandra-convert OFICIAL): exportación datalab-convert
-// (JSON consumible por importar-chandra de Studio; .md/.html de lectura).
 // FitScale (P5 del plan): la FOTO es el único elemento flexible — se escala
 // para caber completa sin scroll ni recortes.
 import { FitScale } from "../fit-scale";
@@ -519,13 +517,16 @@ export function ReviewView() {
   const clasifAuto = acta.clasificacion?.nivel === "AUTO" ? acta.clasificacion : null;
   const status = acta.status;
   // D2/D3 Rev. 2: UN solo predicado compartido por banner + fallbacks.
-  const hayClasificacion =
-    acta.clasificacion != null && acta.clasificacion.nivel !== "MANUAL";
-  // ETAPA B (enrutamiento universal): el acta fue reconocida por un MOLDE de
-  // la biblioteca (documento no electoral) → el banner lleva el NOMBRE DEL
-  // DOCUMENTO (p. ej. «RECIBO DE LUZ») con el semáforo del veredicto del
-  // molde (construirActa ya estampa acta.titulo = nombre del molde).
-  const enrutado = acta.evaluacionMolde?.enrutado === true;
+  // AUTO (2026-11-27): ya no basta con «hay clasificación» — `pipeline` inyecta
+  // una SUGERIDA aunque el OCR no lea nada, y el título salía con huecos
+  // («— · DOC — — DOC»). `estaClasificado` exige un componente real.
+  const hayClasificacion = estaClasificado(acta.clasificacion);
+  // ETAPA B (enrutamiento universal) + AUTO (2026-11-27): la biblioteca reconoció
+  // el documento por sus anclas → el banner lleva el NOMBRE DEL DOCUMENTO
+  // (p. ej. «RECIBO DE PAGO») con el semáforo del veredicto. Identificado no es
+  // lo mismo que enrutado: un acta E-14 reconocida contra su molde queda
+  // aditiva pero SIGUE siendo un documento identificado.
+  const identificado = estaIdentificado(acta.evaluacionMolde);
   // ── Banner de ubicación (mock del mantenedor): borde + glow del color del
   // estado, dot a cada lado del nombre. Fix del mantenedor (14-oct) #1: el
   // banner es el NOMBRE DEL PUESTO (acta.titulo) — nunca la ruta con «>».
@@ -535,7 +536,7 @@ export function ReviewView() {
       : status === "ADVERTENCIA" || status === "EN_REVISION_HUMANA"
         ? "border-amber-500/70 shadow-[0_0_14px_rgba(245,158,11,0.14)]"
         : "border-[#10b981]/40 shadow-[0_0_14px_rgba(16,185,129,0.10)]";
-  const dotUbicacion = enrutado
+  const dotUbicacion = identificado
     ? status === "RECHAZADA"
       ? "bg-red-500"
       : status === "ADVERTENCIA"
@@ -546,17 +547,12 @@ export function ReviewView() {
       : status === "EN_REVISION_HUMANA"
         ? "bg-amber-400"
         : "bg-red-500";
-  const textoBanner = (() => {
-    // Fix del mantenedor (14-oct) #1: banner = nombre del puesto (p. ej.
-    // «FRANKFURT - CONSULADO»), NUNCA la ruta construida a mano
-    // (departamento > municipio > puesto > MESA > …). Sin clasificación
-    // → estados de fallback de siempre. ETAPA B: acta ENRUTADA → el título
-    // del banner es el NOMBRE DEL DOCUMENTO del molde que lo identificó.
-    if (enrutado || hayClasificacion) return acta.titulo;
-    return status === "EN_REVISION_HUMANA"
-      ? "CLASIFICACIÓN PENDIENTE"
-      : "NO IDENTIFICADO";
-  })();
+  // AUTO (2026-11-27): el texto sale del helper puro (`ui/banner.ts`) — nombre
+  // del documento identificado por la biblioteca, puesto electoral SOLO si la
+  // clasificación trae datos reales, y «DOCUMENTO NO IDENTIFICADO» en otro
+  // caso. Adentro estaba «CLASIFICACIÓN PENDIENTE», que ya no se muestra.
+  const textoBanner = textoDelBanner(acta);
+  const notaBanner = notaDelBanner(acta);
 
   // §D2 (SPEC-e14-score-ocr): lectura PARCIAL de MESA (display-only) —
   // sobrevive a la retirada de los chips: el banner de advertencia la usa.
@@ -913,22 +909,22 @@ export function ReviewView() {
             analisisCompletado). OPTIMA es un estado TRANSITORIO: nunca se
             renderiza en REVISIÓN. */}
 
-        {/* EN_RH (no cubierto por mocks — §2): banners informativos
-            «repetir-primero» / contingencia, re-vestidos con tokens ámbar. */}
+        {/* EN_RH (no cubierto por mocks — §2) — AUTO (2026-11-27): el bloque
+            habla del DOCUMENTO, no de la clasificación electoral. «CLASIFICACIÓN
+            PENDIENTE · INTENTO x DE y» salió: para un recibo era ruido, y
+            repetir la foto no cambia una biblioteca sin plantilla para ese papel. */}
         {status === "EN_REVISION_HUMANA" && (
           <div className="rounded-xl bg-amber-950/60 border border-amber-500 px-3.5 py-2.5 flex items-center gap-2.5">
             <WarnTriangleIcon className="w-4 h-4 text-amber-400 shrink-0" />
             <div className="flex flex-col min-w-0">
               <span className="font-mono text-[11px] font-bold tracking-wide uppercase text-white">
-                {acta.intento < acta.maxIntentos
-                  ? "CLASIFICACIÓN PENDIENTE"
-                  : "ENVIADA A REVISIÓN HUMANA"}
+                {tituloDelAviso(acta)}
               </span>
-              <span className="text-[10px] text-gray-400 font-mono">
-                {acta.intento < acta.maxIntentos
-                  ? `Repita la foto para clasificarlo automáticamente · INTENTO ${acta.intento} DE ${acta.maxIntentos}`
-                  : "Un auditor validará este documento"}
-              </span>
+              {notaBanner && (
+                <span className="text-[10px] text-gray-400 font-mono">
+                  {notaBanner}
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -950,11 +946,6 @@ export function ReviewView() {
           modo={fotoVisible ? 'overlay' : 'flujo'}
           filtroPagina={documentoEnCurso && docIncompleto ? documentoEnCurso.paginas.length : null}
         />
-
-        {/* CIERRE BENCHMARK V3: exportación datalab-convert del acta actual
-            (JSON para importar-chandra de Studio + .md/.html de lectura). El
-            botón se oculta solo cuando no hay foto que convertir. */}
-        <BotonExportarConversion />
 
         {/* PLAN-AGENTE-LAYOUT F4 (ADITIVO): diagnóstico del gate estructural
             — SOLO se monta con acta.estructura (molde con layout + modelo
@@ -1364,6 +1355,11 @@ export function ReviewCtas() {
     // Fase 2: con ≥ 2 rechazos consecutivos, GUARDAR CRUDA encima (foto
     // ORIGINAL sin verificar — el auto-recorte mal no pierde el papel).
     const mostrarCruda = rechazosConsecutivos >= 2;
+    // AUTO (2026-11-27): rechazo DICTADO POR EL MOLDE (identificado, faltan
+    // datos) → el CTA dice QUÉ falta, no cuántos intentos quedan: los intentos
+    // son la política del gate electoral y no aplican a un recibo.
+    const faltanDelMolde =
+      acta.rechazo?.tipo === "MOLDE" ? (acta.evaluacionMolde?.obligatoriosFaltantes.length ?? 0) : 0;
     return (
       <div className="flex flex-col gap-2 w-full">
         {mostrarCruda ? <BtnGuardarCruda acta={acta} /> : null}
@@ -1389,7 +1385,9 @@ export function ReviewCtas() {
             >
               <BadgeRefresco size={6} />
               <span>
-                OBLIGATORIO REPETIR FOTO (INTENTO {acta.intento} DE {acta.maxIntentos})
+                {faltanDelMolde > 0
+                  ? `REPETIR FOTO · FALTAN ${faltanDelMolde} DATOS`
+                  : `OBLIGATORIO REPETIR FOTO (INTENTO ${acta.intento} DE ${acta.maxIntentos})`}
               </span>
             </button>
           </div>

@@ -12,11 +12,12 @@
 //   3. La evaluación COMPLETA corre una sola vez (motor universal compartido
 //      `evaluarDocumentoUniversal`, modo ligero).
 //   4. Si el molde ganador NO es el del acta E-14 (o el documento no fue
-//      reconocido como electoral) y el candidato responde (score ≥
-//      UMBRAL_RUTA_SCORE), el resultado del MOLDE se convierte en el veredicto
-//      del acta (`enrutado: true`): score/estado/banner salen del molde. Solo
-//      un acta E-14 reconocida contra su propio molde deja el resultado
-//      ADITIVO (doctrina intacta — el gate electoral manda).
+//      reconocido como electoral) y el candidato LEYÓ algo (ok_count > 0), el
+//      resultado del MOLDE se convierte en el veredicto del acta (`enrutado:
+//      true`): score/estado/banner salen del molde. Identificar NO es aprobar:
+//      el molde puede mandar y dictar RECHAZADA por campos faltantes. Solo un
+//      acta E-14 reconocida contra su propio molde deja el resultado ADITIVO
+//      (doctrina intacta — el gate electoral manda).
 //
 // Molde demo: si la biblioteca está vacía se siembra UNA vez «RECIBO DE LUZ»
 // calibrado contra el fixture SIM «recibo» (simulacion-imagenes.ts) para que
@@ -29,7 +30,9 @@ import type { ActaStatus, RechazoActa, ResumenMoldeActa } from '@molde-suite/sca
 import { guardarMolde, listarMoldes } from './almacen';
 import { moldeActivo } from './registry';
 
-/** Score mínimo (0-100 del motor universal) para ENRUTAR un acta al molde. */
+/** Umbral de CALIDAD del veredicto (0-100 del motor universal): desde el AUTO
+ *  de 2026-11-27 ya NO es una puerta de enrutado — bajo este score el molde
+ *  identifica el documento y dicta RECHAZADA (`veredictoDeResumen`). */
 export const UMBRAL_RUTA_SCORE = 65;
 /** Ratio de anclas encontradas (prefiltro) para elegir un candidato. */
 export const UMBRAL_RUTA_ANCLAS = 0.5;
@@ -54,7 +57,16 @@ export function moldeElectoral(molde: MoldeUniversal): boolean {
  *  cualquier cabecera/MESA/tipo del OCR, así que un recibo que mencione
  *  «MESA» o «DELEGADOS» quedaba aditivo y nunca se enrutaba. El gate solo
  *  conserva la autoridad sobre un acta E-14 reconocida evaluada contra su
- *  propio molde; el resto de la biblioteca manda sobre cualquier documento. */
+ *  propio molde; el resto de la biblioteca manda sobre cualquier documento.
+ *
+ *  AUTO (2026-11-27) — IDENTIFICAR ≠ APROBAR: el umbral de score deja de
+ *  condicionar la ruta. Exigir `score >= UMBRAL_RUTA_SCORE` para escuchar al
+ *  molde significaba que un recibo reconocido al 42 % de anclas se quedaba con
+ *  el veredicto electoral y el operador NO veía los datos que la plantilla
+ *  pide. Basta con que el molde HAYA LEÍDO algo (`okCount > 0`) para que su
+ *  veredicto —que puede ser RECHAZADA por faltantes— sea el del acta. El score
+ *  sigue siendo el insumo de `veredictoDeResumen` (semáforo) y del umbral de
+ *  calidad, no una puerta de display. */
 export function debeEnrutar(
   molde: MoldeUniversal,
   contexto: ContextoE14Acta | undefined,
@@ -62,7 +74,7 @@ export function debeEnrutar(
   okCount: number,
 ): boolean {
   if (moldeElectoral(molde) && contexto?.esE14) return false;
-  return score >= UMBRAL_RUTA_SCORE && okCount > 0;
+  return okCount > 0;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

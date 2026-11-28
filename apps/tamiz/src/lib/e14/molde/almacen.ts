@@ -100,6 +100,29 @@ export async function borrarMolde(id: string): Promise<void> {
   db.close();
 }
 
+/** Busca una fila por id. */
+export async function obtenerMolde(id: string): Promise<GuardadoMolde | undefined> {
+  try {
+    const db = await abrirDb();
+    const fila = await pedir(db.transaction(STORE, 'readonly').objectStore(STORE).get(id) as IDBRequest<GuardadoMolde | undefined>);
+    db.close();
+    return fila;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * AUTO (2026-11-27): el molde IDENTIFICADO por el router vive en la biblioteca,
+ * no en localStorage — el lote multipágina y las páginas esperadas lo necesitan
+ * por nombre. Más nuevo primero si hubiera dos filas con el mismo nombre.
+ */
+export async function moldePorNombre(nombre: string): Promise<MoldeUniversal | null> {
+  if (!nombre) return null;
+  const fila = (await listarMoldes()).find((f) => f.nombre === nombre);
+  return fila?.json ?? null;
+}
+
 /** Carga la fila y activa su molde vía el registry EXISTENTE (validación
  *  única — aquí no se duplica esMoldeUniversal). */
 export async function activarGuardado(

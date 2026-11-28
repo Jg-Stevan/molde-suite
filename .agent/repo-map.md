@@ -198,6 +198,176 @@
 | `ResultadoEstructura` | interface | 61 | `any` |
 | `ResultadoReglaLayout` | interface | 43 | `any` |
 
+### packages/scanner-core/conversion/exportHtml.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `exportarHtml` | function | 80 | `(conv: ConversionChandra) => string` |
+
+### packages/scanner-core/conversion/html.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `escapar` | function | 15 | `(texto: string) => string` |
+| `htmlFirmaInline` | function | 101 | `(recorte: RecorteImagen, filename: string, caption: string) => string` |
+| `htmlPicture` | function | 89 | `(filename: string) => string` |
+| `htmlPie` | function | 84 | `(lineas: {}) => string` |
+| `htmlSeccion` | function | 74 | `(nivel: number, lineas: {}) => string` |
+| `htmlTexto` | function | 53 | `(lineas: {}, opts?: OpcionesTexto) => string` |
+| `OpcionesTexto` | interface | 47 | `any` |
+| `unirLineas` | function | 27 | `(lineas: {}) => string` |
+
+### packages/scanner-core/conversion/index.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `armarTabla` | exportspecifier | 15 | `(ret: Retricula, lineas: {}, bbox: BBox, opts?: OpcionesTabla) => { html: string; estructura: TablaEstructurada; }` |
+| `base64ABytes` | exportspecifier | 33 | `(b64: string) => Uint8Array` |
+| `BBox` | typealias | 36 | `any` |
+| `bitmapDesdeBytes` | exportspecifier | 27 | `(bytes: Uint8Array, tipo?: string) => Promise<any>` |
+| `BloqueChandra` | interface | 36 | `any` |
+| `bytesABase64` | exportspecifier | 32 | `(bytes: Uint8Array) => string` |
+| `CLASES_FOOTER` | exportspecifier | 21 | `{}` |
+| `CLASES_HEADER` | exportspecifier | 20 | `{}` |
+| `ConversionChandra` | interface | 36 | `any` |
+| `convertirAChandra` | exportspecifier | 8 | `(pipeline: SalidaPipeline, opciones?: OpcionesConversion) => ConversionChandra` |
+| `convertirTodo` | exportspecifier | 9 | `(pipeline: SalidaPipeline, opciones?: OpcionesConversion) => { json: ConversionChandra; jsonTexto: string; md: string; html: string; chequeo: ChequeoEsquema; }` |
+| `escapar` | exportspecifier | 35 | `(texto: string) => string` |
+| `esFooter` | exportspecifier | 18 | `(r: RegionLayout) => boolean` |
+| `esHeader` | exportspecifier | 19 | `(r: RegionLayout) => boolean` |
+| `exportarHtml` | exportspecifier | 14 | `(conv: ConversionChandra) => string` |
+| `exportarMarkdown` | exportspecifier | 13 | `(conv: ConversionChandra) => string` |
+| `htmlDeEstructura` | exportspecifier | 15 | `(estructura: TablaEstructurada) => string` |
+| `htmlFirmaInline` | exportspecifier | 35 | `(recorte: RecorteImagen, filename: string, caption: string) => string` |
+| `htmlPicture` | exportspecifier | 35 | `(filename: string) => string` |
+| `htmlSeccion` | exportspecifier | 35 | `(nivel: number, lineas: {}) => string` |
+| `htmlTexto` | exportspecifier | 35 | `(lineas: {}, opts?: OpcionesTexto) => string` |
+| `LineaOcr` | interface | 36 | `any` |
+| `MAPEO_CLASES` | exportspecifier | 11 | `Record<string, string>` |
+| `md5Hex` | exportspecifier | 30 | `(bytes: Uint8Array) => string` |
+| `nombreArchivoImagen` | exportspecifier | 31 | `(jpegBytes: Uint8Array) => string` |
+| `OpcionesConversion` | interface | 36 | `any` |
+| `ordenarRegiones` | exportspecifier | 17 | `(regiones: {}) => {}` |
+| `PaginaChandra` | interface | 36 | `any` |
+| `PaginaPipeline` | interface | 36 | `any` |
+| `pareceChandraPropio` | exportspecifier | 10 | `(conv: ConversionChandra) => ChequeoEsquema` |
+| `Punto` | typealias | 6 | `any` |
+| `recortarConCanvas` | exportspecifier | 25 | `(fuente: CanvasImageSource, bbox: BBox, calidad?: number) => Promise<string>` |
+| `recortarConOffscreen` | exportspecifier | 24 | `(fuente: CanvasImageSource, bbox: BBox, calidad?: number) => Promise<string>` |
+| `recortarTodos` | exportspecifier | 26 | `(fuente: CanvasImageSource, regiones: {}, calidad?: number) => Promise<number>` |
+| `RecorteImagen` | interface | 36 | `any` |
+| `RegionLayout` | interface | 36 | `any` |
+| `Retricula` | interface | 36 | `any` |
+| `SalidaPipeline` | interface | 36 | `any` |
+| `SegmentoV` | interface | 36 | `any` |
+
+### packages/scanner-core/conversion/lectura.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `CLASES_FOOTER` | variable | 20 | `{}` |
+| `CLASES_HEADER` | variable | 19 | `{}` |
+| `esFooter` | function | 26 | `(r: RegionLayout) => boolean` |
+| `esHeader` | function | 22 | `(r: RegionLayout) => boolean` |
+| `ordenarRegiones` | function | 34 | `(regiones: {}) => {}` |
+
+### packages/scanner-core/conversion/md.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `exportarMarkdown` | function | 124 | `(conv: ConversionChandra) => string` |
+| `tablaAMd` | function | 61 | `(htmlTabla: string) => string` |
+
+### packages/scanner-core/conversion/md5.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `base64ABytes` | function | 90 | `(b64: string) => Uint8Array` |
+| `bytesABase64` | function | 80 | `(bytes: Uint8Array) => string` |
+| `md5Hex` | function | 27 | `(bytes: Uint8Array) => string` |
+| `nombreArchivoImagen` | function | 72 | `(jpegBytes: Uint8Array) => string` |
+
+### packages/scanner-core/conversion/recortes.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `bitmapDesdeBytes` | function | 24 | `(bytes: Uint8Array, tipo?: string) => Promise<any>` |
+| `FuenteImagen` | interface | 14 | `any` |
+| `recortarConCanvas` | function | 89 | `(fuente: CanvasImageSource, bbox: BBox, calidad?: number) => Promise<string>` |
+| `recortarConOffscreen` | function | 80 | `(fuente: CanvasImageSource, bbox: BBox, calidad?: number) => Promise<string>` |
+| `recortarTodos` | function | 101 | `(fuente: CanvasImageSource, regiones: {}, calidad?: number) => Promise<number>` |
+
+### packages/scanner-core/conversion/serializar.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `armarTabla` | exportspecifier | 32 | `(ret: Retricula, lineas: {}, bbox: BBox, opts?: OpcionesTabla) => { html: string; estructura: TablaEstructurada; }` |
+| `base64ABytes` | exportspecifier | 36 | `(b64: string) => Uint8Array` |
+| `BBox` | typealias | 31 | `any` |
+| `bitmapDesdeBytes` | exportspecifier | 35 | `(bytes: Uint8Array, tipo?: string) => Promise<any>` |
+| `BloqueChandra` | interface | 32 | `any` |
+| `bytesABase64` | exportspecifier | 36 | `(bytes: Uint8Array) => string` |
+| `ChequeoEsquema` | interface | 276 | `any` |
+| `ConversionChandra` | interface | 48 | `any` |
+| `convertirAChandra` | function | 251 | `(pipeline: SalidaPipeline, opciones?: OpcionesConversion) => ConversionChandra` |
+| `convertirTodo` | function | 333 | `(pipeline: SalidaPipeline, opciones?: OpcionesConversion) => { json: ConversionChandra; jsonTexto: string; md: string; html: string; chequeo: ChequeoEsquema; }` |
+| `escapar` | exportspecifier | 37 | `(texto: string) => string` |
+| `esFooter` | exportspecifier | 31 | `(r: RegionLayout) => boolean` |
+| `esHeader` | exportspecifier | 31 | `(r: RegionLayout) => boolean` |
+| `exportarHtml` | exportspecifier | 34 | `(conv: ConversionChandra) => string` |
+| `exportarMarkdown` | exportspecifier | 33 | `(conv: ConversionChandra) => string` |
+| `htmlDeEstructura` | exportspecifier | 32 | `(estructura: TablaEstructurada) => string` |
+| `htmlFirmaInline` | exportspecifier | 37 | `(recorte: RecorteImagen, filename: string, caption: string) => string` |
+| `htmlPicture` | exportspecifier | 37 | `(filename: string) => string` |
+| `htmlSeccion` | exportspecifier | 37 | `(nivel: number, lineas: {}) => string` |
+| `htmlTexto` | exportspecifier | 37 | `(lineas: {}, opts?: OpcionesTexto) => string` |
+| `LineaOcr` | interface | 60 | `any` |
+| `MAPEO_CLASES` | variable | 40 | `Record<string, string>` |
+| `md5Hex` | exportspecifier | 36 | `(bytes: Uint8Array) => string` |
+| `nombreArchivoImagen` | exportspecifier | 36 | `(jpegBytes: Uint8Array) => string` |
+| `OpcionesConversion` | interface | 165 | `any` |
+| `ordenarRegiones` | exportspecifier | 31 | `(regiones: {}) => {}` |
+| `PaginaChandra` | interface | 39 | `any` |
+| `PaginaPipeline` | interface | 145 | `any` |
+| `pareceChandraPropio` | function | 287 | `(conv: ConversionChandra) => ChequeoEsquema` |
+| `Punto` | typealias | 12 | `any` |
+| `recortarConCanvas` | exportspecifier | 35 | `(fuente: CanvasImageSource, bbox: BBox, calidad?: number) => Promise<string>` |
+| `recortarConOffscreen` | exportspecifier | 35 | `(fuente: CanvasImageSource, bbox: BBox, calidad?: number) => Promise<string>` |
+| `recortarTodos` | exportspecifier | 35 | `(fuente: CanvasImageSource, regiones: {}, calidad?: number) => Promise<number>` |
+| `RecorteImagen` | interface | 94 | `any` |
+| `RegionLayout` | interface | 110 | `any` |
+| `Retricula` | interface | 75 | `any` |
+| `SalidaPipeline` | interface | 163 | `any` |
+| `SegmentoV` | interface | 93 | `any` |
+
+### packages/scanner-core/conversion/tablas.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `armarTabla` | function | 56 | `(ret: Retricula, lineas: {}, bbox: BBox, opts?: OpcionesTabla) => { html: string; estructura: TablaEstructurada; }` |
+| `CeldaTabla` | interface | 20 | `any` |
+| `htmlDeEstructura` | function | 123 | `(estructura: TablaEstructurada) => string` |
+| `OpcionesTabla` | interface | 33 | `any` |
+| `TablaEstructurada` | interface | 27 | `any` |
+
+### packages/scanner-core/conversion/types.ts
+
+| Símbolo | Clase | Línea | Firma |
+|---|---|---|---|
+| `BBox` | typealias | 19 | `any` |
+| `BloqueChandra` | interface | 22 | `any` |
+| `ConversionChandra` | interface | 49 | `any` |
+| `LineaOcr` | interface | 63 | `any` |
+| `OpcionesConversion` | interface | 159 | `any` |
+| `PaginaChandra` | interface | 37 | `any` |
+| `PaginaPipeline` | interface | 134 | `any` |
+| `Punto` | typealias | 18 | `any` |
+| `RecorteImagen` | interface | 92 | `any` |
+| `RegionLayout` | interface | 106 | `any` |
+| `Retricula` | interface | 72 | `any` |
+| `SalidaPipeline` | interface | 151 | `any` |
+| `SegmentoV` | interface | 85 | `any` |
+
 ### packages/scanner-core/core/calidad.ts
 
 | Símbolo | Clase | Línea | Firma |
@@ -256,7 +426,7 @@
 | `correctedGrayWithModel` | function | 605 | `(gray: Uint8ClampedArray, model: ShadowModel, w: number, h: number) => Uint8ClampedArray` |
 | `despeckleBinary` | function | 219 | `(binary: Uint8ClampedArray, w: number, h: number, minPx?: number) => Uint8ClampedArray` |
 | `edgeAwareSharpenGray` | function | 363 | `(src: Uint8ClampedArray, w: number, h: number) => Uint8ClampedArray` |
-| `enhanceMime` | function | 813 | `(mode: EnhanceMode) => "image/png" \| "image/jpeg"` |
+| `enhanceMime` | function | 813 | `(mode: EnhanceMode) => "image/jpeg" \| "image/png"` |
 | `EnhanceMode` | typealias | 810 | `any` |
 | `EnhanceOptions` | interface | 797 | `any` |
 | `enhanceToRgba` | function | 834 | `(data: Uint8ClampedArray, w: number, h: number, mode: EnhanceMode, opts?: EnhanceOptions) => Uint8ClampedArray` |
@@ -421,27 +591,27 @@
 
 | Símbolo | Clase | Línea | Firma |
 |---|---|---|---|
-| `Acta` | interface | 178 | `any` |
+| `Acta` | interface | 189 | `any` |
 | `ActaFirma` | interface | 31 | `any` |
 | `ActaStatus` | typealias | 10 | `any` |
 | `DiagnosticoActa` | interface | 49 | `any` |
-| `EstructuraActa` | interface | 160 | `any` |
-| `EtapaAnalisis` | typealias | 259 | `any` |
+| `EstructuraActa` | interface | 171 | `any` |
+| `EtapaAnalisis` | typealias | 294 | `any` |
 | `FuenteCaptura` | typealias | 18 | `any` |
-| `HistorialRow` | interface | 232 | `any` |
-| `Mesa` | interface | 251 | `any` |
-| `MesaPagina` | interface | 245 | `any` |
+| `HistorialRow` | interface | 267 | `any` |
+| `Mesa` | interface | 286 | `any` |
+| `MesaPagina` | interface | 280 | `any` |
 | `MetricasActa` | interface | 42 | `any` |
 | `PaginaActa` | interface | 62 | `any` |
-| `ProgresoAnalisis` | interface | 267 | `any` |
+| `ProgresoAnalisis` | interface | 302 | `any` |
 | `Quad` | exportspecifier | 8 | `any` |
 | `RechazoActa` | interface | 37 | `any` |
 | `ResumenMoldeActa` | interface | 73 | `any` |
-| `ResumenMoldeCampo` | interface | 99 | `any` |
-| `statusDeScore` | function | 279 | `(score: number) => ActaStatus` |
+| `ResumenMoldeCampo` | interface | 110 | `any` |
+| `statusDeScore` | function | 314 | `(score: number) => ActaStatus` |
 | `TipoPagina` | typealias | 21 | `any` |
 | `UbicacionActa` | interface | 23 | `any` |
-| `UMBRAL_ADMISIBLE_SCORE` | variable | 277 | `8.5` |
+| `UMBRAL_ADMISIBLE_SCORE` | variable | 312 | `8.5` |
 
 ### packages/scanner-core/geom/orientacion.ts
 
@@ -828,7 +998,7 @@
 | `decodificarQrDeCapture` | function | 489 | `(dataUrl: string, opciones?: { tiers?: "completos" \| "base"; ladoLargo?: number; rescate4096?: boolean; presupuestoMs?: number; }) => Promise<{ payload: string;` |
 | `intentoSobrePixeles` | exportspecifier | 116 | `(cv: PixelesQr, esp: EspecieBanda) => string` |
 | `ladderBaseDePixeles` | exportspecifier | 117 | `(pix: PixelesQr) => string` |
-| `moduloZxingDe` | function | 197 | `() => Promise<typeof import("/home/z/molde-suite/node_modules/.bun/zxing-wasm@3.1.8/node_modules/zxing-wasm/dist/es/reader/index")>` |
+| `moduloZxingDe` | function | 197 | `() => Promise<typeof import("C:/Users/JG/Documents/Ya casi lo tenemos/molde-suite/node_modules/.bun/zxing-wasm@3.1.8/node_modules/zxing-wasm/dist/es/reader/inde` |
 | `nitidezQrDePixeles` | exportspecifier | 118 | `(pix: PixelesQr) => PixelesQr` |
 | `PixelesQr` | exportspecifier | 122 | `any` |
 | `QR_RECORTE_LADO` | exportspecifier | 119 | `600` |
@@ -960,4 +1130,4 @@
 
 ---
 
-Total: 612 símbolos en 66 archivos de 3 paquetes.
+Total: 732 símbolos en 76 archivos de 3 paquetes.

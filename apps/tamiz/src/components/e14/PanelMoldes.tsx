@@ -12,7 +12,9 @@
 //    misma máquina (Studio) o la red local privada; URL pública = bloqueada.
 //
 // Biblioteca local: moldes guardados en IndexedDB (almacen.ts) con Activar/
-// Borrar por fila y migración one-shot desde localStorage viejo.
+// Borrar por fila y migración one-shot desde localStorage viejo. El catálogo
+// empaquetado de public/moldes/ se siembra solo al primer escaneo
+// (catalogo.ts) y un nombre ya importado no se pisa.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MoldeUniversal } from '@molde-suite/scanner-core/molde/universal-types';
@@ -26,6 +28,7 @@ import {
   migrarDesdeLocalStorage,
   type GuardadoMolde,
 } from '@/lib/e14/molde/almacen';
+import { CATALOGO_NOMBRES } from '@/lib/e14/molde/catalogo';
 
 // ── Tipos mínimos de BarcodeDetector (no está en lib.dom) ──────────────────
 interface LecturaQR {
@@ -269,6 +272,13 @@ export function PanelMoldes({ onCambio }: Props) {
   return (
     <div className="mt-3 rounded-lg border border-brand-border p-2.5">
       <p className="font-mono text-[10px] font-bold text-white/70">MOLDES (UNIVERSAL v3)</p>
+      <p className="mt-1 font-mono text-[9px] leading-relaxed text-white/40">
+        AUTO: la app elige la plantilla SOLA por sus anclas. El catálogo
+        empaquetado ({CATALOGO_NOMBRES.length} moldes) se siembra en la
+        biblioteca al primer escaneo y un nombre ya importado NUNCA se pisa. El
+        MOLDE ACTIVADO solo desempata (gana a igual ratio) y sirve de respaldo
+        si ninguna plantilla coincide.
+      </p>
 
       {/* Importar archivo */}
       <label className="mt-2 block w-full cursor-pointer rounded-lg border border-brand-border px-3 py-2 text-center font-mono text-[10px] font-bold text-white/80 hover:border-brand-green">

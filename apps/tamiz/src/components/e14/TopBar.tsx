@@ -18,6 +18,12 @@ import { StitchArrowLeftIcon, StitchCloudCheckIcon } from "./icons";
 // que recuerda que el modo de diagnóstico está activo. Re-render barato:
 // evento DOM intra-pestaña + storage cross-pestaña (CERO timers — dev/puente).
 import { useModoDev } from "./dev/puente";
+// TEMPORAL-DEV-CONVERSION: chip espejo del badge DEV — abre el visor de la
+// conversión datalab en una pestaña nueva (reemplaza al bloque de exportación
+// retirado de ReviewView). Visible en modo dev y, SIN modo dev, en capturas
+// RECHAZADAS (debido 2026-11-27: ver qué se leyó cuando el documento se cayó).
+// Retirable borrando esta línea y el JSX del bloque.
+import { BotonConversionDev } from "./dev/BotonConversionDev";
 
 /** D1: estilo por estado — palabra + colores del mock vinculante.
  *  C-26 — dead code fuera: el case «DUPLICADA» se retiró (SOLO lo estampaba
@@ -150,6 +156,11 @@ export function TopBar() {
               DEV
             </span>
           )}
+          {/* TEMPORAL-DEV-CONVERSION — chip espejo (-bottom-2) del badge DEV.
+              Dueño 2026-11-27: en capturas RECHAZADAS está visible SIN modo dev
+              — es cómo se ve qué leyó realmente el OCR cuando el documento se
+              cayó por faltantes. En los demás estados sigue siendo dev-only. */}
+          {acta && (modoDev || acta.status === "RECHAZADA") && <BotonConversionDev />}
         </div>
         {nube ? (
           <button

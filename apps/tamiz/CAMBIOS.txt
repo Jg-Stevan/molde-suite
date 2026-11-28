@@ -43,3 +43,167 @@ ARCHIVOS TOCADOS EN LA ENTREGA 4 (5):
    apps/digielect14/src/components/e14/screens/ScanView.tsx
    apps/digielect14/src/lib/e14/store/navegacion.ts
    apps/digielect14/src/lib/e14/store/tipos.ts
+
+5) VISOR DEV DE CONVERSIÓN EN LA PÍLDORA (2026-11-27) — TEMPORAL
+   Sale el bloque CONVERSIÓN DATALAB (CHANDRA) de la revisión: era ruido para
+   el operador (tres botones de descarga + avisos + caption) y su misión —
+   cerrar el Benchmark OCR V3 — ya está cumplida. Entra un chip temporal
+   anclado a la píldora del score (espejo inferior del badge DEV) que abre en
+   UNA PESTAÑA NUEVA el HTML renderizado del documento + .md, .json y
+   html-fuente en texto plano. Sin descargas.
+   · Gate: useModoDev() (localStorage «tamiz.dev» + evento tamiz-dev-cambio).
+   · Regresión DESEADA y declarada: un operador SIN modo dev pierde todo
+     acceso al JSON datalab-convert por la UI. No es un bug — fue la decisión.
+   · window.open va DESPUÉS del await de conversión (no pre-abre): abrir la
+     pestaña antes congela el OCR en Android (a56-comun.mjs:133-137). El OCR
+     re-corrre ~1-3 s/página; la URL del blob se cachea por acta+lote.
+   · El documento del visor no emite NINGUNA URL externa ni <script>: el blob
+     hereda el CSP de public/_headers, que solo se manifiesta en el deploy.
+
+ARCHIVOS TOCADOS EN LA ENTREGA 5 (5):
+   apps/tamiz/src/components/e14/BotonExportarConversion.tsx  (BORRADO)
+   apps/tamiz/src/components/e14/screens/ReviewView.tsx
+   apps/tamiz/src/components/e14/TopBar.tsx
+   apps/tamiz/src/components/e14/dev/BotonConversionDev.tsx   (NUEVO)
+   apps/tamiz/src/lib/e14/conversion/visor-conversion.ts      (NUEVO)
+   apps/tamiz/tests/visor-conversion.test.ts                  (NUEVO)
+   packages/scanner-core/conversion/README.md
+Grep de retiro: TEMPORAL-DEV-CONVERSION → 0 cuando se quite el feature.
+
+6) IDENTIFICACIÓN AUTOMÁTICA DE MOLDE (2026-11-27)
+   El A56 con un recibo real mostraba «— · DOC — — DOC», el checklist electoral
+   en vez de los datos del molde y «CLASIFICACIÓN PENDIENTE · INTENTO 1 DE 3».
+   Cuatro causas, cuatro arreglos:
+
+   · C1 BIBLIOTECA VACÍA → catálogo sembrado. Nuevo lib/e14/molde/catalogo.ts:
+     al primer escaneo se siembran los 8 moldes de public/moldes/ en IndexedDB.
+     Idempotencia de dos niveles: marca localStorage «tamiz.catalogoMoldes.v1»
+     (bump MANUAL de CATALOGO_VERSION = re-siembra) y NUNCA se pisa un nombre ya
+     importado — el molde calibrado por el operador gana. El id sale del
+     sha256 del texto crudo, así que un refill no duplica filas. Sin red no
+     sella la marca: reintenta al escaneo siguiente y jamás bloquea el flujo.
+     public/sw.js sirve /moldes/ cache-first con «?v=<CATALOGO_VERSION>» para
+     que el offline no devuelva una plantilla recalibrada vieja.
+   · C2 CORTOCIRCUITO DEL ACTIVO → AUTO siempre. evaluarMolde ya no devuelve el
+     activo sin morena: elige elegirCandidato() y el activo es (a) el primero de
+     la lista — gana los empates a igual ratio — y (b) el respaldo si ninguna
+     plantilla coincide. El escape hatch de las variantes sigue vivo.
+   · C3 IDENTIFICAR ≠ APROBAR. debeEnrutar pasa a «okCount > 0»: el score deja
+     de ser puerta de display (era lo que ocultaba los campos del recibo al
+     42 %). UMBRAL_RUTA_SCORE queda solo como umbral de CALIDAD dentro de
+     veredictoDeResumen. ResumenMoldeActa gana 3 campos aditivos: identificado,
+     ratioAnclas, paginasDelMolde.
+   · C4 BANNER HONESTO. Nuevo lib/e14/ui/banner.ts (puro): el título es el
+     nombre del puesto SOLO si hay clasificación real (estaClasificado exige
+     componente — la SUGERIDA vacía que inyecta el pipeline ya no imprime
+     huecos), si no el nombre del molde identificado, si no
+     «DOCUMENTO NO IDENTIFICADO». El bloque ámbar dice «FALTAN n DE m DATOS
+     OBLIGATORIOS · <etiquetas>»; fuera «CLASIFICACIÓN PENDIENTE» (x2) y el
+     contador «INTENTO x DE y» de esa tarjeta. acta.intento/maxIntentos siguen
+     en el modelo: los usa el gate electoral.
+
+   Consecuencia DELIBERADA y declarada: un recibo con OCR pobre ahora sale
+   «RECHAZADA — CAMPOS OBLIGATORIOS FALTANTES: …» en lugar de «8.5/10 · REVISIÓN
+   HUMANA», porque manda el veredicto del molde. No es regresión: es el desacople
+   pedido. El flujo electoral está intacto — un acta E-14 reconocida evaluada
+   contra su propio molde sigue cediendo el veredicto al gate (debeEnrutar → false)
+   y conserva su check list curado.
+
+   Riesgo medido en campo: recibo_pago vs recibo_real empatan en anclas (mismo
+   papel). Se siembran los dos; si el log «[molde] ratio de anclas» confirma el
+   empate, se retira *_real del catálogo (queda importable a mano).
+
+ARCHIVOS TOCADOS EN LA ENTREGA 6 (17):
+   apps/tamiz/src/lib/e14/molde/catalogo.ts               (NUEVO)
+   apps/tamiz/src/lib/e14/ui/banner.ts                    (NUEVO)
+   apps/tamiz/tests/catalogo-moldes.test.ts               (NUEVO)
+   apps/tamiz/tests/banner-identificacion.test.ts         (NUEVO)
+   apps/tamiz/src/lib/e14/molde/evaluacion.ts
+   apps/tamiz/src/lib/e14/molde/enrutamiento.ts
+   apps/tamiz/src/lib/e14/molde/registry.ts
+   apps/tamiz/src/lib/e14/molde/almacen.ts
+   apps/tamiz/src/lib/e14/store/index.ts
+   apps/tamiz/src/components/e14/screens/ReviewView.tsx
+   apps/tamiz/src/components/e14/VerificacionDocumental.tsx
+   apps/tamiz/src/components/e14/PanelMoldes.tsx
+   apps/tamiz/public/sw.js
+   apps/tamiz/public/moldes/LEEME.md
+   apps/tamiz/tests/portados.test.ts
+   packages/scanner-core/dominio/types.ts
+   MOLDE-SPEC.md
+
+========================================
+ENTREGA 7 — CERO EDICIÓN MANUAL + «VER LO LEÍDO» EN RECHAZADAS (2026-11-27)
+========================================
+
+PETICIÓN DEL DUEÑO (literal): «quita el lapiz para edita los campos, todo se
+debe de detectar automaticamente, revisa la captura que esta en el a56, y
+habilita ver el html y .md en imagenes rechazadas para ver que se leyo».
+
+QUÉ SE RETIRÓ (superficie de edición, VerificaciónDocumental.tsx):
+  · Botón ✎ por fila (`data-testid="editar-campo-<id>"`).
+  · Editor inline completo (`editor-campo`, `input-valor-campo`,
+    `guardar-valor-campo`, botones MARCADO/SIN MARCA, GUARDAR CORRECCIÓN,
+    CANCELAR y el aviso de fallo).
+  · Marca `EDITADO` (`campo-editado`) — sin escritura manual no hay nada que
+    marcar, y mostrarla engañaría: todo lo que aparece es lectura del motor.
+  · Campos del item que solo alimentaban eso: `ItemChecklist.tipoCampo`,
+    `.editable`, `.editado` (checklist.ts) y el parámetro `acta` de
+    `itemDeFilaMolde` / `FilaVerificacion` / `SeccionVerificacion`.
+  · Con el editor fuera, la fila del molde y la del checklist E-14 son LA MISMA
+    fila: queda UN solo render (`FilaVerificacion`), con `conf` cuando el OCR la
+    dio. Menos piel, cero lógica nueva.
+
+QUÉ SE CONSERVA:
+  · La fila muestra glifo ✓/•/✗, etiqueta, «conf NN%» y el valor leído
+    (o CONFIRMAR / SIN LECTURA / SIN MARCA).
+  · El toggle de la lista sigue, pero ahora es de LECTURA: «MOSTRAR TODOS LOS
+    CAMPOS LEÍDOS» ↔ «SOLO CAMPOS CON PROBLEMAS» (antes decía CORREGIR DATOS,
+    que ya no es cierto) y pierde el azul de acción para no parecer un CTA.
+  · INTACTA la capa de datos de corrección (`src/lib/e14/molde/edicion.ts`,
+    `store/edicion.ts`, `Acta.valoresEditados`, `tests/edicion-campos.test.ts`):
+    sigue testeada y es el registro honesto si un acta vieja trae overrides.
+    RETIRARLA enteras es una decisión de producto aparte (borra ~2 archivos y
+    2 campos del contrato de Acta) — pedirlo explícitamente si se quiere.
+
+POR QUÉ NO HAY EDICIÓN: un valor tecleado no es evidencia del documento. Si el
+  motor no leyó un campo, la salida honesta es REPETIR LA FOTO (mejor OCR), no
+  rellenar el hueco a mano y estampar 10/10 sobre una foto que no lo dice.
+
+«VER LO LEÍDO» EN RECHAZADAS (TopBar.tsx):
+  · Antes: chip solo con modo dev (`modoDev && acta`).
+  · Ahora: `acta && (modoDev || acta.status === "RECHAZADA")` — en una captura
+    rechazada el chip está visible SIN `tamiz.dev`, que es exactamente el caso
+    en que el operador necesita saber qué capturó el OCR. En el resto de estados
+    sigue siendo herramienta de desarrollador.
+  · Etiqueta «VER» → «VER LO LEÍDO» (y «SIN FOTO» cuando no hay procesada, que
+    es la razón por la que el botón está deshabilitado). `aria-label`/`title`
+    idem: ya no dice «visor dev». Testid nuevo: `conversion-dev`.
+
+VERIFICACIÓN (medida en el Galaxy A56, build de producción en :3100):
+  · `bun run typecheck` · `bun run lint` · `bun test` → 175/175.
+  · Banco `scripts/entrega/auto-molde-a56.mjs recibo` → RESULTADO: OK en 26-32 s:
+      banner = «✗ 2.5/10 RECHAZADA · FALTA FECHA / N.º RECIBO / …», 12 filas,
+      prohibidas = [], `editores=0` (cero ✎ y cero `editor-campo` en el DOM),
+      `chip-conversión=true` con `tamiz.dev` BORRADO (es decir: visible sin
+      modo dev porque la captura está RECHAZADA).
+  · El chip se probó HASTA EL FINAL: toque real por CDP → se abre la pestaña
+    `blob:` → título «Conversión datalab (Chandra) · vista dev · 1 pág.»,
+    secciones [HTML renderizado, Fuentes · texto plano], 3 bloques `pre`
+    (HTML/MD/JSON). Eso es «ver qué se leyó» en una rechazada.
+  · Las 12 filas leídas quedan así (glifo + etiqueta + conf + valor, sin lápiz):
+      ✓ RECIBO DE PAGO conf 96% | • FECHA conf 96% CONFIRMAR | … |
+      ✗ Firma pagador conf 95% SIN LECTURA | ✓ IMPORTE EN LETRAS conf 95%
+  · ARREGLO DEL BANCO: el sondeo de espera usaba `VEREDICTOS` (constante de
+    Node) dentro de la función in-page → ReferenceError silencioso tragado por
+    el `catch` → el banco NUNCA veía la tarjeta y esperaba 669 s una pantalla
+    que sí estaba lista. Ahora el patrón se pasa como argumento y el log imprime
+    el error de CDP y el texto de la página cada 12 s. Las corridas 1-3 de la
+    entrega 6 estaban afectadas por esto (sus «FALLAS» no eran fallas de la app).
+
+ARCHIVOS TOCADOS EN LA ENTREGA 7 (4 + banco):
+   apps/tamiz/src/components/e14/VerificacionDocumental.tsx
+   apps/tamiz/src/lib/e14/checklist.ts
+   apps/tamiz/src/components/e14/TopBar.tsx
+   apps/tamiz/src/components/e14/dev/BotonConversionDev.tsx
+   scripts/entrega/auto-molde-a56.mjs   (aserciones + diagnóstico del wait)

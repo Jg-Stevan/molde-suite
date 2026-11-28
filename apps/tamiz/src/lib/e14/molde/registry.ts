@@ -33,13 +33,13 @@ export function moldeActivo(): MoldeUniversal | null {
 }
 
 /**
- * Fase 3 (multipágina): páginas esperadas del documento según el molde
- * activo — `huella.paginas` si está declarada; si no, la página MÁXIMA de
- * sus campos (`campo.pagina` — los moldes importados no siempre traen
- * huella); sin molde → 1 (flujo de una página de siempre).
+ * Fase 3 (multipágina): páginas esperadas de UN molde — `huella.paginas` si
+ * está declarada; si no, la página MÁXIMA de sus campos (`campo.pagina` — los
+ * moldes importados no siempre traen huella); sin molde → 1 (flujo de una
+ * página de siempre). Pura: la llama tanto el molde ACTIVO como el IDENTIFICADO
+ * por el router (AUTO), que no vive en localStorage.
  */
-export function paginasEsperadas(): number {
-  const molde = moldeActivo();
+export function paginasEsperadasDe(molde: MoldeUniversal | null): number {
   if (!molde) return 1;
   const declaradas = molde.huella?.paginas;
   if (typeof declaradas === "number" && Number.isFinite(declaradas) && declaradas >= 1) {
@@ -51,6 +51,14 @@ export function paginasEsperadas(): number {
     if (p > max) max = p;
   }
   return max;
+}
+
+/**
+ * Páginas esperadas del molde ACTIVO (comportamiento histórico del store).
+ * Con AUTO siempre hay que preferir `paginasEsperadasDe(moldeIdentificado)`.
+ */
+export function paginasEsperadas(): number {
+  return paginasEsperadasDe(moldeActivo());
 }
 
 /** Activa un molde (valida estructura v3 — un molde malformado NO se activa). */

@@ -23,7 +23,7 @@
 import type { Quad } from "@molde-suite/scanner-core/core/types";
 import { MotionStabilizer } from "./motion-stabilizer";
 import {
-  computeProcessDims,
+  PROCESS_LONG_SIDE,
   getScannerWorker,
   type ScannerWorkerClient,
 } from "@molde-suite/scanner-core/core/detector-client";
@@ -78,6 +78,14 @@ export interface FrameLoopCallbacks {
  *  36 ≈ 1.2 s de margen. Costo de memoria trivial. */
 const MAX_HISTORY = 36;
 
+/** F-PERF A13 (medido 2026-11-27: 2 fps de análisis en SM-A135M con el
+ *  worker listo): a 400 px el detector OpenCV cuesta ~500 ms/frame y la
+ *  ventana de estabilidad (600 ms) se queda sin muestras. En equipos de
+ *  ≤4 GB se analiza a 288 px (~48 % menos píxeles); nitidez y estabilidad
+ *  se re-escalan a la clase 400 px calibrada en quality.ts. */
+const LONG_SIDE_GAMA_BAJA = 288;
+const CLASE_ESTABILIDAD_PX = 400;
+
 export class CameraFrameLoop {
   private video: HTMLVideoElement | null = null;
   private cb: FrameLoopCallbacks | null = null;
@@ -129,6 +137,18 @@ export class CameraFrameLoop {
   private edgePostpones = 0;
 
   private thumbCanvas: HTMLCanvasElement | null = null;
+
+  /** Lado mayor del frame de análisis: 400 (clase de siempre) o 288 en gama
+   *  baja. Se lee por sesión, nunca en render. */
+  private longSideProceso(): number {
+    try {
+      const dm = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+      if (typeof dm === "number" && dm <= 4) return LONG_SIDE_GAMA_BAJA;
+    } catch {
+      /* sin deviceMemory → clase 400 */
+    }
+    return PROCESS_LONG_SIDE;
+  }
 
   get isRunning(): boolean {
     return this.running;
@@ -245,7 +265,12 @@ export class CameraFrameLoop {
 
     const w = video.videoWidth;
     const h = video.videoHeight;
-    const dims = computeProcessDims(w, h);
+    const longSide = this.longSideProceso();
+    const esc = longSide / Math.max(w, h);
+    const dims = {
+      w: Math.max(1, Math.round(w * esc)),
+      h: Math.max(1, Math.round(h * esc)),
+    };
 
     createImageBitmap(video, {
       resizeWidth: dims.w,
@@ -361,12 +386,14 @@ export class CameraFrameLoop {
     // más tarde, el timeout cuenta desde la ÚLTIMA detección, no del start).
     this.firstAttemptMs = now;
 
-    // Quad en px de proceso (contrato de stability: 400-clase).
+    // Quad en px a 400-clase: el análisis reducido de gama baja se re-escala
+    // para conservar la calibración de estabilidad (STABILITY_VAR_NORM).
+    const factorClase = CLASE_ESTABILIDAD_PX / Math.max(procW, procH);
     const quadPx: Quad = [
-      { x: corners[0]!.x * procW, y: corners[0]!.y * procH },
-      { x: corners[1]!.x * procW, y: corners[1]!.y * procH },
-      { x: corners[2]!.x * procW, y: corners[2]!.y * procH },
-      { x: corners[3]!.x * procW, y: corners[3]!.y * procH },
+      { x: corners[0]!.x * procW * factorClase, y: corners[0]!.y * procH * factorClase },
+      { x: corners[1]!.x * procW * factorClase, y: corners[1]!.y * procH * factorClase },
+      { x: corners[2]!.x * procW * factorClase, y: corners[2]!.y * procH * factorClase },
+      { x: corners[3]!.x * procW * factorClase, y: corners[3]!.y * procH * factorClase },
     ];
     this.quadHistory.push({ t: now, quad: quadPx });
     this.quadHistory = this.quadHistory.filter(
@@ -377,7 +404,9 @@ export class CameraFrameLoop {
     }
 
     // Componentes del score (fórmula exacta del usuario).
-    const lapVar = out?.quality.laplacianVar ?? 0;
+    // La varianza del Laplaciano escala con (px)² → se devuelve a 400-clase
+    // para que la nitidez y el corte de borroso sigan calibrados igual.
+    const lapVar = (out?.quality.laplacianVar ?? 0) * factorClase * factorClase;
     const sharpness = computeSharpnessScore(lapVar);
     const exposure = hist.length === 256 ? computeExposureScore(hist) : { score: 0.5, specularRatio: 0, specularWarn: false };
     const stability = computeStabilityScore(this.quadHistory, now);

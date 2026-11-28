@@ -41,13 +41,6 @@ export interface ItemChecklist {
    *  (null = el OCR no reportó). Presente SOLO en filas del motor universal;
    *  el panel la muestra junto al valor («conf 87%»). */
   conf?: number | null;
-  /** §5 — tipo del campo del molde (para el editor de valores). */
-  tipoCampo?: 'texto' | 'presencia' | 'firma' | 'checkbox';
-  /** §5 — el operador puede CORREGIR este valor desde el panel
-   *  (texto/checkbox; firma/presencia no — su evidencia es la tinta medida). */
-  editable?: boolean;
-  /** §5 — el valor fue corregido por el operador (marca EDITADO). */
-  editado?: boolean;
 }
 
 export interface GrupoChecklist {

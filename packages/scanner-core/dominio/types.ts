@@ -93,6 +93,17 @@ export interface ResumenMoldeActa {
    * ADITIVA de siempre (el E-14 manda).
    */
   enrutado?: boolean;
+  /**
+   * AUTO (2026-11-27): true cuando la BIBLIOTECA identificó este documento por
+   * sus anclas — sin depender de que el veredicto del molde haya sustituido al
+   * del gate (`enrutado`). Es lo que autoriza a pintar las filas del molde en
+   * la VERIFICACIÓN DOCUMENTAL y a nombrar el documento en el banner.
+   */
+  identificado?: boolean;
+  /** Ratio de anclas del prefiltro (0-1) con el que el router ganó el molde. */
+  ratioAnclas?: number;
+  /** Páginas que DECLARA el molde identificado (huella.paginas / máx campo.pagina). */
+  paginasDelMolde?: number;
 }
 
 /** Fila de un campo del molde para el checklist universal (Etapa B). */

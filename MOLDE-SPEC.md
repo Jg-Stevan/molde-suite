@@ -98,6 +98,17 @@ dígito (F1); para bloques numerados ("JURADO 1..4", "FILA 1..N") usa
   comporta como siempre. Ojo: variantes del MISMO papel impreso comparten
   también geometría — ahí el desempate no existe y la respuesta correcta es
   un molde por familia con `htr` + semáforo por tinta (ver `lessons/`).
+- **Qué lee el operador de tu molde (2026-11-27 — AUTO en Tamiz)**: la
+  identificación y el display ya NO dependen del score. Si el prefiltro de anclas
+  de tu plantilla gana y leyó al menos un campo, el molde MANDA en la UI:
+  `nombre` es el título del banner, `campos[]` (con `etiqueta`/`obligatorio`) son
+  las filas del desplegable «Verificación Documental» y `huella.paginas` —o la
+  mayor `pagina` declarada— es el recuento de páginas que pide el lote. Diseña
+  entonces pensando en lo visible: etiquetas que un humano entienda y
+  `obligatorio: true` solo donde el documento realmente no vale sin ese dato,
+  porque cada obligatorio sin lectura es un `RECHAZADA — FALTAN n DATOS`.
+  La única excepción es `documento: "acta_e14"` reconocida por el clasificador
+  electoral: ahí el gate conserva el veredicto y el check list curado del acta.
 - Banderas relevantes al diseñar: `ancla_no_encontrada`, `ancla_colision`,
   `desambiguacion_fallida`, `umbral_al_borde`, `pagina_faltante`,
   `posible_pagina_equivocada`, `rotacion_180_corregida`.

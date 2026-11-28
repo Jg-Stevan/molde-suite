@@ -11,10 +11,13 @@
  *      - OPTIMA/ENVIADA (todo OK): COLAPSADA por defecto; al abrirla muestra
  *        el detalle completo (todos los items).
  *      - ADVERTENCIA / RECHAZADA / EN_REVISION_HUMANA: auto-despliegue al
- *        segundo de vida del acta mostrando SOLO los campos faltantes (los
- *        OK no se listan). El badge [pasados/total] conserva el conteo
- *        COMPLETO del checklist.
- *      - RECHAZADA sin clasificación (sin plantilla conocida): mensaje
+ *        segundo de vida del acta. AUTO (2026-11-27): si la biblioteca
+ *        IDENTIFICÓ el documento, la lista son los CAMPOS DEL MOLDE — y se
+ *        muestran TODOS (lo que se pide, en verde y rojo); el toggle los
+ *        comprime a «solo campos con problemas». Sin identificación quedan los
+ *        faltantes del checklist electoral de siempre. El badge [pasados/total]
+ *        conserva el conteo COMPLETO.
+ *      - RECHAZADA sin clasificación y SIN molde identificado: mensaje
  *        «DOCUMENTO NO IDENTIFICADO — SIN PLANTILLA CONOCIDA».
  *
  * Los datos siguen siendo los MISMOS data-driven de lib/e14/checklist.ts
@@ -25,7 +28,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { Acta } from '@/lib/e14/fachada';
 import type { ResumenMoldeCampo } from '@molde-suite/scanner-core/dominio/types';
-import { useE14Store } from '@/lib/e14/store';
+import { mandaElMolde } from '@/lib/e14/ui/banner';
 import {
   construirChecklist,
   tonoDeStatus,
@@ -87,180 +90,48 @@ function IconoGate({ tono }: { tono: TonoChecklist }) {
   );
 }
 
-/** §5 — una FILA del panel con su estado/confianza y, si es editable, el
- *  lápiz + editor inline (input + GUARDAR/CANCELAR). Al guardar llama al
- *  store (editarCampoActa): re-evalúa, recalcula el veredicto, persiste
- *  EDITADO y aplica la REGLA DE ORO si completa los obligatorios. Los
- *  manuscritos (firma/huella) NO se editan — su evidencia es la tinta. */
-function FilaVerificacion({ item, acta }: { item: ItemChecklist; acta: Acta }) {
-  const editarCampoActa = useE14Store((s) => s.editarCampoActa);
-  const [editando, setEditando] = useState(false);
-  const [borrador, setBorrador] = useState('');
-  const [enVuelo, setEnVuelo] = useState(false);
-  const [fallo, setFallo] = useState(false);
-
-  const esCheckbox = item.tipoCampo === 'checkbox';
-  const valorActual = (() => {
-    if (item.editado && acta.valoresEditados && item.id in acta.valoresEditados) {
-      const v = acta.valoresEditados[item.id];
-      return typeof v === 'string' ? v : v ? 'true' : '';
-    }
-    if (esCheckbox) return item.detalle === 'DILIGENCIADO' ? 'true' : '';
-    return item.detalle && !['CONFIRMAR', 'SIN LECTURA', 'SIN MARCA'].includes(item.detalle)
-      ? item.detalle
-      : '';
-  })();
-
+/** Una FILA del panel: glifo de estado + etiqueta + confianza del OCR + valor
+ *  leído. LECTURA PURA (dueño 2026-11-27): NO hay lápiz ni editor — «todo se
+ *  debe de detectar automáticamente». Lo que el motor no leyó se ve como
+ *  SIN LECTURA/CONFIRMAR y se resuelve REPITIENDO LA FOTO, no escribiendo
+ *  encima (un valor tecleado no es evidencia del documento). */
+function FilaVerificacion({ item }: { item: ItemChecklist }) {
   const confTxt =
     typeof item.conf === 'number' ? `conf ${Math.round(item.conf * 100)}%` : null;
 
-  async function guardar() {
-    setEnVuelo(true);
-    setFallo(false);
-    try {
-      const valor = esCheckbox ? borrador === 'true' : borrador;
-      const ok = await editarCampoActa(item.id, valor);
-      if (ok) setEditando(false);
-      else setFallo(true);
-    } finally {
-      setEnVuelo(false);
-    }
-  }
-
   return (
     <li
-      key={item.id}
       data-testid="checklist-item"
-      className="flex flex-col rounded-lg bg-[#090d12]/70 border border-slate-800/70 px-2.5 py-1"
+      className="flex items-center justify-between gap-3 rounded-lg bg-[#090d12]/70 border border-slate-800/70 px-2.5 py-1 min-h-[28px]"
     >
-      <div className="flex items-center justify-between gap-3 min-h-[28px]">
-        <span className="flex items-center gap-2 min-w-0">
+      <span className="flex items-center gap-2 min-w-0">
+        <span
+          aria-hidden
+          className={`shrink-0 font-mono text-[11px] font-black leading-none ${GLIFO_COLOR[item.estado]}`}
+        >
+          {GLIFO[item.estado]}
+        </span>
+        <span className="font-mono text-[11px] font-semibold text-slate-200 truncate">
+          {item.etiqueta}
+        </span>
+      </span>
+      <span className="flex items-center gap-1.5 shrink-0">
+        {confTxt && (
           <span
-            aria-hidden
-            className={`shrink-0 font-mono text-[11px] font-black leading-none ${GLIFO_COLOR[item.estado]}`}
+            title="Confianza de lectura del OCR"
+            className="font-mono text-[9px] text-slate-500 tabular-nums"
           >
-            {GLIFO[item.estado]}
+            {confTxt}
           </span>
-          <span className="font-mono text-[11px] font-semibold text-slate-200 truncate">
-            {item.etiqueta}
+        )}
+        {item.detalle && (
+          <span
+            className={`font-mono text-[10px] font-bold uppercase tracking-wide text-right ${VALOR_ESTADO[item.estado]} max-w-[55%] truncate`}
+          >
+            {item.detalle}
           </span>
-          {item.editado && (
-            <span
-              data-testid="campo-editado"
-              className="shrink-0 rounded border border-sky-500/50 bg-sky-500/10 px-1 font-mono text-[8.5px] font-black uppercase text-sky-300"
-            >
-              EDITADO
-            </span>
-          )}
-        </span>
-        <span className="flex items-center gap-1.5 shrink-0">
-          {confTxt && (
-            <span
-              title="Confianza de lectura del OCR"
-              className="font-mono text-[9px] text-slate-500 tabular-nums"
-            >
-              {confTxt}
-            </span>
-          )}
-          {item.detalle && (
-            <span
-              className={`font-mono text-[10px] font-bold uppercase tracking-wide text-right ${VALOR_ESTADO[item.estado]} max-w-[45%] truncate`}
-            >
-              {item.detalle}
-            </span>
-          )}
-          {item.editable && !editando && (
-            <button
-              type="button"
-              data-testid={`editar-campo-${item.id}`}
-              aria-label={`Corregir el valor de ${item.etiqueta}`}
-              title="Corregir el valor leído"
-              onClick={() => {
-                setBorrador(esCheckbox ? valorActual || 'false' : valorActual);
-                setFallo(false);
-                setEditando(true);
-              }}
-              className="shrink-0 rounded border border-slate-700 bg-[#0d131a] px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-300 hover:border-sky-500/60 hover:text-sky-300 cursor-pointer"
-            >
-              ✎
-            </button>
-          )}
-        </span>
-      </div>
-
-      {/* Editor inline (§5): input de edición + GUARDAR/CANCELAR. Al guardar
-          se re-evalúa el documento con el valor corregido; si completa los
-          obligatorios → auto-guardado inmediato (REGLA DE ORO §4). */}
-      {editando && (
-        <div className="mt-1.5 flex flex-col gap-1.5 border-t border-slate-800 pt-1.5" data-testid="editor-campo">
-          {esCheckbox ? (
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => setBorrador('true')}
-                aria-pressed={borrador === 'true'}
-                className={`flex-1 rounded-md border px-2 py-1.5 font-mono text-[10px] font-bold cursor-pointer ${
-                  borrador === 'true'
-                    ? 'border-[#10b981]/60 bg-[#10b981]/15 text-[#10b981]'
-                    : 'border-slate-700 bg-[#0d131a] text-slate-400'
-                }`}
-              >
-                MARCADO
-              </button>
-              <button
-                type="button"
-                onClick={() => setBorrador('false')}
-                aria-pressed={borrador === 'false'}
-                className={`flex-1 rounded-md border px-2 py-1.5 font-mono text-[10px] font-bold cursor-pointer ${
-                  borrador === 'false'
-                    ? 'border-red-500/60 bg-red-500/15 text-red-300'
-                    : 'border-slate-700 bg-[#0d131a] text-slate-400'
-                }`}
-              >
-                SIN MARCA
-              </button>
-            </div>
-          ) : (
-            <input
-              type="text"
-              value={borrador}
-              autoFocus
-              aria-label={`Nuevo valor para ${item.etiqueta}`}
-              data-testid="input-valor-campo"
-              onChange={(e) => setBorrador(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && borrador.trim()) void guardar();
-                if (e.key === 'Escape') setEditando(false);
-              }}
-              className="w-full rounded-md border border-slate-700 bg-black/40 px-2 py-1.5 font-mono text-[11px] text-white placeholder:text-white/30 focus:border-sky-500/60 focus:outline-none"
-              placeholder="Valor correcto del campo"
-            />
-          )}
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              data-testid="guardar-valor-campo"
-              disabled={enVuelo || (!esCheckbox && !borrador.trim())}
-              onClick={() => void guardar()}
-              className="flex-1 rounded-md bg-brand-green px-2 py-1.5 font-mono text-[10px] font-bold text-black hover:brightness-110 disabled:opacity-40 cursor-pointer"
-            >
-              {enVuelo ? 'GUARDANDO…' : 'GUARDAR CORRECCIÓN'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditando(false)}
-              className="flex-1 rounded-md border border-slate-700 px-2 py-1.5 font-mono text-[10px] font-bold text-slate-300 hover:border-slate-500 cursor-pointer"
-            >
-              CANCELAR
-            </button>
-          </div>
-          {fallo && (
-            <p role="alert" className="font-mono text-[9.5px] text-red-300">
-              No se pudo aplicar la corrección (campo no editable o sin molde).
-            </p>
-          )}
-        </div>
-      )}
+        )}
+      </span>
     </li>
   );
 }
@@ -268,8 +139,8 @@ function FilaVerificacion({ item, acta }: { item: ItemChecklist; acta: Acta }) {
  *  P4: cuando `soloFaltantes` está activo, la LISTA muestra únicamente los
  *  items con problema (los OK no se listan); el badge conserva el conteo
  *  completo [pasados/total] para no perder la perspectiva del progreso.
- *  §5: las filas del MOLDE se renderizan con FilaVerificacion (conf +
- *  edición inline) — las filas del checklist E-14 genérico quedan intactas. */
+ *  Las filas son una sola cosa (FilaVerificacion): moldee E-14 comparten fila
+ *  desde que no hay edición — la confianza solo aparece cuando el motor la dio. */
 function SeccionVerificacion({
   titulo,
   items,
@@ -277,7 +148,6 @@ function SeccionVerificacion({
   desplegable,
   abierta,
   onToggle,
-  acta,
 }: {
   titulo: string;
   items: ItemChecklist[];
@@ -285,9 +155,6 @@ function SeccionVerificacion({
   desplegable?: boolean;
   abierta?: boolean;
   onToggle?: () => void;
-  /** §5 — acta con filas del motor (presente SOLO en secciones del molde):
-   *  activa la fila editable con conf/estado/lápiz. */
-  acta?: Acta;
 }) {
   const total = items.length;
   const pasados = items.filter((it) => it.estado === 'ok').length;
@@ -339,35 +206,9 @@ function SeccionVerificacion({
           (las secciones fijas — Campos Obligatorios — siempre la muestran). */}
       {(!desplegable || abierta) && (
         <ul className="mt-1 space-y-0.5">
-        {lista.map((item) =>
-          acta ? (
-            // §5 — fila del MOLDE: conf + estado + lápiz de corrección.
-            <FilaVerificacion key={item.id} item={item} acta={acta} />
-          ) : (
-            // Fila del checklist E-14 genérico (intacta).
-            <li
-              key={item.id}
-              data-testid="checklist-item"
-              className="flex items-center justify-between gap-3 rounded-lg bg-[#090d12]/70 border border-slate-800/70 px-2.5 py-1 min-h-[28px]"
-            >
-              <span className="flex items-center gap-2 min-w-0">
-                <span aria-hidden className={`shrink-0 font-mono text-[11px] font-black leading-none ${GLIFO_COLOR[item.estado]}`}>
-                  {GLIFO[item.estado]}
-                </span>
-                <span className="font-mono text-[11px] font-semibold text-slate-200 truncate">
-                  {item.etiqueta}
-                </span>
-              </span>
-              {item.detalle && (
-                <span
-                  className={`shrink-0 font-mono text-[10px] font-bold uppercase tracking-wide text-right ${VALOR_ESTADO[item.estado]} max-w-[55%] truncate`}
-                >
-                  {item.detalle}
-                </span>
-              )}
-            </li>
-          ),
-        )}
+        {lista.map((item) => (
+          <FilaVerificacion key={item.id} item={item} />
+        ))}
       </ul>
       )}
     </section>
@@ -431,10 +272,9 @@ function fusionarGrupos(
  *  checklist con el MISMO semáforo. Valores legibles por tipo de campo:
  *  texto → el valor leído; presencia/firma/checkbox → diligenciado o sin
  *  marca; dudoso → CONFIRMAR (revisión humana); vacío → SIN LECTURA.
- *  §5 (plan cierre 2 agentes): la fila lleva TAMBIÉN la confianza de
- *  lectura, el tipo, si es editable (texto/checkbox) y si fue EDITADA por
- *  el operador — el panel la muestra junto al valor. */
-function itemDeFilaMolde(c: ResumenMoldeCampo, acta: Acta): ItemChecklist {
+ *  La fila es la LECTURA del motor y nada más: sin lápiz (dueño 2026-11-27),
+ *  la confianza `conf` es lo único que dice qué tan segura es esa lectura. */
+function itemDeFilaMolde(c: ResumenMoldeCampo): ItemChecklist {
   const estado: EstadoChecklist =
     c.estado === 'ok'
       ? 'ok'
@@ -455,17 +295,12 @@ function itemDeFilaMolde(c: ResumenMoldeCampo, acta: Acta): ItemChecklist {
   } else {
     detalle = 'SIN LECTURA';
   }
-  const editable = c.tipo === 'texto' || c.tipo === 'checkbox';
   return {
     id: c.id,
     etiqueta: c.etiqueta,
     detalle,
     estado,
     conf: c.conf ?? null,
-    tipoCampo: c.tipo,
-    editable,
-    // Marca EDITADO: el acta lleva el override del operador para este campo.
-    editado: acta.valoresEditados ? c.id in acta.valoresEditados : false,
   };
 }
 
@@ -506,14 +341,18 @@ export function VerificacionDocumental({
   const tono = tonoDeStatus(acta.status);
   const piel = TONO_TARJETA[tono];
 
-  // ── ETAPA B (enrutamiento universal): acta reconocida por un MOLDE de la
-  // biblioteca (`evaluacionMolde.enrutado`) → el checklist se construye de
-  // las FILAS del motor universal con el semáforo de siempre (B.3). El
-  // nombre del documento vive en el banner (acta.titulo) y en el caption.
-  const molde = acta.evaluacionMolde?.enrutado ? acta.evaluacionMolde : null;
-  // Plan primera ola (Fase 4): molde evaluado que NO sustituye el veredicto
-  // del gate → pista de una línea (el % y las filas del checklist NO cambian).
-  const moldeAditivo = acta.evaluacionMolde && !acta.evaluacionMolde.enrutado ? acta.evaluacionMolde : null;
+  // ── AUTO (2026-11-27): el despliegue de los campos los manda la IDENTIFICACIÓN
+  // (`evaluacionMolde.identificado`: la biblioteca reconoció el papel por sus
+  // anclas), no el veredicto. Antes la puerta era `enrutado` — que exigía score
+  // ≥ umbral — así que un recibo reconocido al 42 % NO mostraba los datos que
+  // su propia plantilla pide. El checklist se construye de las FILAS del motor
+  // universal con el semáforo de siempre (B.3); el nombre del documento vive en
+  // el banner.
+  const molde = (mandaElMolde(acta) ? acta.evaluacionMolde : null) ?? null;
+  // Plan primera ola (Fase 4): molde evaluado que NO manda (acta E-14 con
+  // clasificación real → el check list curado conserva la autoridad) → pista de
+  // una línea (el % y las filas del checklist NO cambian).
+  const moldeAditivo = acta.evaluacionMolde && !molde ? acta.evaluacionMolde : null;
   // Filas del motor universal → items del checklist (derivación barata; el
   // compilador de React memoiza automáticamente). Fase 3 (multipágina):
   // `filtroPagina` restringe la verificación a la página capturada.
@@ -524,10 +363,10 @@ export function VerificacionDocumental({
   }, [molde, filtroPagina]);
   const obligatoriosMolde = filasMolde
     .filter((c) => c.obligatorio)
-    .map((c) => itemDeFilaMolde(c, acta));
+    .map((c) => itemDeFilaMolde(c));
   const opcionalesMolde = filasMolde
     .filter((c) => !c.obligatorio)
-    .map((c) => itemDeFilaMolde(c, acta));
+    .map((c) => itemDeFilaMolde(c));
 
   // ── FASE 4 (v3.2.0 — interfaz táctica): cuando el molde declara `grupo`
   // (importador Chandra), el checklist se presenta AGRUPADO por sección de
@@ -554,17 +393,18 @@ export function VerificacionDocumental({
           if (oa !== ob) return oa - ob;
           return a.etiqueta.localeCompare(b.etiqueta);
         })
-        .map((c) => itemDeFilaMolde(c, acta)),
+        .map((c) => itemDeFilaMolde(c)),
     }));
-  }, [filasMolde, acta]);
+  }, [filasMolde]);
 
-  // ── P4 — SIN PLANTILLA: rechazada sin clasificación NI texto útil
-  // (ILEGIBLE: ni código de barras ni cabecera detectados → nada que
-  // verificar). Las RECHAZADAS con OCR válido (GENERICO — documento
-  // E-14 de mala calidad) SÍ muestran el checklist con solo faltantes.
+  // ── P4 — SIN PLANTILLA: rechazada sin clasificación NI molde identificado
+  // (ILEGIBLE: ni código de barras ni cabecera detectados, y la biblioteca no
+  // reconoció el papel → nada que verificar). Con molde identificado la
+  // plantilla SIEMPRE manda (`molde` arriba), rechazada o no.
   const sinPlantilla =
     acta.status === 'RECHAZADA' &&
     acta.clasificacion == null &&
+    molde == null &&
     (acta.rechazo == null || acta.rechazo.tipo === 'ILEGIBLE');
 
   // Dos listas del mock: bloqueantes (huellas + obligatorios) e informativos
@@ -611,20 +451,21 @@ export function VerificacionDocumental({
   const abierta = overrideAbierta ?? autoAbierta;
   const opcionalesAbiertos = overrideOpcionales ?? tono !== 'ok';
 
-  // §5 (plan cierre 2 agentes) — el operador necesita CORREGIR cualquier
-  // campo, también los que el motor leyó 'ok' (el OCR puede pasar un valor
-  // equivocado por el patrón). P4 solo-mostraba los faltantes: este toggle
-  // EXPLÍCITO del operador despliega TODAS las filas del molde para editar
-  // (la presentación por defecto de P4 queda intacta). Reset al cambiar acta.
+  // Toggle de LECTURA (no de corrección): P4 solo-mostraba los faltantes; con
+  // documento identificado se listan TODOS los campos del molde. El operador
+  // puede comprimir otra vez a «solo con problemas». Reset al cambiar acta.
   const [mostrarTodos, setMostrarTodos] = useState(false);
   useEffect(() => {
-    setMostrarTodos(false);
+    // AUTO (2026-11-27): con documento identificado, LAS FILAS DEL MOLDE SON los
+    // datos que se piden — se muestran todos (verde y rojo), no solo los
+    // problemas. El toggle sigue mandando: el operador puede comprimir a
+    // «SOLO CAMPOS CON PROBLEMAS». Sin identificar → comportamiento de siempre.
+    setMostrarTodos(mandaElMolde(acta));
   }, [actaId]);
-  const hayEditables = filasMolde.some((c) => c.tipo === 'texto' || c.tipo === 'checkbox');
+  const hayFilas = filasMolde.length > 0;
 
   // P4 — contenido: óptima muestra TODO; el resto SOLO lo faltante.
-  // §5: el toggle «mostrar todos» del operador gana (edición de cualquier
-  // campo — ver comentario arriba).
+  // El toggle «mostrar todos» del operador gana (ver comentario arriba).
   const soloFaltantes = tono !== 'ok' && !mostrarTodos;
 
   // Porcentaje global del gate (mock: badge del header) — para actas
@@ -742,20 +583,19 @@ export function VerificacionDocumental({
               <p className="font-mono text-[9.5px] font-bold tracking-widest text-slate-300 uppercase shrink-0">
                 Molde: {molde.moldeNombre.toUpperCase()} · {molde.ok}/{molde.total} campos ok
               </p>
-              {/* §5 — corrección de datos: el toggle despliega TODAS las filas
-                  del molde para que el operador pueda corregir también las que
-                  el motor leyó 'ok' (por defecto P4: solo faltantes). */}
-              {hayEditables && (
+              {/* Toggle de lectura: despliega/oculta los campos que el motor ya
+                  leyó BIEN. No hay corrección manual — lo que falta se repite. */}
+              {hayFilas && (
                 <button
                   type="button"
                   data-testid="toggle-mostrar-todos"
                   aria-pressed={mostrarTodos}
                   onClick={() => setMostrarTodos((v) => !v)}
-                  className="w-full rounded-md border border-sky-500/50 bg-sky-500/10 px-2 py-1 font-mono text-[9.5px] font-bold uppercase tracking-wide text-sky-300 hover:bg-sky-500/15 cursor-pointer shrink-0"
+                  className="w-full rounded-md border border-slate-700 bg-[#0d131a] px-2 py-1 font-mono text-[9.5px] font-bold uppercase tracking-wide text-slate-300 hover:border-slate-500 cursor-pointer shrink-0"
                 >
                   {mostrarTodos
                     ? 'SOLO CAMPOS CON PROBLEMAS'
-                    : 'CORREGIR DATOS — MOSTRAR TODOS LOS CAMPOS'}
+                    : 'MOSTRAR TODOS LOS CAMPOS LEÍDOS'}
                 </button>
               )}
               {gruposTacticos ? (
@@ -769,7 +609,6 @@ export function VerificacionDocumental({
                       titulo={g.titulo}
                       items={g.items}
                       soloFaltantes={soloFaltantes}
-                      acta={acta}
                     />
                   ))}
                 </>
@@ -782,7 +621,6 @@ export function VerificacionDocumental({
                       titulo="Campos Obligatorios"
                       items={obligatoriosMolde}
                       soloFaltantes={soloFaltantes}
-                      acta={acta}
                     />
                   )}
                   {/* Campos informativos del molde (desplegable, regla del mock). */}
@@ -794,7 +632,6 @@ export function VerificacionDocumental({
                       desplegable
                       abierta={mostrarTodos || opcionalesAbiertos}
                       onToggle={() => setOverrideOpcionales(!opcionalesAbiertos)}
-                      acta={acta}
                     />
                   )}
                 </>

@@ -15,10 +15,20 @@ import { ANCLAS_LECTURA, norm, senalDeLectura } from "@molde-suite/scanner-core/
 import { RealCoreBridge } from "../src/lib/e14/bridge/real-core-bridge";
 import {
   MOLDE_DEMO_RECIBO,
+  UMBRAL_RUTA_ANCLAS,
   UMBRAL_RUTA_SCORE,
   debeEnrutar,
+  elegirCandidato,
   moldeElectoral,
+  veredictoDeResumen,
 } from "../src/lib/e14/molde/enrutamiento";
+import type { MoldeUniversal } from "@molde-suite/scanner-core/molde/universal-types";
+
+/** Plantilla mínima con las anclas de `MOLDE_DEMO_RECIBO` — para medir AL
+ *  MENOS dos candidatos del mismo papel sin traer un JSON al test. */
+function plantilla(nombre: string): MoldeUniversal {
+  return { ...MOLDE_DEMO_RECIBO, nombre } as MoldeUniversal;
+}
 import { readBarcodesFromImageData } from "zxing-wasm/reader";
 import { writeBarcode } from "zxing-wasm/writer";
 
@@ -206,10 +216,60 @@ describe("enrutado universal de moldes (ETAPA B)", () => {
     expect(debeEnrutar(actaE14, undefined, 95, 8)).toBe(true);
   });
 
-  test("sin confianza del motor no se enruta (umbral y campos leídos)", () => {
-    expect(debeEnrutar(recibo, undefined, UMBRAL_RUTA_SCORE - 1, 3)).toBe(false);
+  test("AUTO: identificar NO es aprobar — el score ya no es puerta de ruta", () => {
+    // 2026-11-27 (medido en el A56): con el umbral de score como puerta, un
+    // recibo reconocido al 42 % de anclas se quedaba con el veredicto electoral
+    // y el operador NO veía los datos que su propia plantilla pide. Basta con
+    // que el molde HAYA LEÍDO algo; el score decide el SEMÁFORO, no el display.
+    expect(debeEnrutar(recibo, undefined, UMBRAL_RUTA_SCORE - 1, 3)).toBe(true);
+    expect(debeEnrutar(recibo, { esE14: true }, 20, 1)).toBe(true);
     expect(debeEnrutar(recibo, undefined, UMBRAL_RUTA_SCORE, 3)).toBe(true);
     // Prohibido el falso ok: cero campos leídos ⇒ nunca veredicto del molde.
     expect(debeEnrutar(recibo, undefined, 100, 0)).toBe(false);
+  });
+
+  test("veredictoDeResumen sigue rechazando bajo el umbral", () => {
+    const resumenBajo = {
+      moldeNombre: "RECIBO DE LUZ",
+      total: 12,
+      ok: 5,
+      score: 42,
+      requiereRevision: false,
+      obligatoriosFaltantes: ["importe", "firma_emisor"],
+      banderas: [],
+      tiempos: { render_ms: 10, ocr_ms: 100, motor_ms: 20 },
+      enrutado: true,
+      identificado: true,
+    };
+    const v = veredictoDeResumen(resumenBajo);
+    expect(v.status).toBe("RECHAZADA");
+    expect(v.rechazo?.tipo).toBe("MOLDE");
+    expect(v.rechazo?.detalle ?? "").toContain("importe");
+  });
+
+  test("empate de anclas: gana el primero de la lista — así desempata el ACTIVO", () => {
+    // AUTO siempre (2026-11-27): el molde activado ya NO se salta el router;
+    // su privilegio es ir PRIMERO en `candidatosDeSesion` y que la comparación
+    // del router sea `>` estricta. Dos plantillas del mismo papel impreso
+    // (recibo_pago vs recibo_real) empatan en ratio: el orden decide.
+    // Las líneas caen sobre el rect que DECLARA MOLDE_DEMO_RECIBO (canvas
+    // 1000×1300): SUSCRIPTOR No (y≈0.245) · PERIODO (0.277) · CONSUMO (0.308).
+    const linea = (texto: string, ancla: string, x0: number, y0: number, x1: number, y1: number) => ({
+      texto,
+      bbox: [x0, y0, x1, y1] as [number, number, number, number],
+      palabras: [{ texto: ancla, conf: 95, bbox: [x0, y0, x0 + 120, y1] as [number, number, number, number] }],
+    });
+    const lineas = [
+      linea("SUSCRIPTOR No 30488418", "SUSCRIPTOR", 170, 295, 430, 320),
+      linea("PERIODO 2026-09", "PERIODO", 170, 335, 330, 360),
+      linea("CONSUMO kWh 214", "CONSUMO", 170, 375, 360, 400),
+    ];
+    const g = elegirCandidato([plantilla("A"), plantilla("B")], lineas, 1000, 1300);
+    expect(g?.molde.nombre).toBe("A");
+    expect(g?.ratioAnclas ?? 0).toBeGreaterThanOrEqual(UMBRAL_RUTA_ANCLAS);
+    const g2 = elegirCandidato([plantilla("B"), plantilla("A")], lineas, 1000, 1300);
+    expect(g2?.molde.nombre).toBe("B");
+    // Sin anclas leídas no hay candidato: el llamador cae al molde activo.
+    expect(elegirCandidato([plantilla("A")], [], 1000, 1300)).toBeNull();
   });
 });

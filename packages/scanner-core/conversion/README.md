@@ -70,10 +70,14 @@ md5.ts         MD5 puro sin deps para los nombres `{hash}_img.jpg` + helpers bas
 `apps/tamiz/src/lib/e14/conversion/chandra-bridge.ts` construye el
 `SalidaPipeline` desde el acta real (OCR del proveedor Tamiz + regiones
 sintetizadas: campos del molde con su rect medido + bandas de líneas restantes
-+ recortes de firma) y llama `convertirTodo`. El botón **EXPORTAR CONVERSIÓN**
-en la revisión descarga el JSON (consumible por `importar-chandra.ts` de Molde
-Studio — el loop «escanear en el celular → recalibrar molde sin Datalab») y
-opcionalmente `.md`/`.html`.
++ recortes de firma) y llama `convertirTodo`. Desde 2026-11-27 el acceso por UI
+es el **visor dev de conversión**: un chip temporal en la píldora del score de la
+revisión (`apps/tamiz/src/components/e14/dev/BotonConversionDev.tsx` +
+`src/lib/e14/conversion/visor-conversion.ts`) que abre una pestaña con el HTML
+renderizado y el `.md`/`.json` en texto plano — visible solo con
+`localStorage.tamiz.dev = '1'`. El JSON sigue siendo el que consume
+`importar-chandra.ts` de Molde Studio (loop «escanear en el celular → recalibrar
+molde sin Datalab»); el botón de descarga que cerró el Benchmark V3 se retiró.
 
 ## Fases siguientes (documentadas, no implementadas aquí)
 

@@ -157,6 +157,21 @@ distintas (sonda leyendo el historial); overlay 0/0 en fotos giradas 90°
 
 **Lecciones:** recibo_pago/2026-11-26-variantes-mismo-papel-tinta.md
 
+**Ampliación (2026-11-27, AUTO + catálogo sembrado):** el patrón VOLVIÓ por
+otra puerta — el catálogo empaquetado siembra `recibo_pago` Y `recibo_real`
+(una sola fila por nombre, sin variantes A/B/C). No empatan: `recibo_real` gana
+con ratio **1.0** contra **0.6**, porque sus anclas son las etiquetas impresas
+que están en TODAS las variantes del papel. El ratio mide «¿es este papel?», no
+«¿extrae este papel?», así que el AUTO elige la plantilla que saca **3/12**
+sobre la que saca **5/12** (medido con
+`TAMIZ_SIN_LIMPIEZA=1 TAMIZ_BIBLIOTECA_SIN="real" node
+scripts/entrega/auto-molde-a56.mjs recibo`). Regla nueva: **una sola plantilla
+sembrada por familia de papel**; las variantes calibradas para manuscrito se
+importan a mano. Y `requiere_revision` no es «FALTA»: el motor leyó el valor,
+pide confirmación — el banner debe decirlo así.
+
+**Lecciones (ampliación):** recibo_pago/2026-11-27-catalogo-dos-plantillas-mismo-papel.md
+
 ## P10 — Multipágina: veredicto del documento como criterio de página
 
 **Patrón:** con un molde de >1 páginas, la evaluación POR PÁGINA del bridge
@@ -259,3 +274,29 @@ simulación byte-idéntica antes de ejecutar; protección de rama guardada por
 API, `allow_force_pushes` temporal y restauración verificada idéntica.
 
 **Lecciones:** recibo_pago/2026-11-27-filter-repo-invert-paths.md
+
+## P15 — Un banco E2E que falla en silencio parece una app congelada
+
+**Patrón:** el sondeo de espera del banco A56 metía `VEREDICTOS` —constante del
+módulo Node— dentro de la función que se serializa y se evalúa en la pestaña.
+En la página ese identificador no existe ⇒ `ReferenceError` en **cada** poll, y
+`await sondeo().catch(() => null)` lo convertía en «todavía no está». El banco
+esperó 669 s una tarjeta que sí estaba en pantalla (`resumen.json`: `texto`
+contenía «RECHAZADA», `banner` en `null`). Tres corridas seguidas reportaron
+«FALLAS» que no eran de la app.
+
+**Síntomas:** timeout de veredicto de 10 minutos sin ningún log de motor; la
+captura muestra el resultado; el `consoleAPICalled` no emite nada nuevo. Variante
+relacionada: tras limpiar el service worker, Chromium dispara `updatefound`
+(también en la primera instalación) y el toast «Nueva versión disponible» deja
+la pestaña en el shell anterior — el escaneo se mide contra una app vieja.
+
+**Mitigación:** (1) toda función in-page es **autocontenida**, los valores de
+Node entran por parámetro (`cdp.js((patron) => …, VEREDICTOS.source)`, como ya
+se hacía con `PROHIBIDAS`/`CLAVES`, que nunca fallaron); (2) ningún `catch` de
+sondeo sin registrar el mensaje y volcar el `innerText` cada ~12 s; (3)
+`descartarActualizar()` pulsa «RECARGAR AHORA» y re-espera el input antes de
+importar; (4) `Network.clearBrowserCache()` y **nunca** `setCacheDisabled(true)`
+— re-baja ~48 MB de ONNX y el escaneo pasa de 26 s a 669 s.
+
+**Lecciones:** app_tamiz/2026-11-27-cdp-constante-node-in-page.md

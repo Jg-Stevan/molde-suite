@@ -4,17 +4,17 @@
 // y su resumen era estrictamente ADITIVO (nadie lo mostraba). Ahora este
 // módulo es el PUENTE Studio→Tamiz completo:
 //
-//   1. Registra el proveedor OCR de Tamiz en el motor compartido (una vez).
-//   2. Si hay molde ACTIVO, se evalúa directamente (comportamiento de
-//      siempre — la elección explícita del operador manda).
-//   3. Si NO hay activo, el ROUTER (molde/enrutamiento.ts) corre UNA pasada
-//      de OCR compartida, prefiltra la biblioteca por anclas y evalúa
-//      COMPLETO solo al mejor candidato (motor universal, modo ligero).
-//   4. Cuando el molde ganador NO es el del acta E-14 (o el operador lo eligió
-//      y el documento no es electoral) y el candidato responde (score ≥
-//      umbral), el resultado se marca `enrutado: true`: el veredicto del acta
-//      (score/estado/banner) deriva del MOLDE. Solo un acta E-14 reconocida
-//      evaluada contra su propio molde deja el resultado ADITIVO.
+//   1. Registra el proveedor OCR de Tamiz en el motor compartido (una vez) y
+//      siembra el catálogo empaquetado (molde/catalogo.ts) — la biblioteca no
+//      empieza vacía en un dispositivo nuevo.
+//   2. AUTO siempre: el ROUTER (molde/enrutamiento.ts) corre UNA pasada de OCR
+//      compartida, prefiltra la biblioteca por anclas y evalúa COMPLETO solo al
+//      mejor candidato (motor universal, modo ligero) — incluso habiendo molde
+//      activo, que solo desempata y sirve de fallback si nadie responde.
+//   3. El resumen marca `identificado` (qué plantilla es) y, si el molde leyó
+//      algo y no es el acta E-14 reconocida, también `enrutado` (el veredicto
+//      del acta deriva del MOLDE). Identificar ≠ aprobar: un documento
+//      identificado puede salir RECHAZADA por campos obligatorios faltantes.
 //
 // FASE B2/B4 del blueprint DLA intactas: segunda opinión ONNX para casillas
 // dudosas y bandera de presencia manuscrita (señales, nunca veredictos).
@@ -30,7 +30,7 @@ import { canvasDesdeDataUrl } from '@molde-suite/scanner-core/core/canvas-imagen
 import type { MoldeUniversal } from '@molde-suite/scanner-core/molde/universal-types';
 import type { ResumenMoldeActa, ResumenMoldeCampo } from '@molde-suite/scanner-core/dominio/types';
 import { proveedorOcrTamiz, ocrLines } from './ocr-proveedor';
-import { moldeActivo } from './registry';
+import { moldeActivo, paginasEsperadasDe } from './registry';
 import {
   candidatosDeSesion,
   debeEnrutar,
@@ -42,6 +42,8 @@ import {
 import '../dla/config';
 import { leerFlags } from '../flags';
 import { logger } from '../../logger';
+import { sembrarCatalogo } from './catalogo';
+import { moldePorNombre } from './almacen';
 
 let proveedorRegistrado = false;
 function asegurarProveedor(): void {
@@ -169,14 +171,14 @@ async function segundaOpinionCasillas(
 
 /**
  * ETAPA B — evalúa el mejor molde sobre la foto procesada del acta.
- *  · Molde ACTIVO → evaluación directa (la elección del operador manda; el
- *    OCR de página se comparte igualmente para la telemetría de anclas).
- *  · Sin activo → ROUTER sobre la biblioteca (prefiltro por anclas con UNA
- *    pasada de OCR compartida; evaluación completa solo al mejor candidato).
+ *  · AUTO siempre: el ROUTER elige de la biblioteca (prefiltro por anclas con
+ *    UNA pasada de OCR compartida; evaluación completa solo al mejor). Con
+ *    molde ACTIVO gana el activo ante empate de ratio y se usa como fallback
+ *    si ningún candidato responde (ratio < UMBRAL_RUTA_ANCLAS).
  *  · Fase 4: esa pasada de OCR alimenta también al motor (`opts.lineas`) y,
  *    si la binarizada no lee nada, se mide un A/B contra `fotoOcr` (original).
- *  · Devuelve null cuando no hay moldes o ningún ancla matchea — el pipeline
- *    no cambia nada (honesto).
+ *  · Devuelve null cuando no hay moldes ni activo — el pipeline no cambia
+ *    nada (honesto).
  */
 export async function evaluarMoldeEnActa(
   fotoProcesada: string,
@@ -195,6 +197,10 @@ export async function evaluarMoldeEnActa(
 ): Promise<ResumenMoldeActa | null> {
   if (!leerFlags().evaluacionMolde) return null;
   asegurarProveedor();
+  // AUTO: la biblioteca empaquetada se siembra sola (una vez por
+  // CATALOGO_VERSION); el demo «RECIBO DE LUZ» queda como respaldo si la
+  // siembra no dejó nada (offline en el primer arranque).
+  await sembrarCatalogo();
   await sembrarMoldeDemo();
   const moldes = await candidatosDeSesion();
   if (moldes.length === 0) return null;
@@ -224,8 +230,8 @@ export async function evaluarMoldeEnActa(
   }
   const ocrRouterMs = Math.round(performance.now() - tOcr);
 
-  // Elección del molde: activo explícito o mejor candidato del router.
-  let molde: MoldeUniversal;
+  // Telemetría de ratios ANTES de elegir: así se ve por qué la identificación
+  // elige un molde u otro (y dónde empatan dos plantillas del mismo papel).
   const activo = moldeActivo();
   const ratios = moldes.map((m) => ({
     nombre: m.nombre,
@@ -239,17 +245,21 @@ export async function evaluarMoldeEnActa(
     activo: activo?.nombre ?? null,
     ratios,
   });
-  if (activo) {
-    molde = moldes[0]!;
-  } else {
-    const candidato = elegirCandidato(moldes, ocr.lines, canvas.width, canvas.height);
-    if (!candidato) return null; // ninguna ancla matchea → comportamiento de siempre
-    molde = candidato.molde;
-    logger.info('[molde] candidato del router', {
-      nombre: molde.nombre,
-      ratioAnclas: Math.round(candidato.ratioAnclas * 100) / 100,
-    });
-  }
+  // AUTO siempre (2026-11-27): el ROUTER decide incluso habiendo molde activo.
+  // El activo no se salta la identificación — `candidatosDeSesion` lo pone
+  // primero y `elegirCandidato` compara con `>` estricto, así que DESEMPATA a
+  // igual ratio; y si ningún candidato responde (ratio < UMBRAL_RUTA_ANCLAS) se
+  // evalúa el activo igualmente, que es el comportamiento de siempre (el
+  // escape hatch de `public/moldes/LEEME.md`: usar una variante como molde
+  // activo explícito).
+  const candidato = elegirCandidato(moldes, ocr.lines, canvas.width, canvas.height);
+  const molde = candidato?.molde ?? activo;
+  if (!molde) return null; // biblioteca vacía: comportamiento de siempre
+  const identificado = candidato != null;
+  logger.info(identificado ? '[molde] candidato del router' : '[molde] sin candidato: se usa el molde activo', {
+    nombre: molde.nombre,
+    ratioAnclas: candidato ? Math.round(candidato.ratioAnclas * 100) / 100 : null,
+  });
 
   let resultado = await evaluarDocumentoUniversal(
     [canvas],
@@ -302,6 +312,12 @@ export async function evaluarMoldeEnActa(
 
   await segundaOpinionCasillas(canvasFuente, resultado);
   const resumen = resumir(molde, resultado);
+  // AUTO: la IDENTIFICACIÓN es un hecho medido, independiente del VEREDICTO.
+  // Vive aunque `debeEnrutar` diga false — es lo que autoriza a la
+  // VERIFICACIÓN DOCUMENTAL listar los campos del molde y al banner nombrarlo.
+  resumen.identificado = identificado;
+  if (candidato) resumen.ratioAnclas = candidato.ratioAnclas;
+  resumen.paginasDelMolde = paginasEsperadasDe(molde);
   // Telemetría honesta del puente (visible en consola DEV): qué leyó el
   // motor universal y por qué estado va cada campo.
   logger.info('[molde] resumen del motor universal', {
@@ -340,18 +356,24 @@ export async function evaluarMoldeEnActa(
 }
 
 /**
- * Fase 3 (multipágina real): evalúa el molde ACTIVO contra TODAS las fotos
- * del documento en UNA pasada — el motor universal ya itera páginas
+ * Fase 3 (multipágina real): evalúa el molde contra TODAS las fotos del
+ * documento en UNA pasada — el motor universal ya itera páginas
  * (`evaluarDocumentoUniversal(canvases[])`). Devuelve el resumen con
  * `enrutado: true` (el lote ES el veredicto del documento) o null sin molde /
  * con el flag apagado — el llamador conserva el veredicto de la página.
+ *
+ * AUTO: `moldeIdentificado` es el nombre del molde que eligió el router en la
+ * primera página. Se busca en la biblioteca (`moldePorNombre`) y solo si no
+ * está se cae al ACTIVO — si no, un documento de 1 página identificaría
+ * «RECIBO DE PAGO» y el lote pediría las páginas del molde electoral.
  */
 export async function evaluarMoldeMultipagina(
   fotosProcesadas: string[],
+  moldeIdentificado?: string | null,
 ): Promise<ResumenMoldeActa | null> {
   if (!leerFlags().evaluacionMolde) return null;
   asegurarProveedor();
-  const molde = moldeActivo();
+  const molde = (moldeIdentificado ? await moldePorNombre(moldeIdentificado) : null) ?? moldeActivo();
   if (!molde || fotosProcesadas.length === 0) return null;
   const t0 = performance.now();
   const canvases = await Promise.all(
@@ -368,6 +390,10 @@ export async function evaluarMoldeMultipagina(
   );
   const resumen = resumir(molde, resultado);
   resumen.enrutado = true;
+  // El lote multipágina SIEMPRE va contra la plantilla que se declaró al
+  // empezar el documento: es el molde del documento, identificado por definición.
+  resumen.identificado = true;
+  resumen.paginasDelMolde = paginasEsperadasDe(molde);
   logger.info('[molde] evaluación multipágina', {
     molde: molde.nombre,
     paginas: fotosProcesadas.length,

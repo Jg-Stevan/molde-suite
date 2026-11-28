@@ -104,6 +104,11 @@ function esEstatico(url) {
     url.pathname.startsWith(rutaPublica('/_next/static/')) ||
     url.pathname.startsWith(rutaPublica('/vendor/')) ||
     url.pathname.startsWith(rutaPublica('/scanner/')) ||
+    // Catálogo empaquetado (catalogo.ts): plantillas .json SIN datos de
+    // documento — PRIVACIDAD intacta (jamás fotos ni OCR). La app pide
+    // `?v=<CATALOGO_VERSION>`, así que el cache-first no puede servir una
+    // plantilla recalibrada vieja: cambiar la versión cambia la clave.
+    url.pathname.startsWith(rutaPublica('/moldes/')) ||
     esCdnTesseract(url) ||
     /\.(woff2?|ttf|otf|wasm)$/i.test(url.pathname)
   );

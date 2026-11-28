@@ -263,7 +263,9 @@ function crearCaptura(
       // que un `RECHAZADA` tipo MOLDE (faltan campos de OTRAS páginas) NO
       // descalifica la captura: solo los rechazos FÍSICOS (vacía, recorte
       // incompleto, ilegible, baja calidad, timeout) piden repetir.
-      const esperadas = paginasEsperadas();
+      // AUTO: las páginas las declara el molde EVALUADO en esta acta (identificado
+      // o activo como fallback); sin evaluación, el molde activo de siempre.
+      const esperadas = actaActual.evaluacionMolde?.paginasDelMolde ?? paginasEsperadas();
       const rechazo = actaActual.rechazo;
       const rechazoFisico =
         rechazo != null &&
@@ -275,7 +277,10 @@ function crearCaptura(
       const fotoPagina = actaActual.fotoProcesada;
       if (esperadas > 1 && fotoPagina && !actaActual.procesadaVacia && !rechazoFisico) {
         const sesion: DocumentoEnCurso = documentoEnCurso ?? {
-          moldeNombre: moldeActivo()?.nombre ?? '',
+          // AUTO: la identidad del documento en curso es el molde que eligió el
+          // router (no el activo de localStorage) — de ahí salen el nombre de
+          // archivo y el batch del ZIP.
+          moldeNombre: actaActual.evaluacionMolde?.moldeNombre || moldeActivo()?.nombre || '',
           esperadas,
           paginas: [],
         };
@@ -311,7 +316,10 @@ function crearCaptura(
         let resumen: ResumenMoldeActa | null = null;
         try {
           const { evaluarMoldeMultipagina } = await import('../molde/evaluacion');
-          resumen = await evaluarMoldeMultipagina(paginas.map((p) => p.fotoProcesada));
+          resumen = await evaluarMoldeMultipagina(
+            paginas.map((p) => p.fotoProcesada),
+            sesion.moldeNombre,
+          );
         } catch (e) {
           // El lote es el veredicto del documento, pero su fallo no debe
           // tumbar la sesión: queda el veredicto de la última página.
