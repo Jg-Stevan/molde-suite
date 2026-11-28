@@ -89,7 +89,11 @@ describe('§5 edición de datos capturados — re-evaluación con override', () 
     const filaValor = r.resumen.campos!.find((c) => c.id === 'valor')!;
     expect(filaValor.estado).toBe('requiere_revision');
     expect(r.resumen.obligatoriosFaltantes).toContain('VALOR A PAGAR');
-    expect(r.veredicto!.status).toBe('RECHAZADA');
+    // Plan §5: el obligatorio NO quedó verificado pero tampoco hay prueba de
+    // ausencia — la lectura es incierta → decide un humano. Sigue sin poder
+    // guardarse como válido (auto-guardado bloquea EN_REVISION_HUMANA).
+    expect(r.veredicto!.status).toBe('EN_REVISION_HUMANA');
+    expect(decidirAutoGuardado({ status: r.veredicto!.status, evaluacionMolde: r.resumen }, true).autoEnviar).toBe(false);
   });
 
   test('corrección VACÍA de un obligatorio → no_encontrado (documento incompleto)', () => {

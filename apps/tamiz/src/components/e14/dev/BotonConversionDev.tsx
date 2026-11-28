@@ -28,6 +28,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useE14Store } from "@/lib/e14/store";
 import { logger } from "@/lib/logger";
+import { claveRevisionVisor } from "@/lib/e14/hash";
 import {
   abrirUrlVisor,
   fotosAConvertir,
@@ -76,14 +77,15 @@ export function BotonConversionDev() {
   }, []);
 
   const fotos = fotosAConvertir(acta, enCurso);
-  // La caché caduca con el acta o con el tamaño del lote (páginas nuevas).
-  const clave = acta ? `${acta.id}|${fotos.length}` : "";
   const sinFoto = fotos.length === 0;
   const ocupado = estado === "ocupado";
 
   async function pulsar() {
     if (!acta) return;
     setError(null);
+    // La clave se calcula AL PULSAR sobre las fotos vigentes (SHA-256):
+    // la caché queda atada a la revisión real de la imagen, no al id.
+    const clave = await claveRevisionVisor(acta.id, fotos);
 
     if (urlRef.current && claveRef.current === clave) {
       setEstado(abrirUrlVisor(urlRef.current) ? "idle" : "bloqueado");

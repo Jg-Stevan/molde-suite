@@ -115,7 +115,7 @@ import { liberarCanvas, useAnilloBestShot } from "../hooks/useAnilloBestShot";
 import { useLinterna } from "../hooks/useLinterna";
 import { useDestello } from "../hooks/useDestello";
 import { useSelectorFuente } from "../hooks/useSelectorFuente";
-import { esIOS, useSesionCamara, type CamEstado, type LiveUi } from "../hooks/useSesionCamara";
+import { capturarAlRefuerzo, esIOS, useSesionCamara, type CamEstado, type LiveUi } from "../hooks/useSesionCamara";
 
 /** Cooldown anti doble-disparo (lab §5.2 — CAPTURE_COOLDOWN_MS del core). */
 const COOLDOWN_MS = 1500;
@@ -455,6 +455,20 @@ export function ScanView() {
         // dispatch L574-589 del lab).
         void despacharArchivo(fotoBlob, true);
         return;
+      }
+      // Contrato de captura (captura-refuerzo.ts): sin original del sensor,
+      // subir el track al peldaño de 2048 antes de caer a los frames del
+      // preview (720), para no degradar el original en equipos sin takePhoto.
+      const reforzada = await capturarAlRefuerzo(videoRef.current, streamRef.current);
+      if (reforzada) {
+        const blobRefuerzo = await canvasABlob(reforzada);
+        liberarCanvas(reforzada);
+        if (blobRefuerzo) {
+          if (zsl) liberarCanvas(zsl.canvas);
+          if (snapA) liberarCanvas(snapA.canvas);
+          void despacharArchivo(blobRefuerzo, true);
+          return;
+        }
       }
       if (puedeFotoAhora && camEstado === "viva") {
         // takePhoto colgó (> 8 s) o no existe → aviso honesto del fallback

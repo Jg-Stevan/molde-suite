@@ -914,7 +914,11 @@ export function ReviewView() {
             PENDIENTE · INTENTO x DE y» salió: para un recibo era ruido, y
             repetir la foto no cambia una biblioteca sin plantilla para ese papel. */}
         {status === "EN_REVISION_HUMANA" && (
-          <div className="rounded-xl bg-amber-950/60 border border-amber-500 px-3.5 py-2.5 flex items-center gap-2.5">
+          <div
+            role="status"
+            data-testid="banner-revision"
+            className="rounded-xl bg-amber-950/60 border border-amber-500 px-3.5 py-2.5 flex items-center gap-2.5"
+          >
             <WarnTriangleIcon className="w-4 h-4 text-amber-400 shrink-0" />
             <div className="flex flex-col min-w-0">
               <span className="font-mono text-[11px] font-bold tracking-wide uppercase text-white">
